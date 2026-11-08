@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "sourceMap": false
+  },
+  "include": ["packages/*/test/**/*.ts", "packages/*/src/**/*.d.ts"]
+}

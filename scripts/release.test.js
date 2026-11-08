@@ -10,6 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
+import { releasePackages } from "./release-packages.js";
 import {
   readRegistryPackage,
   selectRelease,
@@ -343,7 +344,49 @@ test("pnpm packs once without hooks, converts workspace dependencies and passes 
   }
 });
 
-test("metadata CLI keeps the preset private and requires supported events", () => {
+test("the release registry contains exactly five renamed core packages", () => {
+  const expected = [
+    "task-protocol",
+    "task-engine",
+    "task-engine-storage",
+    "task-engine-http",
+    "task-engine-server",
+  ];
+  assert.deepEqual(
+    releasePackages.map(({ id }) => id),
+    expected,
+  );
+  for (const entry of releasePackages) {
+    assert.equal(entry.name, `@silvermoon-work/${entry.id}`);
+    assert.equal(entry.directory, `packages/${entry.id}`);
+    const value = JSON.parse(
+      readFileSync(resolve(entry.directory, "package.json"), "utf8"),
+    );
+    const selected = selectRelease(releasePackages, { packageId: entry.id });
+    validateManifest(selected, value);
+    assert.equal(value.private, undefined);
+    assert.ok(value.files.includes("LICENSE"));
+    for (const section of [
+      "dependencies",
+      "optionalDependencies",
+      "peerDependencies",
+    ]) {
+      for (const [name, version] of Object.entries(value[section] ?? {})) {
+        assert.ok(!name.startsWith("@potential-guide/"));
+        if (name.startsWith("@silvermoon-work/")) {
+          assert.ok(releasePackages.some((item) => item.name === name));
+          assert.equal(version, "workspace:*");
+        }
+      }
+    }
+    assert.equal(
+      value.devDependencies?.["@potential-guide/ipfs-content"],
+      undefined,
+    );
+  }
+});
+
+test("metadata CLI rejects unknown package IDs and unsupported events", () => {
   const command = resolve("scripts", "release.js");
   for (const env of [
     { RELEASE_EVENT: "push", RELEASE_TAG: "core-v0.0.0" },

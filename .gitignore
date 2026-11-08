@@ -3,6 +3,7 @@ dist/
 node_modules/
 *.tgz
 .turbo/
+.cache/
 
 .DS_Store
 .idea/

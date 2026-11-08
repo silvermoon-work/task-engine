@@ -1,5 +1,0 @@
-version: 1
-title: pnpm monorepo
-description:
-  TypeScript monorepo baseline with pnpm workspaces, Turborepo, shared tooling,
-  and example packages.

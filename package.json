@@ -1,22 +1,22 @@
 {
-  "name": "preset-pnpm-monorepo",
+  "name": "task-engine",
   "version": "0.0.0",
-  "description": "A strict TypeScript monorepo preset built with pnpm workspaces and Turborepo.",
+  "description": "Task Engine monorepo for the @silvermoon-work packages.",
   "keywords": [
     "typescript",
     "pnpm",
     "monorepo",
     "turborepo",
-    "preset",
-    "template"
+    "task-engine",
+    "tasks"
   ],
-  "homepage": "https://github.com/shazhou-ww/preset-pnpm-monorepo#readme",
+  "homepage": "https://github.com/silvermoon-work/task-engine#readme",
   "bugs": {
-    "url": "https://github.com/shazhou-ww/preset-pnpm-monorepo/issues"
+    "url": "https://github.com/silvermoon-work/task-engine/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/shazhou-ww/preset-pnpm-monorepo.git"
+    "url": "git+https://github.com/silvermoon-work/task-engine.git"
   },
   "license": "MIT",
   "private": true,
@@ -27,17 +27,20 @@
   "packageManager": "pnpm@11.22.0",
   "scripts": {
     "build": "turbo run build",
-    "check": "pnpm format:check && pnpm lint:release && pnpm test:release && turbo run lint typecheck test build",
+    "check": "pnpm format:check && pnpm lint:release && pnpm test:release && turbo run lint typecheck test build && pnpm typecheck:tests && pnpm lint:package",
     "clean": "turbo run clean && node -e \"require('node:fs').rmSync('.turbo', { recursive: true, force: true })\"",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format": "prettier --write . && biome format --write packages",
+    "format:check": "prettier --check . && biome format packages",
     "lint": "pnpm lint:release && turbo run lint",
     "lint:release": "eslint scripts",
+    "lint:package": "pnpm -r exec publint",
     "test": "pnpm test:release && turbo run test",
     "test:release": "node --test scripts/*.test.js",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck && pnpm typecheck:tests",
+    "typecheck:tests": "tsc -p tsconfig.test.json --pretty false"
   },
   "devDependencies": {
+    "@biomejs/biome": "catalog:",
     "@eslint/js": "catalog:",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
@@ -50,6 +53,7 @@
     "turbo": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
+    "tsx": "catalog:",
     "vitest": "catalog:"
   }
 }

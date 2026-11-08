@@ -1,0 +1,73 @@
+{
+  "name": "@silvermoon-work/task-engine",
+  "version": "0.1.0-rc.2",
+  "description": "Embedded generic task engine and bounded executor pool.",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./identity": {
+      "types": "./dist/identity.d.ts",
+      "import": "./dist/identity.js"
+    },
+    "./pool": {
+      "types": "./dist/pool.d.ts",
+      "import": "./dist/pool.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "node -e \"for (const path of ['dist', '.cache']) require('node:fs').rmSync(path, { recursive: true, force: true })\"",
+    "lint": "biome lint .",
+    "test": "tsx --test \"test/*.test.ts\"",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@helia/http": "catalog:",
+    "@helia/unixfs": "catalog:",
+    "@helia/block-brokers": "catalog:",
+    "@helia/routers": "catalog:",
+    "blockstore-core": "catalog:",
+    "multiformats": "catalog:",
+    "ipfs-unixfs-exporter": "catalog:",
+    "ipfs-unixfs-importer": "catalog:",
+    "@silvermoon-work/task-protocol": "workspace:*",
+    "semver": "catalog:"
+  },
+  "devDependencies": {
+    "@types/semver": "catalog:",
+    "@potential-guide/task-sdk": "0.1.0-rc.2",
+    "@potential-guide/pguide-task-bundle": "0.1.0-rc.2"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/silvermoon-work/task-engine.git",
+    "directory": "packages/task-engine"
+  },
+  "homepage": "https://github.com/silvermoon-work/task-engine/tree/main/packages/task-engine#readme",
+  "bugs": {
+    "url": "https://github.com/silvermoon-work/task-engine/issues"
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "name": "@silvermoon-work/task-protocol",
+  "version": "0.1.0-rc.2",
+  "description": "Pure generic task facts, projections and extension ports.",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./worker": {
+      "types": "./dist/worker.d.ts",
+      "import": "./dist/worker.js"
+    },
+    "./bundle-reference": {
+      "types": "./dist/bundle-reference.d.ts",
+      "import": "./dist/bundle-reference.js"
+    },
+    "./presentation": {
+      "types": "./dist/presentation.d.ts",
+      "import": "./dist/presentation.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "node -e \"for (const path of ['dist', '.cache']) require('node:fs').rmSync(path, { recursive: true, force: true })\"",
+    "lint": "biome lint .",
+    "test": "tsx --test \"test/*.test.ts\"",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "multiformats": "catalog:",
+    "ajv": "catalog:",
+    "yaml": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/silvermoon-work/task-engine.git",
+    "directory": "packages/task-protocol"
+  },
+  "homepage": "https://github.com/silvermoon-work/task-engine/tree/main/packages/task-protocol#readme",
+  "bugs": {
+    "url": "https://github.com/silvermoon-work/task-engine/issues"
+  }
+}

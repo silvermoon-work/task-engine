@@ -3,19 +3,35 @@ packages:
   - packages/*
 
 catalog:
+  "@biomejs/biome": 2.5.15
   "@eslint/js": ^10.0.1
-  "@types/node": ^26.6.6
+  "@types/node": 22.20.5
+  "@types/semver": 7.8.0
   "@vitest/coverage-v8": ^5.0.4
   eslint: ^10.14.0
   globals: ^17.13.0
   github-ci-verify: 0.1.0
   prettier: ^3.9.10
   publint: ^0.3.25
-  semver: ^7.8.5
+  semver: 7.8.5
   turbo: ^2.11.10
-  typescript: ^6.0.3
+  typescript: 5.9.3
   typescript-eslint: ^8.72.1
   vitest: ^5.0.4
+  tsx: 4.23.15
+  ajv: 8.20.0
+  yaml: 2.9.1
+  "@helia/http": 3.0.4
+  "@helia/unixfs": 8.0.9
+  "@helia/block-brokers": 5.2.4
+  "@helia/routers": 4.0.6
+  blockstore-core: 7.0.1
+  multiformats: 14.0.5
+  ipfs-unixfs-exporter: 16.2.3
+  ipfs-unixfs-importer: 17.1.1
+
+allowBuilds:
+  esbuild: true
 
 minimumReleaseAgeExclude:
   - "@turbo/darwin-64@2.11.8"
@@ -26,3 +42,6 @@ minimumReleaseAgeExclude:
   - "@turbo/windows-arm64@2.11.8"
   - turbo@2.11.8
   - github-ci-verify@0.1.0
+  - "@potential-guide/pguide-task-bundle@0.1.0-rc.2"
+  - "@potential-guide/task-protocol@0.1.0-rc.2"
+  - "@potential-guide/task-sdk@0.1.0-rc.2"

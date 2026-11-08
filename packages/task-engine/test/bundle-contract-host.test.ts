@@ -1,0 +1,454 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import test from "node:test";
+import { compileTaskBundle } from "@potential-guide/pguide-task-bundle/build";
+import { type Json, taskSchemaUri } from "@silvermoon-work/task-protocol";
+import { precompileCases } from "../../task-protocol/test/precompile-fixtures.js";
+import { createTaskEngine, newId } from "../src/index.js";
+import { MemoryIpfsClient, MemoryStore } from "../src/testing.js";
+import { TypeSupervisor, type RunOutcomeReport, type TypeChannel } from "../src/type-supervisor.js";
+
+const object = { type: "object" };
+const text = {
+  type: "object",
+  properties: { text: { type: "string" } },
+  required: ["text"],
+  additionalProperties: false,
+};
+const declaration = {
+  $schema: taskSchemaUri,
+  name: "Engine contracts",
+  runtime: { type: "node", minVersion: "22.13.0" },
+  entry: "worker.cjs",
+  binary: [],
+  inputSchema: object,
+  resultSchema: text,
+  messageSchema: false,
+};
+async function fixture(action: (directory: string) => Promise<void>) {
+  const directory = resolve(".cache", `host-contract-${randomUUID()}`);
+  await mkdir(directory, { recursive: true });
+  try {
+    await action(directory);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+async function until(check: () => boolean) {
+  const end = performance.now() + 15000;
+  while (!check()) {
+    if (performance.now() > end) throw new Error("Host contract outcome/reclamation timed out.");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+async function compile(directory: string, source: string, schemas: Record<string, unknown> = {}) {
+  const entry = join(directory, "main.ts");
+  await writeFile(entry, source);
+  return compileTaskBundle({
+    declaration: { ...declaration, ...schemas },
+    entry,
+    entryMode: "explicit",
+    outDirectory: join(directory, "bundle"),
+  });
+}
+type Built = Awaited<ReturnType<typeof compile>>;
+async function supervise(
+  built: Built,
+  input: Json,
+  message?: Json,
+  rejectInput = false,
+  rejectMessage = false,
+) {
+  const outcomes: RunOutcomeReport[] = [],
+    checkpoints: Json[] = [],
+    confirmations: string[] = [];
+  let exited = false,
+    released = false,
+    dispatched = false,
+    lost = false;
+  const channel: TypeChannel = {
+    async progress() {},
+    async complete() {},
+    async failed() {},
+    async checkpoint(_id, value) {
+      checkpoints.push(value);
+    },
+    async outcome(_id, value) {
+      outcomes.push(value);
+    },
+    async dispatch() {
+      dispatched = true;
+    },
+    async confirm(_run, _task, id) {
+      confirmations.push(id);
+    },
+    async exited() {
+      exited = true;
+    },
+    released() {
+      released = true;
+    },
+    lost() {
+      lost = true;
+    },
+  };
+  const supervisor = new TypeSupervisor(
+    {
+      type: built.cid,
+      version: "1",
+      environment: "host-contract",
+      ...built.resolved,
+      bundle: { cid: built.cid, declaration: built.resolved },
+      module: "",
+      exportName: "",
+      configuration: {},
+      getBundleSource: () => built.contents.get("worker.cjs")!.toString(),
+      async readBundle() {
+        throw new Error("No resources in this fixture.");
+      },
+    },
+    channel,
+    { heartbeatMs: 20, healthMs: 5000, maxInFlight: 8, maxPayloadBytes: 65536 },
+  );
+  try {
+    if (rejectInput) {
+      await assert.rejects(supervisor.run("run", input, "scope"), { code: "invalid_input" });
+      assert.equal(dispatched, false);
+      assert.equal(outcomes.length, 0);
+      return;
+    }
+    await supervisor.run("run", input, "scope");
+    if (message !== undefined || rejectMessage) {
+      const value = {
+        messageId: "message",
+        taskId: "task",
+        caller: { scope: "scope", subject: "actor" },
+        payload: message!,
+      };
+      if (rejectMessage) {
+        assert.throws(() => supervisor.message("run", value), { code: "invalid_input" });
+        supervisor.cancel("run");
+      } else supervisor.message("run", value);
+    }
+    await until(() => released || lost);
+    assert.equal(lost, false);
+    assert.equal(exited, true, "release must follow physical exit");
+    assert.equal(released, true);
+    if (!rejectMessage) assert.equal(outcomes.length, 1);
+    if (rejectMessage) assert.equal(confirmations.length, 0);
+    return { outcomes, checkpoints };
+  } finally {
+    await supervisor.close();
+  }
+}
+
+for (const scenario of precompileCases)
+  test(`Engine alone enforces shared schema data at every boundary: ${scenario.name}`, async () => {
+    await fixture(async (directory) => {
+      const boxed = {
+        type: "object",
+        properties: { value: scenario.schema },
+        required: ["value"],
+        additionalProperties: false,
+        ...(scenario.schema && typeof scenario.schema === "object" && "$defs" in scenario.schema
+          ? { $defs: scenario.schema.$defs }
+          : {}),
+      };
+      for (const role of ["input", "result", "message"]) {
+        const built = await compile(
+          directory,
+          role === "message"
+            ? 'import {runTask} from "@potential-guide/task-sdk"; runTask(async (_input, context) => {for await(const message of context.messages){await message.accept();return message.payload;}return null;});'
+            : 'import {runTask} from "@potential-guide/task-sdk"; runTask(async input => input.value);',
+          {
+            inputSchema: role === "input" ? boxed : object,
+            resultSchema: role === "result" ? scenario.schema : true,
+            messageSchema: role === "message" ? scenario.schema : false,
+          },
+        );
+        for (const value of scenario.good) {
+          const observed = await supervise(
+            built,
+            { value: value as Json },
+            role === "message" ? (value as Json) : undefined,
+          );
+          assert.deepEqual(observed?.outcomes, [{ kind: "completed", result: value }]);
+        }
+        for (const value of scenario.bad) {
+          const observed = await supervise(
+            built,
+            { value: value as Json },
+            role === "message" ? (value as Json) : undefined,
+            role === "input",
+            role === "message",
+          );
+          if (role === "result")
+            assert.deepEqual(observed?.outcomes, [
+              {
+                kind: "failed",
+                error: { code: "invalid_input", message: "Input does not satisfy inputSchema." },
+              },
+            ]);
+        }
+      }
+    });
+  });
+
+for (const mode of [
+  "result",
+  "checkpoint",
+  "swallowed-checkpoint",
+  "failure-evidence",
+  "valid-evidence",
+  "malformed-json",
+  "cyclic-result",
+  "date-result",
+  "bigint-result",
+  "oversized-result",
+  "deep-result",
+  "uncloneable-result",
+  "uncloneable-evidence",
+  "swallowed-uncloneable-checkpoint",
+])
+  test(`real Engine persists only validated output and reclaims the Worker: ${mode}`, async () => {
+    await fixture(async (directory) => {
+      const code = {
+        result: "return {text: 1};",
+        checkpoint: 'await context.checkpoint({text: 1}); return {text: "valid"};',
+        "swallowed-checkpoint":
+          'try {await context.checkpoint({text: 1});} catch {} return {text: "valid"};',
+        "failure-evidence": 'throw new RunFailure("business", "business failure", {text: 1});',
+        "valid-evidence":
+          'throw new RunFailure("business", "business failure", {text: "evidence"});',
+        "malformed-json": "return undefined;",
+        "cyclic-result": "const value={text:'cycle'}; value.self=value; return value;",
+        "date-result": "return new Date();",
+        "bigint-result": "return {text:1n};",
+        "oversized-result": "return {text:'x'.repeat(65536)};",
+        "deep-result":
+          "let value={text:'nested'}; for(let i=0;i<70;i++) value={child:value}; return value;",
+        "uncloneable-result": "return {text:()=>{}};",
+        "uncloneable-evidence":
+          'throw new RunFailure("business", "business failure", {text:()=>{}});',
+        "swallowed-uncloneable-checkpoint":
+          'try {await context.checkpoint({text:()=>{}});} catch {} return {text:"valid"};',
+      }[mode]!;
+      const built = await compile(
+        directory,
+        `import {runTask,RunFailure} from "@potential-guide/task-sdk"; runTask(async(input,context)=>{${code}});`,
+      );
+      const client = new MemoryIpfsClient();
+      const cid = await client.import(built.contents);
+      const store = new MemoryStore();
+      const engine = createTaskEngine({
+        store,
+        ipfsClient: client,
+        authorize: () => true,
+        limits: { maxConcurrent: 1 },
+      });
+      const caller = { scope: "scope", subject: "actor" };
+      await engine.start();
+      try {
+        const requestId = newId();
+        let decision = await engine.submit({ requestId, bundle: cid, timeoutMs: 15000 }, caller);
+        while (decision.status === "preparing")
+          decision = await engine.getRequestStatus(requestId, { waitMs: 1000 }, caller);
+        assert.equal(decision.status, "accepted", JSON.stringify(decision));
+        if (decision.status !== "accepted") throw new Error("Expected accepted request.");
+        const taskId = decision.taskId;
+        await until(() => engine.getTask(taskId, caller).stage === "failed");
+        const task = engine.getTask(taskId, caller);
+        const runId = task.run!.runId;
+        await until(() => !!engine.getRun(runId, caller).reclaimedAt);
+        const run = engine.getRun(runId, caller);
+        assert.equal(
+          task.error?.code,
+          mode === "valid-evidence"
+            ? "business"
+            : mode === "oversized-result"
+              ? "payload_too_large"
+              : [
+                    "malformed-json",
+                    "cyclic-result",
+                    "date-result",
+                    "bigint-result",
+                    "deep-result",
+                    "uncloneable-result",
+                    "uncloneable-evidence",
+                    "swallowed-uncloneable-checkpoint",
+                  ].includes(mode)
+                ? "invalid_payload"
+                : "invalid_input",
+        );
+        assert.equal(run.stage, "failed");
+        assert.ok(run.exit);
+        assert.equal(run.cleanupUnknown, undefined);
+        assert.ok(run.reclaimedAt);
+        if (mode === "valid-evidence") assert.deepEqual(task.result, { text: "evidence" });
+        else assert.equal(task.result, undefined);
+        const persisted = store.read().facts.runs[runId]!;
+        assert.notDeepEqual(persisted.result, { text: 1 });
+        assert.ok(
+          !persisted.evidence?.some((entry) => JSON.stringify(entry.value) === '{"text":1}'),
+        );
+        if (mode === "result") {
+          const nextRequest = newId();
+          let next = await engine.submit(
+            { requestId: nextRequest, bundle: cid, attempt: 2, timeoutMs: 15000 },
+            caller,
+          );
+          while (next.status === "preparing")
+            next = await engine.getRequestStatus(nextRequest, { waitMs: 1000 }, caller);
+          assert.equal(next.status, "accepted");
+          if (next.status !== "accepted") throw new Error("Expected reusable capacity.");
+          const nextTask = next.taskId;
+          await until(() => engine.getTask(nextTask, caller).stage === "failed");
+          const nextRun = engine.getTask(nextTask, caller).run!.runId;
+          assert.notEqual(nextRun, runId);
+          await until(() => !!engine.getRun(nextRun, caller).reclaimedAt);
+        }
+      } finally {
+        await engine.close();
+        store.close();
+      }
+    });
+  });
+
+test("real Engine rejects input and message before dispatch or persistence", async () => {
+  await fixture(async (directory) => {
+    const marker = join(directory, "callback.txt");
+    const built = await compile(
+      directory,
+      `
+import {runTask} from "@potential-guide/task-sdk";
+import {appendFileSync} from "node:fs";
+runTask(async(input,context)=>{
+ appendFileSync(${JSON.stringify(marker)},"callback\\n");
+ for await(const message of context.messages){
+    appendFileSync(${JSON.stringify(marker)},"message\\n");
+    await message.accept();return message.payload;
+ }
+ return input;
+});`,
+      { inputSchema: text, messageSchema: text },
+    );
+    const client = new MemoryIpfsClient(),
+      store = new MemoryStore();
+    const cid = await client.import(built.contents);
+    const engine = createTaskEngine({ store, ipfsClient: client, authorize: () => true });
+    const caller = { scope: "scope", subject: "actor" };
+    await engine.start();
+    const submit = async (value: unknown) => {
+      const requestId = newId();
+      let decision = await engine.submit(
+        { requestId, bundle: cid, text: value, timeoutMs: 15000 },
+        caller,
+      );
+      while (decision.status === "preparing")
+        decision = await engine.getRequestStatus(requestId, { waitMs: 1000 }, caller);
+      return decision;
+    };
+    try {
+      assert.equal((await submit(1)).status, "rejected");
+      await assert.rejects(readFile(marker), { code: "ENOENT" });
+      const accepted = await submit("valid");
+      assert.equal(accepted.status, "accepted");
+      if (accepted.status !== "accepted") throw new Error("Expected accepted request.");
+      const id = accepted.taskId;
+      await until(() => engine.getTask(id, caller).stage === "running");
+      const badMessage = newId();
+      assert.throws(() => engine.sendTaskMessage(id, badMessage, { text: 1 }, caller), {
+        code: "invalid_input",
+      });
+      assert.equal(Object.keys(store.read().facts.messages).length, 0);
+      engine.sendTaskMessage(id, newId(), { text: "message" }, caller);
+      await until(() => engine.getTask(id, caller).stage === "completed");
+      const task = engine.getTask(id, caller);
+      await until(() => !!engine.getRun(task.run!.runId, caller).reclaimedAt);
+      assert.deepEqual(task.result, { text: "message" });
+      assert.equal(await readFile(marker, "utf8"), "callback\nmessage\n");
+    } finally {
+      await engine.close();
+      store.close();
+    }
+  });
+});
+
+for (const oversized of [false, true])
+  test(`host remembers a rejected ${oversized ? "oversized" : "schema-invalid"} checkpoint even if a custom Worker ignores its ACK`, async () => {
+    await fixture(async (directory) => {
+      const built = await compile(
+        directory,
+        `
+import {parentPort,workerData} from "node:worker_threads";
+const {generation,bundle}=workerData;
+parentPort.postMessage({generation,kind:"ready",value:{$schema:bundle.declaration.$schema,cid:bundle.cid,inputSchema:bundle.declaration.inputSchema,resultSchema:bundle.declaration.resultSchema,messageSchema:bundle.declaration.messageSchema}});
+parentPort.on("message",m=>{
+ if(m.kind==="run")parentPort.postMessage({generation,runId:m.runId,id:1,kind:"checkpoint",value:{text:${oversized ? '"x".repeat(65536)' : "1"}}});
+ if(m.kind==="ack"&&m.id===1)parentPort.postMessage({generation,runId:"run",id:2,kind:"complete",value:{text:"valid"}});
+ if(m.kind==="ack"&&m.id===2){parentPort.postMessage({generation,runId:"run",kind:"released"});parentPort.close();}
+});
+`,
+      );
+      const result = await supervise(built, {});
+      assert.deepEqual(result?.checkpoints, []);
+      assert.deepEqual(result?.outcomes, [
+        {
+          kind: "failed",
+          error: oversized
+            ? { code: "payload_too_large", message: "JSON payload exceeds byte limit." }
+            : { code: "invalid_input", message: "Input does not satisfy inputSchema." },
+        },
+      ]);
+    });
+  });
+
+test("Engine rejects diagnostic and progress payloads through ACK without poisoning later log IDs", async () => {
+  await fixture(async (directory) => {
+    const built = await compile(
+      directory,
+      `
+  import {runTask} from "@potential-guide/task-sdk";
+  runTask(async(_input,context)=>{
+   const codes=[];
+   for(const value of [
+     {level:"info",message:"bad",fields:{fn:()=>{}}},
+     {level:"invalid",message:"bad"},
+     {level:"info",message:"large",fields:{text:"x".repeat(1048576)}},
+   ]) {
+     try {await context.log(value);throw Error("Invalid log accepted");}
+     catch(error) {if(!error.code)throw error;codes.push(error.code);}
+   }
+   const receipt=await context.log({level:"info",message:"valid"});
+   return {codes,receipt};
+  });`,
+      { resultSchema: true },
+    );
+    const result = await supervise(built, {});
+    assert.deepEqual(result?.outcomes, [
+      {
+        kind: "completed",
+        result: {
+          codes: ["invalid_payload", "invalid_log", "invalid_log"],
+          receipt: { state: "unavailable", reason: "disabled" },
+        },
+      },
+    ]);
+    const progress = await compile(
+      directory,
+      `
+  import {runTask} from "@potential-guide/task-sdk";
+  runTask(async(_input,context)=>{
+   try {await context.progress({stage:"not-a-stage"});}catch{}
+   return {text:"valid"};
+  });`,
+    );
+    const rejected = await supervise(progress, {});
+    assert.equal(rejected?.outcomes[0]?.kind, "failed");
+    const outcome = rejected?.outcomes[0];
+    if (outcome?.kind !== "failed") assert.fail("Invalid progress must fail after its NACK.");
+    assert.equal(outcome.error.code, "invalid_progress");
+  });
+});

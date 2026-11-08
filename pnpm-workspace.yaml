@@ -24,7 +24,7 @@ catalog:
   "@helia/http": 3.0.4
   "@helia/unixfs": 8.0.9
   "@helia/block-brokers": 5.2.4
-  "@helia/routers": 4.0.6
+  "@helia/routers": 5.1.1
   blockstore-core: 7.0.1
   multiformats: 14.0.5
   ipfs-unixfs-exporter: 16.2.3

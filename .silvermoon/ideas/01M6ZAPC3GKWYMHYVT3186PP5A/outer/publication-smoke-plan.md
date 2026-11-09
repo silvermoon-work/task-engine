@@ -61,6 +61,19 @@ Publishing 的发布 URL 替换为只读 mirror 后假装仍可发布，也不�
 override 及 lockfile download URL，保留合法私有 scope 配置，不下载官方 registry
 URL。
 
+## 本地 CAR 的发布验收
+
+包含 `--car`
+的新 CLI 必须从 registry 安装后重新验证；现有 builder 发布结果不证明 CLI 已发布。本地模式复用
+`@silvermoon-work/task-builder@0.1.0-canary-261109-2` 的 `./car`
+runtime 依赖，不需要安装 builder
+CLI 来运行 CAR，也不新增独立 CAR 格式。发布时确保 packed
+dependency 与该已发布核心版本一致。
+
+smoke 增加 `task-engine run --car <file> --input <file>`
+的单任务和多层子任务场景，证明不需要 Gateway、用户宿主脚本或网络 fallback。验证完整校验、expected
+CID 不符、损坏内容、默认子权限拒绝、业务失败、整次超时、中断，以及最后的文件句柄和内存释放。还需确保 CID/Gateway 路径兼容，没有将 CAR 路径变成任务身份。
+
 ## 当前已验证的发布前置
 
 2026-11-09 已独立安装并验证新发布的 builder `0.1.0-canary-261109-2` 与 builder

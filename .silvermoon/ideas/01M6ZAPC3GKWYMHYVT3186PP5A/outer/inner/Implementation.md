@@ -7,6 +7,12 @@ engine 的终结性 `drain({signal?})`、公共 `@silvermoon-work/task-engine-cl
 launcher。公开包携带薄 bin，满足真实 registry 安装后的命令入口，但没有第二套 engine、HTTP
 service 或后台调度协议。
 
+新增本地 `run --car <file> --input <file|->`
+入口，完整校验后将唯一根 CID 与 CAR 只读块源交给同一个
+`runBundle`；不另起 Gateway，不需要用户编写宿主脚本。复用 builder 的 `./car`
+入口并可选检查
+`--expected-cid`，不改变 Gateway/CID 的既有执行协议。文件、内存、取消和整次预算均由 CLI 管理。
+
 准入、生命周期与资源证明见
 [完成性证明](completion-proof.md)；使用参数、输出和所有权见
 [CLI 文档](../../../../../packages/task-engine-cli/README.md)。
@@ -22,7 +28,8 @@ Request、未完成 Task（包括未来资格）、Run/分配、在途准入及�
 
 ### I-S02: 组装 CLI 与退出流程
 
-命令接受一个 Bundle 根 CID、JSON 对象及显式 Gateway；配置和输入无效先拒绝。子任务默认拒绝，`--allow-children`
+命令接受 Bundle 根 CID + 显式 Gateway，或本地 CAR 普通文件，并接受 JSON 对象；两种内容源互斥，配置和输入无效先拒绝。CAR 的哈希、精确 DAG、Bundle/Schema/资源完整校验和可选 expected
+CID 检查在启动 Worker 前完成，不做网络 fallback。子任务默认拒绝，`--allow-children`
 明确授权已验证父 Bundle 子树，保留继承身份及深度/并发/总量/时间预算，不允许任意 detached
 CID 工作。stdout 单行 JSON 汇总全体 Task、Run 回收事实及拒绝；stderr 诊断；退出码 0/2/3/4/5/6/7/130/143 区分成功、无效、拒绝、失败/停止、超时、基础设施错误、清理未知和两种信号。提供根期限与可选整次预算。CLI 拥有并关闭其临时 Gateway
 client；共享节点、源 client 与 pin 不归 engine 所有。新增公开包映射
@@ -41,7 +48,7 @@ smoke 属于现实世界验证。
 
 `drain.test.ts`
 证明根 preparation、队列末尾子 preparation、两层并行派生和未来资格均阻止提前完成；`cli.test.ts`
-证明 1/3/7 个 Task 全部成功、所有 Run 已回收，进程在 watchdog 前自动退出并返回 0。证明对应代码及精确 runner 见完成性证明。
+证明 Gateway 下 1/3/7 个 Task、本地 CAR 下 1/7 个 Task 全部成功、所有 Run 已回收，进程在 watchdog 前自动退出并返回 0。CAR 路径不产生 Gateway 请求。证明对应代码及精确 runner 见完成性证明。
 
 ### I-AC02: 结果与清理可信
 

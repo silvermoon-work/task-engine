@@ -269,6 +269,9 @@ importers:
 
   packages/task-engine-cli:
     dependencies:
+      '@silvermoon-work/task-builder':
+        specifier: workspace:*
+        version: link:../task-builder
       '@silvermoon-work/task-engine':
         specifier: workspace:*
         version: link:../task-engine

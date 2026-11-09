@@ -54,13 +54,20 @@ Failures go to stderr, never success-shaped stdout. JSON errors use
 
 ## Init composition
 
-Core init returns a package-manager-neutral template tree with Task sources,
-JSON contract, shared text Schema, greeting resource and private SDK package.
+Core init returns a package-manager-neutral private project with Task sources,
+JSON contract, shared text Schema, greeting resource and a dependency on
+[@silvermoon-work/task-sdk](../task-sdk/README.md).
 The CLI adds:
 
 - build/CAR/check npm scripts referencing the `task-builder` binary;
 - direct dev dependencies on **both** CLI and core;
 - the pnpm version, scoped esbuild approval and release-age exceptions.
+
+The current workspace template uses the migrated SDK candidate
+`0.1.0-canary-261109-1`; it is not yet published. The previously published
+CLI/core still generate the old SDK template. Before new publication,
+`createCliTaskProject({ sdkVersion: "file:task-sdk.tgz" })` selects a local SDK
+tarball. SDK/protocol release-age exceptions now use `@silvermoon-work` names.
 
 Default CLI/core versions come from the installed package metadata, not a moving
 `canary` tag. `--cli-version` selects the CLI dependency. An explicit

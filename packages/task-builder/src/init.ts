@@ -20,7 +20,7 @@ export function createTaskProject(options: TaskProjectOptions = {}): ReadonlyFil
     throw new Error("Task project name must be a valid lowercase npm package name.");
   const taskName = options.taskName ?? "Echo";
   const minVersion = options.minRuntimeVersion ?? "22.13.0";
-  const sdkVersion = options.sdkVersion ?? "0.1.0-rc.2";
+  const sdkVersion = options.sdkVersion ?? "0.1.0-canary-261109-1";
   if (!sdkVersion.trim() || [...sdkVersion].some((char) => char.charCodeAt(0) < 32))
     throw new Error("Dependency specifiers must be nonempty without control characters.");
   validateTaskBundle({
@@ -43,7 +43,7 @@ export function createTaskProject(options: TaskProjectOptions = {}): ReadonlyFil
         private: true,
         type: "module",
         engines: { node: ">=22.13.0" },
-        dependencies: { "@potential-guide/task-sdk": sdkVersion },
+        dependencies: { "@silvermoon-work/task-sdk": sdkVersion },
       },
       null,
       2,
@@ -85,7 +85,7 @@ export function createTaskProject(options: TaskProjectOptions = {}): ReadonlyFil
   return \`\${prefix.trim()} \${text}\`;
 }
 `,
-    "src/main.ts": `import { runTask } from "@potential-guide/task-sdk";
+    "src/main.ts": `import { runTask } from "@silvermoon-work/task-sdk";
 import { greet } from "./helper.js";
 
 runTask<{ text: string }, { text: string; bytes: number; chunks: number }>(

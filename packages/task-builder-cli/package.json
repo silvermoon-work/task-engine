@@ -46,7 +46,7 @@
   },
   "devDependencies": {
     "@silvermoon-work/task-protocol": "workspace:*",
-    "@potential-guide/task-sdk": "catalog:"
+    "@silvermoon-work/task-sdk": "workspace:*"
   },
   "repository": {
     "type": "git",

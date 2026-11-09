@@ -219,7 +219,7 @@ runTask(async (input, context) => {
           };
         if (options.binding && bindings.has(args.path))
           return {
-            contents: `export const binding = ${JSON.stringify({ declaration: options.binding })};`,
+            contents: `export const binding = JSON.parse(${JSON.stringify(JSON.stringify({ declaration: options.binding }))});`,
             loader: "js",
           };
         const path = logicalPath(args.path);

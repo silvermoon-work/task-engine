@@ -152,6 +152,14 @@ test("CLI init, build, CAR and check compose without installs or the old author 
     assert.ok(result.files.includes("src/main.ts"));
     assert.ok(!(await readdir(project)).includes("node_modules"));
     const manifest = await readFile(join(project, "package.json"));
+    const packageJson = JSON.parse(manifest.toString());
+    assert.deepEqual(packageJson.dependencies, {
+      "@silvermoon-work/task-sdk": "0.1.0-canary-261109-1",
+    });
+    assert.match(
+      await readFile(join(project, "src", "main.ts"), "utf8"),
+      /from "@silvermoon-work\/task-sdk"/,
+    );
     await assert.rejects(execute(process.execPath, [cli, "init", project]), /EEXIST/);
     assert.deepEqual(await readFile(join(project, "package.json")), manifest);
     const repository = resolve("..", "..");

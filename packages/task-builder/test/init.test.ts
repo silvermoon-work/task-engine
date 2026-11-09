@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { createTaskProject } from "../src/init.js";
 import { memoryTree, readBytes } from "../src/tree.js";
 
@@ -15,7 +16,14 @@ test("init returns a deterministic owned task template without CLI or package-ma
   assert.equal(manifest.name, "@example/echo");
   assert.equal(manifest.private, true);
   assert.equal(manifest.devDependencies, undefined);
-  assert.equal(manifest.dependencies["@potential-guide/task-sdk"], "0.1.0-rc.2");
+  const sdkManifest = JSON.parse(
+    await readFile(new URL("../../task-sdk/package.json", import.meta.url), "utf8"),
+  );
+  assert.deepEqual(manifest.dependencies, { "@silvermoon-work/task-sdk": sdkManifest.version });
+  assert.match(
+    Buffer.from(await readBytes(tree, "src/main.ts", 65_536)).toString(),
+    /import \{ runTask \} from "@silvermoon-work\/task-sdk"/,
+  );
   assert.equal(manifest.scripts, undefined);
   assert.equal(manifest.packageManager, undefined);
   const expected = Buffer.from(bytes);
@@ -30,13 +38,13 @@ test("init returns a deterministic owned task template without CLI or package-ma
 
 test("init accepts explicit dependency specs and rejects unsafe configuration", async () => {
   const tree = createTaskProject({
-    sdkVersion: "0.1.0-rc.2",
+    sdkVersion: "file:task-sdk.tgz",
     taskName: "Custom task",
   });
   const manifest = JSON.parse(
     Buffer.from(await readBytes(tree, "package.json", 65_536)).toString(),
   );
-  assert.equal(manifest.dependencies["@potential-guide/task-sdk"], "0.1.0-rc.2");
+  assert.deepEqual(manifest.dependencies, { "@silvermoon-work/task-sdk": "file:task-sdk.tgz" });
   for (const name of [
     "",
     "Uppercase",

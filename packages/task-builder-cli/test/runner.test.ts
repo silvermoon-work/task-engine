@@ -110,18 +110,25 @@ test("CLI decorates the neutral template with exact dependency specs and optiona
     name: "@example/cli-task",
     cliVersion: "file:cli.tgz",
     builderVersion: "file:core.tgz",
+    sdkVersion: "file:sdk.tgz",
   });
   const manifest = JSON.parse(
     Buffer.from(await readBytes(tree, "package.json", 65_536)).toString(),
   );
   assert.equal(manifest.devDependencies["@silvermoon-work/task-builder-cli"], "file:cli.tgz");
   assert.equal(manifest.devDependencies["@silvermoon-work/task-builder"], "file:core.tgz");
+  assert.deepEqual(manifest.dependencies, { "@silvermoon-work/task-sdk": "file:sdk.tgz" });
   assert.equal(manifest.pnpm, undefined);
   const config = parse(
     Buffer.from(await readBytes(tree, "pnpm-workspace.yaml", 65_536)).toString(),
   );
   assert.equal(config.overrides["@silvermoon-work/task-builder"], "file:core.tgz");
   assert.ok(config.minimumReleaseAgeExclude.includes("@silvermoon-work/task-builder-cli"));
+  assert.ok(config.minimumReleaseAgeExclude.includes("@silvermoon-work/task-sdk"));
+  assert.ok(config.minimumReleaseAgeExclude.includes("@silvermoon-work/task-protocol"));
+  assert.ok(
+    config.minimumReleaseAgeExclude.every((name: string) => !name.startsWith("@potential-guide/")),
+  );
   assert.equal(manifest.scripts.car, "task-builder car dist bundle.car --cid-file bundle.cid");
   assert.ok((await tree.list("")).some(({ name }) => name === "pnpm-workspace.yaml"));
   const defaultTree = await createCliTaskProject();

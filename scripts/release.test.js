@@ -259,7 +259,10 @@ test("registry errors fail closed, and only HTTP 404 means a missing package", a
   );
   assert.deepEqual(
     await readRegistryPackage("@example/core", async (url) => {
-      assert.equal(url, "https://registry.npmjs.org/%40example%2Fcore");
+      assert.equal(
+        url,
+        "https://mirrors.cloud.tencent.com/npm/%40example%2Fcore",
+      );
       return { ok: true, json: async () => ({ versions: { "1.2.3": {} } }) };
     }),
     { versions: { "1.2.3": {} } },
@@ -418,6 +421,7 @@ test("the release registry contains the core packages, builder CLI and finite ex
     "task-builder-cli",
     "task-builder",
     "task-protocol",
+    "task-sdk",
     "task-engine",
     "task-engine-cli",
     "task-engine-storage",

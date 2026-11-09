@@ -61,7 +61,7 @@
   },
   "devDependencies": {
     "@potential-guide/pguide-task-bundle": "catalog:",
-    "@potential-guide/task-sdk": "catalog:"
+    "@silvermoon-work/task-sdk": "workspace:*"
   },
   "repository": {
     "type": "git",

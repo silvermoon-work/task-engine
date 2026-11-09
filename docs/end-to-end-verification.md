@@ -10,7 +10,9 @@ service、认证、SQLite 数据库或任务轮询。Windows、macOS、Linux 使
   提供 init/build/car/check。
 - `@silvermoon-work/task-engine-cli` 提供命令和可复用的 `runBundle`；它依赖包含
   `drain`、公开 `MemoryStore` 与 Gateway `close` 的新版 engine。
-- SDK 使用所选模板声明的兼容依赖；不需要额外的旧 build、CAR 或 artifact 工具。
+- SDK 已迁入本仓库；验证迁移结果时，所选模板必须声明兼容的
+  `@silvermoon-work/task-sdk`，不能以旧 scope
+  SDK 的成功运行代替迁移验收。不需要额外的旧 build、CAR 或 artifact 工具。
 
 本指南不指定 registry、发布 channel 或版本号。选择已发布且相互兼容、具备本文所需命令与 API 的包，将命令中的版本占位替换为本次验证选择的版本，并保留安装 lockfile。占位字符串不是可直接执行的版本；不要把未包含目标能力的包当作验证对象。本地 tarball 只算开发验证，不算已发布包 smoke
 test；不要在本流程里发包或推送 tag。
@@ -127,6 +129,12 @@ node -e "require('node:fs').writeFileSync(require('node:path').join('assets','gr
 
 此路径要求 checkout 同时包含所需 builder 与 engine
 CLI 实现。只想复现已发布包 smoke test 时，不使用此节，不用本地依赖兜底。
+
+如果目标模板所需 SDK 或 protocol 尚未发布，先构建并打包相应 workspace，通过
+`createCliTaskProject` 的 `sdkVersion`、`builderVersion`、`cliVersion` 指定本地
+`file:` 包，并在生成项目的 pnpm
+overrides 中将 SDK/protocol 依赖指向对应本地 tarball。此时不要直接用下面默认 init 的依赖安装命令请求不存在的发布版本。详细选项见
+[builder CLI 文档](../packages/task-builder-cli/README.md)。该路径只证明本地集成，不证明 SDK 或其依赖已发布。
 
 ```text
 pnpm install

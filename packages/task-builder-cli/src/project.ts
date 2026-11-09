@@ -97,8 +97,8 @@ export async function createCliTaskProject(
         minimumReleaseAgeExclude: [
           "@silvermoon-work/task-builder-cli",
           "@silvermoon-work/task-builder",
-          "@potential-guide/task-sdk",
-          "@potential-guide/task-protocol@0.1.0-rc.2",
+          "@silvermoon-work/task-sdk",
+          "@silvermoon-work/task-protocol",
         ],
       }),
     ],

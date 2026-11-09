@@ -12,6 +12,7 @@ scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节�
 | 包                                                                               | 职责                                       |
 | -------------------------------------------------------------------------------- | ------------------------------------------ |
 | [@silvermoon-work/task-protocol](./packages/task-protocol/README.md)             | 任务事实、协议、投影及 Bundle 契约         |
+| [@silvermoon-work/task-sdk](./packages/task-sdk/README.md)                       | Worker 运行时与作者回调、上下文类型        |
 | [@silvermoon-work/task-engine](./packages/task-engine/README.md)                 | 嵌入式引擎、任务协调及执行池               |
 | [@silvermoon-work/task-engine-storage](./packages/task-engine-storage/README.md) | SQLite 持久化                              |
 | [@silvermoon-work/task-engine-http](./packages/task-engine-http/README.md)       | 可挂载 HTTP API 与 SSE                     |
@@ -20,16 +21,16 @@ scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节�
 | [@silvermoon-work/task-builder-cli](./packages/task-builder-cli/README.md)       | Commander 命令交互、本地文件适配与模板组装 |
 | [@silvermoon-work/task-engine-cli](./packages/task-engine-cli/README.md)         | 隔离域内嵌运行、全体耗尽与自动退出         |
 
-SDK、Web UI、pguide
-CLI 和 Check/Probe 包不在本次提取范围。新增 task-builder 不依赖 pguide 命令协议：模块通过抽象文件树解析，资源按需流式读取；提供独立
+Web UI、pguide CLI 和 Check/Probe 包不在本次提取范围。Task
+SDK 已迁入，保留原 Worker 运行时与 API，仅依赖本仓库 task-protocol；init 模板与作者入口使用
+`@silvermoon-work/task-sdk`。SDK 候选版本尚未发布，不能用旧 builder 的发布验证冒充新模板的安装验证。新增 task-builder 不依赖 pguide 命令协议：模块通过抽象文件树解析，资源按需流式读取；提供独立
 `init` / `car` export 提供模板文件树及有界流式 CAR 编码/检查。核心不含 CLI
 binary 或宿主文件系统适配；独立 task-builder-cli 库提供 `task-builder`
 命令、Commander 交互及本地写入。构建输出资源依赖输入树生命周期，完整校验需消费全部流。详见
-[Task Builder](./packages/task-builder/README.md)。现有引擎回归测试暂用已发布的
-`@potential-guide/task-sdk@0.1.0-rc.2` 和
+[Task Builder](./packages/task-builder/README.md)。SDK 与引擎契约回归测试使用本仓库的 SDK 和 builder；保留的旧 Bundle 兼容测试仍通过开发依赖
 `@potential-guide/pguide-task-bundle@0.1.0-rc.2`
-生成 Worker 与 Bundle；它们仅为开发依赖，不进入核心包的生产依赖闭包。
-`ipfs-content` 不作为依赖，离线测试复用引擎的 `testing`
+间接使用旧 SDK。这些兼容依赖不进入核心包的生产依赖闭包。 `ipfs-content`
+不作为依赖，离线测试复用引擎的 `testing`
 支持。包内完整设计文档链接固定到来源提交，后续文档迁移不在本次范围。
 
 ## Git lineage
@@ -68,6 +69,7 @@ apps/
   task-engine/
 packages/
   task-protocol/
+  task-sdk/
   task-engine/
   task-engine-storage/
   task-engine-http/
@@ -80,7 +82,7 @@ turbo.json
 ```
 
 内部依赖使用
-`workspace:*`。移除 preset 的示例工作区，保留 5 个核心包及新增的 task-builder、task-builder-cli。CLI 可被程序化调用，因此作为可复用库放在 packages，而非 private
+`workspace:*`。移除 preset 的示例工作区，保留核心包及新增的 task-sdk、task-builder、task-builder-cli。CLI 可被程序化调用，因此作为可复用库放在 packages，而非 private
 app。编译器和 Node 类型沿用来源项目的 TypeScript 5.9.3 与 Node
 22 类型版本，避免在提取时同时升级编译基线。包使用 Biome 和 Node test
 runner（tsx）；根目录及 release 脚本保留 preset 的 Prettier/ESLint 工具链。
@@ -174,11 +176,19 @@ Actual Tencent-registry install and HTTP/SQLite compatibility smoke results,
 including the Windows database-path limitation, are recorded in the
 [end-to-end guide](./docs/end-to-end-verification.md#本轮-builder-发布验证).
 
-The eight libraries are mapped in `scripts/release-packages.js`; the root and
+The nine libraries are mapped in `scripts/release-packages.js`; the root and
 executable app remain private. No package is published by extraction, and there
 is no automatic batch release or automatic version bumping. Artifact dependency
 discovery always reads `packages/` and includes `apps/` only when present;
 library-only repositories need no placeholder app directory.
+
+Package metadata and downloads use the Tencent mirror
+`https://mirrors.cloud.tencent.com/npm/`, including the Trusted Publishing
+client installation. The release verifier does not query the official registry
+or fall back to it. Missing/stale mirror metadata blocks release until it
+propagates. The explicitly authorized publishing operation still targets npm
+through Trusted Publishing; existing versions remain immutable and npm rejects
+republishing them.
 
 ### Configure a derived repository
 

@@ -3,53 +3,44 @@
 主流程只验证作者工具、Bundle 和真实 Worker 执行，不再手写 task
 service、认证、SQLite 数据库或任务轮询。Windows、macOS、Linux 使用相同的 pnpm 命令与 Node.js 脚本。HTTP/SQLite 的专项验证见最后一节，不因新增 CLI 而取消。
 
-## 版本与前置条件
+## 前置条件
 
-- Node.js 24.11.1（最低 22.13.0），pnpm 11.22.0 或更新版本。
+- 使用满足所选包 `engines` 和 `packageManager` 声明的 Node.js 与 pnpm。
 - `@silvermoon-work/task-builder` 与独立 `task-builder-cli`
   提供 init/build/car/check。
 - `@silvermoon-work/task-engine-cli` 提供命令和可复用的 `runBundle`；它依赖包含
   `drain`、公开 `MemoryStore` 与 Gateway `close` 的新版 engine。
-- SDK 尚未迁移，模板仍使用 `@potential-guide/task-sdk@0.1.0-rc.2`；不需要旧
-  `pguide-task-bundle` 的 build、CAR 或 artifact API。
+- SDK 使用所选模板声明的兼容依赖；不需要额外的旧 build、CAR 或 artifact 工具。
 
-builder 核心 `0.1.0-canary-261109-2` 和独立 builder CLI `0.1.0-canary-261109-1`
-已发布。不能安装旧核心 canary 1 或占位 `latest` 冒充本轮能力。
-
-**新 engine / engine CLI 不属于本轮发布。**
-第 3 节的新运行宿主路径仍须等待对应的真实发布版本，不能执行
-`<published-engine-cli-version>` 占位命令。engine 候选 `0.1.0-canary-261109-2`
-必须先于依赖它的 engine
-CLI 发布。本轮只用已发布 Engine 验证 builder 兼容性，结果见最后一节。本地 tarball 只算开发验证，不算已发布包 smoke
+本指南不指定 registry、发布 channel 或版本号。选择已发布且相互兼容、具备本文所需命令与 API 的包，将命令中的版本占位替换为本次验证选择的版本，并保留安装 lockfile。占位字符串不是可直接执行的版本；不要把未包含目标能力的包当作验证对象。本地 tarball 只算开发验证，不算已发布包 smoke
 test；不要在本流程里发包或推送 tag。
 
-包 metadata 和下载只使用 Tencent mirror。每次安装前确认：
+使用当前环境已配置且获准访问的 registry。安装前确认实际配置：
 
 ```text
 npm config get registry
 pnpm config get registry
 ```
 
-有效值须为 `https://mirrors.cloud.tencent.com/npm/`；同时检查 scope
-override 和已有 lockfile
-URL。镜像缺包时等待同步或报告阻塞，不回退官方 registry、不关闭 TLS 校验。
+同时检查 scope
+override 和已有 lockfile 下载 URL，确保与环境策略一致。包或版本不可用时报告阻塞，不擅自切换源、不关闭 TLS 校验。
 
 ## 1. Init
 
 已发布版本可直接初始化一个不存在、且父目录已存在的新项目：
 
 ```text
-pnpm dlx --allow-build=esbuild @silvermoon-work/task-builder-cli@0.1.0-canary-261109-1 init "<absolute-new-project-directory>" --name task-engine-e2e
+pnpm dlx --allow-build=esbuild @silvermoon-work/task-builder-cli@<builder-cli-version> init "<absolute-new-project-directory>" --name task-engine-e2e
 cd "<absolute-new-project-directory>"
 pnpm install
 ```
 
-默认模板固定使用已安装 CLI 的版本 1 和核心版本 2，无本地 override。
+默认模板从已安装 CLI 的 metadata 选择兼容 builder 依赖，无本地 override。
 `--allow-build=esbuild` 是 pnpm dlx 的安装审批，不是 builder
-CLI 配置。若选择第 3 节的新执行 CLI 路径，在对应版本确实发布后另行安装：
+CLI 配置。另行安装包含所选运行入口的已发布 engine CLI：
 
 ```text
-pnpm add --save-dev @silvermoon-work/task-engine-cli@<published-engine-cli-version>
+pnpm add --save-dev @silvermoon-work/task-engine-cli@<engine-cli-version>
 ```
 
 模板生成 private 项目、pnpm scripts、SDK 作者入口、相对 TS import、JSON
@@ -84,7 +75,7 @@ pnpm exec task-builder check bundle.car --format text
 ### 已有 Gateway：直接 CLI
 
 如果 Bundle 已经能从受控 Gateway 读取，把 `<bundle-root-cid>` 替换为
-`bundle.cid` 的内容，保存 `input.json` 为 `{"text":"canary"}`，然后运行：
+`bundle.cid` 的内容，保存 `input.json` 为 `{"text":"world"}`，然后运行：
 
 ```text
 pnpm exec task-engine run <bundle-root-cid> --input input.json --gateway <gateway-base-origin> --timeout-ms 30000 --max-runtime-ms 60000
@@ -92,7 +83,7 @@ pnpm exec task-engine run <bundle-root-cid> --input input.json --gateway <gatewa
 
 不启动 task-engine HTTP
 service。CLI 自己等待 preparation、任务和 Run 物理回收，输出单行 JSON 后自动退出。通过条件是退出码 0、`status: "succeeded"`、根结果为
-`Hello canary`，且所有 Run 都有 `reclaimedAt`、无
+`Hello world`，且所有 Run 都有 `reclaimedAt`、无
 `cleanupUnknown`。仅看到根任务结果或被 watchdog 杀掉，不算成功退出。
 
 多层子任务 Bundle 需要显式
@@ -102,7 +93,7 @@ service。CLI 自己等待 preparation、任务和 Run 物理回收，输出单�
 ### 只有本地 CAR：直接运行 CLI
 
 无需编写 JavaScript、启动 Gateway、Docker 或 Kubo。保存 `input.json` 为
-`{"text":"canary"}`，直接执行：
+`{"text":"world"}`，直接执行：
 
 ```text
 pnpm exec task-engine run --car bundle.car --input input.json --timeout-ms 30000 --max-runtime-ms 60000
@@ -113,13 +104,13 @@ CLI 先完整校验 CAR，再按唯一根 CID 驱动同一个 engine；不从作
 `bundle.cid`；不需要另传 CID 或 `--gateway`，混用明确拒绝。
 
 通过条件同 Gateway 路径：自然退出 0、`succeeded`、根结果
-`{text:"Hello canary",bytes:6,chunks:1}`、全体 Task 完成、Run 已回收且无 cleanupUnknown。CLI 负责关闭 CAR 内存和文件句柄。错误类型输入
+`{text:"Hello world",bytes:6,chunks:1}`、全体 Task 完成、Run 已回收且无 cleanupUnknown。CLI 负责关闭 CAR 内存和文件句柄。错误类型输入
 `{"text":42}` 应退出 3，损坏 CAR 或 expected
 CID 不符应退出 2，均不得报告成功。每次运行使用独立非持久域，不复用上次任务。多层子任务仍需显式
 `--allow-children`。
 
-该能力尚待包含 `--car` 的 engine
-CLI 版本真实发布；本地代码测试通过不冒充已发布 CLI 验收。无新发布包时只使用下节开发替代。
+所选 engine CLI 必须包含
+`--car`；本地代码测试通过不冒充已发布 CLI 验收。目标能力尚未发布时只能使用下节开发替代，不能声称发布验收通过。
 
 ### 大资源变体
 
@@ -130,11 +121,11 @@ node -e "require('node:fs').writeFileSync(require('node:path').join('assets','gr
 ```
 
 重复步骤 2 和离线 Run。原始 600,007 字节经 CRLF → LF 后是 600,006 字节，结果仍为
-`Hello canary`，`chunks > 1`。未消费完流不算内容已完整验证。
+`Hello world`，`chunks > 1`。未消费完流不算内容已完整验证。
 
 ## 发布前的开发替代
 
-此路径要求 checkout 同时包含本轮 builder 与 engine
+此路径要求 checkout 同时包含所需 builder 与 engine
 CLI 实现。只想复现已发布包 smoke test 时，不使用此节，不用本地依赖兜底。
 
 ```text
@@ -171,11 +162,11 @@ pnpm add --save-dev "@silvermoon-work/task-engine-cli@file:<absolute-path-to-eng
 engine
 override 确保 CLI 的 packed 精确依赖也使用新版 engine，而不是试图下载未发布版本。若出现发布年龄限制，只为明确选择的包添加例外。之后复用步骤 2 和步骤 3，仍直接使用命令，不再维护运行脚本。
 
-## 验收范围与历史证据
+## 验收范围与证据记录
 
 主流程通过条件：
 
-- init/build/CAR/完整 check 均成功，使用准确的新包版本或明确标记的开发制品。
+- init/build/CAR/完整 check 均成功，使用所选的已发布兼容包或明确标记的开发制品。
 - 真实 SDK Worker 的根结果和资源字节正确；Run 已物理回收，进程自然退出。
 - 本地 CAR CLI 验证错误类型输入、损坏 CAR 和 expected
   CID 不符明确拒绝，文件句柄和 CAR 内存释放；保存单行 JSON 输出及实际进程退出码。
@@ -188,65 +179,8 @@ override 确保 CLI 的 packed 精确依赖也使用新版 engine，而不是试
 [原 HTTP/SQLite 验证脚本](https://github.com/silvermoon-work/task-engine/blob/2597d79a4ab778e9288675eaba0dfa230a406491/docs/end-to-end-verification.md#3-从-car-跑真实-http--sqlite--worker)
 的独立路径；保留 401、Schema 拒绝、物理回收、关闭内容源后重启、历史/幂等查询不再读取块或重跑 Worker 的断言。仓库 engine/HTTP/storage/server 回归属于补充证据，不冒充已发布包的这些专项验证。
 
-原流程已在 Windows / Node.js 24.11.1 / pnpm
-11.22.0 的两个新项目中完成：本地 builder/core CLI 制品 → HTTP Worker →
-SQLite 重启恢复；默认为 6 字节 / 1 chunk，大资源为 600,006 字节 / 3
-chunks，退出码均为 0。这是原脚本的历史记录，不是本文新 CLI 路径或新版本发包已经完成的声明。本流程不证明生产认证、pin/GC、SSE 或 OS 沙箱；macOS/Linux 仍须实际执行目标平台验证。
+将每次实际验证的环境、包名、解析版本、安装来源、integrity、命令、退出码和结果单独保存为验收证据，不把它们写成本文固定的环境要求。
+[已有 builder 发布验证](../.silvermoon/ideas/01M6ZAPC3GKWYMHYVT3186PP5A/outer/published-builder-verification.md)
+是一次具体执行的记录，不代表以后选择的包或平台自动通过。
 
-## 本轮 builder 发布验证
-
-2026-11-09 在 Windows / Node.js 24.11.1 / pnpm 11.22.0 上，从
-`https://mirrors.cloud.tencent.com/npm/` 安装实际发布包，未使用本地 tarball、
-`file:` 依赖或 pnpm override：
-
-| 包                                    | 精确版本                |
-| ------------------------------------- | ----------------------- |
-| `@silvermoon-work/task-builder`       | `0.1.0-canary-261109-2` |
-| `@silvermoon-work/task-builder-cli`   | `0.1.0-canary-261109-1` |
-| `@silvermoon-work/task-engine`        | `0.1.0-canary-261109-1` |
-| `@silvermoon-work/task-engine-http`   | `0.1.0-canary-261109-1` |
-| `@silvermoon-work/task-engine-server` | `0.1.0-canary-261109-1` |
-| `@silvermoon-work/task-protocol`      | `0.1.0-canary-261109-2` |
-
-从新目录执行上面的 init/install/build/car/check，然后使用
-[原 HTTP/SQLite 专项验证脚本](https://github.com/silvermoon-work/task-engine/blob/2597d79a4ab778e9288675eaba0dfa230a406491/docs/end-to-end-verification.md#3-从-car-跑真实-http--sqlite--worker)，在验证项目中添加固定运行包：
-
-```text
-pnpm add --save-exact @silvermoon-work/task-engine@0.1.0-canary-261109-1 @silvermoon-work/task-engine-http@0.1.0-canary-261109-1 @silvermoon-work/task-engine-server@0.1.0-canary-261109-1 @silvermoon-work/task-protocol@0.1.0-canary-261109-2
-```
-
-保留脚本的所有断言：401、错误类型输入拒绝、真实 Worker、Run 物理回收、关闭内容源后的 SQLite 重启、历史结果与同 Request 幂等查询，以及不再读取块。本轮仅调整了验证用数据库的位置，原因见下面的路径限制。
-
-| 变体             | 返回 text      | bytes  | chunks | 内容块读取 | 退出码 |
-| ---------------- | -------------- | ------ | ------ | ---------- | ------ |
-| 默认模板         | `Hello canary` | 6      | 1      | 11         | 0      |
-| 大资源 CRLF 变体 | `Hello canary` | 600006 | 3      | 16         | 0      |
-
-两种变体均通过 CAR 完整检查、授权 HTTP、Worker 和重启恢复；JSON/文本输出及 CLI 版本也经实际安装验证。它们证明 builder 发布产物兼容已发布 Engine，
-**不证明新 engine CLI 已完成部署**。
-
-安装 lockfile 中记录的实际 npm artifact integrity：
-
-```text
-@silvermoon-work/task-builder@0.1.0-canary-261109-2
-sha512-I/CJy6bPpev2cIfR6Yh97TbuYKzzXmQp86STNskOeXAInZzaNAyODJWhuGL0N2LU9LlTVSu1pe8Kp7+vHodFqQ==
-
-@silvermoon-work/task-builder-cli@0.1.0-canary-261109-1
-sha512-pfSdEhcsLevEM7fe0EdNo14reFsiNLhj6kbwNb1K2SKgaguSGYvbDb+JKXcATHk+rkH04+PLM7V0wpgmMtiI0w==
-```
-
-发布证据：[核心 Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/42577672894)、
-[CLI Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/42577838042)、
-[两个包的官方 registry 版本/dist-tag/依赖验证](https://github.com/silvermoon-work/task-engine/actions/runs/42578343710)。两者使用
-`canary`，未更新 `latest`。
-
-### Windows SQLite 路径限制
-
-已发布 storage canary 1 的重启 preflight 会复制数据库到
-`<database>.inspect-<UUID>`。最初把数据库放进很长的 agent
-session 路径时，复制后的路径使 SQLite 报
-`unable to open database file`，因此该次尝试没有算成功。
-
-改为独立、较短的验证数据库目录后，两种变体都完整通过；没有修改 storage 或放宽恢复断言。Windows 上应选择短路径，并为
-`.inspect-UUID` 及 sidecar 留出余量。可将原验证脚本的 `database`
-指向该目录；短路径通过不代表长路径已受支持。此限制不是本轮 builder 发布的修复项。
+HTTP/SQLite 专项验证在 Windows 上应选择较短的独立数据库目录，并为临时副本和 sidecar 留出路径余量；遇到路径错误应明确失败，不放宽恢复断言。本流程不证明生产认证、pin/GC、SSE 或 OS 沙箱；目标平台仍须实际执行验证。

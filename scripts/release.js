@@ -140,6 +140,24 @@ export function validateManifest(selected, manifest) {
 
 export function validateArtifact(release, artifact) {
   validateManifest({ ...release, taggedVersion: release.version }, artifact);
+  validateDependencySpecifiers(artifact);
+}
+
+export function validatePublishedVersion(release, artifact) {
+  if (
+    artifact.name !== release.name ||
+    artifact.version !== release.version ||
+    artifact.private === true
+  ) {
+    throw new Error(
+      `Expected published ${release.name}@${release.version}, received ${artifact.name}@${artifact.version}.`,
+    );
+  }
+  validateDependencyOrigins(artifact);
+  validateDependencySpecifiers(artifact);
+}
+
+function validateDependencySpecifiers(artifact) {
   for (const field of dependencyFields) {
     for (const [name, range] of Object.entries(artifact[field] ?? {})) {
       if (
@@ -186,7 +204,7 @@ export async function readRegistryPackage(name, fetchPackage = fetch) {
   const response = await fetchPackage(
     `${metadataRegistry}/${encodeURIComponent(name)}`,
     {
-      headers: { Accept: "application/vnd.npm.install-v1+json" },
+      headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(30_000),
     },
   );

@@ -259,6 +259,12 @@ propagates. The explicitly authorized publishing operation still targets npm
 through Trusted Publishing; existing versions remain immutable and npm rejects
 republishing them.
 
+Registry audits request full JSON metadata to include development dependencies.
+Published version checks enforce exact identity and dependency guards without
+requiring packing-only fields that registries can omit. Source and tarball
+checks still require public npm `publishConfig`; publishing verifies and uses
+that same fully checked tarball.
+
 ### Configure a derived repository
 
 1. Verify each package ID, npm name, directory and version in

@@ -19,6 +19,7 @@ import {
   validateArtifact,
   validateDependencyOrigins,
   validateManifest,
+  validatePublishedVersion,
   verifyUnpublished,
   verifyWorkspaceDependencies,
 } from "./release.js";
@@ -236,6 +237,37 @@ test("artifact name and version must match; local dependency protocols fail", ()
   }
 });
 
+test("published metadata is checked without packing-only fields, while tarballs still require them", () => {
+  const artifact = { name: release.name, version: release.version };
+  assert.doesNotThrow(() => validatePublishedVersion(release, artifact));
+  assert.throws(() => validateArtifact(release, artifact), /public access/u);
+  for (const changes of [
+    { name: "other" },
+    { version: "1.2.4" },
+    { private: true },
+  ])
+    assert.throws(() =>
+      validatePublishedVersion(release, { ...artifact, ...changes }),
+    );
+  for (const field of [
+    "dependencies",
+    "optionalDependencies",
+    "peerDependencies",
+    "devDependencies",
+  ])
+    for (const [name, specifier] of [
+      ["@potential-guide/task-sdk", "0.1.0-rc.2"],
+      ["alias", "npm:pguide@0.4.0"],
+      ["@example/local", "workspace:*"],
+    ])
+      assert.throws(() =>
+        validatePublishedVersion(release, {
+          ...artifact,
+          [field]: { [name]: specifier },
+        }),
+      );
+});
+
 test("internal runtime and peer dependencies must be published separately", async () => {
   const names = new Set(["@example/utils"]);
   const published = async () => ({
@@ -299,11 +331,12 @@ test("registry errors fail closed, and only HTTP 404 means a missing package", a
     null,
   );
   assert.deepEqual(
-    await readRegistryPackage("@example/core", async (url) => {
+    await readRegistryPackage("@example/core", async (url, options) => {
       assert.equal(
         url,
         "https://mirrors.cloud.tencent.com/npm/%40example%2Fcore",
       );
+      assert.equal(options.headers.Accept, "application/json");
       return { ok: true, json: async () => ({ versions: { "1.2.3": {} } }) };
     }),
     { versions: { "1.2.3": {} } },

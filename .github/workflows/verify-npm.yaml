@@ -45,7 +45,7 @@ jobs:
           import { releasePackages } from "./scripts/release-packages.js";
           import {
             readRegistryPackage,
-            validateArtifact,
+            validatePublishedVersion,
             validateManifest,
             verifyWorkspaceDependencies,
           } from "./scripts/release.js";
@@ -76,7 +76,7 @@ jobs:
               failures.push(`${release.name}@${release.version} is missing`);
               continue;
             }
-            validateArtifact(release, artifact);
+            validatePublishedVersion(release, artifact);
             if (metadata["dist-tags"]?.[release.distTag] !== release.version)
               failures.push(`${release.name} dist-tag ${release.distTag} does not match`);
             await verifyWorkspaceDependencies(artifact, names, readRegistryPackage);

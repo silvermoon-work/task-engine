@@ -61,6 +61,17 @@ Publishing 的发布 URL 替换为只读 mirror 后假装仍可发布，也不�
 override 及 lockfile download URL，保留合法私有 scope 配置，不下载官方 registry
 URL。
 
+## 当前已验证的发布前置
+
+2026-11-09 已独立安装并验证新发布的 builder `0.1.0-canary-261109-2` 与 builder
+CLI `0.1.0-canary-261109-1`，默认与大资源的 Init → Build → CAR → Check
+→ 已发布旧 engine Worker 兼容路径通过。具体发布来源、integrity、命令及边界见
+[已发布 builder 验证](published-builder-verification.md)。
+
+这两个包不是上面的 engine / engine
+CLI 发布目标。当前 mirror 尚未提供新 engine 的准确候选版本或 engine
+CLI；不得以 builder 发布成功、旧 engine 可运行，或本地新 CLI 测试通过勾选 D-*。
+
 ## 已发布包验证环境
 
 使用仓库外的新建 consumer 目录，支持的 Node 与包管理器，固定已发布版本。安装命令来自有效 registry，不使用

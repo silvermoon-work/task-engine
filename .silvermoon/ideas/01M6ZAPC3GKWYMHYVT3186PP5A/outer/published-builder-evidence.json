@@ -1,0 +1,253 @@
+{
+  "status": "passed",
+  "timestamp": "2026-11-09T07:48:30.252Z",
+  "node": "v24.11.1",
+  "platform": "win32",
+  "registry": "https://mirrors.cloud.tencent.com/npm/",
+  "root": "D:\\Code\\task-engine-registry-smoke-7c074a1b",
+  "packages": [
+    {
+      "name": "@silvermoon-work/task-builder",
+      "version": "0.1.0-canary-261109-2",
+      "path": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\node_modules\\.pnpm\\@silvermoon-work+task-build_d2314922dca9eb99993f24c18bac534b\\node_modules\\@silvermoon-work\\task-builder\\dist\\index.js",
+      "packageRoot": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\node_modules\\.pnpm\\@silvermoon-work+task-build_d2314922dca9eb99993f24c18bac534b\\node_modules\\@silvermoon-work\\task-builder"
+    },
+    {
+      "name": "@silvermoon-work/task-builder-cli",
+      "version": "0.1.0-canary-261109-1",
+      "path": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\node_modules\\.pnpm\\@silvermoon-work+task-build_be8389683e2a586a0c903b046be6ef45\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\index.js",
+      "packageRoot": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\node_modules\\.pnpm\\@silvermoon-work+task-build_be8389683e2a586a0c903b046be6ef45\\node_modules\\@silvermoon-work\\task-builder-cli"
+    },
+    {
+      "name": "@silvermoon-work/task-engine",
+      "version": "0.1.0-canary-261109-1",
+      "path": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\node_modules\\.pnpm\\@silvermoon-work+task-engin_f82ca8cd2a2a9f2e64b8339694fe2b4d\\node_modules\\@silvermoon-work\\task-engine\\dist\\index.js",
+      "packageRoot": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\node_modules\\.pnpm\\@silvermoon-work+task-engin_f82ca8cd2a2a9f2e64b8339694fe2b4d\\node_modules\\@silvermoon-work\\task-engine"
+    }
+  ],
+  "cases": [
+    {
+      "variant": "default",
+      "directory": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\default-mw8yl51f",
+      "packages": [
+        {
+          "name": "@silvermoon-work/task-builder",
+          "version": "0.1.0-canary-261109-2",
+          "path": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\default-mw8yl51f\\node_modules\\.pnpm\\@silvermoon-work+task-build_d2314922dca9eb99993f24c18bac534b\\node_modules\\@silvermoon-work\\task-builder\\dist\\index.js",
+          "packageRoot": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\default-mw8yl51f\\node_modules\\.pnpm\\@silvermoon-work+task-build_d2314922dca9eb99993f24c18bac534b\\node_modules\\@silvermoon-work\\task-builder"
+        },
+        {
+          "name": "@silvermoon-work/task-builder-cli",
+          "version": "0.1.0-canary-261109-1",
+          "path": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\default-mw8yl51f\\node_modules\\.pnpm\\@silvermoon-work+task-build_be8389683e2a586a0c903b046be6ef45\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\index.js",
+          "packageRoot": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\default-mw8yl51f\\node_modules\\.pnpm\\@silvermoon-work+task-build_be8389683e2a586a0c903b046be6ef45\\node_modules\\@silvermoon-work\\task-builder-cli"
+        }
+      ],
+      "cid": "bafybeihki55ndubek3da3yzsa6p77jyvjtfdzsa4ssyj3kh57qzvnhrrre",
+      "result": {
+        "text": "Hello canary",
+        "bytes": 6,
+        "chunks": 1
+      },
+      "invalidInput": "rejected",
+      "reclaimedAt": "2026-11-09T07:48:06.218Z",
+      "blockReads": 11,
+      "overwriteRejected": true,
+      "damagedCarRejected": true
+    },
+    {
+      "variant": "large",
+      "directory": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\large-mw8yl51f",
+      "packages": [
+        {
+          "name": "@silvermoon-work/task-builder",
+          "version": "0.1.0-canary-261109-2",
+          "path": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\large-mw8yl51f\\node_modules\\.pnpm\\@silvermoon-work+task-build_d2314922dca9eb99993f24c18bac534b\\node_modules\\@silvermoon-work\\task-builder\\dist\\index.js",
+          "packageRoot": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\large-mw8yl51f\\node_modules\\.pnpm\\@silvermoon-work+task-build_d2314922dca9eb99993f24c18bac534b\\node_modules\\@silvermoon-work\\task-builder"
+        },
+        {
+          "name": "@silvermoon-work/task-builder-cli",
+          "version": "0.1.0-canary-261109-1",
+          "path": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\large-mw8yl51f\\node_modules\\.pnpm\\@silvermoon-work+task-build_be8389683e2a586a0c903b046be6ef45\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\index.js",
+          "packageRoot": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\large-mw8yl51f\\node_modules\\.pnpm\\@silvermoon-work+task-build_be8389683e2a586a0c903b046be6ef45\\node_modules\\@silvermoon-work\\task-builder-cli"
+        }
+      ],
+      "cid": "bafybeicemqftt7iyalodeu4dnpszm5xejzvw6eza5wovrkwee26ibrzkie",
+      "result": {
+        "text": "Hello canary",
+        "bytes": 600006,
+        "chunks": 3
+      },
+      "invalidInput": "rejected",
+      "reclaimedAt": "2026-11-09T07:48:27.921Z",
+      "blockReads": 16,
+      "overwriteRejected": true,
+      "damagedCarRejected": true
+    }
+  ],
+  "commands": [
+    {
+      "command": "C:\\nvm4w\\nodejs\\node.exe",
+      "args": [
+        "D:\\Code\\task-engine-registry-smoke-7c074a1b\\node_modules\\.pnpm\\@silvermoon-work+task-build_be8389683e2a586a0c903b046be6ef45\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "--help"
+      ],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b",
+      "exitCode": 0
+    },
+    {
+      "command": "C:\\nvm4w\\nodejs\\node.exe",
+      "args": [
+        "D:\\Code\\task-engine-registry-smoke-7c074a1b\\node_modules\\.pnpm\\@silvermoon-work+task-build_be8389683e2a586a0c903b046be6ef45\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "--version"
+      ],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b",
+      "exitCode": 0
+    },
+    {
+      "command": "C:\\nvm4w\\nodejs\\node.exe",
+      "args": [
+        "D:\\Code\\task-engine-registry-smoke-7c074a1b\\node_modules\\.pnpm\\@silvermoon-work+task-build_be8389683e2a586a0c903b046be6ef45\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "init",
+        "D:\\Code\\task-engine-registry-smoke-7c074a1b\\default-mw8yl51f",
+        "--name",
+        "published-smoke"
+      ],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b",
+      "exitCode": 0
+    },
+    {
+      "command": "C:\\WINDOWS\\system32\\cmd.exe",
+      "args": ["/d", "/s", "/c", "pnpm config get registry"],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\default-mw8yl51f",
+      "exitCode": 0
+    },
+    {
+      "command": "C:\\WINDOWS\\system32\\cmd.exe",
+      "args": ["/d", "/s", "/c", "pnpm install"],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\default-mw8yl51f",
+      "exitCode": 0
+    },
+    {
+      "command": "C:\\nvm4w\\nodejs\\node.exe",
+      "args": [
+        "--input-type=module",
+        "-e",
+        "const result={}; for(const name of [\"@silvermoon-work/task-builder\",\"@silvermoon-work/task-builder-cli\"]) result[name]=import.meta.resolve(name); console.log(JSON.stringify(result));"
+      ],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\default-mw8yl51f",
+      "exitCode": 0
+    },
+    {
+      "command": "C:\\WINDOWS\\system32\\cmd.exe",
+      "args": ["/d", "/s", "/c", "pnpm build"],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\default-mw8yl51f",
+      "exitCode": 0
+    },
+    {
+      "command": "C:\\WINDOWS\\system32\\cmd.exe",
+      "args": ["/d", "/s", "/c", "pnpm car"],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\default-mw8yl51f",
+      "exitCode": 0
+    },
+    {
+      "command": "C:\\WINDOWS\\system32\\cmd.exe",
+      "args": ["/d", "/s", "/c", "pnpm check"],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\default-mw8yl51f",
+      "exitCode": 0
+    },
+    {
+      "command": "C:\\nvm4w\\nodejs\\node.exe",
+      "args": [
+        "D:\\Code\\task-engine-registry-smoke-7c074a1b\\node_modules\\.pnpm\\@silvermoon-work+task-build_be8389683e2a586a0c903b046be6ef45\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "build",
+        "task.build.yaml"
+      ],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\default-mw8yl51f",
+      "exitCode": 1
+    },
+    {
+      "command": "C:\\nvm4w\\nodejs\\node.exe",
+      "args": [
+        "D:\\Code\\task-engine-registry-smoke-7c074a1b\\node_modules\\.pnpm\\@silvermoon-work+task-build_be8389683e2a586a0c903b046be6ef45\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "check",
+        "damaged.car"
+      ],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\default-mw8yl51f",
+      "exitCode": 1
+    },
+    {
+      "command": "C:\\nvm4w\\nodejs\\node.exe",
+      "args": [
+        "D:\\Code\\task-engine-registry-smoke-7c074a1b\\node_modules\\.pnpm\\@silvermoon-work+task-build_be8389683e2a586a0c903b046be6ef45\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "init",
+        "D:\\Code\\task-engine-registry-smoke-7c074a1b\\large-mw8yl51f",
+        "--name",
+        "published-smoke"
+      ],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b",
+      "exitCode": 0
+    },
+    {
+      "command": "C:\\WINDOWS\\system32\\cmd.exe",
+      "args": ["/d", "/s", "/c", "pnpm config get registry"],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\large-mw8yl51f",
+      "exitCode": 0
+    },
+    {
+      "command": "C:\\WINDOWS\\system32\\cmd.exe",
+      "args": ["/d", "/s", "/c", "pnpm install"],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\large-mw8yl51f",
+      "exitCode": 0
+    },
+    {
+      "command": "C:\\nvm4w\\nodejs\\node.exe",
+      "args": [
+        "--input-type=module",
+        "-e",
+        "const result={}; for(const name of [\"@silvermoon-work/task-builder\",\"@silvermoon-work/task-builder-cli\"]) result[name]=import.meta.resolve(name); console.log(JSON.stringify(result));"
+      ],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\large-mw8yl51f",
+      "exitCode": 0
+    },
+    {
+      "command": "C:\\WINDOWS\\system32\\cmd.exe",
+      "args": ["/d", "/s", "/c", "pnpm build"],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\large-mw8yl51f",
+      "exitCode": 0
+    },
+    {
+      "command": "C:\\WINDOWS\\system32\\cmd.exe",
+      "args": ["/d", "/s", "/c", "pnpm car"],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\large-mw8yl51f",
+      "exitCode": 0
+    },
+    {
+      "command": "C:\\WINDOWS\\system32\\cmd.exe",
+      "args": ["/d", "/s", "/c", "pnpm check"],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\large-mw8yl51f",
+      "exitCode": 0
+    },
+    {
+      "command": "C:\\nvm4w\\nodejs\\node.exe",
+      "args": [
+        "D:\\Code\\task-engine-registry-smoke-7c074a1b\\node_modules\\.pnpm\\@silvermoon-work+task-build_be8389683e2a586a0c903b046be6ef45\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "build",
+        "task.build.yaml"
+      ],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\large-mw8yl51f",
+      "exitCode": 1
+    },
+    {
+      "command": "C:\\nvm4w\\nodejs\\node.exe",
+      "args": [
+        "D:\\Code\\task-engine-registry-smoke-7c074a1b\\node_modules\\.pnpm\\@silvermoon-work+task-build_be8389683e2a586a0c903b046be6ef45\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "check",
+        "damaged.car"
+      ],
+      "cwd": "D:\\Code\\task-engine-registry-smoke-7c074a1b\\large-mw8yl51f",
+      "exitCode": 1
+    }
+  ],
+  "runtimeScope": "published engine 0.1.0-canary-261109-1 compatibility; NOT new engine CLI deployment"
+}

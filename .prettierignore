@@ -5,3 +5,6 @@ pnpm-lock.yaml
 .turbo/
 .cache/
 packages/
+apps/
+# Revisioned lifecycle contracts are validated by Silvermoon, not rewritten by format.
+.silvermoon/

@@ -42,7 +42,9 @@ SDK 延迟到 Run 命令后才求值作者模块。宿主确认物理退出后�
 历史查询使用持久事实，不要求缓存仍在，也不重演旧 Run。
 
 Facts/SQLite v5 明确拒绝 v4 等旧格式；操作者必须显式选择新域。
-`collectRequestResults()` 只清理终态跟踪可见性，不删除 Task；
+常驻模式的 `collectRequestResults()` 只清理终态跟踪可见性，不删除 Task；
+drain 开始后该方法与 `collect()` 一样返回明确的 `engine_draining` 错误，
+避免最终汇总前清理拒绝证据。
 `collect()` 继续管理 Task/Run 历史的受保护保留边界。
 
 宿主可配置 `bundleLimits`、`bundleConcurrency`（默认 4）及通用 Engine limits。
@@ -75,10 +77,42 @@ Gateway URL 必须是根 origin，拒绝旧路径前缀；详见[缓存与迁移
 纯 now 回拨及 recovery stopped 不触发该例外。失效和后续匹配沿源 revision 观察。
 冻结分页、订阅补读、完整集合封装和 scope 授权保持不变。
 
-`testing` 提供非持久 MemoryStore / VirtualClock；旧协调器资源 fixtures
+根入口提供非持久 `MemoryStore`，用于显式的隔离单次宿主；`testing` 继续重导出同一
+MemoryStore，并提供 VirtualClock；旧协调器资源 fixtures
 只是内部回归测试，不是生产注册 API。`pool` 保留业务资源协调工具。
 Worker 不是 OS 安全沙箱。
 关闭和退休共享同一个 Worker 终止 Promise，等待实际退出，不重复请求终止。
+
+## 单次耗尽与关闭
+
+```ts
+const store = new MemoryStore();
+const engine = createTaskEngine({ store, ipfsClient, authorize });
+await engine.start();
+await engine.submit(request, caller);
+const execution = await engine.drain({ signal });
+store.close();
+```
+
+`drain()` 是终结性操作：同步封闭外部 `submit`、`collect` 和 `collectRequestResults`，
+已有准备/准入继续执行，
+有效父 Run 的结构化 `invokeTask` 继续遵守默认拒绝或显式授权、身份、关联与预算。
+核心生命周期通知同时观察 preparing Request、在途准入/子调用、所有未完成 Task
+（含未来 eligibility）、Run、分配和物理回收，不依赖分页或重复静默轮询。
+耗尽后才调用原 `close()`，等待守护和资源结束，返回
+`{dataDomain, tasks, runs, rejections, errors}`；失败 Task 也是可汇总终态，
+不能把 `drain` 完成直接等同于全体成功。
+cleanup unknown 或基础设施失败会拒绝并尝试正常关闭；AbortSignal 中断同样先关闭。
+重复 `drain` 共享第一次 Promise/Signal。耗尽后不再接受新工作；常驻宿主不调用它，
+空闲后仍可提交。`close()` 仍是主动取消流程，不是自然耗尽的替代。
+
+drain 自己持有且最终清除一个存活句柄，保证只有 preparation 或未来等待时进程也不会
+提前自然退出；常驻 tick 的原有 unref 行为不变。独立命令与退出码见
+[Task Engine CLI](../task-engine-cli/README.md)。
+
+`createIpfsGatewayClient()` 返回的 client 新增 `close()`：创建方可封闭读取、
+取消在途获取，并等待临时 Helia 节点实际停止，清理不确认则拒绝。
+Engine 本身仍不关闭调用者拥有的 client、独立节点或 pin。
 
 完整接口与边界见 [Task Engine](https://github.com/shazhou-ww/potential-guide/blob/3500086123d8b821b77958699ceeebfb2a518e0f/docs/task-engine.md)、
 [Worker 协议](https://github.com/shazhou-ww/potential-guide/blob/3500086123d8b821b77958699ceeebfb2a518e0f/docs/task-bundle-worker.md)。

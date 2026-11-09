@@ -1,45 +1,56 @@
 # 实现 CLI 执行与工作耗尽生命周期
 
-这是准备阶段的可调整实施初版，不表示已经实施或构想验收已覆盖实现设计。
-行为依据见 [执行语义与边界](ideal/execution-semantics.md)。
+行为依据为已接受的
+[执行语义与边界](ideal/execution-semantics.md)，不修改理想世界。实现选择为 Bundle
+engine 的终结性 `drain({signal?})`、公共 `@silvermoon-work/task-engine-cli` 的
+`runBundle`/`main`，以及 private `apps/task-engine`
+launcher。公开包携带薄 bin，满足真实 registry 安装后的命令入口，但没有第二套 engine、HTTP
+service 或后台调度协议。
 
-现有 [Bundle engine](../../../../../packages/task-engine/src/bundle-engine.ts)
-负责准入与子任务组合，
-[Coordinator](../../../../../packages/task-engine/src/engine.ts) 负责调度与运行生命周期。
-缺口在可靠的工作耗尽观察和 CLI 组装，而非新增一套调度器。
-`waitForIdle()` / `runUntilIdle()` 只是候选接口名，最终 API 在实施阶段确定。
+准入、生命周期与资源证明见
+[完成性证明](completion-proof.md)；使用参数、输出和所有权见
+[CLI 文档](../../../../../packages/task-engine-cli/README.md)。
 
 ## Steps
 
 ### I-S01: 明确运行域与耗尽判定
 
-确认本次执行的工作集合、调度入口和资源所有权，增加与核心状态一致的耗尽观察；
-覆盖在途准入、未来资格、子任务组合与物理回收，不用瞬时队列长度代替判定。
+每次 CLI 创建独立非持久 `MemoryStore` 域，不读取历史或开放外部提交入口。 `drain`
+同步封闭外部准入和历史收集；核心生命周期通知同时检查 preparing
+Request、未完成 Task（包括未来资格）、Run/分配、在途准入及结构化子调用和回收证明。最后一步才主动关闭守护及缓存并释放 Store；不使用静默窗口或队列长度替代事实。默认常驻
+`start`/`submit`/`close` 的行为、已有取消与期限规则保持不变。
 
 ### I-S02: 组装 CLI 与退出流程
 
-按仓库约定安排 executable 与可复用逻辑，复用 Bundle、输入、授权和存储能力；
-提供命令帮助、结果汇总、信号处理和显式失败，并更新使用文档。
-是否需要新的可发布包及具体参数在实施阶段确定，不自动发布。
+命令接受一个 Bundle 根 CID、JSON 对象及显式 Gateway；配置和输入无效先拒绝。子任务默认拒绝，`--allow-children`
+明确授权已验证父 Bundle 子树，保留继承身份及深度/并发/总量/时间预算，不允许任意 detached
+CID 工作。stdout 单行 JSON 汇总全体 Task、Run 回收事实及拒绝；stderr 诊断；退出码 0/2/3/4/5/6/7/130/143 区分成功、无效、拒绝、失败/停止、超时、基础设施错误、清理未知和两种信号。提供根期限与可选整次预算。CLI 拥有并关闭其临时 Gateway
+client；共享节点、源 client 与 pin 不归 engine 所有。新增公开包映射
+`task-engine-cli`；先发布新版 engine 才能发布依赖它的 CLI。本实施不创建 release
+tag 或进行 npm 发布，现实世界证明留给 Deployment。
 
 ### I-S03: 验证耗尽与兼容行为
 
-增加可重复的生命周期及真实子进程测试，覆盖末尾派生竞态、失败和清理；
-执行针对性验证及仓库要求的 `pnpm check`，保留常驻 service 回归。
+使用人为 preparation 门、父 Worker 末尾提交、VirtualClock 未来资格、宿主回收证明门及清理拒绝进行确定性测试；真实子进程执行 1/3/7 个 Task，只将未触发 watchdog 的自动退出视为成功。覆盖错误、信号处理和 source/pin 所有权。先运行针对性 runner，再执行
+`pnpm check`（含常驻 engine/server、类型和包守卫回归）。Windows 原生进程信号投递不冒充 POSIX 证据，处理器在真实子进程以信号事件验证，原生目标环境 signal
+smoke 属于现实世界验证。
 
 ## Acceptance criteria
 
 ### I-AC01: 本次工作完整执行
 
-通过可控调度测试和真实 CLI 子进程证明单任务、并行子任务、多层派生及准备中的请求
-均被处理；在有限工作全部结束前不返回耗尽结果。
+`drain.test.ts`
+证明根 preparation、队列末尾子 preparation、两层并行派生和未来资格均阻止提前完成；`cli.test.ts`
+证明 1/3/7 个 Task 全部成功、所有 Run 已回收，进程在 watchdog 前自动退出并返回 0。证明对应代码及精确 runner 见完成性证明。
 
 ### I-AC02: 结果与清理可信
 
-通过成功、失败、拒绝、取消及资源回收失败测试证明结果汇总和退出码准确；
-证明进程退出前已等待物理退出，没有强制成功退出掩盖剩余句柄或清理失败。
+`drain.test.ts` 的逻辑完成/回收门和清理未知、`multi-gateway.test.ts`
+的源关闭，以及 CLI 失败/拒绝/期限/整次预算/中断/硬退出测试，证明清理不确定不会报告成功。正常流程仅设置
+`process.exitCode` 并释放自有句柄，不用 `process.exit(0)` 隐藏泄漏。
 
 ### I-AC03: 既有能力兼容
 
-通过 engine/server 回归及 `pnpm check` 证明常驻模式不会自动退出，
-既有 Bundle、权限、预算和存储契约保持有效。
+`drain.test.ts` 中常驻空闲后第二次提交，以及 composition、engine/server 回归和
+`pnpm check`，证明默认常驻行为、Bundle、授权、父子取消、预算与存储协议不变。所有新工作区具有标准 turbo 脚本；内部运行依赖为
+`workspace:*`，不引入新运行时第三方依赖。

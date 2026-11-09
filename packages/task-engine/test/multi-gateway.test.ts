@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import test, { type TestContext } from "node:test";
+import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
-import { MemoryIpfsClient } from "../src/testing.js";
-import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { BundleCache } from "../src/bundle.js";
-import { createIpfsGatewayClient, GatewayReadError } from "../src/index.js";
 import { withGatewayHints } from "../src/content.js";
+import { createIpfsGatewayClient, GatewayReadError } from "../src/index.js";
+import { MemoryIpfsClient } from "../src/testing.js";
 
 const bytes = Buffer.from("verified content, independent of source");
 const cid = CID.createV1(0x55, await sha256.digest(bytes)).toString();
@@ -81,6 +81,23 @@ test("ordered sources retry HTTP, redirect and CID failures without changing con
     assert.doesNotMatch(error.message, /corrupt/);
     return true;
   });
+});
+test("owned Gateway close seals reads and awaits aborted per-read resources", async (t) => {
+  const order: string[] = [];
+  const gateway = await source(t, "owned", order);
+  gateway.mode("stall");
+  const client = createIpfsGatewayClient(gateway.url, { timeoutMs: 2000 });
+  const read = client.block.get(cid);
+  const rejected = assert.rejects(read, /Gateway client is closing/);
+  const end = Date.now() + 2000;
+  while (!order.length) {
+    assert.ok(Date.now() < end);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.equal(client.close(), client.close());
+  await client.close();
+  await rejected;
+  await assert.rejects(client.block.get(cid), /Gateway client is closing/);
 });
 test("per-attempt timeout leaves a backup opportunity; total budget and cancellation stop failover", async (t) => {
   const order: string[] = [];

@@ -2,13 +2,31 @@ import { trustlessGateway } from "@helia/block-brokers";
 import { createHeliaHTTP } from "@helia/http";
 import { httpGatewayRouting } from "@helia/routers";
 import { unixfs } from "@helia/unixfs";
+import { TaskError } from "@silvermoon-work/task-protocol";
 import { MemoryBlockstore } from "blockstore-core";
-import { exporter, type ExportContentOptions, type UnixFSEntry } from "ipfs-unixfs-exporter";
+import { type ExportContentOptions, exporter, type UnixFSEntry } from "ipfs-unixfs-exporter";
 import { CID } from "multiformats/cid";
+
+class GatewayCleanupError extends TaskError {
+  constructor() {
+    super("reclamation_unknown", "IPFS Gateway resource cleanup is unconfirmed.");
+  }
+}
+async function stopOwnedNode(node: { stop(): Promise<void> }): Promise<void> {
+  try {
+    await node.stop();
+  } catch {
+    throw new GatewayCleanupError();
+  }
+}
 
 /** Caller-owned read port. Production hosts use createIpfsGatewayClient. */
 export interface IpfsClient {
   block: { get(cid: string, options?: { signal?: AbortSignal }): Promise<Uint8Array> };
+}
+export interface GatewayClient extends IpfsClient {
+  /** Seal reads, abort acquisition, and await owned per-read Helia nodes. */
+  close(): Promise<void>;
 }
 export interface GatewayClientOptions {
   /** Total budget for all sources for one missing block. */
@@ -58,17 +76,60 @@ function bounded<T>(action: () => Promise<T>, signal: AbortSignal): Promise<T> {
       .finally(() => signal.removeEventListener("abort", abort));
   });
 }
-function readClient(plan: ReadPlan): IpfsClient {
-  const client: IpfsClient = {
+function readClient(plan: ReadPlan): GatewayClient {
+  const lifetime = new AbortController();
+  const active = new Set<Promise<Uint8Array>>();
+  const cleanupFailures: unknown[] = [];
+  let closing: Promise<void> | undefined;
+  const read = (source: ReadSource, cid: string, signal: AbortSignal) => {
+    const operation = Promise.resolve().then(() => source.read(cid, signal));
+    active.add(operation);
+    void operation.then(
+      () => active.delete(operation),
+      (error) => {
+        active.delete(operation);
+        if (error instanceof GatewayCleanupError && cleanupFailures.length < 16)
+          cleanupFailures.push(error);
+      },
+    );
+    return operation;
+  };
+  const client: GatewayClient = {
+    close() {
+      closing ??= (async () => {
+        lifetime.abort(new Error("IPFS Gateway client is closing."));
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await Promise.race([
+            Promise.allSettled([...active]),
+            new Promise<never>((_, reject) => {
+              timer = setTimeout(
+                () => reject(new Error("IPFS Gateway resource cleanup is unconfirmed.")),
+                plan.timeoutMs,
+              );
+            }),
+          ]);
+          if (cleanupFailures.length)
+            throw new AggregateError(cleanupFailures, "IPFS Gateway resource cleanup failed.");
+        } finally {
+          if (timer) clearTimeout(timer);
+        }
+      })();
+      return closing;
+    },
     block: {
       async get(cid, request = {}) {
         CID.parse(cid);
-        request.signal?.throwIfAborted();
+        const requestSignal = AbortSignal.any([
+          lifetime.signal,
+          ...(request.signal ? [request.signal] : []),
+        ]);
+        requestSignal.throwIfAborted();
         const deadline = performance.now() + plan.timeoutMs;
         const total = AbortSignal.timeout(plan.timeoutMs);
         const attempts: GatewayAttempt[] = [];
         for (const source of plan.sources) {
-          request.signal?.throwIfAborted();
+          requestSignal.throwIfAborted();
           if (total.aborted || performance.now() >= deadline) break;
           if (source.allowed && !source.allowed(cid)) continue;
           if (total.aborted || performance.now() >= deadline) break;
@@ -76,10 +137,10 @@ function readClient(plan: ReadPlan): IpfsClient {
           const signal = AbortSignal.any([
             total,
             AbortSignal.timeout(Math.max(1, Math.ceil(attemptDeadline - performance.now()))),
-            ...(request.signal ? [request.signal] : []),
+            requestSignal,
           ]);
           try {
-            const bytes = await bounded(() => source.read(cid, signal), signal);
+            const bytes = await bounded(() => read(source, cid, signal), signal);
             signal.throwIfAborted();
             if (performance.now() >= attemptDeadline) {
               attempts.push({ source: source.source, outcome: "timeout" });
@@ -87,7 +148,7 @@ function readClient(plan: ReadPlan): IpfsClient {
             }
             return bytes;
           } catch {
-            request.signal?.throwIfAborted();
+            requestSignal.throwIfAborted();
             attempts.push({
               source: source.source,
               outcome: signal.aborted ? "timeout" : "read_or_verification_failed",
@@ -118,7 +179,7 @@ function isolatedNodeOptions() {
 export function createIpfsGatewayClient(
   url: string | readonly string[],
   options: GatewayClientOptions = {},
-): IpfsClient {
+): GatewayClient {
   const urls = typeof url === "string" ? [url] : url;
   if (!Array.isArray(urls) || urls.length === 0 || urls.length > 16)
     throw new Error("IPFS Gateway list must contain 1 to 16 base URLs.");
@@ -169,7 +230,7 @@ function gatewaySource(url: string): ReadSource {
         signal.throwIfAborted();
         return Buffer.concat(parts);
       } finally {
-        await node.stop();
+        await stopOwnedNode(node);
       }
     },
   };
@@ -255,7 +316,7 @@ export function contentStore(client: IpfsClient, options: ContentAccessOptions) 
         if (acquisitionFailure instanceof GatewayReadError) throw acquisitionFailure;
         throw error;
       } finally {
-        await node.stop();
+        await stopOwnedNode(node);
       }
       options.signal.throwIfAborted();
       // Another concurrent read may have retained this block during the await.

@@ -2,6 +2,13 @@ name: Verify npm releases
 
 on:
   workflow_dispatch:
+    inputs:
+      packages:
+        description:
+          "Comma-separated package IDs to verify (empty verifies all mapped
+          packages)"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -11,6 +18,8 @@ jobs:
     name: Verify published versions and dist-tags
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      VERIFY_PACKAGE_IDS: ${{ inputs.packages }}
     steps:
       - name: Check out expected release manifests
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -41,8 +50,17 @@ jobs:
           } from "./scripts/release.js";
 
           const names = new Set(releasePackages.map(({ name }) => name));
+          const requested = new Set(
+            (process.env.VERIFY_PACKAGE_IDS ?? "").split(",").map(id => id.trim()).filter(Boolean),
+          );
+          for (const id of requested)
+            if (!releasePackages.some(selected => selected.id === id))
+              throw new Error(`Unknown release package ID: ${id}`);
+          const selectedPackages = requested.size
+            ? releasePackages.filter(selected => requested.has(selected.id))
+            : releasePackages;
           const failures = [];
-          for (const selected of releasePackages) {
+          for (const selected of selectedPackages) {
             const manifest = JSON.parse(readFileSync(`${selected.directory}/package.json`, "utf8"));
             const release = validateManifest(selected, manifest);
             const metadata = await readRegistryPackage(release.name);

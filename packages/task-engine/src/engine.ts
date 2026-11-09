@@ -205,6 +205,61 @@ export class TaskEngine implements TaskService {
   private timer: (() => void) | undefined;
   private closeAttempt: Promise<void> | undefined;
   private starting: Promise<void> | undefined;
+  private readonly idleObservers = new Set<() => void>();
+
+  /** Internal lifecycle observation; the Bundle host seals its producers separately. */
+  waitForIdle(additionalIdle: () => boolean, signal?: AbortSignal): Promise<void> {
+    this.accepting();
+    return new Promise((resolve, reject) => {
+      const finish = (failed: boolean, error?: unknown) => {
+        this.idleObservers.delete(check);
+        signal?.removeEventListener("abort", abort);
+        if (failed) reject(error);
+        else resolve();
+      };
+      const abort = () =>
+        finish(true, signal?.reason ?? new TaskError("interrupted", "Drain aborted."));
+      const check = () => {
+        try {
+          if (signal?.aborted) return abort();
+          if (this.closing) throw new TaskError("engine_closed", "Drain interrupted by close.");
+          const facts = this.view.facts;
+          if (Object.values(facts.runs).some((run) => run.cleanupUnknown && !run.reclaimedAt))
+            throw new TaskError("reclamation_unknown", "Run resource cleanup is unconfirmed.");
+          if (this.errors.length)
+            throw new TaskError(this.errors.at(-1)!.code, this.errors.at(-1)!.message);
+          if (this.ticking || this.allocations.size || !additionalIdle()) return;
+          if (
+            Object.values(facts.submissions).some(
+              (record) => record.decision.status === "preparing",
+            )
+          )
+            return;
+          if (Object.values(facts.runs).some((run) => !run.exit || !run.reclaimedAt)) return;
+          const now = this.clock.now();
+          if (
+            Object.values(facts.tasks).some((task) => {
+              const run = matchedRun(facts, task);
+              return !task.canceledAt && !run?.exit && now <= Date.parse(task.deadlineAt);
+            })
+          )
+            return;
+          finish(false);
+        } catch (error) {
+          finish(true, error);
+        }
+      };
+      this.idleObservers.add(check);
+      signal?.addEventListener("abort", abort, { once: true });
+      check();
+    });
+  }
+  notifyIdle(): void {
+    for (const check of this.idleObservers) check();
+  }
+  reportError(error: unknown): void {
+    this.diagnostic(error);
+  }
 
   constructor(private readonly options: EngineOptions) {
     this.clock = options.clock ?? systemClock;
@@ -540,6 +595,7 @@ export class TaskEngine implements TaskService {
     this.errors.push(fact);
     if (this.errors.length > 100) this.errors.shift();
     this.options.onError?.(fact);
+    this.notifyIdle();
   }
   private budget(extra: number, credit = 0): void {
     const reserve =
@@ -566,6 +622,7 @@ export class TaskEngine implements TaskService {
       );
     }
     this.observations.notify();
+    this.notifyIdle();
   }
   private runEvent<K extends NewEvent["type"]>(
     type: K,
@@ -1132,6 +1189,7 @@ export class TaskEngine implements TaskService {
       this.stopUnowned();
     } finally {
       this.ticking = false;
+      this.notifyIdle();
     }
   }
   private allocate(task: TaskRecord): void {
@@ -1200,6 +1258,7 @@ export class TaskEngine implements TaskService {
           group.resolve();
           group.releaseBundle?.();
           this.allocations.delete(id);
+          this.notifyIdle();
           if (
             error instanceof TaskError &&
             (["unsupported_contract", "invalid_type", "type_unavailable"].includes(error.code) ||
@@ -1310,6 +1369,7 @@ export class TaskEngine implements TaskService {
       group?.resolve();
       group?.releaseBundle?.();
       this.allocations.delete(id);
+      this.notifyIdle();
     } catch (error) {
       this.allocations.get(id)?.reject(error);
       this.diagnostic(error, "reclamation_unconfirmed");
@@ -1405,6 +1465,7 @@ export class TaskEngine implements TaskService {
     if (!this.started) return;
     this.closing = true;
     this.timer?.();
+    this.notifyIdle();
     this.observations.close();
     this.catalog.clear();
     this.executionCatalog.clear();

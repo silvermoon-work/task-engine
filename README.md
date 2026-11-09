@@ -18,6 +18,7 @@ scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节�
 | [@silvermoon-work/task-engine-server](./packages/task-engine-server/README.md)   | Node HTTP/SSE 服务组装                     |
 | [@silvermoon-work/task-builder](./packages/task-builder/README.md)               | 只读文件树转换、esbuild 构建与流式资源     |
 | [@silvermoon-work/task-builder-cli](./packages/task-builder-cli/README.md)       | Commander 命令交互、本地文件适配与模板组装 |
+| [@silvermoon-work/task-engine-cli](./packages/task-engine-cli/README.md)         | 隔离域内嵌运行、全体耗尽与自动退出         |
 
 SDK、Web UI、pguide
 CLI 和 Check/Probe 包不在本次提取范围。新增 task-builder 不依赖 pguide 命令协议：模块通过抽象文件树解析，资源按需流式读取；提供独立
@@ -56,10 +57,15 @@ silvermoon whats-next --audience agent
 Silvermoon 元数据现已初始化，使用 `origin/main`
 作为 primary。首次初始化的空目录用 `.silvermoon/ideas/.gitkeep`
 保留；设备上的修复版 Silvermoon 允许这个空的普通文件，不将其视为 idea。使用尚未包含此修复的旧 CLI 时需要先更新运行时。
+`.silvermoon/ideas/`
+不进入通用 Prettier 格式化，以免改变已提交/验收的世界 revision；这些记录使用
+`silvermoon check --worktree --audience agent` 独立校验。
 
 ## Structure
 
 ```text
+apps/
+  task-engine/
 packages/
   task-protocol/
   task-engine/
@@ -68,6 +74,7 @@ packages/
   task-engine-server/
   task-builder/
   task-builder-cli/
+  task-engine-cli/
 pnpm-workspace.yaml
 turbo.json
 ```
@@ -146,9 +153,9 @@ moving it after dependency metadata became visible. All final versions,
 dist-tags and internal dependencies passed the
 [authoritative registry verification](https://github.com/silvermoon-work/task-engine/actions/runs/42558542157).
 
-The seven libraries are mapped in `scripts/release-packages.js`; the root
-remains private. No package is published by extraction, and there is no
-automatic batch release or automatic version bumping. Artifact dependency
+The eight libraries are mapped in `scripts/release-packages.js`; the root and
+executable app remain private. No package is published by extraction, and there
+is no automatic batch release or automatic version bumping. Artifact dependency
 discovery always reads `packages/` and includes `apps/` only when present;
 library-only repositories need no placeholder app directory.
 
@@ -220,6 +227,15 @@ npm registry, including published internal dependencies. It never publishes:
 ```sh
 gh workflow run verify-npm.yaml --ref main
 ```
+
+For a partial release, pass explicit package IDs so unrelated unpublished
+candidates are not mistaken for this release's deliverables:
+
+```sh
+gh workflow run verify-npm.yaml --ref main -f packages=task-builder,task-builder-cli
+```
+
+Unknown IDs fail verification; omitting the input still checks every mapping.
 
 After the configured commit's main push CI succeeds:
 

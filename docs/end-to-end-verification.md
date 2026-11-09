@@ -79,14 +79,19 @@ pnpm exec task-builder check bundle.car --format text
 shell。显式 `--input -` 等价；需要文件输入时才使用
 `--input <file>`。空输入、无效 JSON 或超出容量应明确失败，不使用空对象兜底。
 
-### 已有 Gateway：直接 CLI
+### CID 模式：本地 Gateway 或显式配置
 
 如果 Bundle 已经能从受控 Gateway 读取，把 `<bundle-root-cid>` 替换为
-`bundle.cid` 的内容，然后运行：
+`bundle.cid` 的内容。未指定 Gateway 时，使用
+`TASK_ENGINE_GATEWAY`，环境变量也未设置时只尝试 Kubo 默认本地 Gateway：
 
 ```powershell
-echo '{"text":"world"}' | pnpm exec task-engine run <bundle-root-cid> --gateway <gateway-base-origin> --timeout-ms 30000 --max-runtime-ms 60000
+echo '{"text":"world"}' | pnpm exec task-engine run <bundle-root-cid> --timeout-ms 30000 --max-runtime-ms 60000
 ```
+
+CLI 不启动 Kubo；本地 Gateway 必须已经运行。连接失败明确报错，不尝试公共 Gateway。需要其他源时设置
+`TASK_ENGINE_GATEWAY` 或显式传
+`--gateway <gateway-base-origin>`；显式选项优先于环境变量，环境变量优先于本地默认值。环境变量内容必须是有效的根 origin，空值或无效 URL 不使用默认值兜底。
 
 不启动 task-engine HTTP
 service。CLI 自己等待 preparation、任务和 Run 物理回收，输出单行 JSON 后自动退出。通过条件是退出码 0、`status: "succeeded"`、根结果为

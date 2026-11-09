@@ -23,6 +23,10 @@ service 或后台调度协议。
 
 ## Steps
 
+CID 模式仅在 CLI 中增加 Gateway 默认选择：显式 `--gateway` 优先，未传时取
+`TASK_ENGINE_GATEWAY`，未设置环境变量才使用 Kubo 本地默认 origin。空或非法环境变量明确拒绝，获取失败包含源诊断且无公共 fallback；CAR 忽略该变量，程序化 engine/runBundle 的 caller-owned
+client 契约保持不变。
+
 ### I-S01: 明确运行域与耗尽判定
 
 每次 CLI 创建独立非持久 `MemoryStore` 域，不读取历史或开放外部提交入口。 `drain`

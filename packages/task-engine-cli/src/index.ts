@@ -219,7 +219,7 @@ export async function runBundle(options: RunBundleOptions): Promise<ExecutionRes
   );
 }
 
-export const help = `Usage: task-engine run <bundle-cid> --gateway <base-url> [--input <file|->] [options]
+export const help = `Usage: task-engine run <bundle-cid> [--gateway <base-url>] [--input <file|->] [options]
        task-engine run --car <file.car> [--input <file|->] [options]
 
 Run an embedded engine in a fresh, disposable in-memory data domain.
@@ -227,6 +227,8 @@ No task HTTP service is required. Select CID/Gateway or a local CAR, never both.
 --car <file.car>       Fully validate a local CAR; no Gateway, upload or network fallback.
 --expected-cid <cid>   Optional CAR root check; only valid with --car.
 --gateway <base-url>   Repeat for ordered sources; no public fallback or redirects.
+                      Default: TASK_ENGINE_GATEWAY, otherwise http://127.0.0.1:8080.
+                      Explicit --gateway replaces the default; CAR ignores the environment.
 --allow-children       Authorize verified child subtrees within existing engine budgets.
                       Default deny; depth 4, concurrent 4, total 64, child timeout 30s.
 --timeout-ms <ms>      Root Task deadline budget (default 60000).
@@ -290,7 +292,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     if (
       carPath
         ? cid !== undefined || gateways.length > 0 || carPath === "-"
-        : !cid || !gateways.length || expectedCid !== undefined
+        : !cid || expectedCid !== undefined
     )
       throw new TaskError(
         "invalid_config",
@@ -304,7 +306,11 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
     const maxRuntimeMs = values.has("--max-runtime-ms")
       ? positive(Number(values.get("--max-runtime-ms")))
       : undefined;
-    if (!carPath) ipfsClient = createIpfsGatewayClient(gateways);
+    if (!carPath) {
+      if (!gateways.length)
+        gateways.push(process.env.TASK_ENGINE_GATEWAY ?? "http://127.0.0.1:8080");
+      ipfsClient = createIpfsGatewayClient(gateways);
+    }
     let text: string;
     if (path === "-") {
       const chunks: Buffer[] = [];

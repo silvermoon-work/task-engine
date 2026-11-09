@@ -90,6 +90,20 @@ mirror，避免依赖下载回退至默认官方 registry。已接受的 Ideal
 World 未修改；尚未接受的 Implementation、Deployment 与 supporting
 documents 已格式化。I-* 勾选表示已完成实现证据，不自行构成生命周期审批；主 Agent 后续以准确同步 revision 的提交和验收事件记录审批。
 
+## CLI Gateway 默认选择
+
+CID 模式新增优先级：显式 `--gateway` 替换默认值；未传时使用
+`TASK_ENGINE_GATEWAY`，环境变量未设置才选择
+`http://127.0.0.1:8080`。空或无效环境变量在启动前明确拒绝。CAR 模式忽略环境变量，仍拒绝显式 Gateway。复用既有 client 与
+`bundle_fetch_failed`
+诊断，不封装或改写内容读取错误协议；失败为根准入 rejection，退出 3 并包含所选 Gateway，无公共或本地替代 fallback。
+
+真实子进程验证显式选项覆盖无效环境变量、环境变量选择的源、默认本地源、两种源连接失败、空/非法变量拒绝及 CAR 忽略变量。默认端口的成功/失败场景拦截子进程 fetch 并核对每次请求的 origin，只将成功读取转到测试自己持有的随机 loopback 端口；不占用或查询共享机器实际的 8080/9999 端口。环境变量指定的源失败时也核对 origin，证明没有悄悄尝试默认本地源。
+
+扩展矩阵保留每个真实子进程的 15 秒 watchdog 与业务期限；总测试预算随新增子进程场景调整，不把工具强制杀进程当作完成证据。最终
+`pnpm check` 退出 0，40/40 turbo 任务成功，完整测试 534 项通过，CLI
+19/19；类型与全部包守卫通过。
+
 ## 默认 stdin 输入
 
 省略 `--input` 等同 `--input -`，复用既有有界 stdin

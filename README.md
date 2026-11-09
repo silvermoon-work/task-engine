@@ -3,7 +3,7 @@
 Task Engine 的独立 monorepo，使用 pnpm workspaces 和 Turborepo。已从
 [potential-guide 的固定提交](https://github.com/shazhou-ww/potential-guide/tree/3500086123d8b821b77958699ceeebfb2a518e0f)
 提取 5 个通用核心包，并新增独立 Task Builder，统一使用 `@silvermoon-work/`
-scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节契约及持久数据格式不因包改名而改变。尚未发布 npm 包；根包
+scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节契约及持久数据格式不因包改名而改变。已发布首轮 canary；根包
 `task-engine` 保持 private。Silvermoon 配置候选已写入但尚未通过校验。
 
 ## 本次提取范围
@@ -115,6 +115,28 @@ application packages private. Add publishable libraries to the package-specific
 tag release mapping below.
 
 ## Publish one package
+
+### Published canaries (2026-11-09)
+
+All six packages were published through Trusted Publishing from the verified
+main commit `02014a5fd7b29d5a5d562535d0ff06139e22cdc8`. The npm `canary`
+dist-tag points to the versions below; `latest` remains the placeholder `0.0.0`.
+
+| Package                                | Version                 |
+| -------------------------------------- | ----------------------- |
+| `@silvermoon-work/task-protocol`       | `0.1.0-canary-261109-2` |
+| `@silvermoon-work/task-builder`        | `0.1.0-canary-261109-1` |
+| `@silvermoon-work/task-engine`         | `0.1.0-canary-261109-1` |
+| `@silvermoon-work/task-engine-storage` | `0.1.0-canary-261109-1` |
+| `@silvermoon-work/task-engine-http`    | `0.1.0-canary-261109-1` |
+| `@silvermoon-work/task-engine-server`  | `0.1.0-canary-261109-1` |
+
+Protocol index 1 stopped before publication because the old artifact verifier
+required an absent `apps/` directory. Its tag remains immutable; index 2
+includes the corrected verifier. The server's original tag was retried without
+moving it after dependency metadata became visible. All final versions,
+dist-tags and internal dependencies passed the
+[authoritative registry verification](https://github.com/silvermoon-work/task-engine/actions/runs/42558542157).
 
 The six libraries are mapped in `scripts/release-packages.js`; the root remains
 private. No package is published by extraction, and there is no automatic batch

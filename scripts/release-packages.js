@@ -15,6 +15,11 @@ export const releasePackages = [
     name: "@silvermoon-work/task-protocol",
   },
   {
+    id: "task-sdk",
+    directory: "packages/task-sdk",
+    name: "@silvermoon-work/task-sdk",
+  },
+  {
     id: "task-engine",
     directory: "packages/task-engine",
     name: "@silvermoon-work/task-engine",

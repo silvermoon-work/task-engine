@@ -507,7 +507,7 @@ test("trusted code contracts compile exclusively from the tree; JSON contracts n
   readTaskBundle(await collect(json));
 });
 
-test("callback wrapper injects the locked SDK binding and keeps callback evaluation lazy", async () => {
+test("callback wrapper preserves prototype-named schema fields in the locked binding and keeps evaluation lazy", async () => {
   const { input } = tree({
     "src/main.ts": 'throw new Error("author was evaluated"); export default () => "ok";',
     "node_modules/@silvermoon-work/task-sdk/package.json": JSON.stringify({
@@ -520,16 +520,37 @@ export function runTask(callback) { globalThis.fixture = {callback, binding}; }`
   });
   const output = await buildTaskBundle(input, {
     ...options,
-    source: { ...options.source, mode: "callback" },
+    source: {
+      ...options.source,
+      mode: "callback",
+      contract: {
+        input: {
+          type: "object",
+          properties: Object.fromEntries(
+            ["__proto__", "constructor", "toString"].map((key) => [key, { type: "string" }]),
+          ),
+          required: ["__proto__", "constructor", "toString"],
+          additionalProperties: false,
+        },
+        result: true,
+        message: false,
+      },
+    },
   });
   const source = (await bytes(output, "worker.cjs")).toString();
-  const fixture: { fixture?: { binding: { declaration: { name: string } } } } = {};
+  const fixture: {
+    fixture?: { binding: { declaration: ReturnType<typeof readTaskBundle>["resolved"] } };
+  } = {};
   new Function("globalThis", "require", "__filename", source)(
     fixture,
     () => ({ pathToFileURL: () => new URL("file:///worker.cjs") }),
     "worker.cjs",
   );
   assert.equal(fixture.fixture?.binding.declaration.name, options.name);
+  assert.deepEqual(
+    fixture.fixture?.binding.declaration,
+    readTaskBundle(await collect(output)).resolved,
+  );
 });
 
 test("missing imports never fall back to host node_modules; unsafe and colliding paths fail", async () => {

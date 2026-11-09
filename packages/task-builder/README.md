@@ -137,8 +137,9 @@ the Engine.
 itself. `callback` wraps a lazily imported callback; `exportName` defaults to
 `default` and is only accepted in that mode. `source.sdk` defaults to
 `@silvermoon-work/task-sdk` for callback wrappers and can explicitly select an
-SDK already present in the tree. The SDK has not been migrated into this
-repository; existing projects can supply `@potential-guide/task-sdk`.
+SDK already present in the tree. The
+[workspace SDK](../task-sdk/README.md) supplies the runtime; existing projects
+can still explicitly select `@potential-guide/task-sdk`.
 Recognized SDK `binding.js`/`binding.ts` modules are replaced with the resolved
 Bundle declaration without evaluating the Worker or author callback.
 
@@ -200,7 +201,10 @@ The pure synchronous function returns an owned, repeatable file tree with a
 private npm package, a JSON
 contract with a named shared text Schema, typed SDK entry/helper and a streamed
 greeting resource. It performs no I/O, install or ancestor package modification.
-The default SDK is the explicitly external `@potential-guide/task-sdk@0.1.0-rc.2`.
+The default dependency and author import use
+`@silvermoon-work/task-sdk@0.1.0-canary-261109-1`. This is the migrated SDK's
+local release candidate, not an already published package; before publication,
+use an explicit local `sdkVersion` specifier (such as `file:task-sdk.tgz`).
 `sdkVersion`, `minRuntimeVersion`, `taskName` and npm `name` can be supplied.
 It has no CLI dependency, npm scripts, package-manager selection or pnpm
 installation policy. The CLI composes this tree with its own scripts,

@@ -6,6 +6,7 @@ import semver from "semver";
 import { releasePackages } from "./release-packages.js";
 
 const registry = "https://registry.npmjs.org";
+const metadataRegistry = "https://mirrors.cloud.tencent.com/npm";
 const dependencyFields = [
   "dependencies",
   "optionalDependencies",
@@ -163,7 +164,7 @@ export async function verifyWorkspaceDependencies(
 
 export async function readRegistryPackage(name, fetchPackage = fetch) {
   const response = await fetchPackage(
-    `${registry}/${encodeURIComponent(name)}`,
+    `${metadataRegistry}/${encodeURIComponent(name)}`,
     {
       headers: { Accept: "application/vnd.npm.install-v1+json" },
       signal: AbortSignal.timeout(30_000),

@@ -10,11 +10,19 @@ service、认证、SQLite 数据库或任务轮询。Windows、macOS、Linux 使
   提供 init/build/car/check。
 - `@silvermoon-work/task-engine-cli` 提供命令和可复用的 `runBundle`；它依赖包含
   `drain`、公开 `MemoryStore` 与 Gateway `close` 的新版 engine。
-- SDK 尚未迁移，模板仍使用 `@potential-guide/task-sdk@0.1.0-rc.2`；不需要旧
+- SDK 已迁入本仓库，当前源码模板使用
+  `@silvermoon-work/task-sdk@0.1.0-canary-261109-1`；该候选尚未发布。下文已发布 CLI/core 的历史版本仍生成
+  `@potential-guide/task-sdk@0.1.0-rc.2`，不能用其成功安装证明新 SDK 模板已部署。两条路径都不需要旧
   `pguide-task-bundle` 的 build、CAR 或 artifact API。
 
 builder 核心 `0.1.0-canary-261109-2` 和独立 builder CLI `0.1.0-canary-261109-1`
 已发布。不能安装旧核心 canary 1 或占位 `latest` 冒充本轮能力。
+
+新 SDK 的本地验证使用 workspace 构建与测试；验证独立项目时先构建 protocol、SDK、builder 和 CLI，再用各自的本地 tarball。通过
+`createCliTaskProject` 的 `sdkVersion`、`builderVersion`、`cliVersion` 指定
+`file:` 包，并在生成项目的 pnpm
+overrides 中将 SDK 的 protocol 依赖指向对应的本地 protocol
+tarball；不从镜像安装不存在的候选版本。发布时先单独发布 SDK 所依赖的精确 protocol 版本，再发布 SDK，最后更新并发布 builder/CLI。此处不授权任何发布或 tag 推送。
 
 **新 engine / engine CLI 不属于本轮发布。**
 第 3 节的新运行宿主路径仍须等待对应的真实发布版本，不能执行

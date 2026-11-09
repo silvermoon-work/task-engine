@@ -96,7 +96,11 @@ jobs:
         run: pnpm exec publint "$PACKAGE_TARBALL"
 
       - name: Install the trusted publishing client
-        run: npm install --global npm@11.21.0
+        env:
+          NPM_CONFIG_REGISTRY: https://mirrors.cloud.tencent.com/npm/
+        run: |
+          npm config get registry
+          npm install --global npm@11.21.0
 
       - name: Publish selected package
         if: github.event_name == 'push'

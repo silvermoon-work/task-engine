@@ -31,7 +31,6 @@
     "@silvermoon-work/task-engine-storage": "workspace:*"
   },
   "devDependencies": {
-    "@potential-guide/task-sdk": "0.1.0-rc.2",
     "@potential-guide/pguide-task-bundle": "0.1.0-rc.2"
   },
   "engines": {

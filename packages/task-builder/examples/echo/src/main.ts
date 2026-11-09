@@ -1,4 +1,4 @@
-import { runTask } from "@potential-guide/task-sdk";
+import { runTask } from "@silvermoon-work/task-sdk";
 
 runTask<{ text: string }, { text: string }>(async (input, context) => {
   const reader = context.bundle.read("resources/greeting.txt").getReader();

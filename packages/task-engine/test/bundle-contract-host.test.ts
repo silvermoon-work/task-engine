@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import test from "node:test";
-import { compileTaskBundle } from "@potential-guide/pguide-task-bundle/build";
-import { type Json, taskSchemaUri } from "@silvermoon-work/task-protocol";
+import { buildTaskBundle } from "@silvermoon-work/task-builder";
+import { readBytes } from "@silvermoon-work/task-builder/tree";
+import { directoryTree } from "@silvermoon-work/task-builder-cli/node";
+import { type Json, readTaskBundle, taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { precompileCases } from "../../task-protocol/test/precompile-fixtures.js";
 import { createTaskEngine, newId } from "../src/index.js";
 import { MemoryIpfsClient, MemoryStore } from "../src/testing.js";
@@ -46,12 +48,33 @@ async function until(check: () => boolean) {
 async function compile(directory: string, source: string, schemas: Record<string, unknown> = {}) {
   const entry = join(directory, "main.ts");
   await writeFile(entry, source);
-  return compileTaskBundle({
-    declaration: { ...declaration, ...schemas },
-    entry,
-    entryMode: "explicit",
-    outDirectory: join(directory, "bundle"),
+  const repository = resolve("..", "..");
+  const contract = { ...declaration, ...schemas };
+  const tree = await buildTaskBundle(await directoryTree(repository), {
+    name: declaration.name,
+    runtime: { minVersion: declaration.runtime.minVersion },
+    source: {
+      entry: relative(repository, entry).split(sep).join("/"),
+      mode: "explicit",
+      contract: {
+        input: contract.inputSchema,
+        result: contract.resultSchema,
+        message: contract.messageSchema,
+      },
+    },
   });
+  const contents = new Map<string, Buffer>();
+  const collect = async (directory: string): Promise<void> => {
+    for (const file of await tree.list(directory)) {
+      const path = directory ? `${directory}/${file.name}` : file.name;
+      if (file.kind === "directory") await collect(path);
+      else contents.set(path, Buffer.from(await readBytes(tree, path, 1_048_576)));
+    }
+  };
+  await collect("");
+  const { resolved } = readTaskBundle(contents);
+  const cid = await new MemoryIpfsClient().import(contents);
+  return { contents, resolved, cid };
 }
 type Built = Awaited<ReturnType<typeof compile>>;
 async function supervise(
@@ -160,8 +183,8 @@ for (const scenario of precompileCases)
         const built = await compile(
           directory,
           role === "message"
-            ? 'import {runTask} from "@potential-guide/task-sdk"; runTask(async (_input, context) => {for await(const message of context.messages){await message.accept();return message.payload;}return null;});'
-            : 'import {runTask} from "@potential-guide/task-sdk"; runTask(async input => input.value);',
+            ? 'import {runTask} from "@silvermoon-work/task-sdk"; runTask(async (_input, context) => {for await(const message of context.messages){await message.accept();return message.payload;}return null;});'
+            : 'import {runTask} from "@silvermoon-work/task-sdk"; runTask(async input => input.value);',
           {
             inputSchema: role === "input" ? boxed : object,
             resultSchema: role === "result" ? scenario.schema : true,
@@ -237,7 +260,7 @@ for (const mode of [
       }[mode]!;
       const built = await compile(
         directory,
-        `import {runTask,RunFailure} from "@potential-guide/task-sdk"; runTask(async(input,context)=>{${code}});`,
+        `import {runTask,RunFailure} from "@silvermoon-work/task-sdk"; runTask(async(input,context)=>{${code}});`,
       );
       const client = new MemoryIpfsClient();
       const cid = await client.import(built.contents);
@@ -322,7 +345,7 @@ test("real Engine rejects input and message before dispatch or persistence", asy
     const built = await compile(
       directory,
       `
-import {runTask} from "@potential-guide/task-sdk";
+import {runTask} from "@silvermoon-work/task-sdk";
 import {appendFileSync} from "node:fs";
 runTask(async(input,context)=>{
  appendFileSync(${JSON.stringify(marker)},"callback\\n");
@@ -410,7 +433,7 @@ test("Engine rejects diagnostic and progress payloads through ACK without poison
     const built = await compile(
       directory,
       `
-  import {runTask} from "@potential-guide/task-sdk";
+  import {runTask} from "@silvermoon-work/task-sdk";
   runTask(async(_input,context)=>{
    const codes=[];
    for(const value of [
@@ -439,7 +462,7 @@ test("Engine rejects diagnostic and progress payloads through ACK without poison
     const progress = await compile(
       directory,
       `
-  import {runTask} from "@potential-guide/task-sdk";
+  import {runTask} from "@silvermoon-work/task-sdk";
   runTask(async(_input,context)=>{
    try {await context.progress({stage:"not-a-stage"});}catch{}
    return {text:"valid"};

@@ -4,7 +4,7 @@ Task Engine 的独立 monorepo，使用 pnpm workspaces 和 Turborepo。已从
 [potential-guide 的固定提交](https://github.com/shazhou-ww/potential-guide/tree/3500086123d8b821b77958699ceeebfb2a518e0f)
 提取 5 个通用核心包，并新增独立 Task Builder，统一使用 `@silvermoon-work/`
 scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节契约及持久数据格式不因包改名而改变。已发布首轮 canary；根包
-`task-engine` 保持 private。Silvermoon 配置候选已写入但尚未通过校验。
+`task-engine` 保持 private。Silvermoon 项目元数据已初始化。
 
 ## 本次提取范围
 
@@ -47,12 +47,12 @@ silvermoon check --worktree --audience agent
 silvermoon whats-next --audience agent
 ```
 
-创建 idea 前，需先将初始化提交同步至
-`origin/main`；迁移范围需先决策，本次初始化不创建 idea、不代表任何迁移方案已获批准。
+构想候选及其提交事件需通过 Silvermoon 校验并同步至 `origin/main`，
+再请求对应 revision 的构想验收；创建 idea 不代表实现方案已获批准。
 
-当前 primary 尚无 `main`。此外，当前 Silvermoon CLI 的 snapshot 校验要求已跟踪的
-`ideas/` 目录，却会将 `.gitkeep`
-识别为无效 idea；Git 无法跟踪空目录，因此零 idea 的初始化也受此限制。在这两个前置条件得到解决前，不提交未经 Silvermoon 校验的配置。
+Silvermoon 元数据现已初始化，使用 `origin/main` 作为 primary。
+首次初始化的空目录用 `.silvermoon/ideas/.gitkeep` 保留；设备上的修复版 Silvermoon
+允许这个空的普通文件，不将其视为 idea。使用尚未包含此修复的旧 CLI 时需要先更新运行时。
 
 ## Structure
 

@@ -1,4 +1,6 @@
-import { readFile } from "node:fs/promises";
+import { open, readFile } from "node:fs/promises";
+import { Readable } from "node:stream";
+import type { ReadTaskBundleCar } from "@silvermoon-work/task-builder/car";
 import {
   createIpfsGatewayClient,
   createTaskEngine,
@@ -218,14 +220,17 @@ export async function runBundle(options: RunBundleOptions): Promise<ExecutionRes
 }
 
 export const help = `Usage: task-engine run <bundle-cid> --input <file|-> --gateway <base-url> [options]
+       task-engine run --car <file.car> --input <file|-> [options]
 
 Run an embedded engine in a fresh, disposable in-memory data domain.
-No task HTTP service is required. An explicit reachable IPFS Gateway is required.
+No task HTTP service is required. Select CID/Gateway or a local CAR, never both.
+--car <file.car>       Fully validate a local CAR; no Gateway, upload or network fallback.
+--expected-cid <cid>   Optional CAR root check; only valid with --car.
 --gateway <base-url>   Repeat for ordered sources; no public fallback or redirects.
 --allow-children       Authorize verified child subtrees within existing engine budgets.
                       Default deny; depth 4, concurrent 4, total 64, child timeout 30s.
 --timeout-ms <ms>      Root Task deadline budget (default 60000).
---max-runtime-ms <ms>  Optional overall budget, including admission and drain.
+--max-runtime-ms <ms>  Optional overall budget, including CAR validation, admission and drain.
 --input -             Read one JSON object from stdin.
 Only finite structured invokeTask work is supported, not detached scheduling.
 stdout: one JSON result; stderr: diagnostics. Exit codes:
@@ -246,20 +251,30 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
   process.once("SIGTERM", terminate);
   let execution: ExecutionResult;
   let ipfsClient: GatewayClient | undefined;
+  let car: ReadTaskBundleCar | undefined;
+  let carFile: Awaited<ReturnType<typeof open>> | undefined;
+  let carTimer: ReturnType<typeof setTimeout> | undefined;
   try {
-    if (argv[0] !== "run" || !argv[1] || argv[1].startsWith("-"))
-      throw new TaskError("invalid_config", help);
+    if (argv[0] !== "run") throw new TaskError("invalid_config", help);
+    const cid = argv[1] && !argv[1].startsWith("-") ? argv[1] : undefined;
     const gateways: string[] = [];
     const values = new Map<string, string>();
     let allowChildren = false;
-    for (let index = 2; index < argv.length; index++) {
+    for (let index = cid ? 2 : 1; index < argv.length; index++) {
       const key = argv[index]!;
       if (key === "--allow-children" && !allowChildren) {
         allowChildren = true;
         continue;
       }
       if (
-        !["--input", "--gateway", "--timeout-ms", "--max-runtime-ms"].includes(key) ||
+        ![
+          "--input",
+          "--gateway",
+          "--car",
+          "--expected-cid",
+          "--timeout-ms",
+          "--max-runtime-ms",
+        ].includes(key) ||
         (key !== "--gateway" && values.has(key))
       )
         throw new TaskError("invalid_config", `Unknown or duplicate option: ${key}`);
@@ -270,16 +285,27 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       else values.set(key, value);
     }
     const path = values.get("--input");
-    if (!path || !gateways.length)
-      throw new TaskError("invalid_config", "--input and --gateway are required.");
-    validateBundleReference(argv[1]);
-    ipfsClient = createIpfsGatewayClient(gateways);
+    const carPath = values.get("--car");
+    const expectedCid = values.get("--expected-cid");
+    if (
+      !path ||
+      (carPath
+        ? cid !== undefined || gateways.length > 0 || carPath === "-"
+        : !cid || !gateways.length || expectedCid !== undefined)
+    )
+      throw new TaskError(
+        "invalid_config",
+        "Specify --input and either CID/--gateway or --car <file>, never both.",
+      );
+    if (cid) validateBundleReference(cid);
+    if (expectedCid) validateBundleReference(expectedCid);
     const timeoutMs = values.has("--timeout-ms")
       ? positive(Number(values.get("--timeout-ms")))
       : undefined;
     const maxRuntimeMs = values.has("--max-runtime-ms")
       ? positive(Number(values.get("--max-runtime-ms")))
       : undefined;
+    if (!carPath) ipfsClient = createIpfsGatewayClient(gateways);
     let text: string;
     if (path === "-") {
       const chunks: Buffer[] = [];
@@ -304,35 +330,89 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       if (Buffer.byteLength(text) > 65_536)
         throw new TaskError("invalid_input", "Input exceeds 65536 bytes.");
     }
+    const input: unknown = JSON.parse(text);
+    if (carPath) {
+      if (maxRuntimeMs !== undefined)
+        carTimer = setTimeout(
+          () =>
+            controller.abort(
+              new TaskError("execution_timeout", "Overall runtime budget exceeded."),
+            ),
+          maxRuntimeMs,
+        );
+      controller.signal.throwIfAborted();
+      carFile = await open(carPath, "r");
+      if (!(await carFile.stat()).isFile())
+        throw new TaskError("invalid_input", "CAR input must be a regular file.");
+      const { readTaskBundleCar } = await import("@silvermoon-work/task-builder/car");
+      controller.signal.throwIfAborted();
+      car = await readTaskBundleCar(
+        Readable.toWeb(
+          carFile.createReadStream({
+            autoClose: false,
+            highWaterMark: 65_536,
+            signal: controller.signal,
+          }),
+        ),
+        { signal: controller.signal, ...(expectedCid ? { expectedCid } : {}) },
+      );
+      await carFile.close();
+      carFile = undefined;
+    }
+    const source = car ?? ipfsClient;
+    const rootCid = car?.cid ?? cid;
+    if (!source || !rootCid)
+      throw new TaskError("invalid_config", "Execution content source is unavailable.");
     execution = await runBundle({
-      cid: argv[1],
-      input: JSON.parse(text),
-      ipfsClient,
+      cid: rootCid,
+      input,
+      ipfsClient: source,
       allowChildren,
       ...(timeoutMs !== undefined ? { timeoutMs } : {}),
-      ...(maxRuntimeMs !== undefined ? { maxRuntimeMs } : {}),
+      ...(!carPath && maxRuntimeMs !== undefined ? { maxRuntimeMs } : {}),
       signal: controller.signal,
     });
   } catch (error) {
     execution = result(
       controller.signal.aborted
-        ? controller.signal.reason?.code === "SIGTERM"
-          ? "terminated"
-          : "interrupted"
+        ? controller.signal.reason?.code === "execution_timeout"
+          ? "timed_out"
+          : controller.signal.reason?.code === "SIGTERM"
+            ? "terminated"
+            : "interrupted"
         : "invalid",
       { error: fact(error) },
     );
   } finally {
     try {
-      await ipfsClient?.close();
-      if (controller.signal.aborted && execution!.exitCode === 0)
+      const closed = await Promise.allSettled([
+        ipfsClient?.close(),
+        car?.close(),
+        carFile?.close(),
+      ]);
+      const failed = closed.filter((item) => item.status === "rejected");
+      if (failed.length)
+        execution = result("cleanup_failed", {
+          error: fact(
+            new AggregateError(
+              failed.map((item) => item.reason),
+              "Content source cleanup failed.",
+            ),
+          ),
+        });
+      else if (controller.signal.aborted && execution!.exitCode === 0)
         execution = result(
-          controller.signal.reason?.code === "SIGTERM" ? "terminated" : "interrupted",
+          controller.signal.reason?.code === "execution_timeout"
+            ? "timed_out"
+            : controller.signal.reason?.code === "SIGTERM"
+              ? "terminated"
+              : "interrupted",
           { error: fact(controller.signal.reason) },
         );
     } catch (error) {
       execution = result("cleanup_failed", { error: fact(error) });
     } finally {
+      if (carTimer) clearTimeout(carTimer);
       process.removeListener("SIGINT", interrupt);
       process.removeListener("SIGTERM", terminate);
     }

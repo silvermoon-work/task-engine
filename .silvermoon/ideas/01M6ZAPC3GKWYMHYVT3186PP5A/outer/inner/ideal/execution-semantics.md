@@ -15,7 +15,18 @@ task-engine run <bundle-cid> --input .\input.json
 独立内容源仍需可用；“无需 task-engine 服务”不等于“不依赖 Gateway 或其他业务资源”。
 
 现有生产准入以 Bundle 根 CID 或 `{cid, hint}` 为身份，不以任务名称选择当前版本。
-首版沿用此契约；本地源码构建、目录执行和 CAR 导入不在本次必需范围内。
+CID/Gateway 路径沿用此契约；本地 CAR 路径先完整校验并读取唯一 Bundle 根 CID，
+再将其提交给同一个 engine，内容由 CAR 的只读块源提供，不需要另起 Gateway。
+支持可选 expected CID 检查；不将 CAR 路径或文件摘要当作 Bundle 身份。
+本地源码构建、目录执行、上传或持久 IPFS 导入不在本次范围内。
+
+```powershell
+task-engine run --car .\bundle.car --input .\input.json
+```
+
+本地 CAR 与 CID/Gateway 是互斥内容源。CAR 校验与执行保持有界读取、取消、
+整次预算和最终释放；损坏、缺块、多余块、错误 Schema 或 expected CID 不匹配
+不能启动 Worker，也不能 fallback 到网络。CAR 包含的子树沿用已有派生权限与预算。
 
 ## 现有代码事实
 

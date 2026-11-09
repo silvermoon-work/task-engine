@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -44,7 +44,7 @@ async function execute(args: string[], input?: string, code?: string) {
 }
 
 test("real CLI child processes exhaust single, parallel and multi-level work and exit naturally", {
-  timeout: 120_000,
+  timeout: 180_000,
 }, async (t) => {
   const directory = resolve(".cache", `cli-${randomUUID()}`);
   await mkdir(directory, { recursive: true });
@@ -90,7 +90,7 @@ test("real CLI child processes exhaust single, parallel and multi-level work and
         : {},
     });
     const files = (await readTaskArtifact(built.car)).files;
-    return { cid: await client.import(files), files };
+    return { cid: await client.import(files), files, car: built.car };
   }
   const leaf = await build(`
 import {setTimeout as delay} from "node:timers/promises";
@@ -169,6 +169,98 @@ export default async (input,context) => {
     });
   }
   assert.ok(requests > 0);
+  await t.test(
+    "local CAR single and nested work exits naturally without any Gateway reads",
+    async () => {
+      for (const [bundle, count] of [
+        [leaf, 1],
+        [nested, 7],
+      ] as const) {
+        const before = requests;
+        const output = await execute(
+          [
+            "run",
+            "--car",
+            bundle.car,
+            "--expected-cid",
+            bundle.cid,
+            "--input",
+            "-",
+            "--allow-children",
+          ],
+          '{"value":7}',
+        );
+        assert.equal(output.exitCode, 0, output.stderr);
+        const final = JSON.parse(output.stdout);
+        assert.equal(final.execution.tasks.length, count);
+        assert.ok(
+          final.execution.tasks.every((task: { stage: string }) => task.stage === "completed"),
+        );
+        assert.ok(
+          final.execution.runs.every(
+            (run: { reclaimedAt?: string; cleanupUnknown?: unknown }) =>
+              run.reclaimedAt && !run.cleanupUnknown,
+          ),
+        );
+        assert.equal(requests, before);
+        const moved = `${bundle.car}.moved`;
+        await rename(bundle.car, moved);
+        await rename(moved, bundle.car);
+      }
+    },
+  );
+  await t.test(
+    "local CAR validates complete bytes and root, rejects mixed sources and missing files",
+    async () => {
+      const damaged = join(directory, "damaged.car");
+      const bytes = Buffer.from(await readFile(leaf.car));
+      bytes[bytes.length - 1]! ^= 1;
+      await writeFile(damaged, bytes);
+      const before = requests;
+      for (const extra of [
+        ["--car", damaged],
+        ["--car", leaf.car, "--expected-cid", nested.cid],
+        ["--car", join(directory, "missing.car")],
+        ["--car", directory],
+        ["--car", leaf.car, "--gateway", gateway],
+        [leaf.cid, "--car", leaf.car],
+        ["--car", "-"],
+        ["--car", leaf.car, "--car", nested.car],
+        [leaf.cid, "--gateway", gateway, "--expected-cid", leaf.cid],
+      ]) {
+        const output = await execute(["run", ...extra, "--input", "-"], '{"value":7}');
+        assert.equal(output.exitCode, 2, output.stderr);
+        assert.equal(JSON.parse(output.stdout).status, "invalid");
+        assert.equal(JSON.parse(output.stdout).execution, undefined);
+      }
+      assert.equal(requests, before);
+      const moved = `${damaged}.moved`;
+      await rename(damaged, moved);
+      await rename(moved, damaged);
+    },
+  );
+  await t.test(
+    "local CAR preserves deny policy, failures, overall timeout and signals",
+    async () => {
+      const args = ["run", "--car", leaf.car, "--input", "-"];
+      const denied = await execute(["run", "--car", parent.car, "--input", "-"], '{"value":7}');
+      assert.equal(denied.exitCode, 4, denied.stderr);
+      const failed = await execute(args, '{"value":7,"mode":"failure"}');
+      assert.equal(failed.exitCode, 4, failed.stderr);
+      const budget = await execute([...args, "--max-runtime-ms", "1"], '{"value":7}');
+      assert.equal(budget.exitCode, 5, budget.stderr);
+      for (const [signal, expected] of [
+        ["SIGINT", 130],
+        ["SIGTERM", 143],
+      ] as const) {
+        const code = `import {main} from ${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)};
+const timer=setTimeout(()=>process.emit(${JSON.stringify(signal)}),800);
+process.exitCode=await main(process.argv.slice(1));clearTimeout(timer);`;
+        const interrupted = await execute(args, '{"value":7,"mode":"slow"}', code);
+        assert.equal(interrupted.exitCode, expected, interrupted.stderr);
+      }
+    },
+  );
   await t.test("default child authorization is deny and returns task failure", async () => {
     const output = await execute(args(parent.cid), '{"value":7}');
     assert.equal(output.exitCode, 4, output.stderr);

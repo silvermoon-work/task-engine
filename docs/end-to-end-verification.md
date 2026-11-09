@@ -104,89 +104,30 @@ service。CLI 自己等待 preparation、任务和 Run 物理回收，输出单�
 `cleanupUnknown`。仅看到根任务结果或被 watchdog 杀掉，不算成功退出。
 
 多层子任务 Bundle 需要显式
-`--allow-children`；默认仍拒绝子调用，既有身份、父子关联、期限和预算不放宽。普通 Echo 模板不需要该开关。内容源仍需独立可用；CLI 不导入 CAR、不上传、不 pin，也不管理 Gateway 节点。输入/授权/失败/超时/中断/清理的退出码见
-[engine CLI 文档](https://github.com/silvermoon-work/task-engine/blob/40563b992c07e194dd5f04c2804e18c2520105fd/packages/task-engine-cli/README.md)。
+`--allow-children`；默认仍拒绝子调用，既有身份、父子关联、期限和预算不放宽。普通 Echo 模板不需要该开关。CID 模式的内容源仍需独立可用；CLI 不上传、不 pin，也不管理 Gateway 节点。输入/授权/失败/超时/中断/清理的退出码见
+[engine CLI 文档](../packages/task-engine-cli/README.md)。
 
-### 只有本地 CAR：使用同一个 CLI 包的运行宿主
+### 只有本地 CAR：直接运行 CLI
 
-离线验证不需要 Docker、Kubo 或自己启动 Gateway。保存下面的 `verify.mjs`
-到新项目根目录，再执行 `node verify.mjs`。它只读 CAR/CID，不从 `dist`
-或源码执行任务。 `runBundle`
-复用命令的执行与耗尽流程，但这条路径不冒充 bin 参数解析或 Gateway 验证。
+无需编写 JavaScript、启动 Gateway、Docker 或 Kubo。保存 `input.json` 为
+`{"text":"canary"}`，直接执行：
 
-```js
-import assert from "node:assert/strict";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { readTaskBundleCar } from "@silvermoon-work/task-builder/car";
-import { directoryTree } from "@silvermoon-work/task-builder-cli/node";
-import { runBundle } from "@silvermoon-work/task-engine-cli";
-
-const source = await directoryTree(".");
-const expectedCid = (await readFile("bundle.cid", "utf8")).trim();
-const bundle = await readTaskBundleCar(await source.read("bundle.car"), {
-  expectedCid,
-});
-try {
-  let expectedBytes = 0;
-  for await (const chunk of await bundle.tree.read("resources/greeting.txt"))
-    expectedBytes += chunk.byteLength;
-  const options = {
-    cid: bundle.cid,
-    ipfsClient: bundle,
-    timeoutMs: 30_000,
-    maxRuntimeMs: 60_000,
-  };
-  const execution = await runBundle({
-    ...options,
-    input: { text: "canary" },
-  });
-  assert.equal(execution.exitCode, 0, JSON.stringify(execution));
-  assert.equal(execution.status, "succeeded");
-  const task = execution.execution.tasks.find(
-    (item) => item.taskId === execution.rootTaskId,
-  );
-  assert.ok(task);
-  assert.equal(task.result.text, "Hello canary");
-  assert.equal(task.result.bytes, expectedBytes);
-  assert.ok(task.result.chunks >= 1);
-  if (expectedBytes > 262_144) assert.ok(task.result.chunks > 1);
-  assert.ok(execution.execution.runs.length > 0);
-  assert.ok(
-    execution.execution.runs.every(
-      (run) => run.reclaimedAt && !run.cleanupUnknown,
-    ),
-  );
-  const invalid = await runBundle({ ...options, input: { text: 42 } });
-  assert.equal(invalid.exitCode, 3, JSON.stringify(invalid));
-  assert.equal(invalid.status, "rejected");
-  await bundle.close();
-  assert.equal(bundle.retainedBytes, 0);
-  const result = {
-    status: "ok",
-    carValidated: true,
-    cliHost: true,
-    cid: bundle.cid,
-    taskId: task.taskId,
-    result: task.result,
-  };
-  await mkdir(".verification", { recursive: true });
-  await writeFile(
-    ".verification/result.json",
-    JSON.stringify(result, null, 2),
-    {
-      flag: "wx",
-    },
-  );
-  console.log(JSON.stringify(result));
-} finally {
-  await bundle.close();
-}
+```text
+pnpm exec task-engine run --car bundle.car --input input.json --timeout-ms 30000 --max-runtime-ms 60000
 ```
 
-默认模板结果为
-`{text: "Hello canary", bytes: 6, chunks: 1}`；具体切块数量不是协议契约。断言失败、非零退出码或清理错误都不能忽略。每次
-`runBundle`
-使用独立非持久域，错误类型输入测试不会复用上次任务；调用者仍负责最后关闭 CAR 内容源。
+CLI 先完整校验 CAR，再按唯一根 CID 驱动同一个 engine；不从作者源码或 `dist`
+执行，不做网络 fallback。可选 `--expected-cid <bundle-root-cid>` 对照
+`bundle.cid`；不需要另传 CID 或 `--gateway`，混用明确拒绝。
+
+通过条件同 Gateway 路径：自然退出 0、`succeeded`、根结果
+`{text:"Hello canary",bytes:6,chunks:1}`、全体 Task 完成、Run 已回收且无 cleanupUnknown。CLI 负责关闭 CAR 内存和文件句柄。错误类型输入
+`{"text":42}` 应退出 3，损坏 CAR 或 expected
+CID 不符应退出 2，均不得报告成功。每次运行使用独立非持久域，不复用上次任务。多层子任务仍需显式
+`--allow-children`。
+
+该能力尚待包含 `--car` 的 engine
+CLI 版本真实发布；本地代码测试通过不冒充已发布 CLI 验收。无新发布包时只使用下节开发替代。
 
 ### 大资源变体
 
@@ -236,7 +177,7 @@ pnpm add --save-dev "@silvermoon-work/task-engine-cli@file:<absolute-path-to-eng
 ```
 
 engine
-override 确保 CLI 的 packed 精确依赖也使用新版 engine，而不是试图下载未发布版本。若出现发布年龄限制，只为明确选择的包添加例外。之后复用步骤 2 和步骤 3，不再维护第二份运行脚本。
+override 确保 CLI 的 packed 精确依赖也使用新版 engine，而不是试图下载未发布版本。若出现发布年龄限制，只为明确选择的包添加例外。之后复用步骤 2 和步骤 3，仍直接使用命令，不再维护运行脚本。
 
 ## 验收范围与历史证据
 
@@ -244,7 +185,8 @@ override 确保 CLI 的 packed 精确依赖也使用新版 engine，而不是试
 
 - init/build/CAR/完整 check 均成功，使用准确的新包版本或明确标记的开发制品。
 - 真实 SDK Worker 的根结果和资源字节正确；Run 已物理回收，进程自然退出。
-- 离线脚本验证错误类型输入明确拒绝、CAR 内存释放，并保存结果。
+- 本地 CAR CLI 验证错误类型输入、损坏 CAR 和 expected
+  CID 不符明确拒绝，文件句柄和 CAR 内存释放；保存单行 JSON 输出及实际进程退出码。
 - 大资源变体经历多 chunk，规范化后字节数准确。
 - 发布验收必须另保留 registry 安装来源、准确版本、integrity 和真实 publish
   run；本地 tarball、仓库 dist 或开发脚本通过不能替代它。

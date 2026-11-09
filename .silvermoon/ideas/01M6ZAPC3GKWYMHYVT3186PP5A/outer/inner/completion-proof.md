@@ -90,6 +90,26 @@ mirror，避免依赖下载回退至默认官方 registry。已接受的 Ideal
 World 未修改；尚未接受的 Implementation、Deployment 与 supporting
 documents 已格式化。I-* 勾选表示已完成实现证据，不自行构成生命周期审批；主 Agent 后续以准确同步 revision 的提交和验收事件记录审批。
 
+## 本地 CAR 补充实现
+
+本轮按用户明确需求增加 `run --car <file> --input <file|->`，可选
+`--expected-cid`；与 CID/Gateway 互斥。不引入另一套校验器，动态加载
+`task-builder/car`，通过完整有界校验得到唯一根 CID 和只读块源，再调用现有
+`runBundle`/`drain`。文件句柄、CAR 内存和整个校验/执行预算由 CLI 负责。未开始读流前检查取消，避免动态加载期间预算已耗尽仍创建带预取消 Signal 的文件流。
+
+真实子进程 runner 16/16 通过，增加本地 CAR 的单任务与 7
+Task 两层派生，明确断言 Gateway 请求数不变、watchdog 未触发且 Run 已回收；退出后 CAR 文件可重命名，损坏内容的失败路径也可重命名。覆盖末尾块损坏、expected
+CID 不符、缺文件、目录、重复参数、混用源和 CAR
+stdin 的明确拒绝，以及默认子权限拒绝、业务失败、校验阶段整次预算和两种 signal。CID/Gateway 原有场景仍通过。
+
+此外直接用已发布 builder 两个变体生成的 CAR 执行本地新 CLI 命令：默认返回
+`Hello canary` / 6 字节 / 1 chunk，大资源返回 `Hello canary` / 600,006 字节 / 3
+chunks，两者自动退出 0 且 Run 已回收。这是本地 CLI 实现验证，不冒充新 CLI 已发布证明。
+
+最终 `pnpm check` 退出 0，36/36 turbo 任务通过，完整集合为 528 项测试，CLI
+16/16，类型检查和包守卫全部通过。CLI 仅新增内部 runtime 依赖 builder 已发布的
+`./car` 能力，没有新的第三方依赖。
+
 审阅后的结果清理封闭补充，仅增加 sealed 检查及同一根 preparation 测试中的常驻调用/耗尽中拒绝断言，没有改变常驻保留语义。补充验证命令为
 `pnpm --filter @silvermoon-work/task-engine exec tsx --test test\drain.test.ts`
 （8/8 通过）、`pnpm --filter @silvermoon-work/task-engine typecheck`、

@@ -1,14 +1,17 @@
 # @silvermoon-work/task-engine-cli
 
 单次执行宿主及 `task-engine` 命令。Node.js 22.13+；无需预先启动 task-engine
-HTTP service，但必须有可达的独立 IPFS Gateway，且目标 Bundle 已发布到该内容源。
-命令只按 Bundle 根 CID 执行，不接受源码目录、任务名称、CAR 或旧 URL/Digest 身份。
+HTTP service。可选择 Bundle 根 CID + 独立 IPFS Gateway，或直接运行本地 CAR；
+不接受源码目录、任务名称或旧 URL/Digest 身份。CAR 校验后的根 CID 仍是 engine 内容身份。
 
 ```powershell
 task-engine run <bundle-cid> --input .\input.json --gateway https://your-gateway.example --allow-children
 # 或从 stdin 读取一个 JSON 对象
 '{"value":7}' | task-engine run <bundle-cid> --input - --gateway http://127.0.0.1:8080
 task-engine --help
+# 本地 CAR：无需 Gateway 或用户编写宿主脚本
+task-engine run --car .\bundle.car --input .\input.json
+task-engine run --car .\bundle.car --expected-cid <bundle-cid> --input .\input.json --allow-children
 ```
 
 仓库内先 `pnpm build`，再执行
@@ -32,6 +35,14 @@ CLI 创建的 Gateway client 最终封闭读取、取消在途获取并等待其
 共享 IPFS 节点、调用者提供的 client 和 pin 不归 `runBundle()` 所有，不会关闭或删除。
 文件系统持久化、恢复与独立内容节点管理不在单次命令的范围内。
 
+`--car <file>` 复用 `task-builder/car` 的完整校验器，流式读取并验证 CAR v1 唯一根、
+块哈希、精确 DAG、canonical Bundle、Schema 和全部资源；通过后以只读块源复用
+`runBundle`/`drain`。默认有界 CAR/块/文件容量，不另起 Gateway 或网络 fallback。
+`--expected-cid` 可选且仅用于 CAR，根不符在 Worker 启动前拒绝。
+CAR 与位置 CID、`--gateway` 互斥；必须是普通文件，不接受 `--car -`，
+但 JSON 输入仍可来自 stdin。文件句柄与 CAR 内存由 CLI 释放；损坏内容返回 2，
+业务错误沿用执行退出码。仅读取 CAR，不上传、pin 或持久导入内容节点。
+
 ## 授权与预算
 
 默认保留 engine 的 `authorizeChild` 拒绝策略。需要派生时显式传
@@ -46,7 +57,8 @@ caller 身份；不能通过 Worker 自报身份或任意 CID 绕过关联校验
 现有内容链路负责。
 
 `--timeout-ms <ms>` 控制根 Task 时间预算（默认 60,000；从最终 Task 创建时锚定）。
-`--max-runtime-ms <ms>` 是可选整次预算，涵盖准入、准备与 drain，不涵盖读取输入文件。
+`--max-runtime-ms <ms>` 是可选整次预算，涵盖本地 CAR 校验、准入、准备与 drain，
+不涵盖读取 JSON 输入文件。
 超时会请求正常关闭，并继续等待清理；因此不是“预算到点立即杀进程”。
 既有 engine 的 Run wall 时间上限仍为 60 秒，到达该上限同样报告超时。
 无限工作或永久等待没有自然完成承诺，应显式配置整次预算。
@@ -96,3 +108,6 @@ try {
 manifest 的精确版本，不能让 CLI 依赖已经发布但没有这些 API 的旧 engine。
 候选版本不是已发布事实；需要按仓库发布守卫单包检查、Trusted Publisher 设置和
 真实 registry 安装后 smoke 验证。本任务没有发布或 release tag 授权。
+
+CLI 的本地 CAR 能力依赖已发布 builder `0.1.0-canary-261109-2` 的 `./car` 入口，
+不是 builder CLI；不增加另一套 CAR 格式或校验实现。发布时核对该精确 runtime 依赖。

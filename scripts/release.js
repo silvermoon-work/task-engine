@@ -176,9 +176,7 @@ export async function verifyWorkspaceDependencies(
   readPackage,
   readVersion,
 ) {
-  for (const field of dependencyFields.filter(
-    (field) => field !== "devDependencies",
-  )) {
+  for (const field of dependencyFields) {
     for (const [name, range] of Object.entries(artifact[field] ?? {})) {
       if (!workspaceNames.has(name)) continue;
       if (semver.validRange(range) === null) {

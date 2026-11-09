@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-engine-http",
-  "version": "0.1.0-canary-261109-2",
+  "version": "0.1.0-canary-261109-3",
   "description": "Mountable Web Request/Response task API and durable SSE adapter.",
   "type": "module",
   "sideEffects": false,

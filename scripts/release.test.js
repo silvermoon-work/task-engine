@@ -269,7 +269,7 @@ test("published metadata is checked without packing-only fields, while tarballs 
       );
 });
 
-test("internal runtime and peer dependencies must be published separately", async () => {
+test("all internal dependencies, including development dependencies, must be published separately", async () => {
   const names = new Set(["@example/utils"]);
   const published = async () => ({
     versions: { "1.0.0": {}, "2.0.0-rc.1": {} },
@@ -278,6 +278,7 @@ test("internal runtime and peer dependencies must be published separately", asyn
     "dependencies",
     "optionalDependencies",
     "peerDependencies",
+    "devDependencies",
   ]) {
     await verifyWorkspaceDependencies(
       { [field]: { "@example/utils": "^1.0.0" } },
@@ -317,11 +318,11 @@ test("internal runtime and peer dependencies must be published separately", asyn
   await verifyWorkspaceDependencies(
     {
       dependencies: { external: "*" },
-      devDependencies: { "@example/utils": "*" },
+      devDependencies: { externalDev: "*" },
     },
     names,
     () => {
-      throw new Error("Must not look up non-runtime or external dependencies");
+      throw new Error("Must not look up external dependencies");
     },
   );
 });

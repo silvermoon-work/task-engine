@@ -326,11 +326,11 @@ aggregate and the publish verifier arguments. Publishing does not rerun
 `pnpm check`.
 
 `pnpm pack` converts `workspace:*` to registry versions. Internal runtime,
-optional, and peer dependency ranges must already resolve to published npm
-versions. Missing dependencies must be released with their own tags first;
-building dependencies never publishes them. The workflow packs once, verifies
-the tarball's manifest and dependencies, runs publint on it, and publishes that
-same artifact through npm OIDC.
+optional, peer, and development dependency ranges must already resolve to
+published npm versions. Missing dependencies must be released with their own
+tags first; building dependencies never publishes them. The workflow packs once,
+verifies the tarball's manifest and dependencies, runs publint on it, and
+publishes that same artifact through npm OIDC.
 
 ### Validate without publishing
 

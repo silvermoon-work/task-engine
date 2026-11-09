@@ -28,10 +28,8 @@ canary 已独立发布；已发布的 builder/CLI 尚未包含新 init 模板，
 `init` / `car` export 提供模板文件树及有界流式 CAR 编码/检查。核心不含 CLI
 binary 或宿主文件系统适配；独立 task-builder-cli 库提供 `task-builder`
 命令、Commander 交互及本地写入。构建输出资源依赖输入树生命周期，完整校验需消费全部流。详见
-[Task Builder](./packages/task-builder/README.md)。SDK 与引擎契约回归测试使用本仓库的 SDK 和 builder；保留的旧 Bundle 兼容测试仍通过开发依赖
-`@potential-guide/pguide-task-bundle@0.1.0-rc.2`
-间接使用旧 SDK。这些兼容依赖不进入核心包的生产依赖闭包。 `ipfs-content`
-不作为依赖，离线测试复用引擎的 `testing`
+[Task Builder](./packages/task-builder/README.md)。SDK、引擎、CLI、HTTP、存储和 Server 测试全部使用本仓库的 SDK、builder 和 protocol；不再依赖旧 scope 的 Bundle 工具或 SDK/protocol，也不维护旧 CAR 字节兼容测试。
+`ipfs-content` 不作为依赖，离线测试复用引擎的 `testing`
 支持。包内完整设计文档链接固定到来源提交，后续文档迁移不在本次范围。
 
 ## Git lineage
@@ -204,6 +202,48 @@ published init CLI or Engine. No builder, CLI, Engine or protocol package was
 published in this SDK release. Previously published builder/CLI versions still
 generate the old-scope SDK template; shipping the new default template requires
 a separately authorized builder/CLI release.
+
+Subsequent workspace cleanup removed all old-scope development dependencies and
+converted integration fixtures to the workspace builder/protocol/CAR APIs. It
+also restored the SDK's `invokeTask` author context and child-result ACK
+handling, which the earlier source import had omitted. This addition is not in
+the published SDK canary above; shipping it requires a new, separately
+authorized SDK version and immutable tag.
+
+The subsequent dependency audit also checked the old project's scoped packages
+and its unscoped `pguide` / `potential-guide` names against all eleven workspace
+manifests and the installed dependency graph: no source/development/runtime
+dependency remains. CI and release validation reject those names and npm aliases
+in runtime, optional, peer and development dependencies. Published package
+verification applies the same guard to the registry artifact manifest, not only
+to the current source manifest. Original protocol URI strings and MIT
+provenance/specification links remain identities, not package dependencies.
+
+Tencent's published canary metadata still contains these historical development
+declarations; none are production dependency edges:
+
+| Published package                      | Canary                  | Old development dependencies |
+| -------------------------------------- | ----------------------- | ---------------------------- |
+| `@silvermoon-work/task-builder`        | `0.1.0-canary-261109-2` | old SDK and Bundle tool      |
+| `@silvermoon-work/task-builder-cli`    | `0.1.0-canary-261109-1` | old SDK                      |
+| `@silvermoon-work/task-engine`         | `0.1.0-canary-261109-1` | old SDK and Bundle tool      |
+| `@silvermoon-work/task-engine-http`    | `0.1.0-canary-261109-1` | old SDK and Bundle tool      |
+| `@silvermoon-work/task-engine-storage` | `0.1.0-canary-261109-1` | old SDK and Bundle tool      |
+| `@silvermoon-work/task-engine-server`  | `0.1.0-canary-261109-1` | old SDK and Bundle tool      |
+
+The old declarations name `@potential-guide/task-sdk` and
+`@potential-guide/pguide-task-bundle`. The published protocol and SDK canaries
+are already independent of them. Tencent returned no Engine CLI package metadata
+in this audit, so its publication state cannot be verified there. The published
+builder/CLI init path also still creates a new project's production dependency
+and author import on the old `@potential-guide/task-sdk@0.1.0-rc.2`. This was
+confirmed from the actual builder canary 2 tarball after checking its Tencent
+SHA-512 integrity. The migrated source template is clean, but new builder/CLI
+releases are needed to stop the currently published init command from generating
+that dependency. Replacing the six legacy-bearing canaries requires new
+versions, exact-commit main CI and separately authorized package tags;
+historical versions and tags must not be overwritten. Source cleanup is not
+proof that those releases have already been replaced.
 
 The nine libraries are mapped in `scripts/release-packages.js`; the root and
 executable app remain private. No package is published by extraction, and there

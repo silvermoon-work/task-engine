@@ -154,7 +154,7 @@ test("CLI init, build, CAR and check compose without installs or the old author 
     const manifest = await readFile(join(project, "package.json"));
     const packageJson = JSON.parse(manifest.toString());
     assert.deepEqual(packageJson.dependencies, {
-      "@silvermoon-work/task-sdk": "0.1.0-canary-261109-1",
+      "@silvermoon-work/task-sdk": "0.1.0-canary-261109-2",
     });
     assert.match(
       await readFile(join(project, "src", "main.ts"), "utf8"),

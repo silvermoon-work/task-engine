@@ -13,5 +13,13 @@ test("SDK exposes only the Worker runtime and depends only on the workspace prot
 });
 
 test("SDK refuses to run without a build-locked Bundle binding", () => {
-  assert.throws(() => runtime.runTask(async () => null), /build-locked Bundle binding/);
+  const callback: runtime.TaskCallback = (input, context) =>
+    context.invokeTask({
+      key: "child",
+      cid: "host-verified-child",
+      path: "resources/child",
+      input,
+      timeoutMs: 1000,
+    });
+  assert.throws(() => runtime.runTask(callback), /build-locked Bundle binding/);
 });

@@ -1,6 +1,7 @@
 import { parentPort, workerData } from "node:worker_threads";
 import {
   canonical,
+  type ChildTaskInvocation,
   type Json,
   json,
   type ResolvedTaskBundle,
@@ -16,6 +17,7 @@ import {
 import { binding } from "./binding.js";
 
 export interface TaskContext<Message extends Json = never> extends RunContext<Message> {
+  invokeTask(request: ChildTaskInvocation): Promise<Json>;
   readonly bundle: {
     readonly cid: string;
     read(path: string, options?: { signal?: AbortSignal }): ReadableStream<Uint8Array>;
@@ -26,6 +28,7 @@ export type TaskCallback<Input = Json, Result = Json, Message extends Json = nev
   context: TaskContext<Message>,
 ) => Promise<Result>;
 export type {
+  ChildTaskInvocation,
   RunContext,
   RunLogInput,
   RunLogReceipt,
@@ -103,7 +106,10 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
   const controller = new AbortController();
   const inbox = new Inbox(config.maxInFlight);
   const tasks = new Map<string, AbortController>();
-  const pending = new Map<number, { resolve(): void; reject(error: Error): void }>();
+  const pending = new Map<
+    number,
+    { resolve(value: Json | void): void; reject(error: Error): void }
+  >();
   let sequence = 0;
   let runId: string | undefined;
   let finishing = false;
@@ -306,11 +312,13 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
       }
     });
   }
-  function request(kind: string, value: unknown): Promise<void> {
+  function request(kind: "task-invoke", value: ChildTaskInvocation): Promise<Json>;
+  function request(kind: string, value: unknown): Promise<void>;
+  function request(kind: string, value: unknown): Promise<Json | void> {
     if (pending.size >= config.maxInFlight)
       return Promise.reject(new Error("Task channel capacity exceeded."));
     const id = sequence + 1;
-    const operation = new Promise<void>((resolve, reject) => {
+    const operation = new Promise<Json | void>((resolve, reject) => {
       pending.set(id, { resolve, reject });
     });
     try {
@@ -400,7 +408,7 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
       pending.delete(envelope.id);
       if (envelope.error)
         operation.reject(new TaskError(envelope.error.code, envelope.error.message));
-      else operation.resolve();
+      else operation.resolve(envelope.value);
       return;
     }
     if (envelope.kind === "ping") {
@@ -465,6 +473,11 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
       progress: (value: RunProgress) => enqueue("progress", value),
       checkpoint: (value: Json) => enqueue("checkpoint", value),
       log,
+      invokeTask: (value: ChildTaskInvocation) => {
+        if (finishing) return Promise.reject(new TaskError("run_finished", "Task is finishing."));
+        controller.signal.throwIfAborted();
+        return request("task-invoke", value);
+      },
     });
     const reportFailure = async (reason: unknown) => {
       const error = reason;

@@ -1,5 +1,11 @@
 # @silvermoon-work/task-protocol
 
+The generic protocol is already migrated and published as
+`0.1.0-canary-261109-2`. Workspace SDK, builder and Engine packages depend on
+this package, not the old-scope protocol. Protocol URI strings and source
+specification links retain their original identity; they are not package
+dependencies.
+
 ## Task Bundle bytes and structure
 
 The Bundle protocol owns `taskBundleLimits`, `TaskBundleFileLimits`,

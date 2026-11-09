@@ -52,8 +52,7 @@
     "@types/semver": "catalog:",
     "@silvermoon-work/task-sdk": "workspace:*",
     "@silvermoon-work/task-builder": "workspace:*",
-    "@silvermoon-work/task-builder-cli": "workspace:*",
-    "@potential-guide/pguide-task-bundle": "0.1.0-rc.2"
+    "@silvermoon-work/task-builder-cli": "workspace:*"
   },
   "engines": {
     "node": ">=22.13.0"

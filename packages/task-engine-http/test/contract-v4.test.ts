@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { createTaskEngine, newId } from "@silvermoon-work/task-engine";
 import { MemoryIpfsClient, MemoryStore, VirtualClock } from "@silvermoon-work/task-engine/testing";
 import type {
@@ -65,16 +64,23 @@ async function fixture(limits: Parameters<typeof createTaskEngine>[0]["limits"] 
   );
   await writeFile(
     entry,
-    `import {createType} from ${JSON.stringify(fileURLToPath(new URL("../../task-engine/test/isolated-type.mjs", import.meta.url)))};
+    `import {createType} from ${JSON.stringify(
+      relative(
+        dirname(entry),
+        fileURLToPath(new URL("../../task-engine/test/isolated-type.mjs", import.meta.url)),
+      )
+        .split(sep)
+        .join("/"),
+    )};
 const type=createType({messageSchema:true});export default (input,context)=>type.run(input,context);`,
   );
-  const built = await buildTaskBundle({
+  const built = await buildBundleFixture({
     declaration: yaml,
     entry,
     outDirectory: join(root, "bundle"),
   });
   const ipfsClient = new MemoryIpfsClient();
-  const bundle = await ipfsClient.import((await readTaskArtifact(built.car)).files);
+  const bundle = await ipfsClient.import(built.files);
   const caller = { scope: "scope", subject: "http" };
   const engine = createTaskEngine({
     store,

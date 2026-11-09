@@ -3,8 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { reduce, type Store, type StoreView, taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { createTaskEngine, newId } from "../src/index.js";
 import { MemoryIpfsClient, MemoryStore, VirtualClock } from "../src/testing.js";
@@ -33,7 +32,7 @@ async function fixtures(directory: string, client: MemoryIpfsClient) {
           ]),
         )
       : {};
-    const built = await buildTaskBundle({
+    const built = await buildBundleFixture({
       declaration: {
         $schema: taskSchemaUri,
         name: "Generic composing Task",
@@ -53,7 +52,7 @@ async function fixtures(directory: string, client: MemoryIpfsClient) {
       outDirectory: join(root, "bundle"),
       resources,
     });
-    const files = (await readTaskArtifact(built.car)).files;
+    const files = built.files;
     const cid = await client.import(files);
     assert.equal(cid, built.cid);
     return { cid, directory: built.directory, files };
@@ -123,7 +122,8 @@ export default async (input, context) => {
   return { leaf, parent, nested };
 }
 
-test("generic host-mediated child Tasks", { timeout: 30_000 }, async (t) => {
+// Budget includes native build/CAR fixtures and sequential scenarios, not child deadlines.
+test("generic host-mediated child Tasks", { timeout: 60_000 }, async (t) => {
   const directory = resolve(".cache", `composition-${randomUUID()}`);
   await mkdir(directory, { recursive: true });
   t.after(() => rm(directory, { recursive: true, force: true }));

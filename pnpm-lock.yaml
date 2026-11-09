@@ -30,9 +30,6 @@ catalogs:
     '@ipld/dag-pb':
       specifier: 4.2.0
       version: 4.2.0
-    '@potential-guide/pguide-task-bundle':
-      specifier: 0.1.0-rc.2
-      version: 0.1.0-rc.2
     '@sinclair/typebox':
       specifier: 0.34.52
       version: 0.34.52
@@ -195,9 +192,6 @@ importers:
         specifier: 'catalog:'
         version: 2.9.1
     devDependencies:
-      '@potential-guide/pguide-task-bundle':
-        specifier: 'catalog:'
-        version: 0.1.0-rc.2(supports-color@10.2.2)
       '@silvermoon-work/task-sdk':
         specifier: workspace:*
         version: link:../task-sdk
@@ -254,9 +248,6 @@ importers:
         specifier: 'catalog:'
         version: 7.8.5
     devDependencies:
-      '@potential-guide/pguide-task-bundle':
-        specifier: 0.1.0-rc.2
-        version: 0.1.0-rc.2(supports-color@10.2.2)
       '@silvermoon-work/task-builder':
         specifier: workspace:*
         version: link:../task-builder
@@ -282,9 +273,12 @@ importers:
         specifier: workspace:*
         version: link:../task-protocol
     devDependencies:
-      '@potential-guide/pguide-task-bundle':
-        specifier: 'catalog:'
-        version: 0.1.0-rc.2(supports-color@10.2.2)
+      '@silvermoon-work/task-builder-cli':
+        specifier: workspace:*
+        version: link:../task-builder-cli
+      '@silvermoon-work/task-sdk':
+        specifier: workspace:*
+        version: link:../task-sdk
 
   packages/task-engine-http:
     dependencies:
@@ -292,12 +286,15 @@ importers:
         specifier: workspace:*
         version: link:../task-protocol
     devDependencies:
-      '@potential-guide/pguide-task-bundle':
-        specifier: 0.1.0-rc.2
-        version: 0.1.0-rc.2(supports-color@10.2.2)
+      '@silvermoon-work/task-builder-cli':
+        specifier: workspace:*
+        version: link:../task-builder-cli
       '@silvermoon-work/task-engine':
         specifier: workspace:*
         version: link:../task-engine
+      '@silvermoon-work/task-sdk':
+        specifier: workspace:*
+        version: link:../task-sdk
 
   packages/task-engine-server:
     dependencies:
@@ -314,9 +311,12 @@ importers:
         specifier: workspace:*
         version: link:../task-protocol
     devDependencies:
-      '@potential-guide/pguide-task-bundle':
-        specifier: 0.1.0-rc.2
-        version: 0.1.0-rc.2(supports-color@10.2.2)
+      '@silvermoon-work/task-builder-cli':
+        specifier: workspace:*
+        version: link:../task-builder-cli
+      '@silvermoon-work/task-sdk':
+        specifier: workspace:*
+        version: link:../task-sdk
 
   packages/task-engine-storage:
     dependencies:
@@ -324,12 +324,15 @@ importers:
         specifier: workspace:*
         version: link:../task-protocol
     devDependencies:
-      '@potential-guide/pguide-task-bundle':
-        specifier: 0.1.0-rc.2
-        version: 0.1.0-rc.2(supports-color@10.2.2)
+      '@silvermoon-work/task-builder-cli':
+        specifier: workspace:*
+        version: link:../task-builder-cli
       '@silvermoon-work/task-engine':
         specifier: workspace:*
         version: link:../task-engine
+      '@silvermoon-work/task-sdk':
+        specifier: workspace:*
+        version: link:../task-sdk
 
   packages/task-protocol:
     dependencies:
@@ -805,9 +808,6 @@ packages:
   '@helia/block-brokers@5.2.4':
     resolution: {integrity: sha512-UsxtWVy2W95FVM561BZXEnb41RL6pr+cLF+AIxVIaugEvg4edUKh+3sbZXoINtzbqS664Ss2dhisHR1ZnYI57Q==}
 
-  '@helia/car@6.0.9':
-    resolution: {integrity: sha512-DkVCq/XO3keQTAsxoLk8uaKdjqzh2HMM3vqaNCeFaFr6lMSnvKPqPEdZRy2fVHz18qP70WAhcwep1uI5P+bYJw==}
-
   '@helia/delegated-routing-v1-http-api-client@5.2.1':
     resolution: {integrity: sha512-utXa3rvLDuSO6KKaz+8eqYVeHW4VhHkZS9kbkB9B3CdSjaH6DA1ZQf9y0J8vSB0M0Q9GoewMTOwk1s0GFdre4Q==}
 
@@ -828,9 +828,6 @@ packages:
 
   '@helia/utils@2.5.2':
     resolution: {integrity: sha512-6/+RInRpJsJoo13ECQsSkBtK2xUGl/KWaJpBuK9tqg+ng3s5cec2qO9RVhZt4bdkPPqJc/PX+G9zwVhKqp5UwQ==}
-
-  '@helia/utils@3.0.6':
-    resolution: {integrity: sha512-QEMVKSVc7NnosXmcM1opdw81cLakLJinpr3FTYCylHid+7MmP3/lHs2MSlTAvW6Tff5y/QLMKG+929qDA0zfFA==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -867,10 +864,6 @@ packages:
 
   '@ipld/dag-json@11.0.1':
     resolution: {integrity: sha512-cMDD0yWkUruqhbLDwAWaV5q92hYKQDP2xP0n+yZp0oxsC68Pw+xFZNc9rj0v2n5m5m/Aa1A+Qlb2tY3NjQMsWg==}
-
-  '@ipld/dag-pb@4.1.7':
-    resolution: {integrity: sha512-/i/13trFihjWfDyXlylRwhuYjtzYjvOFw0vlRjYGnZuv7d7MOgA2lV/vRuL5RfeUajM03aZfFLdq4S7cTbbTRg==}
-    engines: {node: '>=16.0.0', npm: '>=7.0.0'}
 
   '@ipld/dag-pb@4.2.0':
     resolution: {integrity: sha512-T2hsy18NNAUkIiQgvtrhKJXIkTjKcGHPJzp6mYp/tx4x0X9wedUTrCNADEP4hAS7Vy4/bJtc37eX4GSDFiKLhw==}
@@ -922,9 +915,6 @@ packages:
   '@libp2p/logger@6.2.16':
     resolution: {integrity: sha512-dnSdu7/82qZ1IsB7WlcKsZyRcZGbzGGqYfUye5e9svLQ4kO3gsfI238Iw4nbrKHz2Cfcf0f6Jv1xc0uHFwSGwQ==}
 
-  '@libp2p/logger@6.2.8':
-    resolution: {integrity: sha512-oPTkWJhYvhk8fjInH1ySyUDC/LLuqHsVqpNprtImd/64lnRHInV0EbwpRYwjdPNXAxYXDU/eQJzyqMWUNnN4+A==}
-
   '@libp2p/multistream-select@7.0.32':
     resolution: {integrity: sha512-X06d9MSipJZ5hRQHp8Akrhog9NT27Qf3/KZct6hfx3JP2nTQfomDlDYgxE6w1BWoQrVOYKnMI+dlHFg/2X75rQ==}
 
@@ -942,9 +932,6 @@ packages:
 
   '@libp2p/utils@7.4.5':
     resolution: {integrity: sha512-R8657U2WD9tBtVrISa4gnMu0rkIZUQA8quT+RqIsxNQy4OzBYhXmnKr1zSC/xqnez0XrORpI3EaUwjVPgtcWBQ==}
-
-  '@microsoft/agent-host-protocol@1.0.0':
-    resolution: {integrity: sha512-swjikGoqZ/bv3Mn4vkkLzwpmS/j9tV7Aas7ruD2a/R3KVsUlokwCJNSET57mdsmZLMnrawDaCr/ctufbpjE4iA==}
 
   '@multiformats/dns@1.0.15':
     resolution: {integrity: sha512-W0zAMABtAn+3chgFcPGvllKND7M6GblMAAFcJQTy+iMmGiyFErZYPzAh2b50Y3SFf340iFV7+ckVgZkGfUyxzA==}
@@ -986,23 +973,6 @@ packages:
 
   '@oxc-project/types@0.153.0':
     resolution: {integrity: sha512-jSNrRIyvPVLL5E1z/tS5zLAprosGz/FuI1PWwEOz59j3E4TTTzSpqKb/RDGqJhhW0QHYISGXxq582wGx6T11Tw==}
-
-  '@potential-guide/cli-core@0.3.0-rc.0':
-    resolution: {integrity: sha512-VAau0v5prFLBSeu9cQxKqEKDfCvIcqRxulMoZ+8LHLK1AfnfXYNHbEbcP50DA1SnnlXY8Zhz/djBO/LoiZrUoQ==}
-    engines: {node: '>=22.13.0'}
-
-  '@potential-guide/pguide-task-bundle@0.1.0-rc.2':
-    resolution: {integrity: sha512-UaoDO1AIgscMEWf7JHe8t5s5p9oJ8NjymNdvmruTsJrrDcjPgM82tjds8hjMPv6O4Vp37X+GVRhyF+Hl3thcAg==}
-    engines: {node: '>=22.13.0'}
-    hasBin: true
-
-  '@potential-guide/task-protocol@0.1.0-rc.2':
-    resolution: {integrity: sha512-3++F3wwKXr9Kcpig4iEqdgM/yg4nTfHUWZiI/0k2Abb9DUPkiT503i2KUBaCn8hiVKz+8wjP78EaCkRG7ypOkA==}
-    engines: {node: '>=22.13.0'}
-
-  '@potential-guide/task-sdk@0.1.0-rc.2':
-    resolution: {integrity: sha512-lsCHezu94l9CqvUNCzPB4xnJZ4yTr506bDB6XUks3W6Q3DPozBxpX4acjVXMem9UDxIvdl66Svi2j3Z4MhjoMw==}
-    engines: {node: '>=22.13.0'}
 
   '@publint/pack@0.1.7':
     resolution: {integrity: sha512-4EDEmvxWtgsCnnVeBvtFIFZtUhPPt1+bA9JrSwU4Sa//6oKtzCSlGGXYJr44OD9aGISymbieJ4mCKHUygUDU+g==}
@@ -1717,9 +1687,6 @@ packages:
 
   json-stable-stringify-without-jsonify@1.0.1:
     resolution: {integrity: sha512-Bdboy+l7tA3OGW6FjyFHWkP5LuByj1Tk33Ljyq0axyzdk9//JSi2u3fP1QSmd1KNwq6VOKYGlAu87CisVir6Pw==}
-
-  jsonc-parser@3.3.1:
-    resolution: {integrity: sha512-HUgH65KyejrUFPvHFPbqOY0rsFip3Bo5wb4ngvdi1EpCYWUQDC5V+Y7mZws+DLkr4M//zQJoanu1SP+87Dv1oQ==}
 
   keyv@5.6.0:
     resolution: {integrity: sha512-CYDD3SOtsHtyXeEORYRx2qBtpDJFjRTGXUtmNEMGyzYOKj1TE3tycdlho7kA1Ufx9OYWZzg52QFBGALTirzDSw==}
@@ -2599,25 +2566,6 @@ snapshots:
       uint8arraylist: 2.4.9
       uint8arrays: 5.1.1
 
-  '@helia/car@6.0.9':
-    dependencies:
-      '@helia/interface': 7.1.2
-      '@helia/utils': 3.0.6
-      '@ipld/car': 5.4.6
-      '@ipld/dag-pb': 4.2.0
-      '@libp2p/interface': 3.4.0
-      '@libp2p/utils': 7.4.5
-      any-signal: 4.2.0
-      interface-blockstore: 7.0.1
-      ipfs-unixfs: 13.1.2
-      ipfs-unixfs-exporter: 16.2.3
-      it-drain: 3.0.12
-      it-map: 3.1.6
-      it-to-buffer: 5.0.0
-      multiformats: 14.0.5
-      progress-events: 1.1.0
-      race-signal: 2.0.2
-
   '@helia/delegated-routing-v1-http-api-client@5.2.1':
     dependencies:
       '@libp2p/interface': 3.4.0
@@ -2747,19 +2695,6 @@ snapshots:
       race-signal: 2.0.2
       uint8arrays: 5.1.1
 
-  '@helia/utils@3.0.6':
-    dependencies:
-      '@helia/interface': 7.1.2
-      '@libp2p/interface': 3.4.0
-      '@libp2p/utils': 7.4.5
-      '@multiformats/multiaddr': 13.0.3
-      it-filter: 3.1.6
-      it-to-buffer: 5.0.0
-      multiformats: 14.0.5
-      p-defer: 4.0.1
-      progress-events: 1.1.0
-      race-signal: 2.0.2
-
   '@humanfs/core@0.19.2':
     dependencies:
       '@humanfs/types': 0.15.0
@@ -2801,10 +2736,6 @@ snapshots:
   '@ipld/dag-json@11.0.1':
     dependencies:
       cborg: 6.2.1
-      multiformats: 14.0.5
-
-  '@ipld/dag-pb@4.1.7':
-    dependencies:
       multiformats: 14.0.5
 
   '@ipld/dag-pb@4.2.0':
@@ -2900,14 +2831,6 @@ snapshots:
       multiformats: 14.0.5
       weald: 1.1.3
 
-  '@libp2p/logger@6.2.8':
-    dependencies:
-      '@libp2p/interface': 3.4.0
-      '@multiformats/multiaddr': 13.0.3
-      interface-datastore: 9.0.3
-      multiformats: 14.0.5
-      weald: 1.1.3
-
   '@libp2p/multistream-select@7.0.32':
     dependencies:
       '@libp2p/interface': 3.4.0
@@ -2987,8 +2910,6 @@ snapshots:
       uint8arraylist: 3.0.2
       uint8arrays: 6.1.1
 
-  '@microsoft/agent-host-protocol@1.0.0': {}
-
   '@multiformats/dns@1.0.15':
     dependencies:
       '@dnsquery/dns-packet': 6.1.1
@@ -3041,46 +2962,6 @@ snapshots:
       fastq: 1.20.3
 
   '@oxc-project/types@0.153.0': {}
-
-  '@potential-guide/cli-core@0.3.0-rc.0':
-    dependencies:
-      '@microsoft/agent-host-protocol': 1.0.0
-      ajv: 8.20.0
-      jsonc-parser: 3.3.1
-      yaml: 2.9.1
-
-  '@potential-guide/pguide-task-bundle@0.1.0-rc.2(supports-color@10.2.2)':
-    dependencies:
-      '@helia/car': 6.0.9
-      '@helia/unixfs': 8.0.9(supports-color@10.2.2)
-      '@ipld/car': 5.4.6
-      '@ipld/dag-pb': 4.1.7
-      '@libp2p/logger': 6.2.8
-      '@potential-guide/cli-core': 0.3.0-rc.0
-      '@potential-guide/task-protocol': 0.1.0-rc.2
-      '@potential-guide/task-sdk': 0.1.0-rc.2
-      '@sinclair/typebox': 0.34.52
-      ajv: 8.20.0
-      blockstore-core: 7.0.1
-      esbuild: 0.28.2
-      ipfs-unixfs-exporter: 16.2.3
-      ipfs-unixfs-importer: 17.1.1(supports-color@10.2.2)
-      multiformats: 14.0.5
-      semver: 7.8.5
-      yaml: 2.9.1
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
-  '@potential-guide/task-protocol@0.1.0-rc.2':
-    dependencies:
-      ajv: 8.20.0
-      multiformats: 14.0.5
-      yaml: 2.9.1
-
-  '@potential-guide/task-sdk@0.1.0-rc.2':
-    dependencies:
-      '@potential-guide/task-protocol': 0.1.0-rc.2
 
   '@publint/pack@0.1.7':
     dependencies:
@@ -3907,8 +3788,6 @@ snapshots:
   json-schema-traverse@1.0.0: {}
 
   json-stable-stringify-without-jsonify@1.0.1: {}
-
-  jsonc-parser@3.3.1: {}
 
   keyv@5.6.0:
     dependencies:

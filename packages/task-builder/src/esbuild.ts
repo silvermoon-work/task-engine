@@ -152,7 +152,6 @@ export async function compileTree(
   const bindings = new Set<string>();
   const sdkNames = new Set([
     "@silvermoon-work/task-sdk",
-    "@potential-guide/task-sdk",
     options.sdk ?? "@silvermoon-work/task-sdk",
   ]);
   const wrapper = `${root}/${posix.dirname(entry) === "." ? "" : `${posix.dirname(entry)}/`}__task_entry__.js`;

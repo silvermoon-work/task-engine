@@ -8,22 +8,28 @@ lightweight `/worker` entry without Ajv or a CID parser.
 Migrated under the original MIT license from
 [potential-guide at 6614f46](https://github.com/shazhou-ww/potential-guide/tree/6614f46bf0f4152c61bd2c73d6c4b21ab4cf366f/packages/task-sdk).
 The runtime and public API are preserved; package imports now use the
-`@silvermoon-work` workspace. `0.1.0-canary-261109-1` is published through
+`@silvermoon-work` workspace. The initial `0.1.0-canary-261109-1` was published through
 [Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/42588331015)
 with an exact dependency on protocol `0.1.0-canary-261109-2`.
-The `canary` dist-tag selects it; `latest` is still the `0.0.0` placeholder.
+Select an explicit SDK version or the `canary` dist-tag; `latest` is still the
+`0.0.0` placeholder.
+
+Versions from `0.1.0-canary-261109-2` additionally restore `TaskContext.invokeTask`,
+`ChildTaskInvocation` author types and host-ACK child results, previously
+provided only by the old SDK in integration fixtures. These changes are not
+in the initial canary above; use version 2 or later for child Tasks.
 
 ## Authoring
 
 Use the migrated workspace
 [task-builder CLI init](../task-builder-cli/README.md#init-composition)
 to create a private project, then build, encode and check its Bundle.
-The previously published builder/CLI still generate the old SDK template;
-their new init default requires a separate release. Existing projects can
-explicitly install the published SDK:
+Builder core version 2 and CLI version 1 generated the old SDK template;
+use core version 3 and CLI version 2 for the migrated default. Existing projects can
+explicitly select the SDK version with child invocation support:
 
 ```text
-pnpm add @silvermoon-work/task-sdk@0.1.0-canary-261109-1
+pnpm add @silvermoon-work/task-sdk@0.1.0-canary-261109-2
 ```
 
 For the current workspace CLI:
@@ -61,6 +67,14 @@ output even if the callback catches it. Rejected completion is reported as
 failure; rejected `RunFailure` evidence is re-reported without that evidence.
 Release follows an acknowledged terminal fact; an unavailable terminal channel
 reports uncertainty. Cancellation keeps its stopping/release path.
+
+`context.invokeTask({ key, cid, path, input, timeoutMs })` requests a child
+through the host and returns its acknowledged JSON result. The key is stable
+within the parent Run; the host verifies the child's root against the parent
+DAG, enforces authorization and budgets, and owns admission and cleanup.
+Calls after finishing reject with `run_finished`; cancellation interrupts
+submission. Child invocations share the bounded request channel but do not
+occupy the sequential progress/checkpoint output queue.
 
 Node structured clone transports IPC. Non-cloneable payloads reject locally
 with `invalid_payload`; sendable non-JSON values are rejected by the host.

@@ -3,8 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { createTaskEngine, newId } from "@silvermoon-work/task-engine";
 import { MemoryIpfsClient, MemoryStore, VirtualClock } from "@silvermoon-work/task-engine/testing";
 import { TaskError, taskSchemaUri } from "@silvermoon-work/task-protocol";
@@ -69,13 +68,13 @@ test("V03/V05/V10: HTTP client observes Request preparation separately; disconne
     }),
   );
   await writeFile(callback, "export default async input => input;");
-  const built = await buildTaskBundle({
+  const built = await buildBundleFixture({
     declaration,
     entry: callback,
     outDirectory: join(directory, "bundle"),
   });
   const ipfs = new MemoryIpfsClient();
-  await ipfs.import((await readTaskArtifact(built.car)).files);
+  await ipfs.import(built.files);
   const engine = createTaskEngine({
     store,
     clock,

@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-builder",
-  "version": "0.1.0-canary-261109-2",
+  "version": "0.1.0-canary-261109-3",
   "description": "Task Bundle builds from read-only file trees with streaming resources.",
   "type": "module",
   "sideEffects": false,
@@ -60,7 +60,6 @@
     "yaml": "catalog:"
   },
   "devDependencies": {
-    "@potential-guide/pguide-task-bundle": "catalog:",
     "@silvermoon-work/task-sdk": "workspace:*"
   },
   "repository": {

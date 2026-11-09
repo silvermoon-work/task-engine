@@ -25,7 +25,6 @@ catalog:
   enhanced-resolve: 5.18.3
   esbuild: 0.25.12
   commander: 14.0.3
-  "@potential-guide/pguide-task-bundle": 0.1.0-rc.2
   "@ipld/car": 5.4.6
   "@ipld/dag-pb": 4.2.0
   "@helia/http": 3.0.4
@@ -49,6 +48,3 @@ minimumReleaseAgeExclude:
   - "@turbo/windows-arm64@2.11.8"
   - turbo@2.11.8
   - github-ci-verify@0.1.0
-  - "@potential-guide/pguide-task-bundle@0.1.0-rc.2"
-  - "@potential-guide/task-protocol@0.1.0-rc.2"
-  - "@potential-guide/task-sdk@0.1.0-rc.2"

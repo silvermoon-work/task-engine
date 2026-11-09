@@ -7,6 +7,8 @@ import { releasePackages } from "./release-packages.js";
 
 const registry = "https://registry.npmjs.org";
 const metadataRegistry = "https://mirrors.cloud.tencent.com/npm";
+const legacyPackage =
+  /^(?:@potential-guide\/|(?:pguide|potential-guide)(?:@|$))/u;
 const dependencyFields = [
   "dependencies",
   "optionalDependencies",
@@ -48,6 +50,23 @@ export function selectRelease(packages, { tag, packageId }) {
   return { ...selected, taggedVersion: version };
 }
 
+export function validateDependencyOrigins(manifest) {
+  for (const field of dependencyFields) {
+    for (const [name, specifier] of Object.entries(manifest[field] ?? {})) {
+      if (
+        legacyPackage.test(name) ||
+        (typeof specifier === "string" &&
+          specifier.startsWith("npm:") &&
+          legacyPackage.test(specifier.slice(4)))
+      ) {
+        throw new Error(
+          `Legacy project dependency in ${field}: ${name}@${specifier}.`,
+        );
+      }
+    }
+  }
+}
+
 export function validateManifest(selected, manifest) {
   if (manifest.name !== selected.name) {
     throw new Error(`Expected ${selected.name}, received ${manifest.name}.`);
@@ -84,6 +103,7 @@ export function validateManifest(selected, manifest) {
       "publishConfig.directory is not supported; pack the mapped package.",
     );
   }
+  validateDependencyOrigins(manifest);
   const prerelease = semver.prerelease(manifest.version);
   let distTag = prerelease === null ? "latest" : "next";
   if (prerelease?.some((part) => String(part).startsWith("canary"))) {

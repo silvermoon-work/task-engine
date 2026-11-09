@@ -5,8 +5,7 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { MemoryIpfsClient } from "@silvermoon-work/task-engine/testing";
 import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { exitCodes, runBundle } from "../src/index.js";
@@ -62,7 +61,7 @@ test("real CLI child processes exhaust single, parallel and multi-level work and
         await writeFile(destination, bytes);
       }
     }
-    const built = await buildTaskBundle({
+    const built = await buildBundleFixture({
       declaration: {
         $schema: taskSchemaUri,
         name: "CLI test",
@@ -89,7 +88,7 @@ test("real CLI child processes exhaust single, parallel and multi-level work and
           )
         : {},
     });
-    const files = (await readTaskArtifact(built.car)).files;
+    const files = built.files;
     return { cid: await client.import(files), files, car: built.car };
   }
   const leaf = await build(`

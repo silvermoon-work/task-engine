@@ -4,8 +4,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { resolve } from "node:path";
 import test, { type TestContext } from "node:test";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { BundleCache } from "../src/bundle.js";
 import { createIpfsGatewayClient } from "../src/content.js";
@@ -262,7 +261,7 @@ test("a real self-contained Worker reads a nested resource through only the conf
     return {length,sum};
   };`,
   );
-  const built = await buildTaskBundle({
+  const built = await buildBundleFixture({
     declaration,
     entry,
     resources: { "resources/nested/data.bin": resolve(directory, "resource.bin") },
@@ -270,7 +269,7 @@ test("a real self-contained Worker reads a nested resource through only the conf
     outDirectory: resolve(directory, "bundle"),
   });
   const memory = new MemoryIpfsClient();
-  assert.equal(await memory.import((await readTaskArtifact(built.car)).files), built.cid);
+  assert.equal(await memory.import(built.files), built.cid);
   const host = await gateway(t, memory);
   const store = new MemoryStore();
   const engine = createTaskEngine({

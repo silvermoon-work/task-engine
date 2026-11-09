@@ -6,8 +6,10 @@ The core owns read-only tree transformations; this package owns argument parsing
 help, version, output rendering, host paths, file writes and executable signals.
 It does not implement bundling or CAR encoding itself.
 
-Published as `0.1.0-canary-261109-1`, depending on
-`task-builder@0.1.0-canary-261109-2`. The older core package's binary is not
+The preceding release was `0.1.0-canary-261109-1`, depending on
+`task-builder@0.1.0-canary-261109-2`. CLI version `0.1.0-canary-261109-2`
+requires core `0.1.0-canary-261109-3` and generates the migrated SDK template.
+The older core package's binary is not
 this Commander CLI. See the
 [published-package verification guide](../../docs/end-to-end-verification.md).
 
@@ -63,10 +65,10 @@ The CLI adds:
 - direct dev dependencies on **both** CLI and core;
 - the pnpm version, scoped esbuild approval and release-age exceptions.
 
-The current workspace template uses the independently published SDK
-`0.1.0-canary-261109-1`. The previously published CLI/core still generate the
-old SDK template; deploying this new default requires a separate CLI/core
-release. `createCliTaskProject({ sdkVersion: "file:task-sdk.tgz" })` can still
+The current template uses SDK `0.1.0-canary-261109-2`.
+The preceding CLI/core releases still generate the old SDK template; use
+CLI version 2 with core version 3 for this default.
+`createCliTaskProject({ sdkVersion: "file:task-sdk.tgz" })` can still
 select a local SDK tarball for development. SDK/protocol release-age exceptions
 now use `@silvermoon-work` names.
 

@@ -3,8 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { newId } from "@silvermoon-work/task-engine";
 import { MemoryIpfsClient } from "@silvermoon-work/task-engine/testing";
 import { TaskClient } from "@silvermoon-work/task-engine-http";
@@ -39,12 +38,12 @@ test("V06/V10: real authenticated TCP Server executes the SDK entry, reopens SQL
       `import {appendFileSync} from "node:fs";
 appendFileSync(${JSON.stringify(marker)},"loaded\\n");export default async input=>input;`,
     );
-    const built = await buildTaskBundle({
+    const built = await buildBundleFixture({
       declaration,
       entry: callback,
       outDirectory: join(root, "bundle"),
     });
-    await ipfsClient.import((await readTaskArtifact(built.car)).files);
+    await ipfsClient.import(built.files);
     await rm(callback);
     const options = {
       port: 0,

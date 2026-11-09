@@ -20,7 +20,7 @@ export function createTaskProject(options: TaskProjectOptions = {}): ReadonlyFil
     throw new Error("Task project name must be a valid lowercase npm package name.");
   const taskName = options.taskName ?? "Echo";
   const minVersion = options.minRuntimeVersion ?? "22.13.0";
-  const sdkVersion = options.sdkVersion ?? "0.1.0-canary-261109-1";
+  const sdkVersion = options.sdkVersion ?? "0.1.0-canary-261109-2";
   if (!sdkVersion.trim() || [...sdkVersion].some((char) => char.charCodeAt(0) < 32))
     throw new Error("Dependency specifiers must be nonempty without control characters.");
   validateTaskBundle({

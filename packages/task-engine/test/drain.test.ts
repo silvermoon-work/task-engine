@@ -3,8 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { createTaskEngine as createCoordinator } from "../src/engine.js";
 import { createTaskEngine, MemoryStore, newId } from "../src/index.js";
@@ -47,7 +46,7 @@ async function artifact(
   await mkdir(directory, { recursive: true });
   const entry = join(directory, "main.ts");
   await writeFile(entry, code);
-  const built = await buildTaskBundle({
+  const built = await buildBundleFixture({
     declaration: {
       $schema: taskSchemaUri,
       name: "Drain fixture",
@@ -74,7 +73,7 @@ async function artifact(
         )
       : {},
   });
-  const files = (await readTaskArtifact(built.car)).files;
+  const files = built.files;
   assert.equal(await client.import(files), built.cid);
   return { cid: built.cid, directory: built.directory, files };
 }

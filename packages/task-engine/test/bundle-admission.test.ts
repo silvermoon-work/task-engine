@@ -3,8 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { type SubmissionResult, taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { createTaskEngine, newId } from "../src/index.js";
 import { MemoryIpfsClient, MemoryStore, VirtualClock } from "../src/testing.js";
@@ -70,15 +69,15 @@ export default async (input, context) => {
   return {value:input.value,bytes,chunks};
 };`,
     );
-    const built = await buildTaskBundle({
+    const built = await buildBundleFixture({
       declaration,
       entry,
       outDirectory: join(directory, "bundle"),
       resources: { "resources/data.bin": join(directory, "data.bin") },
     });
     const client = new MemoryIpfsClient();
-    const cid = await client.import((await readTaskArtifact(built.car)).files);
-    const tree = (await readTaskArtifact(built.directory)).files;
+    const cid = await client.import(built.files);
+    const tree = built.files;
     await rm(entry);
     await rm(built.directory, { recursive: true });
     await run({ directory, marker, cid, client, tree });

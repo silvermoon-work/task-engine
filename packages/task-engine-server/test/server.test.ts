@@ -3,11 +3,10 @@ import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
-import { join, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { newId } from "@silvermoon-work/task-engine";
 import { MemoryIpfsClient, MemoryStore } from "@silvermoon-work/task-engine/testing";
 import { TaskClient } from "@silvermoon-work/task-engine-http";
@@ -46,15 +45,19 @@ async function config(): Promise<ServerOptions> {
     );
     await writeFile(
       entry,
-      `import {createEcho} from ${JSON.stringify(fileURLToPath(new URL("./echo-worker.mjs", import.meta.url)))};
+      `import {createEcho} from ${JSON.stringify(
+        relative(dirname(entry), fileURLToPath(new URL("./echo-worker.mjs", import.meta.url)))
+          .split(sep)
+          .join("/"),
+      )};
 const type=createEcho({});export default(input,context)=>type.run(input,context);`,
     );
-    const built = await buildTaskBundle({
+    const built = await buildBundleFixture({
       declaration: yaml,
       entry,
       outDirectory: join(authoredRoot, "bundle"),
     });
-    reference = await ipfsClient.import((await readTaskArtifact(built.car)).files);
+    reference = await ipfsClient.import(built.files);
   })();
   await authoring;
   return {

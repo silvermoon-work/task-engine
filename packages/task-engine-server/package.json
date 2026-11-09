@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-engine-server",
-  "version": "0.1.0-canary-261109-1",
+  "version": "0.1.0-canary-261109-2",
   "description": "Generic authenticated Node HTTP/SSE task server.",
   "type": "module",
   "sideEffects": false,
@@ -31,7 +31,8 @@
     "@silvermoon-work/task-engine-storage": "workspace:*"
   },
   "devDependencies": {
-    "@potential-guide/pguide-task-bundle": "0.1.0-rc.2"
+    "@silvermoon-work/task-builder-cli": "workspace:*",
+    "@silvermoon-work/task-sdk": "workspace:*"
   },
   "engines": {
     "node": ">=22.13.0"

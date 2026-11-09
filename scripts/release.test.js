@@ -4,6 +4,7 @@ import {
   mkdtempSync,
   mkdirSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -16,6 +17,7 @@ import {
   readWorkspaceNames,
   selectRelease,
   validateArtifact,
+  validateDependencyOrigins,
   validateManifest,
   verifyUnpublished,
   verifyWorkspaceDependencies,
@@ -107,6 +109,45 @@ test("the selected package, not the root, must match the tag exactly", () => {
       { ...manifest, name: "@workspace/core" },
     ),
   );
+});
+
+test("legacy project packages and npm aliases fail in every dependency section", () => {
+  for (const field of [
+    "dependencies",
+    "optionalDependencies",
+    "peerDependencies",
+    "devDependencies",
+  ]) {
+    for (const [name, specifier] of [
+      ["@potential-guide/task-sdk", "0.1.0-rc.2"],
+      ["@potential-guide/another-package", "1.0.0"],
+      ["pguide", "0.4.0"],
+      ["potential-guide", "1.0.0"],
+      ["alias", "npm:@potential-guide/task-protocol@0.1.0-rc.2"],
+      ["alias", "npm:pguide@0.4.0"],
+      ["alias", "npm:potential-guide@1.0.0"],
+    ]) {
+      const value = { ...manifest, [field]: { [name]: specifier } };
+      assert.throws(
+        () => validateManifest(selection, value),
+        /Legacy project dependency/u,
+      );
+      assert.throws(
+        () => validateArtifact(release, value),
+        /Legacy project dependency/u,
+      );
+    }
+    const value = {
+      ...manifest,
+      [field]: {
+        alias: "npm:@example/dependency@1.2.3",
+        "pguide-helper": "1.2.3",
+        "potential-guide-helper": "1.2.3",
+      },
+    };
+    assert.doesNotThrow(() => validateManifest(selection, value));
+    assert.doesNotThrow(() => validateArtifact(release, value));
+  }
 });
 
 test("prerelease suffixes must match exactly and never publish as latest", () => {
@@ -446,6 +487,7 @@ test("the release registry contains the core packages, builder CLI and finite ex
       "dependencies",
       "optionalDependencies",
       "peerDependencies",
+      "devDependencies",
     ]) {
       for (const [name, version] of Object.entries(value[section] ?? {})) {
         assert.ok(!name.startsWith("@potential-guide/"));
@@ -458,6 +500,30 @@ test("the release registry contains the core packages, builder CLI and finite ex
     assert.equal(
       value.devDependencies?.["@potential-guide/ipfs-content"],
       undefined,
+    );
+  }
+});
+
+test("workspace dependency configuration has no old-scope packages, including the lockfile", () => {
+  const manifests = ["package.json"];
+  for (const directory of ["packages", "apps"]) {
+    if (!readdirSync(".").includes(directory)) continue;
+    for (const entry of readdirSync(directory, { withFileTypes: true }))
+      if (entry.isDirectory())
+        manifests.push(resolve(directory, entry.name, "package.json"));
+  }
+  for (const path of manifests)
+    validateDependencyOrigins(JSON.parse(readFileSync(path, "utf8")));
+  for (const path of [
+    "package.json",
+    "pnpm-workspace.yaml",
+    "pnpm-lock.yaml",
+  ]) {
+    const contents = readFileSync(resolve(path), "utf8");
+    assert.ok(!contents.includes("@potential-guide/"), path);
+    assert.ok(
+      !/(?:^|\n)\s*['"]?(?:pguide|potential-guide)(?:@|['"]?:)/u.test(contents),
+      path,
     );
   }
 });

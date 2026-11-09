@@ -16,6 +16,8 @@ contract, factories and stream helpers; the old `./node` entry has moved to
 The library-only layout and init/CAR/tree APIs are published in
 `0.1.0-canary-261109-2`. The older `0.1.0-canary-261109-1` artifact has the
 previous CLI layout; use the separate CLI package for commands.
+Version `0.1.0-canary-261109-3` updates init to the migrated SDK with child
+invocation support and removes all old-project development dependencies.
 
 ## Transformation
 
@@ -138,8 +140,9 @@ itself. `callback` wraps a lazily imported callback; `exportName` defaults to
 `default` and is only accepted in that mode. `source.sdk` defaults to
 `@silvermoon-work/task-sdk` for callback wrappers and can explicitly select an
 SDK already present in the tree. The
-[workspace SDK](../task-sdk/README.md) supplies the runtime; existing projects
-can still explicitly select `@potential-guide/task-sdk`.
+[workspace SDK](../task-sdk/README.md) supplies the runtime; `source.sdk` can
+explicitly select another SDK supplied by the input tree. There is no dedicated
+old-scope SDK recognition or dependency.
 Recognized SDK `binding.js`/`binding.ts` modules are replaced with the resolved
 Bundle declaration without evaluating the Worker or author callback.
 
@@ -202,9 +205,9 @@ private npm package, a JSON
 contract with a named shared text Schema, typed SDK entry/helper and a streamed
 greeting resource. It performs no I/O, install or ancestor package modification.
 The default dependency and author import use
-`@silvermoon-work/task-sdk@0.1.0-canary-261109-1`, now independently published.
-This init change is in the workspace source; the previously published builder
-still emits the old SDK template until a separate builder/CLI release.
+`@silvermoon-work/task-sdk@0.1.0-canary-261109-2` in builder version
+`0.1.0-canary-261109-3`. Older builder versions still emit the old SDK template;
+use the version 3 core and version 2 CLI for the migrated template.
 An explicit local `sdkVersion` specifier (such as `file:task-sdk.tgz`) remains
 available for development.
 `sdkVersion`, `minRuntimeVersion`, `taskName` and npm `name` can be supplied.

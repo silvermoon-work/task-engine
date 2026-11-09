@@ -33,7 +33,8 @@
     "@silvermoon-work/task-protocol": "workspace:*"
   },
   "devDependencies": {
-    "@potential-guide/pguide-task-bundle": "catalog:"
+    "@silvermoon-work/task-builder-cli": "workspace:*",
+    "@silvermoon-work/task-sdk": "workspace:*"
   },
   "engines": {
     "node": ">=22.13.0"

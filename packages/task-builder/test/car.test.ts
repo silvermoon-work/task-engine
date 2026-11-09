@@ -4,7 +4,6 @@ import { CarReader } from "@ipld/car/reader";
 import { CarWriter } from "@ipld/car/writer";
 import { CID } from "multiformats/cid";
 import { taskSchemaUri } from "@silvermoon-work/task-protocol";
-import { encodeContentCar } from "@potential-guide/pguide-task-bundle/car";
 import { encodeTaskBundleCar, readTaskBundleCar } from "../src/car.js";
 import { memoryFile, memoryTree, readBytes, type ReadonlyFileTree } from "../src/tree.js";
 
@@ -81,9 +80,6 @@ test("CAR streams preserve canonical root, manifest and binary/text bytes with o
   assert.ok(encoded.retainedBytes > 0);
   assert.deepEqual(opened.sort(), [...files.keys()].sort());
   const bytes = await collect(encoded.stream);
-  const legacy = await encodeContentCar(files);
-  assert.equal(encoded.cid, legacy.cid);
-  assert.deepEqual(bytes, legacy.bytes);
   assert.equal(encoded.retainedBytes, 0);
   const official = await CarReader.fromBytes(bytes);
   assert.equal((await official.getRoots())[0]?.toString(), encoded.cid);

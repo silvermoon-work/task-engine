@@ -3,8 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { newId } from "@silvermoon-work/task-engine";
 import { MemoryIpfsClient, MemoryStore } from "@silvermoon-work/task-engine/testing";
 import { TaskClient } from "@silvermoon-work/task-engine-http";
@@ -34,13 +33,13 @@ test("retired cache routes return 404 without changing IPFS content or Task admi
       }),
     );
     await writeFile(entry, "export default async input => input;");
-    const built = await buildTaskBundle({
+    const built = await buildBundleFixture({
       declaration,
       entry,
       outDirectory: join(root, "bundle"),
     });
     const ipfsClient = new MemoryIpfsClient();
-    await ipfsClient.import((await readTaskArtifact(built.car)).files);
+    await ipfsClient.import(built.files);
     server = await startTaskServer({
       port: 0,
       store: new MemoryStore(),

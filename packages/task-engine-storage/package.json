@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-engine-storage",
-  "version": "0.1.0-canary-261109-1",
+  "version": "0.1.0-canary-261109-2",
   "description": "Single-writer durable SQLite Store for generic tasks.",
   "type": "module",
   "sideEffects": false,
@@ -29,7 +29,8 @@
   },
   "devDependencies": {
     "@silvermoon-work/task-engine": "workspace:*",
-    "@potential-guide/pguide-task-bundle": "0.1.0-rc.2"
+    "@silvermoon-work/task-builder-cli": "workspace:*",
+    "@silvermoon-work/task-sdk": "workspace:*"
   },
   "engines": {
     "node": ">=22.13.0"

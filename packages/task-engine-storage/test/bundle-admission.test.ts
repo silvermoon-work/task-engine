@@ -4,8 +4,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { createTaskEngine, newId } from "@silvermoon-work/task-engine";
 import { MemoryIpfsClient, VirtualClock } from "@silvermoon-work/task-engine/testing";
 import { taskSchemaUri } from "@silvermoon-work/task-protocol";
@@ -39,13 +38,13 @@ for (const phase of ["beforeCommit", "afterCommit"] as const) {
           }),
         );
         await writeFile(callback, "export default async input => input;");
-        const built = await buildTaskBundle({
+        const built = await buildBundleFixture({
           declaration,
           entry: callback,
           outDirectory: join(directory, "bundle"),
         });
         const ipfsClient = new MemoryIpfsClient();
-        await ipfsClient.import((await readTaskArtifact(built.car)).files);
+        await ipfsClient.import(built.files);
         const now = Date.now();
         const request = {
           requestId: newId(now),

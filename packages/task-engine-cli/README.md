@@ -7,11 +7,12 @@ HTTP service。可选择 Bundle 根 CID + 独立 IPFS Gateway，或直接运行�
 ```powershell
 task-engine run <bundle-cid> --input .\input.json --gateway https://your-gateway.example --allow-children
 # 或从 stdin 读取一个 JSON 对象
-'{"value":7}' | task-engine run <bundle-cid> --input - --gateway http://127.0.0.1:8080
+'{"value":7}' | task-engine run <bundle-cid> --gateway http://127.0.0.1:8080
 task-engine --help
 # 本地 CAR：无需 Gateway 或用户编写宿主脚本
 task-engine run --car .\bundle.car --input .\input.json
 task-engine run --car .\bundle.car --expected-cid <bundle-cid> --input .\input.json --allow-children
+'{"value":7}' | task-engine run --car .\bundle.car
 ```
 
 仓库内先 `pnpm build`，再执行
@@ -24,6 +25,9 @@ task-engine run --car .\bundle.car --expected-cid <bundle-cid> --input .\input.j
 
 每次调用创建新的非持久 `MemoryStore` 域，没有历史恢复、外部生产者或 HTTP 监听器。
 输入限制为 65,536 字节 JSON 对象，不能覆盖 Request envelope 字段。
+省略 `--input` 等同于 `--input -`，从 stdin 读到 EOF；`--input <file>` 显式读取文件。
+空输入、无效 JSON 或超出容量明确失败，不默认替换为 `{}`。交互终端同样等待输入与 EOF，
+SIGINT/SIGTERM 可中断等待。
 根提交的 preparation 可能异步返回；`drain()` 封闭外部准入，但保留结构化子调用，
 直到所有准备、准入、未来执行资格、未终结 Task、Run、子调用和回收均耗尽。
 Worker 物理退出、资源释放证明、守护关闭和 Store 释放完成后才输出结果；

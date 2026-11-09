@@ -90,6 +90,24 @@ mirror，避免依赖下载回退至默认官方 registry。已接受的 Ideal
 World 未修改；尚未接受的 Implementation、Deployment 与 supporting
 documents 已格式化。I-* 勾选表示已完成实现证据，不自行构成生命周期审批；主 Agent 后续以准确同步 revision 的提交和验收事件记录审批。
 
+## CLI Gateway 默认选择
+
+CID 模式优先级：显式 `--gateway` 替换默认值；未传时使用
+`TASK_ENGINE_GATEWAY`；变量未设置时读取 `IPFS_PATH/config` 或默认
+`~/.ipfs/config` 的
+`Addresses.Gateway`，不盲试端口、不读取管理 API 地址。空或无效环境变量、缺失/损坏/禁用/不支持的配置明确拒绝。支持单个和有序 IP/TCP 地址集合，wildcard 映射到同端口 loopback；CAR 忽略这些环境变量，不读 Kubo 配置，仍拒绝显式 Gateway。复用既有 client 与
+`bundle_fetch_failed`
+诊断，不封装或改写内容读取错误协议；失败为根准入 rejection，退出 3 并包含所选 Gateway，无公共或本地替代 fallback。
+
+子进程使用自己创建的 Kubo 配置和随机 loopback
+Gateway，验证显式选项/环境变量优先、IPFS_PATH 与默认 home 仓库、配置失败不触发读取，以及 CAR 不读配置。连接失败拦截 fetch 并核对所选 origin，不占用或查询共享机器实际 Kubo 端口。独立配置单元测试覆盖 IPv4/IPv6、wildcard、集合、TLS
+listener，缺失/禁用/错误地址/Unix socket/损坏 JSON/配置目录、1
+MiB 精确容量边界和取消，并断言错误信息不包含配置内的 private key 测试标记。
+
+扩展矩阵保留每个真实子进程的 15 秒 watchdog 与业务期限；总测试预算随新增子进程场景调整，不把工具强制杀进程当作完成证据。配置发现版本重新运行
+`pnpm check`，退出 0，40/40 turbo 任务成功，CLI
+21/21、完整测试 536 项通过，类型和包守卫通过；没有复用旧端口默认结果冒充配置发现完成。
+
 ## 默认 stdin 输入
 
 省略 `--input` 等同 `--input -`，复用既有有界 stdin

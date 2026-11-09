@@ -74,14 +74,25 @@ pnpm exec task-builder check bundle.car --format text
 
 ## 3. Run：按内容源选择一条路径
 
-### 已有 Gateway：直接 CLI
+省略 `--input`
+默认从 stdin 读取一个 JSON 对象直到 EOF，无需创建输入文件。下面的管道命令适用于 PowerShell 和 macOS/Linux
+shell。显式 `--input -` 等价；需要文件输入时才使用
+`--input <file>`。空输入、无效 JSON 或超出容量应明确失败，不使用空对象兜底。
+
+### CID 模式：本地 Gateway 或显式配置
 
 如果 Bundle 已经能从受控 Gateway 读取，把 `<bundle-root-cid>` 替换为
-`bundle.cid` 的内容，保存 `input.json` 为 `{"text":"world"}`，然后运行：
+`bundle.cid` 的内容。未指定 Gateway 时，使用
+`TASK_ENGINE_GATEWAY`；该变量未设置时读取 `IPFS_PATH/config` 的
+`Addresses.Gateway`， `IPFS_PATH` 未设置则检查默认 Kubo 仓库 `~/.ipfs/config`：
 
-```text
-pnpm exec task-engine run <bundle-root-cid> --input input.json --gateway <gateway-base-origin> --timeout-ms 30000 --max-runtime-ms 60000
+```powershell
+echo '{"text":"world"}' | pnpm exec task-engine run <bundle-root-cid> --timeout-ms 30000 --max-runtime-ms 60000
 ```
+
+CLI 不启动 Kubo；本地 Gateway 必须已经运行。连接失败明确报错，不尝试公共 Gateway。需要其他源时设置
+`TASK_ENGINE_GATEWAY` 或显式传
+`--gateway <gateway-base-origin>`；显式选项优先于环境变量，环境变量优先于 Kubo 配置。找不到有效配置、地址不支持或连接失败时明确报错，不盲试 8080，不调用 Kubo 管理 API。环境变量内容必须有效，空值或无效 URL 不使用默认值兜底。CAR 模式不读取 Kubo 配置。
 
 不启动 task-engine HTTP
 service。CLI 自己等待 preparation、任务和 Run 物理回收，输出单行 JSON 后自动退出。通过条件是退出码 0、`status: "succeeded"`、根结果为
@@ -94,21 +105,11 @@ service。CLI 自己等待 preparation、任务和 Run 物理回收，输出单�
 
 ### 只有本地 CAR：直接运行 CLI
 
-无需编写 JavaScript、启动 Gateway、Docker 或 Kubo。保存 `input.json` 为
-`{"text":"world"}`，直接执行：
-
-```text
-pnpm exec task-engine run --car bundle.car --input input.json --timeout-ms 30000 --max-runtime-ms 60000
-```
-
-省略 `--input` 时默认从 stdin 读一个 JSON 对象直到 EOF，显式 `--input -`
-也等价：
+无需编写 JavaScript、启动 Gateway、Docker 或 Kubo，直接执行：
 
 ```powershell
-'{"text":"world"}' | pnpm exec task-engine run --car bundle.car
+echo '{"text":"world"}' | pnpm exec task-engine run --car bundle.car --timeout-ms 30000 --max-runtime-ms 60000
 ```
-
-同样适用于 CID/Gateway 路径；显式文件输入不消费 stdin。空输入、无效 JSON 或超出容量应明确失败，不使用空对象兜底。
 
 CLI 先完整校验 CAR，再按唯一根 CID 驱动同一个 engine；不从作者源码或 `dist`
 执行，不做网络 fallback。可选 `--expected-cid <bundle-root-cid>` 对照

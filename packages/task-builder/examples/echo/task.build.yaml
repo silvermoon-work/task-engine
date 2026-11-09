@@ -1,0 +1,12 @@
+name: Echo
+runtime:
+  minVersion: "22.13.0"
+source:
+  entry: src/main.ts
+  contract: src/contract.json
+  mode: explicit
+include:
+  - from: assets/**
+    to: resources/
+outDirectory: dist
+binary: []

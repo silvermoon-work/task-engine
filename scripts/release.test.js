@@ -344,8 +344,9 @@ test("pnpm packs once without hooks, converts workspace dependencies and passes 
   }
 });
 
-test("the release registry contains exactly five renamed core packages", () => {
+test("the release registry contains the five core packages and task builder", () => {
   const expected = [
+    "task-builder",
     "task-protocol",
     "task-engine",
     "task-engine-storage",

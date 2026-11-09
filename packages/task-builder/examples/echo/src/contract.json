@@ -1,0 +1,15 @@
+{
+  "input": {
+    "type": "object",
+    "properties": { "text": { "type": "string" } },
+    "required": ["text"],
+    "additionalProperties": false
+  },
+  "result": {
+    "type": "object",
+    "properties": { "text": { "type": "string" } },
+    "required": ["text"],
+    "additionalProperties": false
+  },
+  "message": false
+}

@@ -1,0 +1,62 @@
+{
+  "name": "@silvermoon-work/task-builder",
+  "version": "0.1.0-rc.2",
+  "description": "Task Bundle builds from read-only file trees with streaming resources.",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
+    }
+  },
+  "bin": {
+    "task-builder": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "examples",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "node -e \"for (const path of ['dist', '.cache']) require('node:fs').rmSync(path, { recursive: true, force: true })\"",
+    "lint": "biome lint .",
+    "test": "tsx --test \"test/*.test.ts\"",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@silvermoon-work/task-protocol": "workspace:*",
+    "@sinclair/typebox": "catalog:",
+    "enhanced-resolve": "catalog:",
+    "esbuild": "catalog:",
+    "yaml": "catalog:"
+  },
+  "devDependencies": {
+    "@potential-guide/task-sdk": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/silvermoon-work/task-engine.git",
+    "directory": "packages/task-builder"
+  },
+  "homepage": "https://github.com/silvermoon-work/task-engine/tree/main/packages/task-builder#readme",
+  "bugs": {
+    "url": "https://github.com/silvermoon-work/task-engine/issues"
+  }
+}

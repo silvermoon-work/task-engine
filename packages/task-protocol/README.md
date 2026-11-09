@@ -20,6 +20,10 @@ All other bytes must be valid UTF-8 with LF-only line endings, including manifes
 Worker and Schemas. Reading rejects old declarations and non-normalized text,
 without rewriting anything. `normalizeTaskText` preserves all bytes except CRLF
 and lone CR (converted to LF), including a UTF-8 BOM; invalid UTF-8 names its path.
+`createTaskTextNormalizer(path)` provides the same rules incrementally:
+`push(bytes)` validates split UTF-8 and normalizes split CRLF, while `finish()`
+rejects truncated UTF-8 at EOF. Use one normalizer per stream and call `finish()`
+only after complete consumption; partial/canceled streams do not prove validity.
 Author tools share `taskBundlePattern` / `selectTaskBinary` for case-sensitive,
 portable final-path globs. No content/extension sniffing determines binary.
 Both author tooling and Engine use this implementation independently of

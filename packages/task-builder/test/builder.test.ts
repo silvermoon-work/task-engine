@@ -157,6 +157,7 @@ test("shared Schemas use a separate namespace and retain author IDs and offline 
       },
     },
   });
+
   const files = await collect(output);
   assert.deepEqual([...files.keys()].sort(), [
     "schemas/input.json",
@@ -170,6 +171,19 @@ test("shared Schemas use a separate namespace and retain author IDs and offline 
   assert.equal(JSON.parse(shared.toString()).$id, id);
   assert.equal(JSON.parse((await bytes(output, "schemas/result.json")).toString()).$ref, id);
   readTaskBundle(files);
+});
+
+test("direct readers cannot mutate generated Buffer-backed Bundle files", async () => {
+  const { input } = tree({ "src/main.ts": "export const value = 1;" });
+  const output = await buildTaskBundle(input, options);
+  const expected = await bytes(output, "task.yaml");
+  const reader = (await output.read("task.yaml")).getReader();
+  const first = await reader.read();
+  assert.ok(first.value);
+  first.value.fill(0);
+  await reader.cancel();
+  reader.releaseLock();
+  assert.deepEqual(await bytes(output, "task.yaml"), expected);
 });
 
 test("JSON and trusted module contracts share named Schemas without changing the manifest structure", async () => {

@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-builder",
-  "version": "0.1.0-canary-261109-1",
+  "version": "0.1.0-canary-261109-2",
   "description": "Task Bundle builds from read-only file trees with streaming resources.",
   "type": "module",
   "sideEffects": false,
@@ -11,17 +11,24 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./node": {
-      "types": "./dist/node.d.ts",
-      "import": "./dist/node.js"
+    "./tree": {
+      "types": "./dist/tree.d.ts",
+      "import": "./dist/tree.js"
+    },
+    "./init": {
+      "types": "./dist/init.d.ts",
+      "import": "./dist/init.js"
+    },
+    "./car": {
+      "types": "./dist/car.d.ts",
+      "import": "./dist/car.js"
     }
-  },
-  "bin": {
-    "task-builder": "./dist/cli.js"
   },
   "files": [
     "dist",
-    "examples",
+    "examples/echo/src",
+    "examples/echo/assets",
+    "examples/echo/task.build.yaml",
     "README.md",
     "LICENSE"
   ],
@@ -41,13 +48,19 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@ipld/car": "catalog:",
+    "@ipld/dag-pb": "catalog:",
     "@silvermoon-work/task-protocol": "workspace:*",
     "@sinclair/typebox": "catalog:",
     "enhanced-resolve": "catalog:",
     "esbuild": "catalog:",
+    "multiformats": "catalog:",
+    "ipfs-unixfs-importer": "catalog:",
+    "ipfs-unixfs-exporter": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {
+    "@potential-guide/pguide-task-bundle": "catalog:",
     "@potential-guide/task-sdk": "catalog:"
   },
   "repository": {

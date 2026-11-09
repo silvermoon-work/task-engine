@@ -3,6 +3,19 @@
 Build Task Bundles with esbuild from a read-only file tree into another read-only
 file tree. No pguide command protocol, Gulp, Vinyl, CAR, network, publication, or
 output-directory management is part of the transformation.
+Separate `./init` and `./car` exports provide project templates and offline CAR
+streams without turning build into a multi-output operation. The root entry
+does not re-export or load these modules; init/CAR do not load esbuild.
+Subpaths isolate module loading, not npm dependency installation.
+This package has no CLI binary, process signal handlers or host filesystem
+adapter. The independent
+[@silvermoon-work/task-builder-cli](../task-builder-cli/README.md) library owns
+Commander-based interaction and local I/O. `./tree` exposes the shared pure VFS
+contract, factories and stream helpers; the old `./node` entry has moved to
+`@silvermoon-work/task-builder-cli/node`.
+The library-only layout and init/CAR/tree APIs are published in
+`0.1.0-canary-261109-2`. The older `0.1.0-canary-261109-1` artifact has the
+previous CLI layout; use the separate CLI package for commands.
 
 ## Transformation
 
@@ -168,76 +181,99 @@ by the builder. Case-insensitive name collisions are still checked after
 evaluation. The build YAML and final `task.yaml` protocol structure do not change;
 the latter only lists the newly named files in `include`.
 
-## Standalone CLI
+## Additional transformations
 
-The Node adapter is deliberately separate:
+### Init: configuration to a read-only template tree
 
 ```ts
-import { directoryTree, writeDirectory } from "@silvermoon-work/task-builder/node";
+import { createTaskProject } from "@silvermoon-work/task-builder/init";
 
-const input = await directoryTree(projectDirectory);
-const output = await buildTaskBundle(input, options);
-await writeDirectory(output, newOutputDirectory);
+const project = createTaskProject({
+  name: "@example/my-task",
+  taskName: "Echo",
+});
+const entries = await project.list("");
+const source = await project.read("src/main.ts");
 ```
 
-The directory adapter is a live view, not an atomic snapshot under concurrent
-filesystem changes. It follows links only to regular files/directories within
-the chosen root, allowing confined pnpm dependency links. It rejects escaping
-links and special files; this is not an OS sandbox.
+The pure synchronous function returns an owned, repeatable file tree with a
+private npm package, a JSON
+contract with a named shared text Schema, typed SDK entry/helper and a streamed
+greeting resource. It performs no I/O, install or ancestor package modification.
+The default SDK is the explicitly external `@potential-guide/task-sdk@0.1.0-rc.2`.
+`sdkVersion`, `minRuntimeVersion`, `taskName` and npm `name` can be supplied.
+It has no CLI dependency, npm scripts, package-manager selection or pnpm
+installation policy. The CLI composes this tree with its own scripts,
+dependency versions and esbuild approvals before writing it to disk.
 
-Create `task.build.yaml`:
+### CAR: file-tree streams to a bounded offline archive
 
-```yaml
-name: Echo
-runtime:
-  minVersion: "22.13.0"
-source:
-  entry: src/main.ts
-  contract: src/contract.json
-  mode: explicit
-include:
-  - from: assets/**
-    to: resources/
-outDirectory: dist
-binary: []
+```ts
+import {
+  encodeTaskBundleCar,
+  readTaskBundleCar,
+} from "@silvermoon-work/task-builder/car";
+const encoded = await encodeTaskBundleCar(bundleTree, { signal });
+try {
+  await consumeCarStream(encoded.stream);
+  console.log(encoded.cid);
+} finally {
+  await encoded.close();
+}
+
+const decoded = await readTaskBundleCar(carStream, {
+  expectedCid,
+  signal,
+});
+try {
+  console.log(decoded.cid, decoded.declaration, decoded.bytes, decoded.files);
+  const resource = await decoded.tree.read("resources/greeting.txt");
+  // The caller owns this offline content source; it structurally matches Engine's read port.
+  const ipfsClient = { block: decoded.block };
+} finally {
+  await decoded.close();
+}
 ```
 
-All source paths and include globs are relative to this file; include destinations
-and binary globs refer to final Bundle paths. Include rules skip dot entries and
-node_modules, must match a file, and cannot overlap or traverse the output.
-The existing author `$schema` URI is accepted when explicitly supplied; it is
-not rewritten. Unknown configuration fields are rejected.
+CAR v1 requires the root CID in its header. Encoding therefore consumes each
+input file once into bounded staged UnixFS blocks, validates the staged Bundle,
+then returns `{ cid, stream, retainedBytes, close() }`. It does not collect
+whole resource files or the complete archive. The CAR stream is single-use,
+demand-driven and emits at most 64 KiB per output chunk. It releases staged
+blocks at EOF or cancellation; call `close()` when abandoning an unread result.
+The encode signal spans staging and output, unlike the build signal's
+construction-only lifetime. Output no longer depends on the input after staging.
 
-```sh
-task-builder task.build.yaml --root <project-directory>
-# Trusted TypeBox module contract:
-task-builder task.build.yaml --root <project-directory> --trusted-contract
-```
+Decoding consumes the full source stream before returning, verifies SHA-256
+blocks, one CAR v1 root, exact reachable DAG (no duplicate/unreachable blocks),
+canonical UnixFS layout, exact manifest, UTF-8/LF, Schema closure and all resources.
+It returns a repeatable read-only `tree`, declaration/resolved Schema, statistics
+and a read-only `block.get(cid, {signal?})` port. Reads return owned byte copies;
+closing clears memory and makes subsequent tree/block reads fail explicitly.
+The read signal applies to acquisition; subsequent tree/block reads have their
+own cancellation signals. This is not a persistent node, pin or upload service.
 
-In this repository, after building the package:
+`TaskCarOptions` supports `maxCarBytes` (default 72 MiB), `retainedBytes`
+(default 72 MiB), `maxBlocks` (default 16,384), `maxBlockBytes` (default 2 MiB)
+and reduced `fileLimits`. Retention counts unique block bytes, not whole-file
+buffers. Peak memory also includes input/parser chunks, one encoded record and
+aggregated manifest/Schema control files; these are not an RSS limit. Malformed
+CAR records are bounded by the archive limit before decoded block-size checking.
+Text is validated, not normalized during CAR encoding: pass a built Bundle tree.
 
-```sh
-pnpm --filter @silvermoon-work/task-builder build
-node packages/task-builder/dist/cli.js task.build.yaml --root <project-directory>
-```
+The deterministic layout preserves the existing CID contract: CIDv1, raw leaves,
+256 KiB fixed chunks, balanced layout (174 children), wrapped directory, no
+sharding, sorted paths and no mtime/mode metadata.
 
-The CLI streams files sequentially into a **new** output directory and returns
-JSON `{ directory, files }` only after every stream completes. The output's
-parent must already exist and be canonical. Existing output is never replaced;
-on failure, only newly created files/directories are removed. Build interruption
-aborts active I/O. There is no init, watch, CAR generation or publication.
+`consumeCarStream` and `carStream` above are caller-provided sinks/sources.
+For host directories, use the independent
+[CLI Node adapters](../task-builder-cli/README.md#node-adapters), not a core
+filesystem API. See the [end-to-end guide](../../docs/end-to-end-verification.md)
+for CLI init, build, CAR, real Server execution and recovery.
 
-Try the included [Echo task](./examples/echo/task.build.yaml) from the repository
-root after installation and build:
-
-```sh
-node packages/task-builder/dist/cli.js packages/task-builder/examples/echo/task.build.yaml
-```
-
-The root includes the installed dependency tree, so this example can bundle the
-published SDK used by the repository's tests. The generated directory is
-`packages/task-builder/examples/echo/dist`. It contains a real SDK Worker meant
-to be started by a Task Engine, not executed directly as a standalone script.
+The included [Echo task](./examples/echo/task.build.yaml) remains an author-input
+example. A built SDK Worker is meant to be started by a Task Engine, not executed
+directly as a standalone script.
 
 ## Validation
 

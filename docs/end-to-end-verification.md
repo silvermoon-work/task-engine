@@ -13,12 +13,15 @@ service、认证、SQLite 数据库或任务轮询。Windows、macOS、Linux 使
 - SDK 尚未迁移，模板仍使用 `@potential-guide/task-sdk@0.1.0-rc.2`；不需要旧
   `pguide-task-bundle` 的 build、CAR 或 artifact API。
 
-**新 builder 入口和两个独立 CLI 当前仍是待发布代码。** 不能安装旧 canary 或占位
-`latest` 冒充本轮能力。下文的 `<published-...-version>`
-必须替换为确实已发布的精确版本；发布前使用文末的本地 tarball 路径，只算开发验证，不算已发布包 smoke
-test。engine 候选 `0.1.0-canary-261109-2` 必须先于依赖它的 engine
-CLI 发布；builder 同样必须先于 builder
-CLI 发布。不要在本流程里发包或推送 release tag。
+builder 核心 `0.1.0-canary-261109-2` 和独立 builder CLI `0.1.0-canary-261109-1`
+已发布。不能安装旧核心 canary 1 或占位 `latest` 冒充本轮能力。
+
+**新 engine / engine CLI 不属于本轮发布。**
+第 3 节的新运行宿主路径仍须等待对应的真实发布版本，不能执行
+`<published-engine-cli-version>` 占位命令。engine 候选 `0.1.0-canary-261109-2`
+必须先于依赖它的 engine
+CLI 发布。本轮只用已发布 Engine 验证 builder 兼容性，结果见最后一节。本地 tarball 只算开发验证，不算已发布包 smoke
+test；不要在本流程里发包或推送 tag。
 
 包 metadata 和下载只使用 Tencent mirror。每次安装前确认：
 
@@ -36,9 +39,16 @@ URL。镜像缺包时等待同步或报告阻塞，不回退官方 registry、�
 已发布版本可直接初始化一个不存在、且父目录已存在的新项目：
 
 ```text
-pnpm dlx @silvermoon-work/task-builder-cli@<published-builder-cli-version> init "<absolute-new-project-directory>" --name task-engine-e2e --builder-version "<published-builder-version>"
+pnpm dlx --allow-build=esbuild @silvermoon-work/task-builder-cli@0.1.0-canary-261109-1 init "<absolute-new-project-directory>" --name task-engine-e2e
 cd "<absolute-new-project-directory>"
 pnpm install
+```
+
+默认模板固定使用已安装 CLI 的版本 1 和核心版本 2，无本地 override。
+`--allow-build=esbuild` 是 pnpm dlx 的安装审批，不是 builder
+CLI 配置。若选择第 3 节的新执行 CLI 路径，在对应版本确实发布后另行安装：
+
+```text
 pnpm add --save-dev @silvermoon-work/task-engine-cli@<published-engine-cli-version>
 ```
 
@@ -61,10 +71,8 @@ monorepo 的全量检查。命令失败立即停止，不继续运行旧输出�
 得到 `dist/` Bundle、`bundle.car` 和 `bundle.cid`；`bundle.cid`
 是 UnixFS 根 CID，不是 CAR 文件路径或摘要。完整 check 消费所有内容，验证 manifest、Schema 闭包、文本规范、资源、CID 和 DAG 块，不只验证文件能打开。输出必须是新路径；重复验证创建另一新项目，不递归删除任意路径。
 
-参数、格式与流所有权细节复用
-[builder 文档](https://github.com/silvermoon-work/task-engine/blob/2597d79a4ab778e9288675eaba0dfa230a406491/packages/task-builder/README.md)
-和
-[builder CLI 文档](https://github.com/silvermoon-work/task-engine/blob/2597d79a4ab778e9288675eaba0dfa230a406491/packages/task-builder-cli/README.md)：
+参数、格式与流所有权细节复用 [builder 文档](../packages/task-builder/README.md)
+和 [builder CLI 文档](../packages/task-builder-cli/README.md)：
 
 ```text
 pnpm exec task-builder --help
@@ -242,3 +250,61 @@ override 确保 CLI 的 packed 精确依赖也使用新版 engine，而不是试
 11.22.0 的两个新项目中完成：本地 builder/core CLI 制品 → HTTP Worker →
 SQLite 重启恢复；默认为 6 字节 / 1 chunk，大资源为 600,006 字节 / 3
 chunks，退出码均为 0。这是原脚本的历史记录，不是本文新 CLI 路径或新版本发包已经完成的声明。本流程不证明生产认证、pin/GC、SSE 或 OS 沙箱；macOS/Linux 仍须实际执行目标平台验证。
+
+## 本轮 builder 发布验证
+
+2026-11-09 在 Windows / Node.js 24.11.1 / pnpm 11.22.0 上，从
+`https://mirrors.cloud.tencent.com/npm/` 安装实际发布包，未使用本地 tarball、
+`file:` 依赖或 pnpm override：
+
+| 包                                    | 精确版本                |
+| ------------------------------------- | ----------------------- |
+| `@silvermoon-work/task-builder`       | `0.1.0-canary-261109-2` |
+| `@silvermoon-work/task-builder-cli`   | `0.1.0-canary-261109-1` |
+| `@silvermoon-work/task-engine`        | `0.1.0-canary-261109-1` |
+| `@silvermoon-work/task-engine-http`   | `0.1.0-canary-261109-1` |
+| `@silvermoon-work/task-engine-server` | `0.1.0-canary-261109-1` |
+| `@silvermoon-work/task-protocol`      | `0.1.0-canary-261109-2` |
+
+从新目录执行上面的 init/install/build/car/check，然后使用
+[原 HTTP/SQLite 专项验证脚本](https://github.com/silvermoon-work/task-engine/blob/2597d79a4ab778e9288675eaba0dfa230a406491/docs/end-to-end-verification.md#3-从-car-跑真实-http--sqlite--worker)，在验证项目中添加固定运行包：
+
+```text
+pnpm add --save-exact @silvermoon-work/task-engine@0.1.0-canary-261109-1 @silvermoon-work/task-engine-http@0.1.0-canary-261109-1 @silvermoon-work/task-engine-server@0.1.0-canary-261109-1 @silvermoon-work/task-protocol@0.1.0-canary-261109-2
+```
+
+保留脚本的所有断言：401、错误类型输入拒绝、真实 Worker、Run 物理回收、关闭内容源后的 SQLite 重启、历史结果与同 Request 幂等查询，以及不再读取块。本轮仅调整了验证用数据库的位置，原因见下面的路径限制。
+
+| 变体             | 返回 text      | bytes  | chunks | 内容块读取 | 退出码 |
+| ---------------- | -------------- | ------ | ------ | ---------- | ------ |
+| 默认模板         | `Hello canary` | 6      | 1      | 11         | 0      |
+| 大资源 CRLF 变体 | `Hello canary` | 600006 | 3      | 16         | 0      |
+
+两种变体均通过 CAR 完整检查、授权 HTTP、Worker 和重启恢复；JSON/文本输出及 CLI 版本也经实际安装验证。它们证明 builder 发布产物兼容已发布 Engine，
+**不证明新 engine CLI 已完成部署**。
+
+安装 lockfile 中记录的实际 npm artifact integrity：
+
+```text
+@silvermoon-work/task-builder@0.1.0-canary-261109-2
+sha512-I/CJy6bPpev2cIfR6Yh97TbuYKzzXmQp86STNskOeXAInZzaNAyODJWhuGL0N2LU9LlTVSu1pe8Kp7+vHodFqQ==
+
+@silvermoon-work/task-builder-cli@0.1.0-canary-261109-1
+sha512-pfSdEhcsLevEM7fe0EdNo14reFsiNLhj6kbwNb1K2SKgaguSGYvbDb+JKXcATHk+rkH04+PLM7V0wpgmMtiI0w==
+```
+
+发布证据：[核心 Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/42577672894)、
+[CLI Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/42577838042)、
+[两个包的官方 registry 版本/dist-tag/依赖验证](https://github.com/silvermoon-work/task-engine/actions/runs/42578343710)。两者使用
+`canary`，未更新 `latest`。
+
+### Windows SQLite 路径限制
+
+已发布 storage canary 1 的重启 preflight 会复制数据库到
+`<database>.inspect-<UUID>`。最初把数据库放进很长的 agent
+session 路径时，复制后的路径使 SQLite 报
+`unable to open database file`，因此该次尝试没有算成功。
+
+改为独立、较短的验证数据库目录后，两种变体都完整通过；没有修改 storage 或放宽恢复断言。Windows 上应选择短路径，并为
+`.inspect-UUID` 及 sidecar 留出余量。可将原验证脚本的 `database`
+指向该目录；短路径通过不代表长路径已受支持。此限制不是本轮 builder 发布的修复项。

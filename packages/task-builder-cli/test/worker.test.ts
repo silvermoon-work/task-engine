@@ -5,7 +5,7 @@ import { join, relative, resolve, sep } from "node:path";
 import { test } from "node:test";
 import { Worker } from "node:worker_threads";
 import { readTaskBundle } from "@silvermoon-work/task-protocol";
-import { buildTaskBundle } from "../src/index.js";
+import { buildTaskBundle } from "@silvermoon-work/task-builder";
 import { directoryTree, writeDirectory } from "../src/node.js";
 
 test("a real published SDK Worker executes with the builder's locked contract and streamed resource", async () => {

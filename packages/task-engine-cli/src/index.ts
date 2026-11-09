@@ -1,4 +1,6 @@
 import { open, readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join, resolve } from "node:path";
 import { Readable } from "node:stream";
 import type { ReadTaskBundleCar } from "@silvermoon-work/task-builder/car";
 import {
@@ -17,6 +19,7 @@ import {
   TaskError,
   validateBundleReference,
 } from "@silvermoon-work/task-protocol";
+import { kuboGateways } from "./gateway.js";
 
 export const exitCodes = {
   succeeded: 0,
@@ -227,7 +230,8 @@ No task HTTP service is required. Select CID/Gateway or a local CAR, never both.
 --car <file.car>       Fully validate a local CAR; no Gateway, upload or network fallback.
 --expected-cid <cid>   Optional CAR root check; only valid with --car.
 --gateway <base-url>   Repeat for ordered sources; no public fallback or redirects.
-                      Default: TASK_ENGINE_GATEWAY, otherwise http://127.0.0.1:8080.
+                      Default: TASK_ENGINE_GATEWAY, otherwise Kubo Addresses.Gateway.
+                      Kubo repo: IPFS_PATH, otherwise ~/.ipfs; never guess a port.
                       Explicit --gateway replaces the default; CAR ignores the environment.
 --allow-children       Authorize verified child subtrees within existing engine budgets.
                       Default deny; depth 4, concurrent 4, total 64, child timeout 30s.
@@ -307,8 +311,21 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       ? positive(Number(values.get("--max-runtime-ms")))
       : undefined;
     if (!carPath) {
-      if (!gateways.length)
-        gateways.push(process.env.TASK_ENGINE_GATEWAY ?? "http://127.0.0.1:8080");
+      if (!gateways.length) {
+        const configured = process.env.TASK_ENGINE_GATEWAY;
+        if (configured !== undefined) gateways.push(configured);
+        else {
+          const repository = process.env.IPFS_PATH;
+          if (repository === "")
+            throw new TaskError("invalid_config", "IPFS_PATH must not be empty.");
+          gateways.push(
+            ...(await kuboGateways(
+              resolve(repository ?? join(homedir(), ".ipfs")),
+              controller.signal,
+            )),
+          );
+        }
+      }
       ipfsClient = createIpfsGatewayClient(gateways);
     }
     let text: string;

@@ -60,18 +60,24 @@ CID 模式选择 Gateway 的优先级为：
 
 1. 显式 `--gateway <base-url>`，可重复，按配置顺序使用，替换全部默认值。
 2. 未传该选项时使用 `TASK_ENGINE_GATEWAY`，仅一个根 origin。
-3. 环境变量未设置时，只尝试 Kubo 默认本地 Gateway `http://127.0.0.1:8080`。
+3. 未设置该变量时，从 `IPFS_PATH/config` 读取 Kubo `Addresses.Gateway`；
+   `IPFS_PATH` 未设置则检查 `~/.ipfs/config`。
 
 ```powershell
-$env:TASK_ENGINE_GATEWAY = "http://127.0.0.1:8080"
+$env:IPFS_PATH = "D:\ipfs-repo"
 '{"value":7}' | task-engine run <bundle-cid>
 ```
 
-不会启动 Kubo 或发现节点；所选内容源必须已运行且能读取目标 CID。
-空或非法环境变量明确报配置错误，不静默回退到本地 Gateway。
+不会启动 Kubo、访问管理 API 或盲试 8080；所选内容源必须已运行且能读取目标 CID。
+空或非法环境变量、缺失/损坏配置、禁用或不支持的 Gateway 地址明确报配置错误，
+不静默回退到其他仓库或端口。
+Kubo 配置只使用 `Addresses.Gateway`，支持单个或最多 16 个 IP/TCP multiaddr，
+可带 HTTP/HTTPS；不把 `Addresses.API` 的管理端口当作 Gateway。
+IPv4/IPv6 wildcard listener 转为同端口 loopback；Unix socket 等不支持的地址
+需显式 `--gateway`。配置必须是至多 1 MiB 的普通 JSON 文件，诊断不会输出配置内容。
 源连接/获取失败返回非零退出码，诊断包含选定 Gateway，不再自动切换公共源。
 不启用 Request hint、公共 fallback、路由发现、凭证或重定向。
-CAR 模式忽略这个环境变量，仍拒绝显式 `--gateway`。
+CAR 模式忽略 Gateway 和 Kubo 环境变量，不读配置，仍拒绝显式 `--gateway`。
 这些默认值仅属于 CLI；程序化 `runBundle` 仍要求调用者注入内容 client。
 
 `--timeout-ms <ms>` 控制根 Task 时间预算（默认 60,000；从最终 Task 创建时锚定）。

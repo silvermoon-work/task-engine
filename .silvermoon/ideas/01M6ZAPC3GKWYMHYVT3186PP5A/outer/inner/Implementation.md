@@ -24,7 +24,9 @@ service 或后台调度协议。
 ## Steps
 
 CID 模式仅在 CLI 中增加 Gateway 默认选择：显式 `--gateway` 优先，未传时取
-`TASK_ENGINE_GATEWAY`，未设置环境变量才使用 Kubo 本地默认 origin。空或非法环境变量明确拒绝，获取失败包含源诊断且无公共 fallback；CAR 忽略该变量，程序化 engine/runBundle 的 caller-owned
+`TASK_ENGINE_GATEWAY`，未设置时读取 `IPFS_PATH/config`，或默认 `~/.ipfs/config`
+的 `Addresses.Gateway`，不猜测端口、不使用管理 API。只接受支持的 IP/TCP
+listener，wildcard 转为同端口 loopback；缺失、损坏、禁用或不支持的配置明确拒绝，不打印配置内容。空或非法环境变量明确拒绝，获取失败包含源诊断且无公共 fallback；CAR 忽略这些变量且不读 Kubo 配置，程序化 engine/runBundle 的 caller-owned
 client 契约保持不变。
 
 ### I-S01: 明确运行域与耗尽判定

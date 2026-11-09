@@ -31,7 +31,8 @@ Publishing；不批量发布，不以手工 dry run 代替真实发布。
 已发布 CLI 的输入 smoke 同时覆盖省略 `--input` 的管道输入、显式 `--input -`
 和文件输入，以及空输入/无效 JSON 拒绝和等待 stdin 中断。Gateway
 smoke 还需覆盖显式选项、`TASK_ENGINE_GATEWAY`
-与未设置变量时的 Kubo 本地默认值优先级，证明连接失败可诊断、不访问公共 fallback，CAR 模式忽略环境变量。
+与未设置变量时的 Kubo 配置优先级，覆盖 `IPFS_PATH`
+和默认仓库路径，证明读取 Gateway 而非管理 API、配置失败不盲试端口、连接失败可诊断、不访问公共 fallback，CAR 模式忽略变量且不读配置。
 
 ### D-AC01: 实际发布身份与来源可信
 

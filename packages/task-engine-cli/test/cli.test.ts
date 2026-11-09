@@ -12,6 +12,7 @@ import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { exitCodes, runBundle } from "../src/index.js";
 
 const cli = resolve("dist", "bin.js");
+const absentKubo = resolve(".cache", `absent-kubo-${randomUUID()}`);
 async function execute(
   args: string[],
   input?: string,
@@ -23,7 +24,12 @@ async function execute(
     code ? ["--input-type=module", "-e", code, ...args] : [cli, ...args],
     {
       stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env, TASK_ENGINE_GATEWAY: undefined, ...environment },
+      env: {
+        ...process.env,
+        TASK_ENGINE_GATEWAY: undefined,
+        IPFS_PATH: absentKubo,
+        ...environment,
+      },
     },
   );
   let stdout = "",
@@ -179,7 +185,7 @@ export default async (input,context) => {
   }
   assert.ok(requests > 0);
   await t.test(
-    "CID Gateway precedence is explicit, environment, then local Kubo only",
+    "CID Gateway precedence is explicit, environment, then Kubo config without guessed ports",
     async () => {
       const fromEnv = await execute(["run", leaf.cid], '{"value":7}', undefined, {
         TASK_ENGINE_GATEWAY: gateway,
@@ -199,39 +205,59 @@ export default async (input,context) => {
         });
         assert.equal(invalid.exitCode, 2, invalid.stderr);
       }
-      // Intercept only the default loopback transport so the shared machine's
-      // actual Kubo service/port is never started, queried or replaced by this test.
-      const local = `import assert from "node:assert/strict";
-const original=globalThis.fetch;let reads=0;
-globalThis.fetch=(input,init)=>{
- const url=new URL(typeof input==="string"?input:input instanceof URL?input.href:input.url);
- assert.equal(url.origin,"http://127.0.0.1:8080");reads++;
- url.host=new URL(${JSON.stringify(gateway)}).host;return original(url,init);
-};
-const {main}=await import(${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)});
-process.exitCode=await main(process.argv.slice(1));assert.ok(reads>0);`;
-      const fallback = await execute(["run", leaf.cid], '{"value":7}', local);
-      assert.equal(fallback.exitCode, 0, fallback.stderr);
+      const repository = join(directory, "kubo");
+      await mkdir(repository);
+      const config = JSON.stringify({
+        Addresses: {
+          API: "/ip4/127.0.0.1/tcp/5001",
+          Gateway: `/ip4/127.0.0.1/tcp/${address.port}`,
+        },
+      });
+      await writeFile(join(repository, "config"), config);
+      const configured = await execute(["run", leaf.cid], '{"value":7}', undefined, {
+        IPFS_PATH: repository,
+      });
+      assert.equal(configured.exitCode, 0, configured.stderr);
+      const home = join(directory, "home");
+      await mkdir(join(home, ".ipfs"), { recursive: true });
+      await writeFile(join(home, ".ipfs", "config"), config);
+      const fromHome = await execute(["run", leaf.cid], '{"value":7}', undefined, {
+        IPFS_PATH: undefined,
+        HOME: home,
+        USERPROFILE: home,
+      });
+      assert.equal(fromHome.exitCode, 0, fromHome.stderr);
       const unavailable = `import assert from "node:assert/strict";let reads=0;
 globalThis.fetch=async(input)=>{
  const url=new URL(typeof input==="string"?input:input instanceof URL?input.href:input.url);
- assert.equal(url.origin,"http://127.0.0.1:8080");reads++;
+ assert.equal(url.origin,${JSON.stringify(gateway)});reads++;
  throw Error("Simulated local Gateway connection refused");
 };
 const {main}=await import(${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)});
 process.exitCode=await main(process.argv.slice(1));assert.ok(reads>0);`;
-      const failed = await execute(["run", leaf.cid], '{"value":7}', unavailable);
+      const failed = await execute(["run", leaf.cid], '{"value":7}', unavailable, {
+        IPFS_PATH: repository,
+      });
       assert.equal(failed.exitCode, 3, failed.stderr);
       assert.equal(JSON.parse(failed.stdout).error.code, "bundle_fetch_failed");
-      assert.match(failed.stderr, /127\.0\.0\.1:8080/);
+      assert.ok(failed.stderr.includes(gateway));
       const environmentFailure = await execute(
         ["run", leaf.cid],
         '{"value":7}',
-        unavailable.replaceAll("http://127.0.0.1:8080", "http://127.0.0.1:9999"),
-        { TASK_ENGINE_GATEWAY: "http://127.0.0.1:9999" },
+        unavailable.replaceAll(gateway, "http://127.0.0.1:9999"),
+        { TASK_ENGINE_GATEWAY: "http://127.0.0.1:9999", IPFS_PATH: repository },
       );
       assert.equal(environmentFailure.exitCode, 3, environmentFailure.stderr);
       assert.match(environmentFailure.stderr, /127\.0\.0\.1:9999/);
+      const before = requests;
+      for (const path of [absentKubo, ""]) {
+        const missing = await execute(["run", leaf.cid], '{"value":7}', undefined, {
+          IPFS_PATH: path,
+        });
+        assert.equal(missing.exitCode, 2, missing.stderr);
+        assert.equal(JSON.parse(missing.stdout).error.code, "invalid_config");
+      }
+      assert.equal(requests, before);
     },
   );
   await t.test(

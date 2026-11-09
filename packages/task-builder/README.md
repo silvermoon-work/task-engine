@@ -202,9 +202,11 @@ private npm package, a JSON
 contract with a named shared text Schema, typed SDK entry/helper and a streamed
 greeting resource. It performs no I/O, install or ancestor package modification.
 The default dependency and author import use
-`@silvermoon-work/task-sdk@0.1.0-canary-261109-1`. This is the migrated SDK's
-local release candidate, not an already published package; before publication,
-use an explicit local `sdkVersion` specifier (such as `file:task-sdk.tgz`).
+`@silvermoon-work/task-sdk@0.1.0-canary-261109-1`, now independently published.
+This init change is in the workspace source; the previously published builder
+still emits the old SDK template until a separate builder/CLI release.
+An explicit local `sdkVersion` specifier (such as `file:task-sdk.tgz`) remains
+available for development.
 `sdkVersion`, `minRuntimeVersion`, `taskName` and npm `name` can be supplied.
 It has no CLI dependency, npm scripts, package-manager selection or pnpm
 installation policy. The CLI composes this tree with its own scripts,

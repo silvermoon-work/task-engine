@@ -63,11 +63,12 @@ The CLI adds:
 - direct dev dependencies on **both** CLI and core;
 - the pnpm version, scoped esbuild approval and release-age exceptions.
 
-The current workspace template uses the migrated SDK candidate
-`0.1.0-canary-261109-1`; it is not yet published. The previously published
-CLI/core still generate the old SDK template. Before new publication,
-`createCliTaskProject({ sdkVersion: "file:task-sdk.tgz" })` selects a local SDK
-tarball. SDK/protocol release-age exceptions now use `@silvermoon-work` names.
+The current workspace template uses the independently published SDK
+`0.1.0-canary-261109-1`. The previously published CLI/core still generate the
+old SDK template; deploying this new default requires a separate CLI/core
+release. `createCliTaskProject({ sdkVersion: "file:task-sdk.tgz" })` can still
+select a local SDK tarball for development. SDK/protocol release-age exceptions
+now use `@silvermoon-work` names.
 
 Default CLI/core versions come from the installed package metadata, not a moving
 `canary` tag. `--cli-version` selects the CLI dependency. An explicit

@@ -23,7 +23,8 @@ scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节�
 
 Web UI、pguide CLI 和 Check/Probe 包不在本次提取范围。Task
 SDK 已迁入，保留原 Worker 运行时与 API，仅依赖本仓库 task-protocol；init 模板与作者入口使用
-`@silvermoon-work/task-sdk`。SDK 候选版本尚未发布，不能用旧 builder 的发布验证冒充新模板的安装验证。新增 task-builder 不依赖 pguide 命令协议：模块通过抽象文件树解析，资源按需流式读取；提供独立
+`@silvermoon-work/task-sdk`。SDK
+canary 已独立发布；已发布的 builder/CLI 尚未包含新 init 模板，不能用旧模板的发布验证冒充新模板已部署。新增 task-builder 不依赖 pguide 命令协议：模块通过抽象文件树解析，资源按需流式读取；提供独立
 `init` / `car` export 提供模板文件树及有界流式 CAR 编码/检查。核心不含 CLI
 binary 或宿主文件系统适配；独立 task-builder-cli 库提供 `task-builder`
 命令、Commander 交互及本地写入。构建输出资源依赖输入树生命周期，完整校验需消费全部流。详见
@@ -175,6 +176,34 @@ round did not publish `task-engine@0.1.0-canary-261109-2` or `task-engine-cli`.
 Actual Tencent-registry install and HTTP/SQLite compatibility smoke results,
 including the Windows database-path limitation, are recorded in the
 [end-to-end guide](./docs/end-to-end-verification.md#本轮-builder-发布验证).
+
+### SDK release (2026-11-09)
+
+`@silvermoon-work/task-sdk@0.1.0-canary-261109-1` was published alone from
+`d699c270e379d8cc70737b40a4d33b358770ee95`, after the exact-commit
+[Node 22/24 CI and release aggregate](https://github.com/silvermoon-work/task-engine/actions/runs/42587558871)
+succeeded. The
+[Trusted Publishing run](https://github.com/silvermoon-work/task-engine/actions/runs/42588331015)
+published the verified tarball with signed provenance; its exact runtime
+dependency is the already published
+`@silvermoon-work/task-protocol@0.1.0-canary-261109-2`. Tencent metadata
+confirms `canary` points to this SDK version and `latest` remains the
+placeholder `0.0.0`.
+
+The migrated workspace init generated a fresh private project, which installed
+the published SDK, builder `0.1.0-canary-261109-2` and builder CLI
+`0.1.0-canary-261109-1` from Tencent with a frozen lockfile and no local package
+overrides. Its installed builder completed Build/CAR/Check; the current
+workspace Engine CLI's `runBundle` executed the checked CAR in a real Worker.
+The root returned `{text: "Hello canary", bytes: 6, chunks: 1}`, exit code 0,
+one reclaimed Run and no cleanup uncertainty. The checked root was
+`bafybeiefphyqt2wuttkuzfac32tkmspq7ojmd2naulejjlusolp3vj5cem`.
+
+This proves the published SDK against the migrated init source, not a newly
+published init CLI or Engine. No builder, CLI, Engine or protocol package was
+published in this SDK release. Previously published builder/CLI versions still
+generate the old-scope SDK template; shipping the new default template requires
+a separately authorized builder/CLI release.
 
 The nine libraries are mapped in `scripts/release-packages.js`; the root and
 executable app remain private. No package is published by extraction, and there

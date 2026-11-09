@@ -8,13 +8,25 @@ lightweight `/worker` entry without Ajv or a CID parser.
 Migrated under the original MIT license from
 [potential-guide at 6614f46](https://github.com/shazhou-ww/potential-guide/tree/6614f46bf0f4152c61bd2c73d6c4b21ab4cf366f/packages/task-sdk).
 The runtime and public API are preserved; package imports now use the
-`@silvermoon-work` workspace. `0.1.0-canary-261109-1` is a local release
-candidate, not a claim of publication.
+`@silvermoon-work` workspace. `0.1.0-canary-261109-1` is published through
+[Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/42588331015)
+with an exact dependency on protocol `0.1.0-canary-261109-2`.
+The `canary` dist-tag selects it; `latest` is still the `0.0.0` placeholder.
 
 ## Authoring
 
-Use [task-builder CLI init](../task-builder-cli/README.md#init-composition)
-to create a private project, then build, encode and check its Bundle:
+Use the migrated workspace
+[task-builder CLI init](../task-builder-cli/README.md#init-composition)
+to create a private project, then build, encode and check its Bundle.
+The previously published builder/CLI still generate the old SDK template;
+their new init default requires a separate release. Existing projects can
+explicitly install the published SDK:
+
+```text
+pnpm add @silvermoon-work/task-sdk@0.1.0-canary-261109-1
+```
+
+For the current workspace CLI:
 
 ```text
 task-builder init my-task

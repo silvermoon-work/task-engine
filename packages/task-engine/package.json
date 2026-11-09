@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-engine",
-  "version": "0.1.0-rc.2",
+  "version": "0.1.0-canary-261109-1",
   "description": "Embedded generic task engine and bounded executor pool.",
   "type": "module",
   "sideEffects": false,

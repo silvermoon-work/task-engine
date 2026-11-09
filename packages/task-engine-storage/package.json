@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-engine-storage",
-  "version": "0.1.0-rc.1",
+  "version": "0.1.0-canary-261109-1",
   "description": "Single-writer durable SQLite Store for generic tasks.",
   "type": "module",
   "sideEffects": false,

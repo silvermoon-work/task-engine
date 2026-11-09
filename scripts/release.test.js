@@ -120,6 +120,48 @@ test("prerelease suffixes must match exactly and never publish as latest", () =>
   );
 });
 
+test("dated canaries publish only to canary and preserve exact identity", () => {
+  for (const version of [
+    "0.1.0-canary-261109-1",
+    "0.1.0-canary-261109-12",
+    "0.1.0-canary-240229-1",
+  ]) {
+    const selected = selectRelease(packages, { tag: `core-v${version}` });
+    const release = validateManifest(selected, { ...manifest, version });
+    assert.equal(release.distTag, "canary");
+    assert.equal(release.version, version);
+    validateArtifact(release, { ...manifest, version });
+    assert.throws(() =>
+      validateArtifact(release, {
+        ...manifest,
+        version: "0.1.0-canary-261109-2",
+      }),
+    );
+  }
+  assert.equal(validateManifest(selection, manifest).distTag, "latest");
+});
+
+test("canary dates and daily indices must use the canonical release format", () => {
+  for (const suffix of [
+    "canary",
+    "canary.261109.1",
+    "canary-261109-0",
+    "canary-261109-01",
+    "canary-261132-1",
+    "canary-261300-1",
+    "canary-260229-1",
+    "canary-261109-9007199254740992",
+    "canary-261109-1.extra",
+  ]) {
+    const version = `0.1.0-${suffix}`;
+    const selected = selectRelease(packages, { tag: `core-v${version}` });
+    assert.throws(
+      () => validateManifest(selected, { ...manifest, version }),
+      /Canary versions/,
+    );
+  }
+});
+
 test("artifact name and version must match; local dependency protocols fail", () => {
   validateArtifact(release, manifest);
   for (const changes of [

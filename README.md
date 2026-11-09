@@ -153,7 +153,17 @@ tarball must match its exact name and version; the root version is irrelevant.
 Unknown package IDs, private/placeholder names, invalid versions, mismatches,
 unresolved local dependencies, and already-published versions block release.
 Canonical stable and prerelease SemVer versions are supported (without build
-metadata); stable versions use npm's `latest` tag and prereleases use `next`.
+metadata); stable versions use npm's `latest` tag, canaries use `canary`, and
+other prereleases use `next`. Canaries follow
+`<base-version>-canary-YYMMDD-INDEX`, for example `0.1.0-canary-261109-1`. Use
+the release date in the team's local calendar and increment `INDEX`
+independently for each package on that date, starting at 1. Check npm versions
+and existing immutable Git tags before choosing the next index; never reuse an
+existing published version or move a tag. The verifier rejects malformed dates,
+zero/leading-zero indices and unsafe integer indices. All packages in a release
+round may share a version, but each still requires its own explicitly authorized
+package tag and publication. Publish internal dependencies first; `workspace:*`
+packs to their exact canary versions.
 
 The pinned `github-ci-verify` CLI requires the latest `ci.yaml` main push run
 for the exact checked-out SHA and its successful versioned aggregate job and

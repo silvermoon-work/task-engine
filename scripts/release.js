@@ -83,10 +83,37 @@ export function validateManifest(selected, manifest) {
       "publishConfig.directory is not supported; pack the mapped package.",
     );
   }
+  const prerelease = semver.prerelease(manifest.version);
+  let distTag = prerelease === null ? "latest" : "next";
+  if (prerelease?.some((part) => String(part).startsWith("canary"))) {
+    const match = /^canary-(\d{2})(\d{2})(\d{2})-([1-9]\d*)$/u.exec(
+      prerelease.join("."),
+    );
+    if (match === null) {
+      throw new Error(
+        "Canary versions require canary-YYMMDD-INDEX (INDEX starts at 1).",
+      );
+    }
+    const [, year, month, day, index] = match;
+    const date = new Date(
+      Date.UTC(2000 + Number(year), Number(month) - 1, Number(day)),
+    );
+    if (
+      date.getUTCFullYear() !== 2000 + Number(year) ||
+      date.getUTCMonth() !== Number(month) - 1 ||
+      date.getUTCDate() !== Number(day) ||
+      !Number.isSafeInteger(Number(index))
+    ) {
+      throw new Error(
+        "Canary versions require a valid date and safe positive INDEX.",
+      );
+    }
+    distTag = "canary";
+  }
   return {
     ...selected,
     version: manifest.version,
-    distTag: semver.prerelease(manifest.version) === null ? "latest" : "next",
+    distTag,
   };
 }
 

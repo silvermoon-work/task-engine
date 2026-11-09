@@ -23,8 +23,8 @@ scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节�
 
 Web UI、pguide CLI 和 Check/Probe 包不在本次提取范围。Task
 SDK 已迁入，保留原 Worker 运行时与 API，仅依赖本仓库 task-protocol；init 模板与作者入口使用
-`@silvermoon-work/task-sdk`。SDK
-canary 已独立发布；已发布的 builder/CLI 尚未包含新 init 模板，不能用旧模板的发布验证冒充新模板已部署。新增 task-builder 不依赖 pguide 命令协议：模块通过抽象文件树解析，资源按需流式读取；提供独立
+`@silvermoon-work/task-sdk`。SDK canary 2、builder/CLI canary
+3 已发布，新 init 模板已部署；最终版本与验证边界见下方发布记录。新增 task-builder 不依赖 pguide 命令协议：模块通过抽象文件树解析，资源按需流式读取；提供独立
 `init` / `car` export 提供模板文件树及有界流式 CAR 编码/检查。核心不含 CLI
 binary 或宿主文件系统适配；独立 task-builder-cli 库提供 `task-builder`
 命令、Commander 交互及本地写入。构建输出资源依赖输入树生命周期，完整校验需消费全部流。详见
@@ -207,8 +207,8 @@ Subsequent workspace cleanup removed all old-scope development dependencies and
 converted integration fixtures to the workspace builder/protocol/CAR APIs. It
 also restored the SDK's `invokeTask` author context and child-result ACK
 handling, which the earlier source import had omitted. This addition is not in
-the published SDK canary above; shipping it requires a new, separately
-authorized SDK version and immutable tag.
+the initial SDK canary above; it shipped in the separately authorized SDK canary
+2 release recorded below.
 
 The subsequent dependency audit also checked the old project's scoped packages
 and its unscoped `pguide` / `potential-guide` names against all eleven workspace
@@ -219,8 +219,8 @@ verification applies the same guard to the registry artifact manifest, not only
 to the current source manifest. Original protocol URI strings and MIT
 provenance/specification links remain identities, not package dependencies.
 
-Tencent's published canary metadata still contains these historical development
-declarations; none are production dependency edges:
+Before the legacy-free rollout, Tencent's canary metadata contained these
+historical development declarations; none were production dependency edges:
 
 | Published package                      | Canary                  | Old development dependencies |
 | -------------------------------------- | ----------------------- | ---------------------------- |
@@ -234,16 +234,75 @@ declarations; none are production dependency edges:
 The old declarations name `@potential-guide/task-sdk` and
 `@potential-guide/pguide-task-bundle`. The published protocol and SDK canaries
 are already independent of them. Tencent returned no Engine CLI package metadata
-in this audit, so its publication state cannot be verified there. The published
-builder/CLI init path also still creates a new project's production dependency
-and author import on the old `@potential-guide/task-sdk@0.1.0-rc.2`. This was
+in that audit, so its publication state was not verified there. The preceding
+builder/CLI init path also created a new project's production dependency and
+author import on the old `@potential-guide/task-sdk@0.1.0-rc.2`. This was
 confirmed from the actual builder canary 2 tarball after checking its Tencent
-SHA-512 integrity. The migrated source template is clean, but new builder/CLI
-releases are needed to stop the currently published init command from generating
-that dependency. Replacing the six legacy-bearing canaries requires new
-versions, exact-commit main CI and separately authorized package tags;
-historical versions and tags must not be overwritten. Source cleanup is not
-proof that those releases have already been replaced.
+SHA-512 integrity. The rollout below replaces that default with SDK canary 2.
+Historical versions and tags remain immutable; their dependency declarations are
+not rewritten.
+
+### Legacy-free final canaries (2026-11-09)
+
+Each package below was separately authorized, tagged and published through
+Trusted Publishing, after successful exact-commit Node 22/24 main CI:
+
+| Package                                | Version                 | Publication                                                                        |
+| -------------------------------------- | ----------------------- | ---------------------------------------------------------------------------------- |
+| `@silvermoon-work/task-sdk`            | `0.1.0-canary-261109-2` | [SDK](https://github.com/silvermoon-work/task-engine/actions/runs/42601746924)     |
+| `@silvermoon-work/task-builder`        | `0.1.0-canary-261109-3` | [Builder](https://github.com/silvermoon-work/task-engine/actions/runs/42604138859) |
+| `@silvermoon-work/task-builder-cli`    | `0.1.0-canary-261109-3` | [CLI](https://github.com/silvermoon-work/task-engine/actions/runs/42612402889)     |
+| `@silvermoon-work/task-engine`         | `0.1.0-canary-261109-3` | [Engine](https://github.com/silvermoon-work/task-engine/actions/runs/42644208304)  |
+| `@silvermoon-work/task-engine-http`    | `0.1.0-canary-261109-3` | [HTTP](https://github.com/silvermoon-work/task-engine/actions/runs/42644961011)    |
+| `@silvermoon-work/task-engine-storage` | `0.1.0-canary-261109-3` | [Storage](https://github.com/silvermoon-work/task-engine/actions/runs/42646060642) |
+| `@silvermoon-work/task-engine-server`  | `0.1.0-canary-261109-3` | [Server](https://github.com/silvermoon-work/task-engine/actions/runs/42646644141)  |
+
+Protocol remains the already published `0.1.0-canary-261109-2`; Engine CLI was
+not published. SDK2 came from `e610ced64c5aca017d36db223c489ad115c0dcb7`;
+builder3 from `77680e84a5f8331d6f0c7971d0ec716b5daafbb4`; CLI3 from
+`db937db95e022b692db4a294acb55a3a789cf9c4`; the final four canary3 libraries
+from `e002f29a57cb91bfaf8cca7f76392af2895375bb`. The latter commit passed
+[exact main CI](https://github.com/silvermoon-work/task-engine/actions/runs/42643404329).
+
+CLI2's immutable tag was retained after three pre-publication attempts could not
+see builder3 in the runner's cached mirror catalog. CLI3 uses strict exact
+version records instead. The initial engine/HTTP/storage/server2 publications
+still declared unpublished CLI2 development references; separately authorized
+canary3 versions correct those references to CLI3. The release guard now checks
+internal **development** dependencies as well as runtime, optional and peer
+dependencies, so that gap cannot silently recur.
+
+Exact registry version records for all seven final packages plus protocol2
+passed identity, old-project scope/unscoped-name/alias and all-section internal
+dependency-existence checks: **zero legacy dependency declarations, zero
+unpublished internal references**. Full workspace `pnpm check` and all 40 Turbo
+tasks passed without skipping assertions.
+
+Actual published CLI3 init generated an SDK2 project, which resolved and
+installed through a frozen lockfile without overrides, then completed
+Build/CAR/Check. Its CAR root was
+`bafybeibwtyytwbyyfbbo7bijmwnhe6w2amxdqlyfxy3xulwyhdxj6czx2a`. Installed
+published SDK2/core3/CLI3/engine2/HTTP2/storage2/server2/protocol2 executed HTTP
+Echo (`Hello canary`, 6 bytes, 1 chunk), parent/child invocation (`{value: 7}`),
+actual file-backed SQLite close/reopen and three confirmed reclaimed Runs. The
+host used a fixed local caller, not an external identity provider.
+
+Final engine/HTTP/storage/server3 changed metadata, not runtime/type code:
+SHA-512-verified real tarballs were compared against the exercised canary2
+artifacts, and all 40 `dist/*.js` / `dist/*.d.ts` files were byte-identical. The
+installed eight-package artifacts' lockfile integrity hashes were also checked
+against exact published records. No local workspace/tarball substitute, disabled
+TLS or disabled exotic-transitive-dependency guard was used.
+
+**Distribution limitation:** Tencent's ordinary package-wide catalogs
+intermittently returned older versions and HTTP 525, even while exact version
+records and verified tarballs were available. The final canary3 cohort's fresh
+ordinary installation could not be completed against that cached catalog; do not
+describe it as a successful fresh final-cohort install. The earlier runtime
+smoke and final artifact byte-equivalence/metadata checks are distinct evidence.
+The standalone audit host initially selected the exact published CLI3 URL as its
+direct dependency; the generated init project's normal SemVer installation
+subsequently succeeded.
 
 The nine libraries are mapped in `scripts/release-packages.js`; the root and
 executable app remain private. No package is published by extraction, and there

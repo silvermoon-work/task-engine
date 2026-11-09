@@ -7,13 +7,17 @@ import {
   type ErrorFact,
   json,
   object,
+  project,
+  projectRun,
   type RunResourceContext,
+  type RunSnapshot,
   requestTime,
   type SubmissionRecord,
   type SubmissionResult,
   TaskError,
   type TaskRequest,
   type TaskService,
+  type TaskSnapshot,
   ulid,
   validateBundleReference,
 } from "@silvermoon-work/task-protocol";
@@ -71,12 +75,22 @@ function failure(error: unknown, fallback = "invalid_bundle"): ErrorFact {
       error instanceof TaskError ? error.message.slice(0, 512) : "Bundle preparation failed.",
   };
 }
+export interface DrainResult {
+  dataDomain: string;
+  tasks: TaskSnapshot[];
+  runs: RunSnapshot[];
+  rejections: Extract<SubmissionResult, { status: "rejected" }>[];
+  errors: ErrorFact[];
+}
 export class TaskEngine implements TaskService {
   private readonly core: Coordinator;
   private readonly cache: BundleCache;
   private started = false;
   private closing = false;
   private closeAttempt: Promise<void> | undefined;
+  private drainAttempt: Promise<DrainResult> | undefined;
+  private sealed = false;
+  private admissions = 0;
   private readonly processing = new Map<string, Promise<void>>();
   private readonly waiters = new Map<string, Set<() => void>>();
   private readonly invocations = new Map<
@@ -157,7 +171,10 @@ export class TaskEngine implements TaskService {
     this.sendTaskMessage = this.core.sendTaskMessage.bind(this.core);
     this.getTaskMessage = this.core.getTaskMessage.bind(this.core);
     this.waitForTaskRelease = this.core.waitForTaskRelease.bind(this.core);
-    this.collect = this.core.collect.bind(this.core);
+    this.collect = () => {
+      if (this.sealed) throw new TaskError("engine_draining", "Collection is sealed during drain.");
+      this.core.collect();
+    };
   }
   get limits() {
     return this.core.limits;
@@ -288,7 +305,14 @@ export class TaskEngine implements TaskService {
     return structuredClone(this.record(id, caller).request);
   }
   async submit(value: unknown, caller: Caller): Promise<SubmissionResult> {
-    return this.admit(value, caller);
+    if (this.sealed) throw new TaskError("engine_draining", "External submissions are sealed.");
+    this.admissions++;
+    try {
+      return await this.admit(value, caller);
+    } finally {
+      this.admissions--;
+      this.core.notifyIdle();
+    }
   }
   private async admit(
     value: unknown,
@@ -481,6 +505,7 @@ export class TaskEngine implements TaskService {
       return await operation;
     } finally {
       this.invocations.delete(key);
+      this.core.notifyIdle();
     }
   }
   private async invokeChild(
@@ -713,16 +738,13 @@ export class TaskEngine implements TaskService {
         try {
           this.reject(id, error);
         } catch (failure) {
-          this.options.onError?.(
-            failure instanceof TaskError
-              ? { code: failure.code, message: failure.message }
-              : { code: "storage_failure", message: "Admission commit failed." },
-          );
+          this.core.reportError(failure);
         }
       })
       .finally(() => {
         this.processing.delete(id);
         for (const wake of this.waiters.get(id) ?? []) wake();
+        this.core.notifyIdle();
       });
     this.processing.set(id, operation);
     return operation;
@@ -757,6 +779,8 @@ export class TaskEngine implements TaskService {
     return this.result(this.record(id, caller));
   }
   collectRequestResults(): number {
+    if (this.sealed)
+      throw new TaskError("engine_draining", "Request result collection is sealed during drain.");
     this.readable();
     const ids = Object.entries(this.core.facts().facts.submissions)
       .filter(
@@ -781,6 +805,48 @@ export class TaskEngine implements TaskService {
   tick(): void {
     this.core.tick();
   }
+  /** Terminal drain: seal external producers, exhaust structured work, then physically close. */
+  drain(options: { signal?: AbortSignal } = {}): Promise<DrainResult> {
+    if (this.drainAttempt) return this.drainAttempt;
+    this.readable();
+    this.sealed = true;
+    this.drainAttempt = this.drainInner(options.signal);
+    return this.drainAttempt;
+  }
+  private async drainInner(signal?: AbortSignal): Promise<DrainResult> {
+    // The resident clock is intentionally unref'ed; a finite drain owns its
+    // process lifetime even while preparation or future eligibility is waiting.
+    const keepAlive = setInterval(() => {}, 2_147_483_647);
+    try {
+      await this.core.waitForIdle(
+        () => !this.admissions && !this.processing.size && !this.invocations.size,
+        signal,
+      );
+      // No producer can admit new work between this observation and close:
+      // external submissions are sealed and all active parent Runs have exited.
+      const facts = this.core.facts().facts;
+      const result: DrainResult = {
+        dataDomain: facts.dataDomain,
+        tasks: Object.keys(facts.tasks).map((id) => project(facts, id, this.now())),
+        runs: Object.keys(facts.runs).map((id) => projectRun(facts, id, this.now())),
+        rejections: Object.values(facts.submissions).flatMap((record) =>
+          record.decision.status === "rejected" ? [structuredClone(record.decision)] : [],
+        ),
+        errors: structuredClone(this.errors),
+      };
+      await this.close();
+      return result;
+    } catch (primary) {
+      try {
+        await this.close();
+      } catch (cleanup) {
+        throw new AggregateError([primary, cleanup], "Drain failed and cleanup is unconfirmed.");
+      }
+      throw primary;
+    } finally {
+      clearInterval(keepAlive);
+    }
+  }
   close(): Promise<void> {
     if (this.closeAttempt) return this.closeAttempt;
     this.closeAttempt = this.closeInner().catch((error) => {
@@ -802,6 +868,7 @@ export class TaskEngine implements TaskService {
     void coreClose.catch(() => {});
     await this.cache.close();
     await Promise.allSettled([...this.processing.values()]);
+    await Promise.allSettled([...this.invocations.values()].map(({ operation }) => operation));
     for (const pending of this.waiters.values()) for (const wake of pending) wake();
     await coreClose;
     this.started = false;

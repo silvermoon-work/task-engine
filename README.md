@@ -16,6 +16,7 @@ scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节�
 | [@silvermoon-work/task-engine-http](./packages/task-engine-http/README.md)       | 可挂载 HTTP API 与 SSE                 |
 | [@silvermoon-work/task-engine-server](./packages/task-engine-server/README.md)   | Node HTTP/SSE 服务组装                 |
 | [@silvermoon-work/task-builder](./packages/task-builder/README.md)               | 只读文件树转换、esbuild 构建与流式资源 |
+| [@silvermoon-work/task-engine-cli](./packages/task-engine-cli/README.md)         | 隔离域内嵌运行、全体耗尽与自动退出     |
 
 SDK、Web UI、pguide
 CLI 和 Check/Probe 包不在本次提取范围。新增 task-builder 不依赖 pguide 命令协议：模块通过抽象文件树解析，资源按需流式读取；提供独立
@@ -47,16 +48,18 @@ silvermoon check --worktree --audience agent
 silvermoon whats-next --audience agent
 ```
 
-构想候选及其提交事件需通过 Silvermoon 校验并同步至 `origin/main`，
-再请求对应 revision 的构想验收；创建 idea 不代表实现方案已获批准。
+构想候选及其提交事件需通过 Silvermoon 校验并同步至
+`origin/main`，再请求对应 revision 的构想验收；创建 idea 不代表实现方案已获批准。
 
-Silvermoon 元数据现已初始化，使用 `origin/main` 作为 primary。
-首次初始化的空目录用 `.silvermoon/ideas/.gitkeep` 保留；设备上的修复版 Silvermoon
-允许这个空的普通文件，不将其视为 idea。使用尚未包含此修复的旧 CLI 时需要先更新运行时。
+Silvermoon 元数据现已初始化，使用 `origin/main`
+作为 primary。首次初始化的空目录用 `.silvermoon/ideas/.gitkeep`
+保留；设备上的修复版 Silvermoon 允许这个空的普通文件，不将其视为 idea。使用尚未包含此修复的旧 CLI 时需要先更新运行时。
 
 ## Structure
 
 ```text
+apps/
+  task-engine/
 packages/
   task-protocol/
   task-engine/
@@ -64,6 +67,7 @@ packages/
   task-engine-http/
   task-engine-server/
   task-builder/
+  task-engine-cli/
 pnpm-workspace.yaml
 turbo.json
 ```
@@ -138,9 +142,10 @@ moving it after dependency metadata became visible. All final versions,
 dist-tags and internal dependencies passed the
 [authoritative registry verification](https://github.com/silvermoon-work/task-engine/actions/runs/42558542157).
 
-The six libraries are mapped in `scripts/release-packages.js`; the root remains
-private. No package is published by extraction, and there is no automatic batch
-release or automatic version bumping. Artifact dependency discovery always reads
+The six published libraries and the new, not-yet-published CLI host are mapped
+in `scripts/release-packages.js`; the root and executable app remain private. No
+package is published by extraction, and there is no automatic batch release or
+automatic version bumping. Artifact dependency discovery always reads
 `packages/` and includes `apps/` only when present; library-only repositories
 need no placeholder app directory.
 

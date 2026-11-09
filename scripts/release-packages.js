@@ -15,6 +15,11 @@ export const releasePackages = [
     name: "@silvermoon-work/task-engine",
   },
   {
+    id: "task-engine-cli",
+    directory: "packages/task-engine-cli",
+    name: "@silvermoon-work/task-engine-cli",
+  },
+  {
     id: "task-engine-storage",
     directory: "packages/task-engine-storage",
     name: "@silvermoon-work/task-engine-storage",

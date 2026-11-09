@@ -25,6 +25,7 @@ catalog:
   enhanced-resolve: 5.18.3
   esbuild: 0.25.12
   "@potential-guide/task-sdk": 0.1.0-rc.2
+  "@potential-guide/pguide-task-bundle": 0.1.0-rc.2
   "@helia/http": 3.0.4
   "@helia/unixfs": 8.0.9
   "@helia/block-brokers": 5.2.4

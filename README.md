@@ -118,7 +118,9 @@ tag release mapping below.
 
 The six libraries are mapped in `scripts/release-packages.js`; the root remains
 private. No package is published by extraction, and there is no automatic batch
-release or automatic version bumping.
+release or automatic version bumping. Artifact dependency discovery always reads
+`packages/` and includes `apps/` only when present; library-only repositories
+need no placeholder app directory.
 
 ### Configure a derived repository
 

@@ -13,6 +13,7 @@ import test from "node:test";
 import { releasePackages } from "./release-packages.js";
 import {
   readRegistryPackage,
+  readWorkspaceNames,
   selectRelease,
   validateArtifact,
   validateManifest,
@@ -384,6 +385,32 @@ test("pnpm packs once without hooks, converts workspace dependencies and passes 
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("release artifact discovery supports library-only repositories and fails on invalid workspaces", () => {
+  const root = mkdtempSync(join(tmpdir(), "release-workspaces-"));
+  try {
+    mkdirSync(join(root, "packages", "core"), { recursive: true });
+    writeFileSync(
+      join(root, "packages", "core", "package.json"),
+      JSON.stringify({ name: "@example/core" }),
+    );
+    assert.deepEqual([...readWorkspaceNames(root)], ["@example/core"]);
+    mkdirSync(join(root, "apps", "demo"), { recursive: true });
+    writeFileSync(
+      join(root, "apps", "demo", "package.json"),
+      JSON.stringify({ name: "@example/demo", private: true }),
+    );
+    assert.deepEqual(
+      [...readWorkspaceNames(root)],
+      ["@example/core", "@example/demo"],
+    );
+    writeFileSync(join(root, "apps", "demo", "package.json"), "invalid JSON");
+    assert.throws(() => readWorkspaceNames(root), SyntaxError);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+  assert.ok(readWorkspaceNames().has("@silvermoon-work/task-protocol"));
 });
 
 test("the release registry contains the five core packages and task builder", () => {

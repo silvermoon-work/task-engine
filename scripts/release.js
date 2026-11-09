@@ -198,6 +198,21 @@ function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
+export function readWorkspaceNames(root = ".") {
+  const directories = ["packages"];
+  if (readdirSync(root).includes("apps")) directories.push("apps");
+  return new Set(
+    directories.flatMap((directory) =>
+      readdirSync(resolve(root, directory), { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map(
+          (entry) =>
+            readJson(resolve(root, directory, entry.name, "package.json")).name,
+        ),
+    ),
+  );
+}
+
 function currentRelease() {
   const event = process.env.RELEASE_EVENT;
   if (event !== "push" && event !== "workflow_dispatch") {
@@ -244,16 +259,7 @@ async function main(command) {
       }),
     );
     validateArtifact(release, artifact);
-    const workspaceNames = new Set(
-      ["apps", "packages"].flatMap((directory) =>
-        readdirSync(directory, { withFileTypes: true })
-          .filter((entry) => entry.isDirectory())
-          .map(
-            (entry) =>
-              readJson(resolve(directory, entry.name, "package.json")).name,
-          ),
-      ),
-    );
+    const workspaceNames = readWorkspaceNames();
     await verifyWorkspaceDependencies(
       artifact,
       workspaceNames,

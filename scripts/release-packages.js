@@ -1,5 +1,10 @@
 export const releasePackages = [
   {
+    id: "task-builder-cli",
+    directory: "packages/task-builder-cli",
+    name: "@silvermoon-work/task-builder-cli",
+  },
+  {
     id: "task-builder",
     directory: "packages/task-builder",
     name: "@silvermoon-work/task-builder",

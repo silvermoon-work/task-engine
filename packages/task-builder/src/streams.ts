@@ -67,7 +67,7 @@ export function resourceStream(
               controller.close();
               return;
             }
-            const output = normalizer ? normalizer.push(item.value) : item.value.slice();
+            const output = normalizer ? normalizer.push(item.value) : Uint8Array.from(item.value);
             bytes += output.byteLength;
             if (bytes > fileBytes)
               throw treeError("capacity_exceeded", path, "Resource exceeds byte limit");

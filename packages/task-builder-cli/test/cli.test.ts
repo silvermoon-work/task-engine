@@ -2,15 +2,15 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
 import { readTaskBundle } from "@silvermoon-work/task-protocol";
 import { directoryTree, writeDirectory } from "../src/node.js";
-import type { ReadonlyFileTree } from "../src/index.js";
+import type { ReadonlyFileTree } from "@silvermoon-work/task-builder/tree";
 
 const execute = promisify(execFile);
-const cli = resolve("dist", "cli.js");
+const cli = resolve("dist", "bin.js");
 
 async function fixture(run: (root: string) => Promise<void>) {
   const root = resolve(".cache", `cli-${randomUUID()}`);
@@ -132,5 +132,98 @@ test("sink cancels failed streams and removes partial files without deleting exi
 
 test("CLI help and argument errors are explicit", async () => {
   assert.match((await execute(process.execPath, [cli, "--help"])).stdout, /Usage: task-builder/);
-  await assert.rejects(execute(process.execPath, [cli, "--root"]), /requires a directory/);
+  await assert.rejects(execute(process.execPath, [cli, "--root"]), /argument missing/);
+});
+
+test("CLI init, build, CAR and check compose without installs or the old author tool", async () => {
+  const parent = resolve(".cache", `init-cli-${randomUUID()}`);
+  await mkdir(parent, { recursive: true });
+  const project = join(parent, "project");
+  try {
+    const initialized = await execute(process.execPath, [
+      cli,
+      "init",
+      project,
+      "--name",
+      "@example/cli-task",
+    ]);
+    const result: { directory: string; files: string[] } = JSON.parse(initialized.stdout);
+    assert.equal(result.directory, project);
+    assert.ok(result.files.includes("src/main.ts"));
+    assert.ok(!(await readdir(project)).includes("node_modules"));
+    const manifest = await readFile(join(project, "package.json"));
+    await assert.rejects(execute(process.execPath, [cli, "init", project]), /EEXIST/);
+    assert.deepEqual(await readFile(join(project, "package.json")), manifest);
+    const repository = resolve("..", "..");
+    const definition = relative(repository, join(project, "task.build.yaml")).split(sep).join("/");
+    await execute(process.execPath, [cli, "build", definition, "--root", repository]);
+    const car = join(project, "bundle.car");
+    const cidFile = join(project, "bundle.cid");
+    const encoded = await execute(process.execPath, [
+      cli,
+      "car",
+      join(project, "dist"),
+      car,
+      "--cid-file",
+      cidFile,
+    ]);
+    const reference: { cid: string } = JSON.parse(encoded.stdout);
+    assert.equal((await readFile(cidFile, "utf8")).trim(), reference.cid);
+    const verified = await execute(process.execPath, [
+      cli,
+      "check",
+      car,
+      "--expected-cid",
+      reference.cid,
+    ]);
+    const checked: { cid: string; files: number } = JSON.parse(verified.stdout);
+    assert.equal(checked.cid, reference.cid);
+    assert.equal(checked.files, 7);
+    const before = await readFile(car);
+    await assert.rejects(
+      execute(process.execPath, [cli, "car", join(project, "dist"), car]),
+      /EEXIST/,
+    );
+    assert.deepEqual(await readFile(car), before);
+    const second = join(project, "other.car");
+    await assert.rejects(
+      execute(process.execPath, [cli, "car", join(project, "dist"), second, "--cid-file", cidFile]),
+      /EEXIST/,
+    );
+    assert.ok(!(await readdir(project)).includes("other.car"));
+    assert.equal((await readFile(cidFile, "utf8")).trim(), reference.cid);
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});
+
+test("CLI new commands reject duplicate options and outputs inside the source Bundle", async () => {
+  await assert.rejects(
+    execute(process.execPath, [cli, "init", "unused", "--name", "first", "--name", "second"]),
+    /duplicate option/i,
+  );
+  await assert.rejects(
+    execute(process.execPath, [cli, "check", "unused", "--root", "wrong"]),
+    /unknown option/i,
+  );
+  await assert.rejects(
+    execute(process.execPath, [cli, "car", "dist", join("dist", "bundle.car")]),
+    /inside the input Bundle/,
+  );
+});
+
+test("text success output uses the same operations without JSON or automatic installation", async () => {
+  const parent = resolve(".cache", `text-cli-${randomUUID()}`);
+  await mkdir(parent, { recursive: true });
+  try {
+    const directory = join(parent, "project");
+    const result = await execute(process.execPath, [cli, "--format", "text", "init", directory]);
+    assert.match(result.stdout, /^Created /);
+    assert.match(result.stdout, /pnpm install/);
+    assert.ok(!result.stdout.startsWith("{"));
+    assert.equal(result.stderr, "");
+    assert.ok(!(await readdir(directory)).includes("node_modules"));
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
 });

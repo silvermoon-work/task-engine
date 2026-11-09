@@ -5,17 +5,60 @@ import { Readable } from "node:stream";
 import {
   checkTreePath,
   listTree,
+  streamChunks,
   treeError,
   type ReadonlyFileTree,
   type ReadOptions,
   type TreeEntry,
-} from "./tree.js";
+} from "@silvermoon-work/task-builder/tree";
 
 function inside(root: string, path: string): boolean {
   const distance = relative(root, path);
   return (
     !distance || (!distance.startsWith(`..${sep}`) && distance !== ".." && !distance.includes(":"))
   );
+}
+
+/** Consume one stream with backpressure; remove only the newly created file on failure. */
+export async function writeStreamFile(
+  stream: ReadableStream<Uint8Array>,
+  file: string,
+  options: ReadOptions = {},
+): Promise<void> {
+  let handle: Awaited<ReturnType<typeof open>> | undefined;
+  try {
+    options.signal?.throwIfAborted();
+    handle = await open(file, "wx");
+  } catch (error) {
+    await stream.cancel(error);
+    throw error;
+  }
+  try {
+    for await (const chunk of streamChunks(stream, options)) {
+      let offset = 0;
+      while (offset < chunk.byteLength) {
+        options.signal?.throwIfAborted();
+        const { bytesWritten } = await handle.write(chunk, offset);
+        if (!bytesWritten) throw new Error(`Output write made no progress: ${file}`);
+        offset += bytesWritten;
+      }
+    }
+    await handle.close();
+  } catch (error) {
+    const errors: unknown[] = [error];
+    try {
+      await handle.close();
+    } catch (cleanupError) {
+      errors.push(cleanupError);
+    }
+    try {
+      await unlink(file);
+    } catch (cleanupError) {
+      errors.push(cleanupError);
+    }
+    if (errors.length > 1) throw new AggregateError(errors, "Stream write and cleanup failed.");
+    throw error;
+  }
 }
 
 /** A live read-only view, not an atomic snapshot. Confined dependency links are followed. */
@@ -88,40 +131,8 @@ export async function writeDirectory(
         directories.push(target);
         await write(child);
       } else {
-        const handle = await open(target, "wx");
+        await writeStreamFile(await tree.read(child, options), target, options);
         files.push(target);
-        let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
-        let complete = false;
-        try {
-          reader = (await tree.read(child, options)).getReader();
-          for (;;) {
-            options.signal?.throwIfAborted();
-            const item = await reader.read();
-            if (item.done) {
-              complete = true;
-              break;
-            }
-            let offset = 0;
-            while (offset < item.value.byteLength) {
-              options.signal?.throwIfAborted();
-              const { bytesWritten } = await handle.write(item.value, offset);
-              if (!bytesWritten) throw new Error(`Output write made no progress: ${child}`);
-              offset += bytesWritten;
-            }
-          }
-        } finally {
-          try {
-            if (reader) {
-              try {
-                if (!complete) await reader.cancel();
-              } finally {
-                reader.releaseLock();
-              }
-            }
-          } finally {
-            await handle.close();
-          }
-        }
       }
     }
   };

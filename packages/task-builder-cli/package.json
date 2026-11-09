@@ -1,0 +1,60 @@
+{
+  "name": "@silvermoon-work/task-builder-cli",
+  "version": "0.1.0-canary-261109-1",
+  "description": "Commander-based Task Builder CLI and reusable command runner.",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
+    }
+  },
+  "bin": {
+    "task-builder": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "node -e \"for (const path of ['dist', '.cache']) require('node:fs').rmSync(path, { recursive: true, force: true })\"",
+    "lint": "biome lint .",
+    "test": "tsx --test \"test/*.test.ts\"",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@silvermoon-work/task-builder": "workspace:*",
+    "commander": "catalog:",
+    "yaml": "catalog:"
+  },
+  "devDependencies": {
+    "@silvermoon-work/task-protocol": "workspace:*",
+    "@potential-guide/task-sdk": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/silvermoon-work/task-engine.git",
+    "directory": "packages/task-builder-cli"
+  },
+  "homepage": "https://github.com/silvermoon-work/task-engine/tree/main/packages/task-builder-cli#readme",
+  "bugs": {
+    "url": "https://github.com/silvermoon-work/task-engine/issues"
+  }
+}

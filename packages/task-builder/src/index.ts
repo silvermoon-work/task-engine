@@ -16,13 +16,14 @@ import { compileTree, evaluateContract } from "./esbuild.js";
 import { resourceStream } from "./streams.js";
 import {
   checkTreePath,
+  fileTree,
   listTree,
   memoryFile,
   readBytes,
   treeError,
   type ReadonlyFileTree,
   type ReadOptions,
-  type TreeEntry,
+  type FileReader,
 } from "./tree.js";
 
 export type { ReadonlyFileTree, ReadOptions, TreeEntry } from "./tree.js";
@@ -129,7 +130,6 @@ function outputTree(
   binary: ReadonlySet<string>,
   limits: BuilderLimits,
 ): ReadonlyFileTree {
-  const directories = new Map<string, Map<string, TreeEntry>>([["", new Map()]]);
   const sizes = new Map([...generated].map(([path, bytes]) => [path, bytes.byteLength]));
   let total = [...sizes.values()].reduce((a, b) => a + b, 0);
   const observe = (path: string, bytes: number) => {
@@ -140,52 +140,13 @@ function outputTree(
     total += bytes - previous;
     sizes.set(path, bytes);
   };
-  for (const path of [...generated.keys(), ...resources.keys()]) {
-    const segments = path.split("/");
-    let parent = "";
-    for (const [index, name] of segments.entries()) {
-      const directory = index < segments.length - 1;
-      directories.get(parent)!.set(name, { name, kind: directory ? "directory" : "file" });
-      if (directory) {
-        parent = parent ? `${parent}/${name}` : name;
-        if (!directories.has(parent)) directories.set(parent, new Map());
-      }
-    }
-  }
-  return Object.freeze({
-    async list(path: string, options: ReadOptions = {}) {
-      checkTreePath(path);
-      options.signal?.throwIfAborted();
-      const entries = directories.get(path);
-      if (!entries)
-        throw treeError(
-          generated.has(path) || resources.has(path) ? "ENOTDIR" : "ENOENT",
-          path,
-          "Output directory not found",
-        );
-      return [...entries.values()]
-        .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
-        .map((entry) => Object.freeze({ ...entry }));
-    },
-    async read(path: string, options: ReadOptions = {}) {
-      checkTreePath(path);
-      options.signal?.throwIfAborted();
-      const bytes = generated.get(path);
-      if (bytes) return memoryFile(bytes, options);
-      const source = resources.get(path);
-      if (source !== undefined)
-        return resourceStream(
-          input,
-          source,
-          path,
-          binary.has(path),
-          limits.fileBytes,
-          observe,
-          options,
-        );
-      throw treeError(directories.has(path) ? "EISDIR" : "ENOENT", path, "Output file not found");
-    },
-  });
+  const readers = new Map<string, FileReader>();
+  for (const [path, bytes] of generated) readers.set(path, (options) => memoryFile(bytes, options));
+  for (const [path, source] of resources)
+    readers.set(path, (options) =>
+      resourceStream(input, source, path, binary.has(path), limits.fileBytes, observe, options),
+    );
+  return fileTree(readers);
 }
 
 /** Compile modules now; resources remain lazy streams owned by the caller's input tree. */

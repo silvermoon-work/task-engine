@@ -413,8 +413,9 @@ test("release artifact discovery supports library-only repositories and fails on
   assert.ok(readWorkspaceNames().has("@silvermoon-work/task-protocol"));
 });
 
-test("the release registry contains the five core packages and task builder", () => {
+test("the release registry contains the five core packages, builder and standalone CLI", () => {
   const expected = [
+    "task-builder-cli",
     "task-builder",
     "task-protocol",
     "task-engine",

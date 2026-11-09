@@ -111,7 +111,9 @@ pnpm --filter @silvermoon-work/task-protocol test
 ## Commands
 
 从新建项目到 Task 构建、CAR 和真实运行的跨平台验证，见
-[端到端验证指引](./docs/end-to-end-verification.md)。新核心入口和 CLI 包尚未发布，指引使用 checkout 打出的 core/CLI 两个本地 tarball；仅 SDK 仍使用明确的外部兼容包。
+[端到端验证指引](./docs/end-to-end-verification.md)。builder 核心 canary
+2 与独立 builder CLI canary
+1 已发布并通过真实 npm 安装验证；SDK 仍使用明确的外部兼容包。新 Engine/执行 CLI 的代码已合入但不属于本轮发布，部署验证固定使用已发布 Engine。
 
 | Command          | Purpose                                                |
 | ---------------- | ------------------------------------------------------ |
@@ -131,7 +133,7 @@ tag release mapping below.
 
 ## Publish one package
 
-### Published canaries (2026-11-09)
+### Published canaries (2026-11-09, first round)
 
 All six packages were published through Trusted Publishing from the verified
 main commit `02014a5fd7b29d5a5d562535d0ff06139e22cdc8`. The npm `canary`
@@ -152,6 +154,25 @@ includes the corrected verifier. The server's original tag was retried without
 moving it after dependency metadata became visible. All final versions,
 dist-tags and internal dependencies passed the
 [authoritative registry verification](https://github.com/silvermoon-work/task-engine/actions/runs/42558542157).
+
+### Builder library / CLI release (2026-11-09)
+
+Published from `85161c8a7211080e7f15f2f71dc8e9e96b21b80e`, after exact-commit
+Node 22/24 CI and the versioned release aggregate succeeded:
+
+| Package                             | Version                 | Publication                                                                                |
+| ----------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------ |
+| `@silvermoon-work/task-builder`     | `0.1.0-canary-261109-2` | [Trusted publish](https://github.com/silvermoon-work/task-engine/actions/runs/42577672894) |
+| `@silvermoon-work/task-builder-cli` | `0.1.0-canary-261109-1` | [Trusted publish](https://github.com/silvermoon-work/task-engine/actions/runs/42577838042) |
+
+Both `canary` tags and runtime dependencies passed
+[targeted authoritative registry verification](https://github.com/silvermoon-work/task-engine/actions/runs/42578343710).
+The CLI's first attempt stopped before publication while dependency metadata
+propagated; the same immutable tag was retried. `latest` remains `0.0.0`. This
+round did not publish `task-engine@0.1.0-canary-261109-2` or `task-engine-cli`.
+Actual Tencent-registry install and HTTP/SQLite compatibility smoke results,
+including the Windows database-path limitation, are recorded in the
+[end-to-end guide](./docs/end-to-end-verification.md#本轮-builder-发布验证).
 
 The eight libraries are mapped in `scripts/release-packages.js`; the root and
 executable app remain private. No package is published by extraction, and there

@@ -13,8 +13,9 @@ adapter. The independent
 Commander-based interaction and local I/O. `./tree` exposes the shared pure VFS
 contract, factories and stream helpers; the old `./node` entry has moved to
 `@silvermoon-work/task-builder-cli/node`.
-These new subpaths are not in the published `0.1.0-canary-261109-1` artifact yet;
-use a checkout-built tarball until a new release is explicitly authorized.
+The library-only layout and init/CAR/tree APIs are published in
+`0.1.0-canary-261109-2`. The older `0.1.0-canary-261109-1` artifact has the
+previous CLI layout; use the separate CLI package for commands.
 
 ## Transformation
 

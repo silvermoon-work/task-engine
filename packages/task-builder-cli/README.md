@@ -6,10 +6,10 @@ The core owns read-only tree transformations; this package owns argument parsing
 help, version, output rendering, host paths, file writes and executable signals.
 It does not implement bundling or CAR encoding itself.
 
-This package and the extracted core APIs are **not yet published**. The old
-`task-builder@0.1.0-canary-261109-1` binary is not this CLI. Use the
-[two-tarball development workflow](../../docs/end-to-end-verification.md) until
-explicitly authorized releases are available.
+Published as `0.1.0-canary-261109-1`, depending on
+`task-builder@0.1.0-canary-261109-2`. The older core package's binary is not
+this Commander CLI. See the
+[published-package verification guide](../../docs/end-to-end-verification.md).
 
 ## Commands
 

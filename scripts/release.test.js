@@ -14,6 +14,7 @@ import test from "node:test";
 import { releasePackages } from "./release-packages.js";
 import {
   readRegistryPackage,
+  readRegistryVersion,
   readWorkspaceNames,
   selectRelease,
   validateArtifact,
@@ -322,6 +323,107 @@ test("internal runtime and peer dependencies must be published separately", asyn
     () => {
       throw new Error("Must not look up non-runtime or external dependencies");
     },
+  );
+});
+
+test("exact internal dependencies use version records without trusting stale catalogs", async () => {
+  const names = new Set(["@example/utils"]);
+  const artifact = { dependencies: { "@example/utils": "1.2.3" } };
+  const staleCatalog = async () => {
+    throw new Error("Exact dependency must not query the package catalog.");
+  };
+  await verifyWorkspaceDependencies(
+    artifact,
+    names,
+    staleCatalog,
+    async (name, version) => ({ name, version }),
+  );
+  for (const record of [
+    null,
+    { name: "@example/other", version: "1.2.3" },
+    { name: "@example/utils", version: "1.2.4" },
+    { name: "@example/utils", version: "1.2.3", private: true },
+  ])
+    await assert.rejects(
+      verifyWorkspaceDependencies(
+        artifact,
+        names,
+        staleCatalog,
+        async () => record,
+      ),
+      /No published version/u,
+    );
+  await assert.rejects(
+    verifyWorkspaceDependencies(artifact, names, staleCatalog, async () => {
+      throw new Error("version lookup failed");
+    }),
+    /version lookup failed/u,
+  );
+  await verifyWorkspaceDependencies(
+    { dependencies: { "@example/utils": "^1.0.0" } },
+    names,
+    async () => ({ versions: { "1.2.3": {} } }),
+    async () => {
+      throw new Error("Ranges require the catalog.");
+    },
+  );
+});
+
+test("version-record lookups check exact identity and fail closed on missing or invalid metadata", async () => {
+  const record = {
+    name: "@example/utils",
+    version: "1.2.3",
+    dependencies: { "@example/external": "1.0.0" },
+  };
+  assert.deepEqual(
+    await readRegistryVersion(
+      record.name,
+      record.version,
+      async (url, options) => {
+        assert.equal(
+          url,
+          "https://mirrors.cloud.tencent.com/npm/%40example%2Futils/1.2.3",
+        );
+        assert.equal(options.headers.Accept, "application/json");
+        return { ok: true, json: async () => record };
+      },
+    ),
+    record,
+  );
+  assert.equal(
+    await readRegistryVersion(record.name, record.version, async () => ({
+      status: 404,
+    })),
+    null,
+  );
+  for (const status of [401, 403, 429, 500])
+    await assert.rejects(
+      readRegistryVersion(record.name, record.version, async () => ({
+        ok: false,
+        status,
+      })),
+      /lookup failed/u,
+    );
+  for (const invalid of [
+    null,
+    [],
+    "invalid",
+    { ...record, name: "@example/other" },
+    { ...record, version: "1.2.4" },
+    { ...record, devDependencies: { alias: "npm:pguide@1.0.0" } },
+    { ...record, dependencies: { local: "workspace:*" } },
+  ])
+    await assert.rejects(
+      readRegistryVersion(record.name, record.version, async () => ({
+        ok: true,
+        json: async () => invalid,
+      })),
+    );
+  await assert.rejects(
+    readRegistryVersion(record.name, "^1.0.0", async () => {
+      throw new Error("Unexpected network request");
+    }),
+    /exact SemVer/u,
   );
 });
 

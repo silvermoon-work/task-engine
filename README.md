@@ -265,6 +265,14 @@ requiring packing-only fields that registries can omit. Source and tarball
 checks still require public npm `publishConfig`; publishing verifies and uses
 that same fully checked tarball.
 
+Exact internal dependency versions are verified through the registry's
+version-specific record, including its exact name/version and dependency guards;
+a missing record still blocks release. This avoids treating an older
+package-wide catalog cache as proof that a known version is absent. SemVer
+ranges continue to require a satisfying version in the package catalog. CLI
+canary index 2's tag remains immutable after its pre-publication mirror catalog
+failures; the corrected release uses CLI index 3.
+
 ### Configure a derived repository
 
 1. Verify each package ID, npm name, directory and version in

@@ -137,7 +137,7 @@ test("CLI decorates the neutral template with exact dependency specs and optiona
   );
   assert.equal(
     defaultManifest.devDependencies["@silvermoon-work/task-builder-cli"],
-    "0.1.0-canary-261109-2",
+    "0.1.0-canary-261109-3",
   );
   assert.equal(defaultManifest.pnpm, undefined);
   const defaultConfig = parse(

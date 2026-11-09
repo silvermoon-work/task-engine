@@ -25,7 +25,7 @@ Use the migrated workspace
 [task-builder CLI init](../task-builder-cli/README.md#init-composition)
 to create a private project, then build, encode and check its Bundle.
 Builder core version 2 and CLI version 1 generated the old SDK template;
-use core version 3 and CLI version 2 for the migrated default. Existing projects can
+use core version 3 and CLI version 3 for the migrated default. Existing projects can
 explicitly select the SDK version with child invocation support:
 
 ```text

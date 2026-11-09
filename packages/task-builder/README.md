@@ -207,7 +207,7 @@ greeting resource. It performs no I/O, install or ancestor package modification.
 The default dependency and author import use
 `@silvermoon-work/task-sdk@0.1.0-canary-261109-2` in builder version
 `0.1.0-canary-261109-3`. Older builder versions still emit the old SDK template;
-use the version 3 core and version 2 CLI for the migrated template.
+use the version 3 core and version 3 CLI for the migrated template.
 An explicit local `sdkVersion` specifier (such as `file:task-sdk.tgz`) remains
 available for development.
 `sdkVersion`, `minRuntimeVersion`, `taskName` and npm `name` can be supplied.

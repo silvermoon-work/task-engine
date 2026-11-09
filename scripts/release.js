@@ -174,6 +174,7 @@ export async function verifyWorkspaceDependencies(
   artifact,
   workspaceNames,
   readPackage,
+  readVersion,
 ) {
   for (const field of dependencyFields.filter(
     (field) => field !== "devDependencies",
@@ -185,13 +186,24 @@ export async function verifyWorkspaceDependencies(
           `Internal dependency ${name} requires a registry SemVer range.`,
         );
       }
-      const metadata = await readPackage(name);
-      if (
-        metadata === null ||
-        !Object.keys(metadata.versions).some((version) =>
-          semver.satisfies(version, range),
-        )
-      ) {
+      const exactVersion = semver.valid(range);
+      let published;
+      if (exactVersion !== null && readVersion !== undefined) {
+        const version = await readVersion(name, exactVersion);
+        published =
+          version !== null &&
+          version.name === name &&
+          version.version === exactVersion &&
+          version.private !== true;
+      } else {
+        const metadata = await readPackage(name);
+        published =
+          metadata !== null &&
+          Object.keys(metadata.versions).some((version) =>
+            semver.satisfies(version, range),
+          );
+      }
+      if (!published) {
         throw new Error(
           `No published version satisfies ${name}@${range}; publish the dependency separately first.`,
         );
@@ -224,6 +236,39 @@ export async function readRegistryPackage(name, fetchPackage = fetch) {
     throw new Error(`Invalid npm registry metadata for ${name}.`);
   }
   return metadata;
+}
+
+export async function readRegistryVersion(name, version, fetchVersion = fetch) {
+  if (semver.valid(version) !== version) {
+    throw new Error(
+      `Registry version lookup requires an exact SemVer: ${version}.`,
+    );
+  }
+  const response = await fetchVersion(
+    `${metadataRegistry}/${encodeURIComponent(name)}/${encodeURIComponent(version)}`,
+    {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(30_000),
+    },
+  );
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(
+      `npm registry version lookup failed for ${name}@${version}: HTTP ${response.status}.`,
+    );
+  }
+  const artifact = await response.json();
+  if (
+    artifact === null ||
+    typeof artifact !== "object" ||
+    Array.isArray(artifact)
+  ) {
+    throw new Error(
+      `Invalid npm registry version metadata for ${name}@${version}.`,
+    );
+  }
+  validatePublishedVersion({ name, version }, artifact);
+  return artifact;
 }
 
 export async function verifyUnpublished(release, readPackage) {
@@ -303,6 +348,7 @@ async function main(command) {
       artifact,
       workspaceNames,
       readRegistryPackage,
+      readRegistryVersion,
     );
     if (process.env.RELEASE_EVENT === "push") {
       await verifyUnpublished(release, readRegistryPackage);

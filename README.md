@@ -183,6 +183,14 @@ same artifact through npm OIDC.
 
 ### Validate without publishing
 
+After publication, the read-only `verify-npm.yaml` workflow checks every mapped
+package's current manifest version and expected dist-tag against the official
+npm registry, including published internal dependencies. It never publishes:
+
+```sh
+gh workflow run verify-npm.yaml --ref main
+```
+
 After the configured commit's main push CI succeeds:
 
 ```sh

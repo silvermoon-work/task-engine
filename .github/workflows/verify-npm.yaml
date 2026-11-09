@@ -1,0 +1,65 @@
+name: Verify npm releases
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify published versions and dist-tags
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out expected release manifests
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.11.1
+          cache: pnpm
+
+      - name: Install verifier dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify authoritative npm metadata
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          import { releasePackages } from "./scripts/release-packages.js";
+          import {
+            readRegistryPackage,
+            validateManifest,
+            verifyWorkspaceDependencies,
+          } from "./scripts/release.js";
+
+          const names = new Set(releasePackages.map(({ name }) => name));
+          const failures = [];
+          for (const selected of releasePackages) {
+            const manifest = JSON.parse(readFileSync(`${selected.directory}/package.json`, "utf8"));
+            const release = validateManifest(selected, manifest);
+            const metadata = await readRegistryPackage(release.name);
+            const artifact = metadata?.versions[release.version];
+            console.log(JSON.stringify({
+              name: release.name,
+              expectedVersion: release.version,
+              availableVersions: Object.keys(metadata?.versions ?? {}),
+              distTags: metadata?.["dist-tags"],
+            }));
+            if (!artifact) {
+              failures.push(`${release.name}@${release.version} is missing`);
+              continue;
+            }
+            if (metadata["dist-tags"]?.[release.distTag] !== release.version)
+              failures.push(`${release.name} dist-tag ${release.distTag} does not match`);
+            await verifyWorkspaceDependencies(artifact, names, readRegistryPackage);
+          }
+          if (failures.length) throw new Error(failures.join("\n"));
+          NODE

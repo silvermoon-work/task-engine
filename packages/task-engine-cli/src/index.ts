@@ -219,8 +219,8 @@ export async function runBundle(options: RunBundleOptions): Promise<ExecutionRes
   );
 }
 
-export const help = `Usage: task-engine run <bundle-cid> --input <file|-> --gateway <base-url> [options]
-       task-engine run --car <file.car> --input <file|-> [options]
+export const help = `Usage: task-engine run <bundle-cid> --gateway <base-url> [--input <file|->] [options]
+       task-engine run --car <file.car> [--input <file|->] [options]
 
 Run an embedded engine in a fresh, disposable in-memory data domain.
 No task HTTP service is required. Select CID/Gateway or a local CAR, never both.
@@ -231,7 +231,7 @@ No task HTTP service is required. Select CID/Gateway or a local CAR, never both.
                       Default deny; depth 4, concurrent 4, total 64, child timeout 30s.
 --timeout-ms <ms>      Root Task deadline budget (default 60000).
 --max-runtime-ms <ms>  Optional overall budget, including CAR validation, admission and drain.
---input -             Read one JSON object from stdin.
+--input <file|->      Read one JSON object; omitted or "-" reads stdin until EOF.
 Only finite structured invokeTask work is supported, not detached scheduling.
 stdout: one JSON result; stderr: diagnostics. Exit codes:
 0 success; 2 config/input; 3 root rejection; 4 task/child failure or stop;
@@ -284,18 +284,17 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       if (key === "--gateway") gateways.push(value);
       else values.set(key, value);
     }
-    const path = values.get("--input");
+    const path = values.get("--input") ?? "-";
     const carPath = values.get("--car");
     const expectedCid = values.get("--expected-cid");
     if (
-      !path ||
-      (carPath
+      carPath
         ? cid !== undefined || gateways.length > 0 || carPath === "-"
-        : !cid || !gateways.length || expectedCid !== undefined)
+        : !cid || !gateways.length || expectedCid !== undefined
     )
       throw new TaskError(
         "invalid_config",
-        "Specify --input and either CID/--gateway or --car <file>, never both.",
+        "Specify either CID/--gateway or --car <file>, never both.",
       );
     if (cid) validateBundleReference(cid);
     if (expectedCid) validateBundleReference(expectedCid);

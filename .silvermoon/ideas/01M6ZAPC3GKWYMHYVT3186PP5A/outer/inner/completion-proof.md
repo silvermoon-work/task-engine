@@ -90,6 +90,14 @@ mirror，避免依赖下载回退至默认官方 registry。已接受的 Ideal
 World 未修改；尚未接受的 Implementation、Deployment 与 supporting
 documents 已格式化。I-* 勾选表示已完成实现证据，不自行构成生命周期审批；主 Agent 后续以准确同步 revision 的提交和验收事件记录审批。
 
+## 默认 stdin 输入
+
+省略 `--input` 等同 `--input -`，复用既有有界 stdin
+JSON 读取；显式文件输入不消费 stdin。没有新增输入格式、隐式空对象或额外读取器。更新后的真实子进程 runner
+18/18 通过，覆盖 CAR 和 Gateway 两种源下的默认 stdin、显式 stdin、文件优先，以及空输入、空白、无效 JSON、超出容量明确退出 2。保留显式信号场景，并验证等待默认 stdin 时 SIGINT 能关闭输入句柄并自然退出 130。默认 stdin 修改后的
+`pnpm check` 退出 0，40/40
+turbo 任务成功，完整集合 533 项测试通过，类型与包守卫通过；没有以局部输入测试代替全仓验证。
+
 ## 本地 CAR 补充实现
 
 本轮按用户明确需求增加 `run --car <file> --input <file|->`，可选

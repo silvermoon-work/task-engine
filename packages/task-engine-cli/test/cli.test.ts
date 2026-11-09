@@ -44,7 +44,7 @@ async function execute(args: string[], input?: string, code?: string) {
 }
 
 test("real CLI child processes exhaust single, parallel and multi-level work and exit naturally", {
-  timeout: 180_000,
+  timeout: 240_000,
 }, async (t) => {
   const directory = resolve(".cache", `cli-${randomUUID()}`);
   await mkdir(directory, { recursive: true });
@@ -169,6 +169,51 @@ export default async (input,context) => {
     });
   }
   assert.ok(requests > 0);
+  await t.test(
+    "omitted input defaults to stdin for both CAR and Gateway; explicit files still win",
+    async () => {
+      const inputFile = join(directory, "input.json");
+      await writeFile(inputFile, '{"value":11}');
+      for (const source of [
+        ["run", "--car", leaf.car],
+        ["run", leaf.cid, "--gateway", gateway],
+      ]) {
+        const implicit = await execute(source, '{"value":9}');
+        assert.equal(implicit.exitCode, 0, implicit.stderr);
+        const execution = JSON.parse(implicit.stdout);
+        assert.equal(execution.status, "succeeded");
+        assert.deepEqual(execution.execution.tasks[0].result, { value: 9 });
+        const explicit = await execute([...source, "--input", "-"], '{"value":9}');
+        assert.equal(explicit.exitCode, 0, explicit.stderr);
+        assert.deepEqual(JSON.parse(explicit.stdout).execution.tasks[0].result, { value: 9 });
+        const file = await execute(
+          [...source, "--input", inputFile],
+          "invalid stdin must not be consumed",
+        );
+        assert.equal(file.exitCode, 0, file.stderr);
+        assert.deepEqual(JSON.parse(file.stdout).execution.tasks[0].result, { value: 11 });
+      }
+    },
+  );
+  await t.test(
+    "default stdin rejects empty, malformed and oversized JSON without execution",
+    async () => {
+      for (const source of [
+        ["run", "--car", leaf.car],
+        ["run", leaf.cid, "--gateway", gateway],
+      ]) {
+        for (const input of ["", "  \n", "{invalid", " ".repeat(65_537)]) {
+          const output = await execute(source, input);
+          assert.equal(output.exitCode, 2, output.stderr);
+          const final = JSON.parse(output.stdout);
+          assert.equal(final.status, "invalid");
+          assert.equal(final.execution, undefined);
+          assert.ok(final.error);
+          assert.ok(output.stderr.length);
+        }
+      }
+    },
+  );
   await t.test(
     "local CAR single and nested work exits naturally without any Gateway reads",
     async () => {
@@ -345,10 +390,10 @@ test("help exits naturally without requiring a Gateway", async () => {
   assert.match(output.stdout, /Usage: task-engine run/);
 });
 
-test("SIGINT interrupts stdin waiting without leaving a live input handle", async () => {
+test("SIGINT interrupts default stdin waiting without leaving a live input handle", async () => {
   const code = `import {main} from ${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)};
 setTimeout(()=>process.emit("SIGINT"),100);
-process.exitCode=await main(["run","bafkreigh2akiscaildc5u4g5r7taq6qy76pcv4jucd7yhpnsttjf4zvnxu","--input","-","--gateway","http://127.0.0.1:1"]);`;
+process.exitCode=await main(["run","bafkreigh2akiscaildc5u4g5r7taq6qy76pcv4jucd7yhpnsttjf4zvnxu","--gateway","http://127.0.0.1:1"]);`;
   const child = spawn(process.execPath, ["--input-type=module", "-e", code], {
     stdio: ["pipe", "pipe", "pipe"],
   });

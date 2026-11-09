@@ -17,6 +17,10 @@ service 或后台调度协议。
 [完成性证明](completion-proof.md)；使用参数、输出和所有权见
 [CLI 文档](../../../../../packages/task-engine-cli/README.md)。
 
+省略 `--input` 默认从 stdin 读取 JSON 到 EOF，等同显式 `--input -`；
+`--input <file>`
+保持文件输入优先，两种内容源使用同一路径。空输入、无效 JSON 和超出容量仍明确拒绝，终端等待可通过现有信号处理器取消。
+
 ## Steps
 
 ### I-S01: 明确运行域与耗尽判定

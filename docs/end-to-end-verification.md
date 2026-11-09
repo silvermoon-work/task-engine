@@ -101,6 +101,15 @@ service。CLI 自己等待 preparation、任务和 Run 物理回收，输出单�
 pnpm exec task-engine run --car bundle.car --input input.json --timeout-ms 30000 --max-runtime-ms 60000
 ```
 
+省略 `--input` 时默认从 stdin 读一个 JSON 对象直到 EOF，显式 `--input -`
+也等价：
+
+```powershell
+'{"text":"world"}' | pnpm exec task-engine run --car bundle.car
+```
+
+同样适用于 CID/Gateway 路径；显式文件输入不消费 stdin。空输入、无效 JSON 或超出容量应明确失败，不使用空对象兜底。
+
 CLI 先完整校验 CAR，再按唯一根 CID 驱动同一个 engine；不从作者源码或 `dist`
 执行，不做网络 fallback。可选 `--expected-cid <bundle-root-cid>` 对照
 `bundle.cid`；不需要另传 CID 或 `--gateway`，混用明确拒绝。

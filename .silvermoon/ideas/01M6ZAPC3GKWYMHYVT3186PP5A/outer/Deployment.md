@@ -28,6 +28,9 @@ Publishing；不批量发布，不以手工 dry run 代替真实发布。
 
 ## Acceptance criteria
 
+已发布 CLI 的输入 smoke 同时覆盖省略 `--input` 的管道输入、显式 `--input -`
+和文件输入，以及空输入/无效 JSON 拒绝和等待 stdin 中断。
+
 ### D-AC01: 实际发布身份与来源可信
 
 记录每个目标包的准确名称、版本、dist-tag、registry integrity、不可变标签、main

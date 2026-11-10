@@ -4,8 +4,8 @@
 用户已授权取消独立 task-bundle-car 包，回到实现阶段重构；新 Inner 必须重新验收后才恢复发布。
 历史 [CAR 发布失败](./car-release.md) 保留，但其发布方案与 D-S03 已撤销，不复用该稳定 ID，
 不重试其 workflow、不移动/删除已存在的 `task-bundle-car-v0.1.0-canary-261110-1` tag。
-重新验收后的 Builder 发布前置执行与 CI 阻塞见 [Builder 发布证据](./builder-release.md)；
-该记录不代表已创建发布 tag 或完成 npm 发布。
+重新验收后的 Builder 发布、registry 完整字节身份和已解除的历史 CI 阻塞，
+见 [Builder 发布证据](./builder-release.md)；CLI 发布与真实安装闭环仍未完成。
 
 | 用途 | npm 包 | 精确候选 | 发布权限 |
 | --- | --- | --- | --- |

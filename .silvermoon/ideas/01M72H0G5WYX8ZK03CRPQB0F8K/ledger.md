@@ -24,7 +24,7 @@
 
 - [ ] **D-S01:** 确认外部验证候选与环境
 - [ ] **D-S02:** 验证消费者交付闭环
-- [ ] **D-S04:** 发布并验证 Builder 候选
+- [x] **D-S04:** 发布并验证 Builder 候选
 - [ ] **D-S05:** 发布并验证 CLI 候选
 
 ### Deployment acceptance criteria

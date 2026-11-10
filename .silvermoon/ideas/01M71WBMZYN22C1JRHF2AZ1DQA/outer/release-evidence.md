@@ -42,7 +42,7 @@ artifact identity/dependency verifier 和真实 Publish selected package 均 suc
 | protocol 0.1.0-canary-261110-1 | task-protocol-v0.1.0-canary-261110-1 | [42842911243](https://github.com/silvermoon-work/task-engine/actions/runs/42842911243)，success | [42843277001 attempt 2](https://github.com/silvermoon-work/task-engine/actions/runs/42843277001/attempts/2)，success |
 | SDK 0.1.0-canary-261110-1 | task-sdk-v0.1.0-canary-261110-1 | [42844505054](https://github.com/silvermoon-work/task-engine/actions/runs/42844505054)，success | [42845616124](https://github.com/silvermoon-work/task-engine/actions/runs/42845616124)，success |
 | Engine 0.1.0-canary-261110-1 | task-engine-v0.1.0-canary-261110-1 | [42845940887](https://github.com/silvermoon-work/task-engine/actions/runs/42845940887)，success | [42846415774](https://github.com/silvermoon-work/task-engine/actions/runs/42846415774)，success |
-| CLI 0.1.0-canary-261110-2 | task-engine-cli-v0.1.0-canary-261110-2 | [42846750113](https://github.com/silvermoon-work/task-engine/actions/runs/42846750113)，success | [42847066264](https://github.com/silvermoon-work/task-engine/actions/runs/42847066264) 首次元数据仍缺失，待正常传播后重验 |
+| CLI 0.1.0-canary-261110-2 | task-engine-cli-v0.1.0-canary-261110-2 | [42846750113](https://github.com/silvermoon-work/task-engine/actions/runs/42846750113)，success | [42847066264 attempt 2](https://github.com/silvermoon-work/task-engine/actions/runs/42847066264/attempts/2)，success |
 
 实际 npm 回执：
 
@@ -66,12 +66,31 @@ Engine 在 15:38:37 UTC 正向确认准确版本及所有内部 dev/runtime 依�
 CLI 真实 publish 成功后，15:42:20 UTC 的只读检查仍只见 CLI 1，
 Tencent 镜像也暂报 E404；没有绕过 registry、重跑 publish 或改 tag。
 安装必须等待准确 registry 版本可见。
+随后同一只读检查 attempt 2 于 15:46:19 UTC 正向确认 CLI 2，
+canary=当日 2、latest=0.0.0，所有内部依赖检查成功。
+Tencent 在 15:47 后也正向返回四个准确包的 metadata/tarball/integrity，才开始安装。
+
+| 包 | Tencent 返回的完整 integrity |
+| --- | --- |
+| protocol 1 | `sha512-cDCnKmSMeC8TfAj1/JCo1keNw/UI/mKrgincMpIpWXzf4Qih5EmqqWLLQrPfXtLoyasxJtgBjl9wcTGpUJ/Q4A==` |
+| SDK 1 | `sha512-3mKoiRakTJxeWdrCWq5lq2KlogfXnfIAFsFRxx2ZHF4BwG77kmGP0K5V6sM6uCWgrpIjD9MDy4QdRForVMr5ng==` |
+| Engine 1 | `sha512-TozDmwBuHfEteTB2Snzjby27jzvllKngI4t3zC7nMpCK54ozkV1fDxBZ+sRW6/vq0cb1qmxYsHEdMxweitGZAQ==` |
+| CLI 2 | `sha512-QXTOpu9X2n+YjsN0a4dOTyEZz9kNrF2pUt7jTvI+WhWBsqTkvudc5Cs904NkW/FD9ZBB+gGETRLukppgitSlKw==` |
 
 ## 安装和运行验收
 
-尚未执行，不能据上述发布回执宣称安装或 smoke 成功。
-已分配唯一仓库外安装命名空间 `D:\Code\task-engine-canary-261110-d30f1b98`，
-此时仅有 work 目录，不把目录存在当作安装成功。
+唯一仓库外安装命名空间为 `D:\Code\task-engine-canary-261110-d30f1b98`。
+首轮真实 registry 安装退出 0（262 packages），实际 package bin 的 --version 返回 CLI 2。
+首轮 smoke 随后在 Windows cmd shim 调用处失败：
+Node 的默认 Windows 参数转义把脚本内引号转成了字面的反斜线引号，未启动 shim。
+这是 Outer harness 的 cmd 调用错误，不是已安装 CLI 执行失败：
+上一条直接运行真实 package bin 的命令已经退出 0。
+完整失败命令/输出/退出码保留在 [registry-smoke-attempt-1.json](./registry-smoke-attempt-1.json)。
+
+仅修正 Outer harness：cmd 使用 verbatim 参数与 `call` 正确引用 shim，
+不改已接受实现、不关闭 warnings、不跳过 shim 断言。失败发生在启动任何 Server 之前，
+没有遗留任务进程；自有 profile 目录已清理。重验前同步新脚本与契约修订。
+其余 smoke 尚未完成，不能因安装或发布成功预填运行验收成功。
 验收脚本为 [registry-smoke.mjs](./registry-smoke.mjs)，执行前须与本计划同步。
 脚本只从实际 registry 安装的包运行，在仓库外 cwd/prefix 记录命令、输出、
 退出码、integrity、真实入口、生产依赖闭包、共享多块图、数据清理与自有 PID 停止。

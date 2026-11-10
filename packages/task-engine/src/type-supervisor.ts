@@ -68,6 +68,8 @@ export class RunDispatchError extends TaskError {
   }
 }
 export interface SupervisorLimits {
+  durableLogs?: boolean;
+  dispatchOnWorkerStart?: boolean;
   heartbeatMs: number;
   healthMs: number;
   maxInFlight: number;
@@ -216,6 +218,7 @@ class RunWorker {
           verifyExportName: this.registration.verifyExportName,
           generation,
           maxInFlight: this.limits.maxInFlight,
+          ...(this.limits.durableLogs ? { durableLogs: true } : {}),
           maxPayloadBytes: this.limits.maxPayloadBytes,
           ...(this.registration.bundle ? { bundle: this.registration.bundle } : {}),
         },
@@ -780,7 +783,10 @@ class RunWorker {
     const parsed = compileInputSchema(this.registration.inputSchema, {
       maxInputBytes: this.limits.maxPayloadBytes,
     }).validate(input);
-    await this.start();
+    const startup = this.start();
+    // Dispatch can fail before readiness; retirement still confirms the physical exit.
+    void startup.catch(() => {});
+    if (!this.limits.dispatchOnWorkerStart || !this.generation) await startup;
     if (this.runs.size || this.exitObserved)
       throw new TaskError("invalid_tracking", "每个 Worker 只能承载一个完整 Run。");
     this.runs.add(runId);
@@ -796,7 +802,13 @@ class RunWorker {
     });
     try {
       const identity = await this.channel.dispatch?.(runId, this.generation!);
-      if (!this.worker || this.exitObserved || this.closing)
+      if (this.limits.dispatchOnWorkerStart) await startup;
+      if (
+        !this.worker ||
+        this.exitObserved ||
+        this.closing ||
+        (this.limits.dispatchOnWorkerStart && this.stopping)
+      )
         throw new TaskError("run_finished", "Run Worker 已退出，不再投递入口。");
       this.worker.postMessage({
         generation: this.generation,
@@ -1070,7 +1082,11 @@ export class TypeSupervisor {
     private readonly limits: SupervisorLimits,
   ) {
     for (const [name, value] of Object.entries(limits))
-      if (!Number.isSafeInteger(value) || value <= 0)
+      if (
+        name === "durableLogs" || name === "dispatchOnWorkerStart"
+          ? typeof value !== "boolean"
+          : !Number.isSafeInteger(value) || value <= 0
+      )
         throw new TaskError("invalid_type", `${name} 必须是正整数。`);
     this.verifier = new RunWorker(registration, channel, limits, {
       inFlight: this.inFlight,

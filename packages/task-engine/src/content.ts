@@ -6,6 +6,7 @@ import { TaskError } from "@silvermoon-work/task-protocol";
 import { MemoryBlockstore } from "blockstore-core";
 import { type ExportContentOptions, exporter, type UnixFSEntry } from "ipfs-unixfs-exporter";
 import { CID } from "multiformats/cid";
+import { sha256 } from "multiformats/hashes/sha2";
 
 class GatewayCleanupError extends TaskError {
   constructor() {
@@ -19,6 +20,15 @@ async function stopOwnedNode(node: { stop(): Promise<void> }): Promise<void> {
     throw new GatewayCleanupError();
   }
 }
+async function closeOwnedReader(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<void> {
+  try {
+    await reader.cancel();
+  } catch {
+    throw new GatewayCleanupError();
+  } finally {
+    reader.releaseLock();
+  }
+}
 
 /** Caller-owned read port. Production hosts use createIpfsGatewayClient. */
 export interface IpfsClient {
@@ -29,6 +39,7 @@ export interface GatewayClient extends IpfsClient {
   close(): Promise<void>;
 }
 export interface GatewayClientOptions {
+  allowPath?: boolean;
   /** Total budget for all sources for one missing block. */
   timeoutMs?: number;
   attemptTimeoutMs?: number;
@@ -188,12 +199,12 @@ export function createIpfsGatewayClient(
   for (const value of [timeoutMs, attemptTimeoutMs])
     if (!Number.isSafeInteger(value) || value <= 0 || value > 2_147_483_647)
       throw new Error("Invalid IPFS Gateway timeout.");
-  const sources = urls.map((base) => gatewaySource(base));
+  const sources = urls.map((base) => gatewaySource(base, options.allowPath));
   if (new Set(sources.map(({ source }) => source)).size !== sources.length)
     throw new Error("Duplicate IPFS Gateway base URL.");
   return readClient({ sources, timeoutMs, attemptTimeoutMs });
 }
-function gatewaySource(url: string): ReadSource {
+function gatewaySource(url: string, allowPath = false): ReadSource {
   const endpoint = new URL(url);
   if (
     !["http:", "https:"].includes(endpoint.protocol) ||
@@ -201,9 +212,47 @@ function gatewaySource(url: string): ReadSource {
     endpoint.password ||
     endpoint.href.includes("?") ||
     endpoint.href.includes("#") ||
-    endpoint.pathname !== "/"
+    (!allowPath && endpoint.pathname !== "/")
   )
     throw new Error("IPFS endpoint must be an HTTP(S) Gateway base URL.");
+  if (allowPath && endpoint.pathname !== "/")
+    return {
+      source: endpoint.href,
+      async read(value, signal) {
+        const cid = CID.parse(value);
+        const target = new URL(endpoint);
+        target.pathname = `${target.pathname.replace(/\/$/, "")}/ipfs/${encodeURIComponent(value)}`;
+        target.searchParams.set("format", "raw");
+        const response = await fetch(target, {
+          signal,
+          redirect: "error",
+          credentials: "omit",
+          headers: { accept: "application/vnd.ipld.raw" },
+        });
+        if (!response.ok || !response.body) throw new Error("Gateway block read failed.");
+        const reader = response.body.getReader(),
+          parts: Uint8Array[] = [];
+        let length = 0;
+        try {
+          for (;;) {
+            const item = await reader.read();
+            if (item.done) break;
+            length += item.value.length;
+            if (length > 2 * 1024 * 1024) throw new Error("IPFS block capacity exceeded.");
+            parts.push(item.value);
+          }
+        } finally {
+          await closeOwnedReader(reader);
+        }
+        const bytes = Buffer.concat(parts, length);
+        if (
+          cid.multihash.code !== sha256.code ||
+          !Buffer.from((await sha256.digest(bytes)).bytes).equals(Buffer.from(cid.multihash.bytes))
+        )
+          throw new Error("Gateway CID verification failed.");
+        return bytes;
+      },
+    };
   return {
     source: endpoint.href,
     async read(cid, signal) {
@@ -266,6 +315,7 @@ export function withGatewayHints(
   return readClient({ ...plan, sources });
 }
 export interface ContentAccessOptions {
+  cacheBlocks?: boolean;
   signal: AbortSignal;
   retainedBlocks: Map<string, Uint8Array>;
   retentionBudget: { bytes: number; limit: number };
@@ -313,14 +363,18 @@ export function contentStore(client: IpfsClient, options: ContentAccessOptions) 
           parts.push(part);
         bytes = Buffer.concat(parts);
       } catch (error) {
-        if (acquisitionFailure instanceof GatewayReadError) throw acquisitionFailure;
+        if (
+          acquisitionFailure instanceof GatewayReadError ||
+          acquisitionFailure instanceof TaskError
+        )
+          throw acquisitionFailure;
         throw error;
       } finally {
         await stopOwnedNode(node);
       }
       options.signal.throwIfAborted();
       // Another concurrent read may have retained this block during the await.
-      if (!options.retainedBlocks.has(key)) {
+      if (options.cacheBlocks !== false && !options.retainedBlocks.has(key)) {
         if (
           options.retainedBlocks.size >= options.maxDagBlocks ||
           options.retentionBudget.bytes + bytes.byteLength > options.retentionBudget.limit

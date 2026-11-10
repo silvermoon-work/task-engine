@@ -178,7 +178,8 @@ function group(record: Pick<TaskRecord, "binding" | "input">): string {
   const schema = canonical(b.inputSchema);
   let contract = comparisonContracts.get(schema);
   if (!contract) {
-    contract = compileInputSchema(b.inputSchema);
+    // Admission validates the host payload budget; projection compares persisted facts.
+    contract = compileInputSchema(b.inputSchema, { maxInputBytes: Number.MAX_SAFE_INTEGER });
     if (comparisonContracts.size >= 64)
       comparisonContracts.delete(comparisonContracts.keys().next().value!);
     comparisonContracts.set(schema, contract);

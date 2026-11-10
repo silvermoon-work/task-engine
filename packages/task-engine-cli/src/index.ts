@@ -20,6 +20,7 @@ import {
   validateBundleReference,
 } from "@silvermoon-work/task-protocol";
 import { kuboGateways } from "./gateway.js";
+export { main, help } from "./entry.js";
 
 export const exitCodes = {
   succeeded: 0,
@@ -222,7 +223,7 @@ export async function runBundle(options: RunBundleOptions): Promise<ExecutionRes
   );
 }
 
-export const help = `Usage: task-engine run <bundle-cid> [--gateway <base-url>] [--input <file|->] [options]
+const legacyHelp = `Usage: task-engine run <bundle-cid> [--gateway <base-url>] [--input <file|->] [options]
        task-engine run --car <file.car> [--input <file|->] [options]
 
 Run an embedded engine in a fresh, disposable in-memory data domain.
@@ -245,9 +246,9 @@ stdout: one JSON result; stderr: diagnostics. Exit codes:
 Task code is executable code, not a security sandbox. Trust your Bundle.
 `;
 
-export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<number> {
+export async function legacyMain(argv: readonly string[] = process.argv.slice(2)): Promise<number> {
   if (argv.length === 1 && ["--help", "-h"].includes(argv[0]!)) {
-    process.stdout.write(help);
+    process.stdout.write(legacyHelp);
     return 0;
   }
   const controller = new AbortController();
@@ -261,7 +262,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
   let carFile: Awaited<ReturnType<typeof open>> | undefined;
   let carTimer: ReturnType<typeof setTimeout> | undefined;
   try {
-    if (argv[0] !== "run") throw new TaskError("invalid_config", help);
+    if (argv[0] !== "run") throw new TaskError("invalid_config", legacyHelp);
     const cid = argv[1] && !argv[1].startsWith("-") ? argv[1] : undefined;
     const gateways: string[] = [];
     const values = new Map<string, string>();

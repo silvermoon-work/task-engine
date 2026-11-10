@@ -82,6 +82,7 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
   const config = workerData as {
     generation: string;
     maxInFlight: number;
+    durableLogs?: boolean;
     maxPayloadBytes: number;
     bundle: { cid: string; declaration: ResolvedTaskBundle };
   };
@@ -280,7 +281,18 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
     }
     logPending.clear();
   }
-  async function log(value: RunLogInput): Promise<RunLogReceipt> {
+  let durableLogOutput: Promise<unknown> = Promise.resolve();
+  function log(value: RunLogInput): Promise<RunLogReceipt> {
+    if (!config.durableLogs) return sendLog(value);
+    const operation = durableLogOutput.then(() => sendLog(value));
+    durableLogOutput = operation.then((receipt) => {
+      if (receipt.state !== "stored")
+        throw new TaskError("log_storage_failed", "Task log was not durably stored.");
+    });
+    void durableLogOutput.catch(() => {});
+    return operation;
+  }
+  async function sendLog(value: RunLogInput): Promise<RunLogReceipt> {
     if (finishing || controller.signal.aborted) return { state: "unavailable", reason: "channel" };
     if (logPending.size >= Math.min(config.maxInFlight, 16)) {
       droppedLogs = Math.min(Number.MAX_SAFE_INTEGER, droppedLogs + 1);
@@ -289,10 +301,13 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
     }
     const id = logSequence + 1;
     return new Promise<RunLogReceipt>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        logPending.delete(id);
-        resolve({ state: "unavailable", reason: "timeout" });
-      }, 1000);
+      const timer = setTimeout(
+        () => {
+          logPending.delete(id);
+          resolve({ state: "unavailable", reason: "timeout" });
+        },
+        config.durableLogs ? 30_000 : 1000,
+      );
       logPending.set(id, { resolve, reject, timer });
       try {
         port!.postMessage({
@@ -501,12 +516,14 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
     void (async () => {
       try {
         const value = await callback(envelope.input as Input, context as TaskContext<Message>);
+        if (config.durableLogs) await durableLogOutput;
         finishing = true;
         finishDroppedLogs();
         await output;
         if (outputError !== undefined) throw outputError;
         await request("complete", value);
       } catch (caught) {
+        if (config.durableLogs) await durableLogOutput.catch(() => {});
         finishing = true;
         finishDroppedLogs();
         await output.catch(() => {});

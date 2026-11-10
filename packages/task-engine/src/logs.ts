@@ -20,6 +20,7 @@ export class RunLogs {
     private readonly owner: string,
     private readonly now: () => number,
     limits: Partial<RunLogLimits> = {},
+    private readonly durable = false,
   ) {
     this.limits = { ...defaultRunLogLimits, ...limits };
     for (const [key, value] of Object.entries(limits))
@@ -45,6 +46,7 @@ export class RunLogs {
     }
   }
   private prune(): void {
+    if (this.durable) return;
     this.store.pruneRunLogs?.(
       this.owner,
       this.now() - this.limits.retentionMs,
@@ -129,11 +131,12 @@ export class RunLogs {
       }
       const bytes = Buffer.byteLength(JSON.stringify(parsed)) + 128;
       const reason =
-        bytes > this.limits.entryBytes
+        !this.durable && bytes > this.limits.entryBytes
           ? "entry_too_large"
-          : record.bytes + bytes > this.limits.runBytes ||
-              record.entries.length >= this.limits.runEntries ||
-              record.state.availability === "expired"
+          : !this.durable &&
+              (record.bytes + bytes > this.limits.runBytes ||
+                record.entries.length >= this.limits.runEntries ||
+                record.state.availability === "expired")
             ? "capacity"
             : undefined;
       record.updatedAt = this.now();

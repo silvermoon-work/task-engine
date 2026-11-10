@@ -94,6 +94,10 @@ export interface EngineLimits extends CatalogLimits, ObservationLimits {
   inFlight: number;
 }
 export interface EngineOptions {
+  /** Managed domains start execution budgets when their Worker is created. */
+  executionBudgetFromWorker?: boolean;
+  requestInputEnvelope?: boolean;
+  durableLogs?: boolean;
   invokeTask?: import("./type-supervisor.js").TypeChannel["invokeTask"];
   confirmChildRelease?: (runId: string) => Promise<void>;
   logs?: Partial<RunLogLimits>;
@@ -155,8 +159,18 @@ const common = new Set([
 const systemClock: Clock = {
   now: () => Date.now(),
   schedule(callback, delay) {
-    const timer = setTimeout(callback, delay);
-    timer.unref();
+    let remaining = delay;
+    let timer: ReturnType<typeof setTimeout>;
+    const next = () => {
+      const step = Math.min(remaining, 2_147_483_647);
+      remaining -= step;
+      timer = setTimeout(() => {
+        if (remaining > 0) next();
+        else callback();
+      }, step);
+      timer.unref();
+    };
+    next();
     return () => clearTimeout(timer);
   },
 };
@@ -263,7 +277,13 @@ export class TaskEngine implements TaskService {
 
   constructor(private readonly options: EngineOptions) {
     this.clock = options.clock ?? systemClock;
-    this.logs = new RunLogs(options.store, this.owner, () => this.clock.now(), options.logs);
+    this.logs = new RunLogs(
+      options.store,
+      this.owner,
+      () => this.clock.now(),
+      options.logs,
+      options.durableLogs,
+    );
     for (const key of Object.keys(options.limits ?? {}))
       if (!Object.hasOwn(defaultEngineLimits, key))
         throw new TaskError("invalid_config", `Unknown limit: ${key}`);
@@ -417,6 +437,13 @@ export class TaskEngine implements TaskService {
             run.exit
           )
             throw new TaskError("invalid_log_identity", "Diagnostic drop identity unavailable.");
+          if (this.options.durableLogs)
+            this.diagnostic(
+              new TaskError(
+                "LOGS_INCOMPLETE",
+                "Worker reported task logs that could not be preserved.",
+              ),
+            );
           return this.logs.dropped(id, count);
         },
         checkpoint: async (id, value) => {
@@ -458,6 +485,8 @@ export class TaskEngine implements TaskService {
         heartbeatMs: this.limits.heartbeatMs,
         healthMs: this.limits.healthTimeoutMs,
         maxInFlight: this.limits.inFlight,
+        ...(this.options.durableLogs ? { durableLogs: true } : {}),
+        ...(this.options.executionBudgetFromWorker ? { dispatchOnWorkerStart: true } : {}),
         maxPayloadBytes: this.limits.maxPayloadBytes,
         stopGraceMs: this.limits.stopGraceMs,
         forceExitWaitMs: this.limits.forceExitWaitMs,
@@ -676,7 +705,12 @@ export class TaskEngine implements TaskService {
   ): TaskSnapshot {
     this.accepting();
     this.authorized(caller, "submit", caller?.scope);
-    const raw = object(prepared ? request : json(request, this.limits.maxPayloadBytes)),
+    const raw = object(
+        request,
+        this.options.requestInputEnvelope
+          ? Math.min(Number.MAX_SAFE_INTEGER, this.limits.maxPayloadBytes + 8192)
+          : this.limits.maxPayloadBytes,
+      ),
       requestId = ulid(raw.requestId);
     let now = this.clock.now();
     const lower = Math.max(
@@ -732,11 +766,13 @@ export class TaskEngine implements TaskService {
     if (policy !== "starts-after-eligible" && policy !== "terminates-after-eligible")
       throw new TaskError("unsupported_request", "Unsupported matchPolicy.");
     const input = type.validate(
-      Object.fromEntries(
-        Object.entries(prepared?.intent ?? raw).filter(
-          ([key]) => !common.has(key) || (prepared !== undefined && key === "type"),
-        ),
-      ),
+      prepared && this.options.requestInputEnvelope
+        ? object(prepared.intent.input, this.limits.maxPayloadBytes)
+        : Object.fromEntries(
+            Object.entries(prepared?.intent ?? raw).filter(
+              ([key]) => !common.has(key) || (prepared !== undefined && key === "type"),
+            ),
+          ),
     );
     let receivedAt = at(now),
       eligibleAt = at(
@@ -1071,10 +1107,10 @@ export class TaskEngine implements TaskService {
         ["type", "version", "contractRevision", "environment", "scope", "compositionId"] as const
       ).every((field) => a.binding[field] === b.binding[field]) &&
       canonical(a.binding.inputSchema) === canonical(b.binding.inputSchema) &&
-      (a.binding.bundle
-        ? compileInputSchema(a.binding.inputSchema)
-        : this.historical(a.binding)
-      ).equals(a.input, b.input)
+      (a.binding.bundle ? this.boundContracts(a.binding).input : this.historical(a.binding)).equals(
+        a.input,
+        b.input,
+      )
     );
   }
   private active(task: TaskRecord, now = this.clock.now()): boolean {
@@ -1243,12 +1279,14 @@ export class TaskEngine implements TaskService {
       })
       .catch((error) => {
         const run = this.view.facts.runs[id];
-        if (run && !run.exit && error instanceof RunDispatchError && error.releaseConfirmed) {
-          this.outcome(id, { kind: "failed", error: errorFact(error, "type_unavailable") });
-          this.commit([
-            this.runEvent("run.exited", this.view.facts.runs[id]!, { basis: "worker" }),
-          ]);
-          this.released(id);
+        if (run && error instanceof RunDispatchError && error.releaseConfirmed) {
+          if (!run.exit) {
+            this.outcome(id, { kind: "failed", error: errorFact(error, "type_unavailable") });
+            this.commit([
+              this.runEvent("run.exited", this.view.facts.runs[id]!, { basis: "worker" }),
+            ]);
+          }
+          if (!this.view.facts.runs[id]?.reclaimedAt) this.released(id);
         } else if (run && !run.exit) {
           this.cleanupUnknown(id, "Run entry delivery could not be confirmed.");
           group.reject(
@@ -1301,9 +1339,20 @@ export class TaskEngine implements TaskService {
       this.runEvent("run.dispatched", run, { workerGeneration }, run.startedAt),
     ]);
     group.started = true;
+    const invocation =
+      this.view.facts.submissions[group.exemplar.request.requestId]?.composition?.intent;
+    const childTimeout =
+      invocation && typeof invocation === "object" && !Array.isArray(invocation)
+        ? invocation.timeoutMs
+        : undefined;
+    const executionMs = this.options.executionBudgetFromWorker
+      ? positive(childTimeout ?? this.limits.executionWallMs, "timeoutMs")
+      : this.limits.executionWallMs;
     group.wall = this.clock.schedule(
       () => this.requestStop(id, "execution_wall_limit"),
-      this.limits.executionWallMs,
+      this.options.executionBudgetFromWorker
+        ? Math.max(1, executionMs - (this.clock.now() - now))
+        : executionMs,
     );
   }
   private currentRun(id: string): RunRecord {

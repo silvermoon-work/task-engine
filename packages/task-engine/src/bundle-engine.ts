@@ -21,7 +21,7 @@ import {
   ulid,
   validateBundleReference,
 } from "@silvermoon-work/task-protocol";
-import { BundleCache, type BundleLimits } from "./bundle.js";
+import { BundleCache, type BundleLimits, type BundleCacheOptions } from "./bundle.js";
 import type { IpfsClient } from "./content.js";
 import { TaskEngine as Coordinator, type EngineOptions as CoordinatorOptions } from "./engine.js";
 import { newId } from "./identity.js";
@@ -38,8 +38,12 @@ export interface EngineOptions
     | "confirmChildRelease"
   > {
   ipfsClient: IpfsClient;
+  persistentContent?: boolean;
+  confirmBundleRelease?: (context: RunResourceContext) => Promise<void>;
+  preparingCapacity?: { enter(): (() => void) | undefined };
   bundleLimits?: Partial<BundleLimits>;
   bundleConcurrency?: number;
+  bundlePreparation?: BundleCacheOptions["preparation"];
   bundlePrefetch?: boolean;
   allowGateway?: (url: URL) => boolean;
   /** Deny by default. Caller identity is inherited, never supplied by the Worker. */
@@ -92,6 +96,7 @@ export class TaskEngine implements TaskService {
   private sealed = false;
   private admissions = 0;
   private readonly processing = new Map<string, Promise<void>>();
+  private readonly preparationReleases = new Map<string, () => void>();
   private readonly waiters = new Map<string, Set<() => void>>();
   private readonly invocations = new Map<
     string,
@@ -129,6 +134,8 @@ export class TaskEngine implements TaskService {
         throw new TaskError("invalid_config", "Bundle Engine does not accept a type registry.");
     this.cache = new BundleCache({
       ipfsClient: options.ipfsClient,
+      ...(options.persistentContent ? { persistentContent: true } : {}),
+      ...(options.bundlePreparation ? { preparation: options.bundlePreparation } : {}),
       ...(options.bundleConcurrency !== undefined
         ? { concurrency: options.bundleConcurrency }
         : {}),
@@ -138,6 +145,9 @@ export class TaskEngine implements TaskService {
     });
     this.core = new Coordinator({
       store: options.store,
+      ...(options.executionBudgetFromWorker ? { executionBudgetFromWorker: true } : {}),
+      ...(options.requestInputEnvelope ? { requestInputEnvelope: true } : {}),
+      ...(options.durableLogs ? { durableLogs: true } : {}),
       types: [],
       currentVersions: {},
       authorize: options.authorize,
@@ -203,6 +213,9 @@ export class TaskEngine implements TaskService {
       bundle: { cid: bundle.cid, declaration: bundle.resolved },
       getBundleSource: () => this.cache.source(cid),
       readBundle: (path: string, signal: AbortSignal) => this.cache.read(cid, path, signal),
+      ...(this.options.confirmBundleRelease
+        ? { confirmResourceRelease: this.options.confirmBundleRelease }
+        : {}),
     };
     this.core.installBundle(registration);
     return registration;
@@ -321,7 +334,13 @@ export class TaskEngine implements TaskService {
   ): Promise<SubmissionResult> {
     this.readable();
     this.core.authorizeAdmission(caller, "submit", caller?.scope);
-    const raw = object(json(value, this.limits.maxPayloadBytes));
+    const raw = object(
+      value,
+      this.options.requestInputEnvelope
+        ? Math.min(Number.MAX_SAFE_INTEGER, this.limits.maxPayloadBytes + 8192)
+        : this.limits.maxPayloadBytes,
+    );
+    if (this.options.requestInputEnvelope) object(raw.input, this.limits.maxPayloadBytes);
     const id = ulid(raw.requestId);
     const now = this.now();
     const lower = Math.max(
@@ -348,10 +367,16 @@ export class TaskEngine implements TaskService {
       (!Object.hasOwn(raw, "bundle") && ["type", "version"].some((key) => Object.hasOwn(raw, key)))
     )
       throw new TaskError("unsupported_request", "Legacy type/version requests are not supported.");
+    const releasePreparation = this.options.preparingCapacity?.enter();
     const overloaded =
+      (this.options.preparingCapacity !== undefined && releasePreparation === undefined) ||
       Object.values(this.core.facts().facts.submissions).filter(
         (record) => record.decision.status === "preparing",
       ).length >= this.limits.maxPreparing;
+    if (releasePreparation) {
+      if (overloaded) releasePreparation();
+      else this.preparationReleases.set(id, releasePreparation);
+    }
     const record: SubmissionRecord = {
       ...(composition ? { composition } : {}),
       bundleProtocol: "ipfs",
@@ -453,8 +478,9 @@ export class TaskEngine implements TaskService {
     )
       throw new TaskError("invalid_request", "Invalid child invocation identity or deadline.");
     const cid = bundleCid(validateBundleReference(raw.cid));
-    const input = object(raw.input);
+    const input = object(raw.input, this.limits.maxPayloadBytes);
     if (
+      !this.options.requestInputEnvelope &&
       Object.keys(input).some((key) =>
         [
           "requestId",
@@ -517,15 +543,19 @@ export class TaskEngine implements TaskService {
     const deadline = existing
       ? Date.parse(existing.composition!.deadlineAt)
       : Math.min(
-          this.now() + request.timeoutMs,
+          this.options.executionBudgetFromWorker
+            ? Number.MAX_SAFE_INTEGER
+            : this.now() + request.timeoutMs,
           parent.deadlineAt,
           Date.parse(parent.run.startedAt) + this.limits.executionWallMs,
         );
     const controller = new AbortController();
-    const timer = setTimeout(
-      () => controller.abort(new TaskError("child_timeout", "Child deadline exceeded.")),
-      Math.max(1, deadline - this.now()),
-    );
+    const timer = this.options.executionBudgetFromWorker
+      ? undefined
+      : setTimeout(
+          () => controller.abort(new TaskError("child_timeout", "Child deadline exceeded.")),
+          Math.max(1, deadline - this.now()),
+        );
     const signal = AbortSignal.any([controller.signal, context.signal, this.lifetime.signal]);
     let record = existing;
     try {
@@ -571,7 +601,9 @@ export class TaskEngine implements TaskService {
         // admit persists association and intent before its first asynchronous boundary.
         const admission = this.admit(
           {
-            ...object(request.input),
+            ...(this.options.requestInputEnvelope
+              ? { input: object(request.input, this.limits.maxPayloadBytes) }
+              : object(request.input)),
             requestId,
             bundle: request.cid,
             timeoutMs: Math.max(1, deadline - this.now()),
@@ -742,6 +774,8 @@ export class TaskEngine implements TaskService {
         }
       })
       .finally(() => {
+        this.preparationReleases.get(id)?.();
+        this.preparationReleases.delete(id);
         this.processing.delete(id);
         for (const wake of this.waiters.get(id) ?? []) wake();
         this.core.notifyIdle();
@@ -868,6 +902,8 @@ export class TaskEngine implements TaskService {
     void coreClose.catch(() => {});
     await this.cache.close();
     await Promise.allSettled([...this.processing.values()]);
+    for (const release of this.preparationReleases.values()) release();
+    this.preparationReleases.clear();
     await Promise.allSettled([...this.invocations.values()].map(({ operation }) => operation));
     for (const pending of this.waiters.values()) for (const wake of pending) wake();
     await coreClose;

@@ -2,3 +2,4 @@
 {"type":"submitIdeal","timestamp":"2026-11-10T10:52:25.954Z","payload":{"idealRevision":"e0071d30f18d44879e2ed033090ce624e8f3a432"}}
 {"type":"acceptIdeal","timestamp":"2026-11-10T10:59:17.724Z","payload":{"idealRevision":"e0071d30f18d44879e2ed033090ce624e8f3a432"}}
 {"type":"submitInner","timestamp":"2026-11-10T11:32:32.320Z","payload":{"implementationRevision":"c8671381bdf02840023f0aeb498022a9b02b66be"}}
+{"type":"ping","timestamp":"2026-11-10T11:36:57.343Z","payload":{"message":"实现门禁暂不通过：独立 car 通过 junction/symlink 别名输入时，允许 --output 指向实际模块目录内部并返回成功。请按 canonical 输入模块边界修复并增加回归测试，更新实现证据后重新提交；尚未授权发布。"}}

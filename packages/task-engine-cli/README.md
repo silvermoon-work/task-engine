@@ -132,6 +132,10 @@ bundleMaxBytes=67108864、maxConnections=256。
 
 发布映射为 `task-engine-cli`。只发布已审查精确版本的单包 canary，
 沿用上游候选 `0.1.0-canary-261110-2`，不是已发布事实，也不因 Builder 发布而自动发布。
-内部 runtime/peer 依赖必须已有匹配发布版本；依赖更新需逐包另行审批。
+父代理选定的准备顺序为 Protocol `0.1.0-canary-261110-1` →
+SDK `0.1.0-canary-261110-1` → Engine `0.1.0-canary-261110-1` →
+本 CLI `0.1.0-canary-261110-2`。每次只能发布一个映射包。
+内部 runtime/peer 及当前发布守卫检查的 dev workspace 依赖必须已有匹配发布版本；
+每步确认准确依赖可用后才进入下一步，不能因这组候选而自动发布其他依赖。
 不批量、不自动发布依赖、不发布 stable，不移动 tag；
 构想、实施检查或 manual dry-run 不等于真实发布和安装验收。

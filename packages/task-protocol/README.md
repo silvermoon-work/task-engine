@@ -6,6 +6,10 @@ this package, not the old-scope protocol. Protocol URI strings and source
 specification links retain their original identity; they are not package
 dependencies.
 
+The current source candidate is `0.1.0-canary-261110-1` for the managed Engine
+delivery. This manifest preparation is not a publication claim and must not
+overwrite an existing npm version.
+
 ## Task Bundle bytes and structure
 
 The Bundle protocol owns `taskBundleLimits`, `TaskBundleFileLimits`,

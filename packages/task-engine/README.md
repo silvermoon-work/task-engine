@@ -125,6 +125,10 @@ explicitly rejected without migration. See
 
 ## 受管 CLI 的宿主策略
 
+本轮源码候选为 `0.1.0-canary-261110-1`，使用同日 1 的 Protocol/SDK；
+这里只准备版本化交付物，未因此发布。实际发布前须验证 runtime/peer 以及发布守卫
+涵盖的内部 dev workspace 依赖均已有准确 npm 版本，不自动发布依赖。
+
 受管 CLI 在独立执行域复用同一内核，不改变嵌入调用方的默认策略。
 `executionBudgetFromWorker` 将执行预算锚定到 Worker 创建（包含握手启动），
 准备和排队不计时；`requestInputEnvelope` 分离业务对象与内部请求元数据。

@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-sdk",
-  "version": "0.1.0-canary-261109-2",
+  "version": "0.1.0-canary-261110-1",
   "description": "Generation-scoped Task Worker runtime and author callback types.",
   "type": "module",
   "sideEffects": false,

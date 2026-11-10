@@ -14,6 +14,10 @@ with an exact dependency on protocol `0.1.0-canary-261109-2`.
 Select an explicit SDK version or the `canary` dist-tag; `latest` is still the
 `0.0.0` placeholder.
 
+The current source candidate is `0.1.0-canary-261110-1`, paired with protocol
+`0.1.0-canary-261110-1`. Publish these separately in dependency order only after
+the exact candidate receives approval; the manifest is not npm availability evidence.
+
 Versions from `0.1.0-canary-261109-2` additionally restore `TaskContext.invokeTask`,
 `ChildTaskInvocation` author types and host-ACK child results, previously
 provided only by the old SDK in integration fixtures. These changes are not

@@ -20,7 +20,7 @@
 - 保留上游 Engine CLI 候选 `0.1.0-canary-261110-2` 及标准 IPFS/CAR 依赖图；
   不恢复 `task-bundle-car`、其发布映射或生产端依赖。
 - 受管执行改用现有 `src/car.ts` 的 `openCarSource` 完整离线校验；
-  编码和文件树 API 只从 Builder 的开发测试入口使用，Builder 源码、版本和 Idea 未改。
+  编码和文件树 API 只从 Builder 的开发测试入口使用，Builder 生产 src、版本和 Idea 未改。
 - README 合并新的受管接口与上游 CAR 归属/校验边界；锁文件最终与整合基线一致。
 - 删除已确认没有跟踪源码、仅含本轮旧构建产物和安装链接的退休 workspace 残留。
   否则发布发现测试会将其当作缺失 package.json 的 workspace；没有修改发布脚本绕过检查。
@@ -28,6 +28,23 @@
 第二次整合没有内容冲突，保留上游 CI 资源记录、Turbo 与 Engine/Storage 测试串行限制、
 Storage 恢复按已提交生命周期观察的回归修正及 Builder 的新事件前缀。
 没有回退这些修正，也没有修改其业务 deadline 或通过放宽轮询 cutoff 让测试通过。
+
+## 版本化候选补充
+
+在父代理已整合的 `da76b79f4055b6464da95bf25940693c4ae625a8` 上，
+按其 22:29 明确选择准备 Protocol/SDK/Engine `0.1.0-canary-261110-1`，
+CLI 保持 `0.1.0-canary-261110-2`。具体授权边界、单包顺序与实际 registry 观察见
+[canary 候选组装](./canary-candidate.md)。
+
+三个库 manifest 和四包相关 README 已对齐，workspace:* 保持不变；
+执行 `pnpm install --ignore-scripts` 后锁文件无需变更。
+唯一必要的相邻兼容测试为 `packages/task-builder/test/init.test.ts`：
+固定验证已发布模板默认仍为 SDK `261109-2`，另验证显式候选 SDK 版本的既有 API。
+这修正了测试对工作区候选清单的错误耦合，没有改 Builder 的默认行为或生产交付物。
+
+候选版本尚未发布不是错误占用；但官方只读 CI **明确证实 Builder CLI 当日 1 缺失**，
+是 Engine/CLI 后续发布的额外前置阻断，不得绕过 dev dependency verifier。
+本轮继续只完成源候选组装与实施提交，不自动发布这个额外依赖。
 
 ## 交付文件
 
@@ -64,13 +81,14 @@ Storage 恢复按已提交生命周期观察的回归修正及 Builder 的新事
 
 | 路径 | 类型 | OID |
 | --- | --- | --- |
-| packages/task-engine-cli | tree | `f0c878e365efc84117dffa1b7e1587808dd8362b` |
-| packages/task-engine | tree | `f8ef36da004f838c23630c8b211a05d64be6544c` |
-| packages/task-protocol | tree | `0957d1e5d27b848468bc1f140fe6c0716e58b745` |
-| packages/task-sdk | tree | `4feadcd9e44451f0e6314eb1093f537e8642825a` |
+| packages/task-engine-cli | tree | `5efb125a3890499d7c2f72d4a8753bc5c20cb936` |
+| packages/task-engine | tree | `a3b0e9f427fd6216a82c8120f014ad2a20e39e28` |
+| packages/task-protocol | tree | `f42369e70687e489d2563dadb99313b8f236d225` |
+| packages/task-sdk | tree | `a13458a5508a51399750b3012b3c327c74294182` |
 | apps/task-engine | tree | `06e609e56a04d8d46a8e74a0a08783205df531c4` |
 | README.md | blob | `c4a12c5cb6d02702aeffdb5849ff8d27c7eeb623` |
 | pnpm-lock.yaml | blob | `931cacacb0ed172d8a1a9c746d15b2559e0bd287` |
+| packages/task-builder/test/init.test.ts | blob | `373bd9c9b55301ec77aa884cc603824ddf53eee5` |
 
 例如用 `git rev-parse <primary>:packages/task-engine-cli` 核对 tree，
 不把验证日志缓存或本文件外的可变链接当作交付身份。
@@ -111,13 +129,22 @@ Storage 恢复按已提交生命周期观察的回归修正及 Builder 的新事
 5. Silvermoon worktree 检查通过；提交前还需 staged 检查，提交同步后为准确版本 append submitInner。
    本轮测试进程按其确切身份/PID 清理，生成数据目录均为本任务自有路径。
 
+版本候选组装后另行实际执行：
+
+- `pnpm install --ignore-scripts`：通过，锁文件未变。
+- 在 Builder workspace 执行 `pnpm exec tsx --test test/init.test.ts`：4/4 通过。
+- 再次正常执行根 `pnpm check`：退出 0，包含新清单和上述严格兼容断言，
+  没有改变业务 deadline、跳过测试或屏蔽 warnings。
+- 四个候选精确 tag 查询均为空；官方只读 registry 验证 run `42835231424`
+  给出真实缺失依赖结果，未把该 failure 当作发布就绪。
+
 ## 剩余部署前置条件与风险
 
 - 没有在本机执行 Linux/macOS 或 Node 22/24 的实际运行矩阵，不伪称已有跨平台外部验收；
   元信息原生加载守卫与旧 Node 兼容路径已保留，仍须查看精确提交 CI。
-- 本轮没有发布。上游 CLI 候选号不等于 registry 可覆盖槽位；Engine/Protocol/SDK
-  有源码变化，不能覆盖其既有已发布版本。父代理须逐包确定准确 canary 版本、
-  依赖顺序及最终授权；不得自动发布依赖。若清单或代码变化，本表及实施门限须重新对齐。
+- 本轮没有发布。四个准确 canary 候选已由父代理选择，但仍须最终发布授权与逐包前置验证。
+  Builder CLI `0.1.0-canary-261110-1` 的准确 dev 依赖缺失必须先另行协调；
+  不自动发布依赖，不覆盖已存在版本。若清单或代码变化，本表及实施门限须重新对齐。
 - 新 SDK 行为只进入新构建任务包，不能热更新不可变旧包；生产端报告日志丢失时，
   Engine 持久记录不完整错误，logs/最终结果不伪造完整成功。
 - 本轮仅面向可信执行环境，不新增多租户隔离、远端生命周期管理或任意任务副作用回滚。

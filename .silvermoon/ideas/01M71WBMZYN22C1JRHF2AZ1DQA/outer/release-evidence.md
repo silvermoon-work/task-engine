@@ -99,6 +99,10 @@ Node 的默认 Windows 参数转义把脚本内引号转成了字面的反斜线
 改为在实际 producer 安装 cwd 用原生 import.meta.resolve 解析 ESM 导出，
 并断言解析后的 realpath 属于仓库外安装，不转而加载 repo 或私有实现。
 仍未启动 Server；只精确重建本任务生成的 fixture project，安装 prefix 保留。
+第三轮正确解析实际安装的 ESM 后，在生成 fixture 时被已发布 Builder 正确拒绝：
+harness 的 callback 字符串漏写箭头函数 `=>`，编译命令真实返回 JSON error/退出 1。
+保留 [registry-smoke-attempt-3.json](./registry-smoke-attempt-3.json)，仅补全两处 fixture
+callback 语法，不改 Builder 或 Engine，不删除失败断言；仍未启动任何 Server。
 验收脚本为 [registry-smoke.mjs](./registry-smoke.mjs)，执行前须与本计划同步。
 脚本只从实际 registry 安装的包运行，在仓库外 cwd/prefix 记录命令、输出、
 退出码、integrity、真实入口、生产依赖闭包、共享多块图、数据清理与自有 PID 停止。

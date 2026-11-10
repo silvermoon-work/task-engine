@@ -267,7 +267,7 @@ const {main}=await import(${JSON.stringify(pathToFileURL(cliIndex).href)});await
   fixtures={CarReader};
   await writeFile(join(project,"assets","shared.txt"),"S".repeat(300000)+"T".repeat(300000));
   const main=`import {setTimeout as delay} from "node:timers/promises";
-export default async(input,context){
+export default async(input,context)=>{
 for(let i=0;i<30;i++)context.log({level:"info",message:"entry-"+i,fields:{index:i}});
 if(input.mode==="failure")throw new Error("registry smoke business failure");
 if(input.mode==="slow")await delay(120000,undefined,{signal:context.signal});
@@ -282,7 +282,7 @@ return {echo:input.value??"ok"};}`;
       await writeFile(target,await builderTree.readBytes(child.tree,path,64*1024*1024));
     }
   }finally{await child.close();}
-  const parent=await fixture("fixture-parent",`export default async(input,context){return context.invokeTask({key:"child",cid:${JSON.stringify(a.cid)},path:"resources/child",input:{value:"nested"},timeoutMs:10000});}`);
+  const parent=await fixture("fixture-parent",`export default async(input,context)=>{return context.invokeTask({key:"child",cid:${JSON.stringify(a.cid)},path:"resources/child",input:{value:"nested"},timeoutMs:10000});}`);
   report.fixtures=[a,b,c,parent].map(({name,car,cid,blocks})=>({name,car,cid,blocks:blocks.size,bytes:byteCount(blocks)}));
   const defaultDir=join(home,".silvermoon.work","task-engine");
   primary=await start("default Home background start without Gateway",defaultDir,false);

@@ -20,10 +20,11 @@ task-engine run --car .\bundle.car --expected-cid <bundle-cid> --input .\input.j
 仓库内先 `pnpm build`，再执行
 `pnpm --filter task-engine-app start run <bundle-cid> --input .\input.json --gateway <base-url>`。
 `apps/task-engine` 是 private launcher；本公共库携带极薄的 npm bin，以便安装已发布包
-后得到相同命令，复用 `main()` 而不维护第二套调度规则。候选版本为
-`0.1.0-canary-261110-1`，发布后由 `canary` 选择。包只分发预编译的 `dist`
+后得到相同命令，复用 `main()` 而不维护第二套调度规则。已发布版本为
+`0.1.0-canary-261110-1`，由 `canary` 选择。包只分发预编译的 `dist`
 与类型声明，无安装时编译脚本；消费者不需要克隆仓库或执行仓库 build。
-仅本地 dist 验证不代表 npm 安装或现实世界验收已完成。
+已通过真实 npm 全局安装、help、本地 CAR 输入、自然退出及 Run 回收验证；
+记录见根 README 的全局 CLI 发布小节。
 
 ## 工作集合与所有权
 

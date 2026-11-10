@@ -199,6 +199,35 @@ Actual published-package install and HTTP/SQLite compatibility smoke results,
 including the Windows database-path limitation, are recorded in the
 [end-to-end guide](./docs/end-to-end-verification.md#本轮-builder-发布验证).
 
+### Global Engine CLI release (2026-11-10)
+
+`@silvermoon-work/task-engine-cli@0.1.0-canary-261110-1` was published through
+[Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/42741820766)
+from `1751a60122c55d89a03ab2a06597e921b9670fcd`, after successful
+[exact-commit Node 22/24 CI](https://github.com/silvermoon-work/task-engine/actions/runs/42741236966).
+The initial publication attempt lacked the package's Trusted Publisher; after
+the user configured it, the same immutable tag and workflow were retried
+successfully. No other package was republished for this CLI release.
+
+The actual commands
+`npm install -g @silvermoon-work/task-builder-cli@canary @silvermoon-work/task-engine-cli@canary`
+were exercised using an isolated global prefix, without changing the existing
+global installation. They selected builder CLI `0.1.0-canary-261109-3` and
+Engine CLI `0.1.0-canary-261110-1`. The installed Engine CLI's bin was
+`dist/bin.js`, its package had no `src` directory and no
+preinstall/install/postinstall/prepare compilation hooks. No repository clone,
+local pack or consumer-side CLI build was used.
+
+The installed global builder bin created a new project; `npm install`,
+`npm run build`, `npm run car` and `npm run check` succeeded. The installed
+global engine bin consumed `{"text":"world"}` from stdin and ran that local CAR
+without a Gateway or HTTP service. Assertions confirmed `status: "succeeded"`,
+exit code 0, `Hello world`, one Run with `reclaimedAt` and no cleanup
+uncertainty. The global installed dependency graph contained no old-scope
+project package. The package registry's initial propagation delay was resolved
+by retrying the same canary installation, not by using local artifacts or
+weakening installation safeguards.
+
 ### SDK release (2026-11-09)
 
 `@silvermoon-work/task-sdk@0.1.0-canary-261109-1` was published alone from

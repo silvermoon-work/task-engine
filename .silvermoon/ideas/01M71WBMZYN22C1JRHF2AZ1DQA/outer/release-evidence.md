@@ -103,6 +103,10 @@ Node 的默认 Windows 参数转义把脚本内引号转成了字面的反斜线
 harness 的 callback 字符串漏写箭头函数 `=>`，编译命令真实返回 JSON error/退出 1。
 保留 [registry-smoke-attempt-3.json](./registry-smoke-attempt-3.json)，仅补全两处 fixture
 callback 语法，不改 Builder 或 Engine，不删除失败断言；仍未启动任何 Server。
+第四轮已由真实已发布 Builder 成功构建 fixture-a，CID 与 CAR 路径均在成功 JSON 中。
+后续 harness 漏 await 标准 CAR reader 的异步 getRoots，导致本地 TypeError；
+保留 [registry-smoke-attempt-4.json](./registry-smoke-attempt-4.json)。
+仅修正该 await 并增加 CAR 根与 Builder 回执 CID 的严格一致断言，未改发布包或放宽验收。
 验收脚本为 [registry-smoke.mjs](./registry-smoke.mjs)，执行前须与本计划同步。
 脚本只从实际 registry 安装的包运行，在仓库外 cwd/prefix 记录命令、输出、
 退出码、integrity、真实入口、生产依赖闭包、共享多块图、数据清理与自有 PID 停止。

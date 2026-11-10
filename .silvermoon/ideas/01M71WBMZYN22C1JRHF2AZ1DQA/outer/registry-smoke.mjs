@@ -146,14 +146,17 @@ async function fixture(name, main, extra = false) {
   if (extra) await writeFile(orphan, "orphan payload, not a physical-space promise\n");
   else await rm(orphan, {force:true});
   const moduleDir = join(project, name);
-  await invoke(`published Builder CLI build ${name}`, process.execPath, [builderBin, "build", "task.build.yaml", "--out-dir", moduleDir],
+  const built=await invoke(`published Builder CLI build ${name}`, process.execPath, [builderBin, "build", "task.build.yaml", "--out-dir", moduleDir],
     {cwd:project, json:true});
   const car = `${moduleDir}.car`;
   const bytes = await readFile(car);
   const reader = await fixtures.CarReader.fromBytes(bytes);
+  const roots=await reader.getRoots();
+  assert.equal(roots.length,1);
+  assert.equal(roots[0].toV1().toString(),built.data.cid);
   const blocks = new Map();
   for await (const block of reader.blocks()) blocks.set(block.cid.toV1().toString(), block.bytes.byteLength);
-  return {name, car, moduleDir, cid:reader.getRoots()[0].toV1().toString(), blocks};
+  return {name, car, moduleDir, cid:roots[0].toV1().toString(), blocks};
 }
 function union(...sets) { return new Map(sets.flatMap((set) => [...set])); }
 function difference(a, b) { return new Map([...a].filter(([key]) => !b.has(key))); }

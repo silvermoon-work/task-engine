@@ -257,10 +257,13 @@ const {main}=await import(${JSON.stringify(pathToFileURL(cliIndex).href)});await
   await npm("registry install generated project with exact SDK",["install","--ignore-scripts"],project);
   assert.equal(JSON.parse(await readFile(join(project,"node_modules","@silvermoon-work","task-sdk","package.json"),"utf8")).version,version);
   report.producerEntry=builderBin;
-  const requireBuilder = createRequire(join(producer,"node_modules","@silvermoon-work","task-builder","package.json"));
-  const {CarReader} = await import(pathToFileURL(requireBuilder.resolve("@ipld/car/reader")).href);
-  const builderCar = await import(pathToFileURL(requireBuilder.resolve("@silvermoon-work/task-builder/car")).href);
-  const builderTree = await import(pathToFileURL(requireBuilder.resolve("@silvermoon-work/task-builder/tree")).href);
+  const resolved=await invoke("resolve actual installed producer ESM exports",process.execPath,["--input-type=module","--eval",
+    'console.log(JSON.stringify({car:import.meta.resolve("@ipld/car/reader"),builderCar:import.meta.resolve("@silvermoon-work/task-builder/car"),builderTree:import.meta.resolve("@silvermoon-work/task-builder/tree")}));'],{cwd:producer});
+  const urls=JSON.parse(resolved.stdout);
+  for(const url of Object.values(urls))assert.equal(within(producer,await realpath(fileURLToPath(url))),true);
+  const {CarReader} = await import(urls.car);
+  const builderCar = await import(urls.builderCar);
+  const builderTree = await import(urls.builderTree);
   fixtures={CarReader};
   await writeFile(join(project,"assets","shared.txt"),"S".repeat(300000)+"T".repeat(300000));
   const main=`import {setTimeout as delay} from "node:timers/promises";

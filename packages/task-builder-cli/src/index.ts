@@ -346,6 +346,7 @@ export async function runTaskBuilderCli(
           "Input must be an existing task.yaml file, not a directory.",
         );
       const directory = dirname(declaration);
+      await safePath(directory);
       const destination =
         flags.output === undefined ? defaultCar(directory) : resolve(cwd, flags.output);
       if (inside(directory, destination))

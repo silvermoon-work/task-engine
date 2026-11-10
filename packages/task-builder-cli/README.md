@@ -110,6 +110,10 @@ files are read and validated; unselected notes, stale files and archives are
 not read. It never reads the build description, compiles, runs contracts or
 installs packages. Links cannot escape the module tree, and reads detect
 observable input changes.
+The input module directory and all its ancestors must be canonical, without
+symlinks or Windows junctions. Linked module/ancestor aliases are rejected
+before choosing or writing an output, so they cannot disguise an internal CAR
+destination as an external one.
 
 The default destination uses the same sibling naming rule as build; `--output`
 is cwd-relative and must be outside the input module. Existing destinations

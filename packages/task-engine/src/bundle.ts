@@ -58,6 +58,8 @@ export function inspectTaskBundle(
   return inspected;
 }
 export interface BundleCacheOptions {
+  persistentContent?: boolean;
+  preparation?: { acquire(signal: AbortSignal): Promise<() => void> };
   ipfsClient: IpfsClient;
   prefetch?: boolean;
   concurrency?: number;
@@ -114,10 +116,13 @@ export class BundleCache {
       if (this.occupied < this.concurrency) enter();
       else this.waiting.push({ enter, reject });
     });
+    let release: (() => void) | undefined;
     try {
+      release = await this.options.preparation?.acquire(this.lifetime.signal);
       this.lifetime.signal.throwIfAborted();
       return await action();
     } finally {
+      release?.();
       this.occupied--;
       this.waiting.shift()?.enter();
     }
@@ -133,7 +138,10 @@ export class BundleCache {
       released = true;
       const count = (this.leases.get(cid) ?? 1) - 1;
       if (count) this.leases.set(cid, count);
-      else this.leases.delete(cid);
+      else {
+        this.leases.delete(cid);
+        if (this.options.persistentContent) this.prepared.delete(cid);
+      }
     };
     let operation = this.fetching.get(cid);
     if (!operation) {
@@ -173,6 +181,7 @@ export class BundleCache {
       retainedBlocks,
       retentionBudget: this.retentionBudget,
       maxDagBlocks: this.limits.blocks,
+      cacheBlocks: !this.options.persistentContent,
     });
     const files = new Map<string, Buffer>();
     const logicalPaths = new Set<string>();

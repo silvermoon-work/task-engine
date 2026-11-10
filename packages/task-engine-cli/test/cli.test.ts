@@ -10,7 +10,7 @@ import { MemoryIpfsClient } from "@silvermoon-work/task-engine/testing";
 import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { exitCodes, runBundle } from "../src/index.js";
 
-const cli = resolve("dist", "bin.js");
+const embedded = `const {legacyMain}=await import(${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)});process.exitCode=await legacyMain(process.argv.slice(1));`;
 const absentKubo = resolve(".cache", `absent-kubo-${randomUUID()}`);
 async function execute(
   args: string[],
@@ -20,7 +20,7 @@ async function execute(
 ) {
   const child = spawn(
     process.execPath,
-    code ? ["--input-type=module", "-e", code, ...args] : [cli, ...args],
+    ["--input-type=module", "-e", code ?? embedded, "--", ...args],
     {
       stdio: ["pipe", "pipe", "pipe"],
       env: {
@@ -56,7 +56,7 @@ async function execute(
   return { exitCode, stdout, stderr, elapsedMs: performance.now() - started };
 }
 
-test("real CLI child processes exhaust single, parallel and multi-level work and exit naturally", {
+test("legacy embedded compatibility helper exhausts single, parallel and multi-level work", {
   // The expanded matrix launches many processes; each retains its 15s watchdog.
   timeout: 360_000,
 }, async (t) => {
@@ -232,7 +232,7 @@ globalThis.fetch=async(input)=>{
  assert.equal(url.origin,${JSON.stringify(gateway)});reads++;
  throw Error("Simulated local Gateway connection refused");
 };
-const {main}=await import(${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)});
+const {legacyMain:main}=await import(${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)});
 process.exitCode=await main(process.argv.slice(1));assert.ok(reads>0);`;
       const failed = await execute(["run", leaf.cid], '{"value":7}', unavailable, {
         IPFS_PATH: repository,
@@ -388,7 +388,7 @@ process.exitCode=await main(process.argv.slice(1));assert.ok(reads>0);`;
         ["SIGINT", 130],
         ["SIGTERM", 143],
       ] as const) {
-        const code = `import {main} from ${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)};
+        const code = `import {legacyMain as main} from ${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)};
 const timer=setTimeout(()=>process.emit(${JSON.stringify(signal)}),800);
 process.exitCode=await main(process.argv.slice(1));clearTimeout(timer);`;
         const interrupted = await execute(args, '{"value":7,"mode":"slow"}', code);
@@ -439,7 +439,7 @@ process.exitCode=await main(process.argv.slice(1));clearTimeout(timer);`;
       ["SIGINT", 130],
       ["SIGTERM", 143],
     ] as const) {
-      const code = `import {main} from ${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)};
+      const code = `import {legacyMain as main} from ${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)};
 const timer=setTimeout(()=>process.emit(${JSON.stringify(signal)}),800);
 process.exitCode=await main(process.argv.slice(1));clearTimeout(timer);`;
       const output = await execute(args(leaf.cid), '{"value":7,"mode":"slow"}', code);
@@ -481,7 +481,7 @@ test("help exits naturally without requiring a Gateway", async () => {
 });
 
 test("SIGINT interrupts default stdin waiting without leaving a live input handle", async () => {
-  const code = `import {main} from ${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)};
+  const code = `import {legacyMain as main} from ${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)};
 setTimeout(()=>process.emit("SIGINT"),100);
 process.exitCode=await main(["run","bafkreigh2akiscaildc5u4g5r7taq6qy76pcv4jucd7yhpnsttjf4zvnxu","--gateway","http://127.0.0.1:1"]);`;
   const child = spawn(process.execPath, ["--input-type=module", "-e", code], {

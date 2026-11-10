@@ -1,152 +1,137 @@
 # @silvermoon-work/task-engine-cli
 
-单次执行宿主及 `task-engine` 命令。Node.js 22.13+；无需预先启动 task-engine
-HTTP service。可选择 Bundle 根 CID + 独立 IPFS Gateway，或直接运行本地 CAR；
-不接受源码目录、任务名称或旧 URL/Digest 身份。CAR 校验后的根 CID 仍是 engine 内容身份。
+Task Engine 的本地后台 Server 与任务调用 CLI，要求 Node.js 22.13+。
+当前源码实现已批准的 CLI Spec v1.0；这不表示新版本已发布或部署验收已通过。
+已有 `0.1.0-canary-261110-1` 仍是旧的单次嵌入执行命令，不具有下列新接口。
 
 ```powershell
-npm install -g @silvermoon-work/task-engine-cli@canary
-task-engine --help
-task-engine run <bundle-cid> --input .\input.json --gateway https://your-gateway.example --allow-children
-# 或从 stdin 读取一个 JSON 对象
-'{"value":7}' | task-engine run <bundle-cid>
-task-engine --help
-# 本地 CAR：无需 Gateway 或用户编写宿主脚本
-task-engine run --car .\bundle.car --input .\input.json
-task-engine run --car .\bundle.car --expected-cid <bundle-cid> --input .\input.json --allow-children
-'{"value":7}' | task-engine run --car .\bundle.car
+task-engine server start
+'{"value":7}' | task-engine run --car .\bundle.car --input -
+task-engine run --cid <bundle-cid> --input .\input.json --async
+task-engine task query
+task-engine task query --id <task-id>
+task-engine task logs <task-id> --limit 100
+task-engine task await <task-id>
+task-engine server status
+task-engine server stop
+task-engine data prune --task <task-id> --cache
+task-engine config list
+task-engine config get client.engine
+task-engine config set task.timeoutMs 120000
+task-engine config reset task.timeoutMs
 ```
 
-仓库内先 `pnpm build`，再执行
-`pnpm --filter task-engine-app start run <bundle-cid> --input .\input.json --gateway <base-url>`。
-`apps/task-engine` 是 private launcher；本公共库携带极薄的 npm bin，以便安装已发布包
-后得到相同命令，复用 `main()` 而不维护第二套调度规则。已发布版本为
-`0.1.0-canary-261110-1`，由 `canary` 选择。包只分发预编译的 `dist`
-与类型声明，无安装时编译脚本；消费者不需要克隆仓库或执行仓库 build。
-已通过真实 npm 全局安装、help、本地 CAR 输入、自然退出及 Run 回收验证；
-记录见根 README 的全局 CLI 发布小节。
+仓库内先 `pnpm build`，再使用 private launcher
+`pnpm --filter task-engine-app start --help`，或
+`node packages\task-engine-cli\dist\bin.js --help`。
+所有层级支持 `--help`/`-h`；根入口支持 `--version`。
+根或分组无子命令只显示帮助，不连接服务或创建数据。
 
-## 工作集合与所有权
+## 命令和结果
 
-每次调用创建新的非持久 `MemoryStore` 域，没有历史恢复、外部生产者或 HTTP 监听器。
-输入限制为 65,536 字节 JSON 对象，不能覆盖 Request envelope 字段。
-省略 `--input` 等同于 `--input -`，从 stdin 读到 EOF；`--input <file>` 显式读取文件。
-空输入、无效 JSON 或超出容量明确失败，不默认替换为 `{}`。交互终端同样等待输入与 EOF，
-SIGINT/SIGTERM 可中断等待。
-根提交的 preparation 可能异步返回；`drain()` 封闭外部准入，但保留结构化子调用，
-直到所有准备、准入、未来执行资格、未终结 Task、Run、子调用和回收均耗尽。
-Worker 物理退出、资源释放证明、守护关闭和 Store 释放完成后才输出结果；
-不会以队列空、根 Task 终态或观察静默代替完整耗尽，也不调用 `process.exit(0)`。
-`execution.runs[*].reclaimedAt` 是已确认的 Run 回收证据，不删除历史事实来制造空队列。
+12 个叶命令为 `server start/status/stop`、`run`、
+`task query/logs/await`、`data prune`、`config list/get/set/reset`。
+业务结果始终是 stdout 上的一个 JSON 对象及换行：
 
-CLI 创建的 Gateway client 最终封闭读取、取消在途获取并等待其临时 Helia 节点清理；
-清理超出 Gateway 获取预算（默认 30 秒）或无法确认时返回 7，而不是成功。
-共享 IPFS 节点、调用者提供的 client 和 pin 不归 `runBundle()` 所有，不会关闭或删除。
-文件系统持久化、恢复与独立内容节点管理不在单次命令的范围内。
-
-`--car <file>` 使用 `@ipld/car`、MemoryBlockstore、UnixFS importer/exporter 和
-multiformats 实现离线只读块源；显式验证 CAR v1 唯一根、块 hash/codec、重复/缺失/
-不可达块和 canonical import profile，再复用既有 Protocol 规则校验完整 Task/Schema/资源。
-标准 CAR reader 本身不验证 block hash，不能省略此验证。通过后以只读块源复用
-`runBundle`/`drain`。默认有界 CAR/块/文件容量，不另起 Gateway 或网络 fallback。
-`--expected-cid` 可选且仅用于 CAR，根不符在 Worker 启动前拒绝。
-CAR 与位置 CID、`--gateway` 互斥；必须是普通文件，不接受 `--car -`，
-但 JSON 输入仍可来自 stdin。文件句柄与 CAR 内存由 CLI 释放；损坏内容返回 2，
-业务错误沿用执行退出码。仅读取 CAR，不上传、pin 或持久导入内容节点。
-
-## 授权与预算
-
-默认保留 engine 的 `authorizeChild` 拒绝策略。需要派生时显式传
-`--allow-children`：只准许当前活跃父 Run 的已验证 Bundle 子树，并继承 CLI 域内的
-caller 身份；不能通过 Worker 自报身份或任意 CID 绕过关联校验。
-仍使用 engine 默认深度 4、每父并发 4、总量 64、子调用最长 30 秒等有限预算，
-以及父截止时间、取消和回收规则。宿主授权不是安全沙箱；必须信任 Bundle 代码。
-仅支持现有 `invokeTask`，没有 detached/fire-and-forget scheduling。
-
-CID 模式选择 Gateway 的优先级为：
-
-1. 显式 `--gateway <base-url>`，可重复，按配置顺序使用，替换全部默认值。
-2. 未传该选项时使用 `TASK_ENGINE_GATEWAY`，仅一个根 origin。
-3. 未设置该变量时，从 `IPFS_PATH/config` 读取 Kubo `Addresses.Gateway`；
-   `IPFS_PATH` 未设置则检查 `~/.ipfs/config`。
-
-```powershell
-$env:IPFS_PATH = "D:\ipfs-repo"
-'{"value":7}' | task-engine run <bundle-cid>
+```json
+{"ok":true,"data":{"taskId":"opaque-id","status":"succeeded","result":null}}
 ```
 
-不会启动 Kubo、访问管理 API 或盲试 8080；所选内容源必须已运行且能读取目标 CID。
-空或非法环境变量、缺失/损坏配置、禁用或不支持的 Gateway 地址明确报配置错误，
-不静默回退到其他仓库或端口。
-Kubo 配置只使用 `Addresses.Gateway`，支持单个或最多 16 个 IP/TCP multiaddr，
-可带 HTTP/HTTPS；不把 `Addresses.API` 的管理端口当作 Gateway。
-IPv4/IPv6 wildcard listener 转为同端口 loopback；Unix socket 等不支持的地址
-需显式 `--gateway`。配置必须是至多 1 MiB 的普通 JSON 文件，诊断不会输出配置内容。
-源连接/获取失败返回非零退出码，诊断包含选定 Gateway，不再自动切换公共源。
-不启用 Request hint、公共 fallback、路由发现、凭证或重定向。
-CAR 模式忽略 Gateway 和 Kubo 环境变量，不读配置，仍拒绝显式 `--gateway`。
-这些默认值仅属于 CLI；程序化 `runBundle` 仍要求调用者注入内容 client。
+失败为 `{"ok":false,"error":{"code":"…","message":"…"}}`。
+有可信任务结果或已完成的部分清理时，同一对象保留 `data`，不伪称回滚。
+`error` 只有 `code/message`；stderr 仅用于实现 logging。
+退出码为 0 成功、1 失败、130 已确认的用户中断。
+业务成功不等于资源释放；不输出 `reclaimed`、`resultState` 或替代释放布尔字段。
+启动成功可附 `warnings:[{code,message}]`；非 loopback 监听会警告可信环境边界。
+没有 `--json`、`--quiet`、`--yes`、TUI、提示确认或独立 dry-run。
 
-`--timeout-ms <ms>` 控制根 Task 时间预算（默认 60,000；从最终 Task 创建时锚定）。
-`--max-runtime-ms <ms>` 是可选整次预算，涵盖本地 CAR 校验、准入、准备与 drain，
-不涵盖读取 JSON 输入文件。
-超时会请求正常关闭，并继续等待清理；因此不是“预算到点立即杀进程”。
-既有 engine 的 Run wall 时间上限仍为 60 秒，到达该上限同样报告超时。
-无限工作或永久等待没有自然完成承诺，应显式配置整次预算。
+`run` 必须恰选 `--cid` 或调用端本地普通 `--car` 文件，并显式提供
+`--input <JSON 文件|->`。只有 `--input -` 读取 stdin 至 EOF。
+输入必须是单个完整 JSON 对象，允许 `{}`，不自动补入输入。
+业务对象与内部请求信封分离，`requestId` 等业务字段不会覆盖执行身份或预算。
+CAR 在调用端读取并传给 Server，不是远端文件路径，不能用 stdin 传 CAR。
+任务包校验复用本 CLI 的 `openCarSource` 离线块源：
+标准 `@ipld/car`、MemoryBlockstore、UnixFS importer/exporter 和 multiformats
+验证唯一根、块 hash/codec、重复/缺失/不可达块和 canonical import profile，
+再复用 Protocol 的完整 Task/Schema/资源校验。标准 CAR reader 本身不验证块 hash。
+只读块源仅提供 cid、block.get、close；校验快照和临时块在准备后释放，
+随后仅复用实例内的持久 CID 块，不将离线准备源变成跨任务内存内容缓存。
+Builder 保留归档生产 API，不恢复已移除的独立 CAR 包。
+消费端生产依赖不包含 Builder、编译器或 esbuild。
 
-## 结果
+默认同步等待任务及其子任务完整释放后返回结果。
+`--async` 在记录持久化后回执，不等拉包准备；准备失败也属于同一 taskId。
+`--timeout-ms` 从 Worker 启动计时，不包含拉包、准备或排队。
+同步 run 中断会取消本次任务并等待释放；`task await` 中断只停止等待。
+异步回执后的终端退出不取消任务；任何受理或释放不确定都明确失败，不自动重提。
 
-stdout 只有一行 JSON；stderr 在非成功时输出诊断。稳定字段为
-`status`、`exitCode`；提交后通常包含 `requestId`；已确认耗尽的结果包含
-`rootTaskId` 和 `execution: {dataDomain, tasks, runs, rejections, errors}`。
-失败 Task 保留协议错误和结果；尚未运行便过期的 Task 可保持 `stage: "initial"`，
-其截止时间仍使整次结果为超时。中断或清理不确定时不伪造成功的完整执行汇总。
+`task query` 支持重复 `--status`（并集）、`--since/--until`（与其他条件交集）；
+时间使用带时区 RFC 3339，按创建时间含 since、不含 until。
+固定按创建时间、taskId 升序。`--id` 与筛选、分页互斥，
+保持 `items` 数组，未匹配为空数组；不返回日志或等待完成。
+列表和日志 `--limit` 默认 100、范围 1–1000，`--cursor` 是绑定服务及筛选的不透明游标。
+日志按持久化追加顺序分页，只有 time/level/message，不混入完整业务结果。
 
-| 退出码 | status | 含义 |
-| --- | --- | --- |
-| 0 | `succeeded` | 全体 Task 成功且清理确认 |
-| 2 | `invalid` | 参数、CID、输入或配置无效 |
-| 3 | `rejected` | 根准入拒绝，例如输入 Schema 不符或内容不可用 |
-| 4 | `failed` | Task/子调用失败、停止或取消 |
-| 5 | `timed_out` | 根截止时间、子调用或整次预算超时 |
-| 6 | `error` | engine 基础设施失败 |
-| 7 | `cleanup_failed` | Worker、资源或 Gateway 清理无法确认 |
-| 130 / 143 | `interrupted` / `terminated` | SIGINT / SIGTERM，已请求正常关闭 |
+## 实例、持久化和清理
 
-```ts
-import { createIpfsGatewayClient } from "@silvermoon-work/task-engine";
-import { runBundle } from "@silvermoon-work/task-engine-cli";
+`server start` 后台运行，就绪才返回；冲突不改端口、不复用或重启其他实例。
+`server start/status/stop` 和离线 `data prune` 按相同目录选择实例：
+显式 `--data-dir` > `server.dataDir` > `~/.silvermoon.work/task-engine`。
+它们不读取 `client.engine`，不接受远程 `--engine`。
+实际目录的 SQLite 独占锁由 Server 全生命周期持有，路径别名也互斥；
+运行随机身份、控制通道及进程出生证据核实归属，不只看 PID、端口或锁文件。
+本地控制通道以随机挑战和 HMAC 请求/响应证明实例身份，不把实例密钥发送给监听端。
+status 只读；未知身份返回错误，不把不可达当停止。
+stop 默认拒绝在途任务；`--cancel-running` 明确取消并等待释放。
+已确认停止时幂等 `changed:false`，不补造本次取消数量或释放证明。
 
-const source = createIpfsGatewayClient("http://127.0.0.1:8080");
-try {
-  const result = await runBundle({
-    cid,
-    input: { value: 7 },
-    ipfsClient: source,
-    allowChildren: true,
-    maxRuntimeMs: 120_000,
-  });
-  process.exitCode = result.exitCode;
-} finally {
-  await source.close(); // 创建方管理内容 client；runBundle 不关闭共享资源
-}
-```
+任务及子任务记录、业务结果、全部收到的任务日志和可核实释放依据持久保存，
+不按条数、期限或日志级别自动淘汰。再次启动将前次未完整结束记录标记失败，
+保留原 taskId 和重启原因，不自动重跑；已完整终结记录不改写。
+执行域复用现有 Engine/Worker；每个根执行独立，根并发及包准备预算由 Server 统一限制。
 
-## 发布依赖
+持久 CID 块缓存位于实例目录，不设应用容量配额，不做应用层内存内容缓存。
+命中校验哈希；只有显式配置 `server.ipfsGateway`/`--ipfs-gateway` 才获取缺块，
+不读 Kubo 环境、不隐式联网、上传或 pin。协议既有包/块/载荷限制仍有效。
+实际磁盘不足是 Server 致命故障，停止接收任务、处理自有资源并以失败退出；
+不能落盘或无法确认释放时如实报告，不把退出当释放证据。
 
-发布映射为 `task-engine-cli`；依赖已发布的 engine `0.1.0-canary-261109-3`，
-包含 `drain`、`MemoryStore` 与 Gateway 关闭能力。`workspace:*` 打包后解析为工作区
-manifest 的精确版本，不能让 CLI 依赖已经发布但没有这些 API 的旧 engine。
-候选版本不是已发布事实；需要按仓库发布守卫单包检查、Trusted Publisher 设置和
-真实 registry 全局安装后 smoke 验证。
+`data prune` 必须离线取得同一实例锁，不自动停止服务或递归删除目录：
 
-当前源码取消独立 CAR 包，生产依赖闭包不包含 Builder、Builder CLI、esbuild、
-`@esbuild/*` 或 enhanced-resolve。开发测试使用 Builder 不等于用户运行时依赖它。
-本地适配器只提供 cid、block.get、close，不导入构建文件树或归档生产 API。
-标准库负责 CAR/UnixFS 编解码；Task 规则由 Protocol/Engine 维护；以跨消费者拒绝场景和
-既有 CID/字节 golden 防止适配差异。块存储和用于完整规则校验的临时文件快照分别受容量
-限制，快照在校验后释放，close 释放所有持有块。Node24 验证覆盖实际 Engine CAR 执行。
-本轮候选为 `0.1.0-canary-261110-2`，不是已发布事实，也不因 Builder 发布而自动发布。
+- `--task <id>` 可重复，或 `--before <带时区时间>`，只删已终结且释放确认的历史及日志。
+  before 按完成时间，不是创建时间；精确指定任一任务无效时，变更前拒绝。
+- `--cache` 可单独或与一类历史范围组合；组合先历史后缓存。
+  以全部剩余任务和子任务登记根标记传递可达节点，只删未引用且不在用的块。
+  缺块、损坏或不支持的引用图在缓存删除前失败，不联网补图。
+- 没有显式范围就报错；未选 cache 不删块。返回实际已删除任务、日志条数，
+  仅选择缓存时返回去重块及载荷字节计数，不保证等于物理磁盘回收空间。
 
-此依赖拆分尚未发布，已发布的 `0.1.0-canary-261110-1` 仍会间接安装 builder/esbuild。
-后续须先单独发布 CAR 包，再用新版本发布消费者，不能覆盖既有版本或移动 tag。
+## 独立用户配置
+
+Windows：`%LOCALAPPDATA%\TaskEngine\config.json`；
+其他平台：`~/.task-engine/config.json`，不随 data-dir 迁移。
+仅有显式参数 > 用户配置 > 产品默认三层，无项目或环境变量业务配置。
+缺文件为未设置；损坏、未知键或无效值报错，不静默回退。
+单键 set/reset 在互斥下保留其他键，原子写入；不热更新已有 Server。
+
+默认监听 `127.0.0.1:8787`，独立调用地址 `http://127.0.0.1:8787`，
+Worker 执行预算 60000 ms。九项服务默认：
+maxConcurrent=64、maxPreparing=1000、maxChildDepth=4、maxChildConcurrent=4、
+maxChildTotal=64、maxPayloadBytes=65536、bundleConcurrency=4、
+bundleMaxBytes=67108864、maxConnections=256。
+`config list/get` 返回用户值、产品默认、有效值和来源；
+没有历史数量、内存缓存或持久缓存配额键。
+
+## 程序化兼容和发布
+
+原 `runBundle()`、`ExecutionResult`、`exitCodes` 保留给已嵌入调用方，
+继续具有旧的非持久、调用者管理内容源语义；不等于新的受管 CLI。
+旧位置 CID 改为 `--cid`；旧 `--gateway` 改为 Server 的 `--ipfs-gateway`；
+旧省略输入改为显式 `--input -`；不再使用 `--allow-children`、
+`--expected-cid` 或 `--max-runtime-ms`。已提供的子任务能力直接按服务预算执行。
+
+发布映射为 `task-engine-cli`。只发布已审查精确版本的单包 canary，
+沿用上游候选 `0.1.0-canary-261110-2`，不是已发布事实，也不因 Builder 发布而自动发布。
+内部 runtime/peer 依赖必须已有匹配发布版本；依赖更新需逐包另行审批。
+不批量、不自动发布依赖、不发布 stable，不移动 tag；
+构想、实施检查或 manual dry-run 不等于真实发布和安装验收。

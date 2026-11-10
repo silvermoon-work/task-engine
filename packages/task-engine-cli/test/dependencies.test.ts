@@ -3,6 +3,8 @@ import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import test from "node:test";
 
 interface Manifest {
@@ -50,4 +52,27 @@ test("the complete installed Engine production dependency graph contains no comp
   assert.ok(!names.has("@silvermoon-work/task-bundle-car"));
   assert.ok(names.has("@silvermoon-work/task-engine"));
   assert.ok(names.has("@silvermoon-work/task-protocol"));
+});
+
+test("native metadata commands do not initialize SQLite or require a data/config store", async () => {
+  const loader = `export function resolve(specifier,context,nextResolve) {
+if(specifier==="node:sqlite")throw new Error("Metadata initialized SQLite.");
+return nextResolve(specifier,context);
+}`;
+  const source = `import * as module from "node:module";
+if(typeof module.registerHooks==="function")module.registerHooks({resolve:${loader.replace("export ", "")}});
+else module.register(${JSON.stringify(`data:text/javascript,${encodeURIComponent(loader)}`)},import.meta.url);
+const {main}=await import("@silvermoon-work/task-engine-cli");
+await main(["--help"]);await main(["--version"]);await main(["server"]);`;
+  const { stdout, stderr } = await promisify(execFile)(
+    process.execPath,
+    ["--input-type=module", "--eval", source],
+    {
+      cwd: fileURLToPath(new URL("../", import.meta.url)),
+      env: { ...process.env, NODE_OPTIONS: "" },
+    },
+  );
+  assert.match(stdout, /Usage: task-engine <command>/);
+  assert.match(stdout, /Commands: start, status, stop/);
+  assert.equal(stderr, "");
 });

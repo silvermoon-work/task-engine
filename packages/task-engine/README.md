@@ -122,3 +122,14 @@ reads and expose capacity, expiry, gaps and completeness. Existing v1 bundles
 use the sole evolving v1 protocol; unsupported stored URL/Digest submissions are
 explicitly rejected without migration. See
 [Run Logs](https://github.com/shazhou-ww/potential-guide/blob/3500086123d8b821b77958699ceeebfb2a518e0f/docs/task-run-logs.md).
+
+## 受管 CLI 的宿主策略
+
+受管 CLI 在独立执行域复用同一内核，不改变嵌入调用方的默认策略。
+`executionBudgetFromWorker` 将执行预算锚定到 Worker 创建（包含握手启动），
+准备和排队不计时；`requestInputEnvelope` 分离业务对象与内部请求元数据。
+`persistentContent` 让内容复用只依赖宿主磁盘块源，已无活跃租约的准备对象立即释放，
+不在 BundleCache 留存内存内容块。`durableLogs` 关闭宿主日志容量/期限淘汰，
+由受管仓库持久化；新 SDK 的对应模式在终结前等日志确认，生产端报告丢失则明确失败。
+跨执行域的 `bundlePreparation`、`preparingCapacity` 由同一 Server 提供共享预算。
+这些是可信宿主组合接口，不是新 CLI 选项、授权开关或生命周期成功证明。

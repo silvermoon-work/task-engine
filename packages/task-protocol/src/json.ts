@@ -65,8 +65,8 @@ export function json(value: unknown, maxBytes = 65_536): Json {
   return result;
 }
 
-export function object(value: unknown): JsonObject {
-  const parsed = json(value);
+export function object(value: unknown, maxBytes = 65_536): JsonObject {
+  const parsed = json(value, maxBytes);
   if (!parsed || Array.isArray(parsed) || typeof parsed !== "object")
     fail("invalid_request", "Expected an object.");
   return parsed;

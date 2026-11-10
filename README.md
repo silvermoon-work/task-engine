@@ -30,10 +30,24 @@ npm run car
 check 子命令。此新接口仍须独立 Canary 发布与 registry 安装验证，不能据此认定当前 canary 已升级。Builder 在执行 build 时调用 esbuild；npm 通过 optional
 dependency 安装当前 OS/CPU 对应的预编译二进制，跳过 esbuild
 postinstall 仍可构建，不要同时使用
-`--omit=optional`。build 不会补跑安装脚本。本地 CAR 运行无需 Gateway、Kubo 或 HTTP 服务；结果应为
-`Hello world`，
+`--omit=optional`。build 不会补跑安装脚本。上述已发布旧 Engine
+CLI 的本地 CAR 运行无需 Gateway、Kubo 或 HTTP 服务；结果应为 `Hello world`，
 `status: "succeeded"`、退出码 0，且 Run 回收已确认。只执行可信任务代码。全局 npm 的 bin 目录须在 PATH 中。pnpm 用户也可按端到端指南执行项目命令，无需批准 esbuild 安装脚本。`latest`
 仍为占位版本，请选择 `canary`。
+
+当前源码的新版 Engine
+CLI 已改为显式后台 Server 与持久任务接口，尚未因此完成新版 canary 发布或安装验收。构建源码后使用：
+
+```powershell
+task-engine server start
+'{"text":"world"}' | task-engine run --car .\bundle.car --input -
+task-engine task query
+task-engine server stop
+```
+
+完整配置、持久化、离线清理与旧接口迁移见
+[Engine CLI README](packages/task-engine-cli/README.md)；不要用源码的新接口推断现有 npm
+canary 已升级。
 
 ## 本次提取范围
 

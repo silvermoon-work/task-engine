@@ -15,7 +15,8 @@
 按父级明确授权，选择
 `15caa9a71e4c0b3b0ca7c35618acbce3f4ed3ae5` 发布：
 
-- 已可从刷新后的 main 到达；和当前业务代码、manifest、scripts、workflow、lockfile
+- 发布时已可从刷新后的 main 到达；与当时观察的 primary `8bfcf59db475` 的业务代码、
+  manifest、scripts、workflow、lockfile
   完全一致，完整 Git diff 仅包含本 Idea 的 lifecycle events.jsonl。
 - 最新 exact-SHA `ci.yaml` main push run
   [42828771719 / attempt 1](https://github.com/silvermoon-work/task-engine/actions/runs/42828771719/attempts/1)
@@ -92,6 +93,13 @@ unpackedSize: 165652
 
 仅 **D-S04 完成**。Builder CLI 尚未发布，D-S01/D-S02/D-S05 及所有 D-AC 保持未完成。
 等待父级单独批准 Builder CLI 发布段；没有 submitOuter 或 acceptOuter。
+
+同步证据期间 primary 并发纳入 Engine 实现
+`5648efc6782a8fa809bf6e541549fbafefcdd4c4` 和其提交事件
+`363d3ee1ecd225df8ae534ddcb652e83ad3f7935`。通过普通 merge 保留两条历史；
+与该 merge parent 比较，Engine Idea、packages、apps 和 README 字节完全保留，没有修改。
+这里的发布证明只绑定已批准的 Builder tag/commit，不把后续并发 Engine 代码声称为已部署；
+该并发变化不移动既有发布 tag，也不改变已下载核对的 Builder tarball。
 
 ## 历史：首次发布前置 CI 阻塞（现已解除）
 

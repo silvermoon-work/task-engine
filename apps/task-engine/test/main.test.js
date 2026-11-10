@@ -9,6 +9,7 @@ test("private application launcher displays CLI help and exits naturally", async
     resolve("dist", "main.js"),
     "--help",
   ]);
-  assert.match(stdout, /Usage: task-engine run/);
+  assert.match(stdout, /Usage: task-engine <command>/);
+  assert.match(stdout, /server start\|status\|stop/);
   assert.equal(stderr, "");
 });

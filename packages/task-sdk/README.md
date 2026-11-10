@@ -88,6 +88,14 @@ Receiver byte limits govern acceptance, not transport allocation.
 async `log` receipts. Diagnostics have a separately bounded channel and do not
 replace business outputs.
 
+The managed Engine CLI can select durable logging for newly built SDK wrappers:
+log sends are serialized by acknowledgments, including unawaited calls, and the
+terminal outcome waits for those acknowledgments. Unavailable storage is not
+silently treated as complete logs. Existing hosts retain their bounded receipt
+behavior. An already compiled Bundle does not acquire a new SDK automatically;
+producer-reported log loss remains explicit rather than becoming a successful
+complete log query. This source change is not evidence of an SDK release.
+
 `context.bundle.cid` is the readonly host-verified executing root. The host
 owns CID parsing, codec/hash and DAG checks; the SDK treats it as an opaque
 nonempty string of at most 256 characters and echoes it in the ready handshake.

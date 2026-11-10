@@ -24,9 +24,9 @@
   [README](README.md#publish-one-package) for setup and commands.
 - Release one explicitly mapped package with `<package-id>-v<version>` tags.
   Never batch-publish workspaces or automatically release dependencies.
-- Update the package mapping in `scripts/release-packages.js` when renaming or
-  adding a publishable library. Keep the root, apps, and preset examples
-  private.
+- Update the package mapping in `scripts/release-packages.js` when renaming,
+  adding, or removing a publishable library. Keep the root, apps, and preset
+  examples private.
 - Require the tag's package identity and exact version to match both the tagged
   commit's manifest and the packed manifest, including prerelease suffixes.
 - Publish only commits reachable from main with successful exact-commit main

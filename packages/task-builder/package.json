@@ -48,7 +48,11 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@silvermoon-work/task-bundle-car": "workspace:*",
+    "@ipld/car": "catalog:",
+    "@ipld/dag-pb": "catalog:",
+    "multiformats": "catalog:",
+    "ipfs-unixfs-importer": "catalog:",
+    "ipfs-unixfs-exporter": "catalog:",
     "@silvermoon-work/task-protocol": "workspace:*",
     "@sinclair/typebox": "catalog:",
     "enhanced-resolve": "catalog:",

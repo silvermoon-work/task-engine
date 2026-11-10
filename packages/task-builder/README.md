@@ -7,11 +7,12 @@ Separate `./init` and `./car` exports provide project templates and offline CAR
 streams without turning build into a multi-output operation. The root entry
 does not re-export or load these modules; init/CAR do not load esbuild.
 Subpaths isolate module loading, not npm dependency installation.
-The current source moves CAR and shared tree primitives to the compiler-free
-[@silvermoon-work/task-bundle-car](../task-bundle-car/README.md).
-`./car` and `./tree` re-export that package unchanged; Engine CLI depends on
-it directly, never on this compiler-bearing package. This extraction is not yet
-published and needs separately authorized package releases.
+Builder owns `./tree`: compilation requires a traversable, repeatable read port,
+not a one-shot importer iterator. `./car` combines the standard `@ipld/car`,
+UnixFS importer/exporter and multiformats libraries with bounded staging and
+existing Protocol validation. These are compiler-free subpaths, not a separate
+package or a custom CAR codec. Engine CLI owns a smaller offline block-source
+adapter and never installs Builder. No independent CAR package is published.
 
 Builder keeps esbuild as a runtime dependency because building author source
 needs a compiler. Its OS/CPU-specific optional package supplies the required
@@ -241,7 +242,7 @@ dependency versions and scoped release-age exceptions before writing it to disk.
 import {
   encodeTaskBundleCar,
   readTaskBundleCar,
-} from "@silvermoon-work/task-bundle-car";
+} from "@silvermoon-work/task-builder/car";
 const encoded = await encodeTaskBundleCar(bundleTree, { signal });
 try {
   await consumeCarStream(encoded.stream);

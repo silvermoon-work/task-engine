@@ -131,7 +131,7 @@ are always refused, including during competing creation.
 }
 ```
 
-Use the compiler-free `@silvermoon-work/task-bundle-car` library for standalone
+Use the compiler-free `@silvermoon-work/task-builder/car` subpath for standalone
 CAR inspection or the Engine CLI for actual consumption, not a removed
 `task-builder check` command.
 

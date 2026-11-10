@@ -594,7 +594,6 @@ test("the release registry contains the core packages, builder CLI and finite ex
   const expected = [
     "task-builder-cli",
     "task-builder",
-    "task-bundle-car",
     "task-protocol",
     "task-sdk",
     "task-engine",
@@ -638,7 +637,7 @@ test("the release registry contains the core packages, builder CLI and finite ex
   }
 });
 
-test("Engine and CAR production workspace closures exclude compilers and author tooling", () => {
+test("Engine production workspace closures exclude compilers and the retired CAR package", () => {
   const manifests = new Map(
     releasePackages.map(({ name, directory }) => [
       name,
@@ -651,11 +650,11 @@ test("Engine and CAR production workspace closures exclude compilers and author 
     "esbuild",
     "enhanced-resolve",
     "typescript",
+    "@silvermoon-work/task-bundle-car",
   ]);
   for (const root of [
     "@silvermoon-work/task-engine-cli",
     "@silvermoon-work/task-engine",
-    "@silvermoon-work/task-bundle-car",
   ]) {
     const visited = new Set();
     const visit = (name) => {
@@ -681,8 +680,7 @@ test("Engine and CAR production workspace closures exclude compilers and author 
         }
     };
     visit(root);
-    if (root === "@silvermoon-work/task-engine-cli")
-      assert.ok(visited.has("@silvermoon-work/task-bundle-car"));
+    assert.ok(!visited.has("@silvermoon-work/task-bundle-car"));
   }
   assert.equal(
     manifests.get("@silvermoon-work/task-builder").dependencies.esbuild,
@@ -739,6 +737,10 @@ test("workspace dependency configuration has no old-scope packages, including th
 test("metadata CLI rejects unknown package IDs and unsupported events", () => {
   const command = resolve("scripts", "release.js");
   for (const env of [
+    {
+      RELEASE_EVENT: "push",
+      RELEASE_TAG: "task-bundle-car-v0.1.0-canary-261110-1",
+    },
     { RELEASE_EVENT: "push", RELEASE_TAG: "core-v0.0.0" },
     { RELEASE_EVENT: "workflow_dispatch", PACKAGE_INPUT: "core" },
     { RELEASE_EVENT: "push", RELEASE_TAG: "unknown-v1.0.0" },

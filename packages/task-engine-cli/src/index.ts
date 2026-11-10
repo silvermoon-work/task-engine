@@ -2,7 +2,7 @@ import { open, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { Readable } from "node:stream";
-import type { ReadTaskBundleCar } from "@silvermoon-work/task-bundle-car";
+import type { CarSource } from "./car.js";
 import {
   createIpfsGatewayClient,
   createTaskEngine,
@@ -257,7 +257,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
   process.once("SIGTERM", terminate);
   let execution: ExecutionResult;
   let ipfsClient: GatewayClient | undefined;
-  let car: ReadTaskBundleCar | undefined;
+  let car: CarSource | undefined;
   let carFile: Awaited<ReturnType<typeof open>> | undefined;
   let carTimer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -366,9 +366,9 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
       carFile = await open(carPath, "r");
       if (!(await carFile.stat()).isFile())
         throw new TaskError("invalid_input", "CAR input must be a regular file.");
-      const { readTaskBundleCar } = await import("@silvermoon-work/task-bundle-car");
+      const { openCarSource } = await import("./car.js");
       controller.signal.throwIfAborted();
-      car = await readTaskBundleCar(
+      car = await openCarSource(
         Readable.toWeb(
           carFile.createReadStream({
             autoClose: false,

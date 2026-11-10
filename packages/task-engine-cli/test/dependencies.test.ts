@@ -17,7 +17,7 @@ test("the complete installed Engine production dependency graph contains no comp
   const visited = new Set<string>();
   const names = new Set<string>();
   const forbidden =
-    /^(?:esbuild|enhanced-resolve|typescript|@esbuild\/.*|@silvermoon-work\/task-builder(?:-cli)?)$/;
+    /^(?:esbuild|enhanced-resolve|typescript|@esbuild\/.*|@silvermoon-work\/task-builder(?:-cli)?|@silvermoon-work\/task-bundle-car)$/;
   const visit = (path: string) => {
     const canonical = realpathSync(path);
     if (visited.has(canonical)) return;
@@ -45,7 +45,9 @@ test("the complete installed Engine production dependency graph contains no comp
     }
   };
   visit(fileURLToPath(new URL("../package.json", import.meta.url)));
-  assert.ok(names.has("@silvermoon-work/task-bundle-car"));
+  assert.ok(names.has("@ipld/car"));
+  assert.ok(names.has("blockstore-core"));
+  assert.ok(!names.has("@silvermoon-work/task-bundle-car"));
   assert.ok(names.has("@silvermoon-work/task-engine"));
   assert.ok(names.has("@silvermoon-work/task-protocol"));
 });

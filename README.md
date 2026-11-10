@@ -37,9 +37,9 @@ postinstall 仍可构建，不要同时使用
 
 ## 本次提取范围
 
-当前源码已将 CAR 和文件树工具拆为独立 `task-bundle-car` 包；Engine
-CLI 的生产安装不再依赖 builder/esbuild。builder 的 `/car`、`/tree`
-保留同一实现的转发。该拆分尚未发布，上面的既有 canary 仍是拆分前版本；需要独立发布新 CAR 包及消费者后才会改变 npm 安装图。不能把源码验证当作新版已发布的证明。
+当前源码已取消独立 CAR 发布单元：Builder 自有 `/tree`
+构建 IO 端口与不加载编译器的 `/car` 生产/校验入口；Engine
+CLI 通过标准 CAR/UnixFS 库实现离线只读块源，生产安装不依赖 Builder/esbuild。Task 规则复用既有 Protocol/Engine 校验，CID 与 CAR 字节契约不变。此重构仍需 Builder/CLI 分别发布和真实 registry 安装验证；源码通过不代表候选已发布。旧 CAR 首次发布失败的不可变 tag 仅保留历史，不重试、不移动。
 
 | 包                                                                               | 职责                                       |
 | -------------------------------------------------------------------------------- | ------------------------------------------ |
@@ -50,7 +50,6 @@ CLI 的生产安装不再依赖 builder/esbuild。builder 的 `/car`、`/tree`
 | [@silvermoon-work/task-engine-http](./packages/task-engine-http/README.md)       | 可挂载 HTTP API 与 SSE                     |
 | [@silvermoon-work/task-engine-server](./packages/task-engine-server/README.md)   | Node HTTP/SSE 服务组装                     |
 | [@silvermoon-work/task-builder](./packages/task-builder/README.md)               | 只读文件树转换、esbuild 构建与流式资源     |
-| [@silvermoon-work/task-bundle-car](./packages/task-bundle-car/README.md)         | 无编译器的 CAR 编解码、校验与只读文件树    |
 | [@silvermoon-work/task-builder-cli](./packages/task-builder-cli/README.md)       | Commander 命令交互、本地文件适配与模板组装 |
 | [@silvermoon-work/task-engine-cli](./packages/task-engine-cli/README.md)         | 隔离域内嵌运行、全体耗尽与自动退出         |
 
@@ -107,7 +106,6 @@ packages/
   task-engine-http/
   task-engine-server/
   task-builder/
-  task-bundle-car/
   task-builder-cli/
   task-engine-cli/
 pnpm-workspace.yaml
@@ -367,7 +365,7 @@ evidence. The standalone audit host initially selected the exact published CLI3
 URL as its direct dependency; the generated init project's normal SemVer
 installation subsequently succeeded.
 
-The ten libraries are mapped in `scripts/release-packages.js`; the root and
+The nine libraries are mapped in `scripts/release-packages.js`; the root and
 executable app remain private. No package is published by extraction, and there
 is no automatic batch release or automatic version bumping. Artifact dependency
 discovery always reads `packages/` and includes `apps/` only when present;

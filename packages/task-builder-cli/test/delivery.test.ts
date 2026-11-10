@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { memoryFile } from "@silvermoon-work/task-bundle-car/tree";
+import { memoryFile } from "@silvermoon-work/task-builder/tree";
 import { deliverFile } from "../src/delivery.js";
 
 test("failed, canceled or competing CAR replacements preserve the previous complete bytes", async () => {

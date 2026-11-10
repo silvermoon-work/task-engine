@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-engine-cli",
-  "version": "0.1.0-canary-261110-1",
+  "version": "0.1.0-canary-261110-2",
   "description": "Isolated run-to-completion host for Task Bundles.",
   "type": "module",
   "sideEffects": false,
@@ -28,11 +28,17 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@silvermoon-work/task-bundle-car": "workspace:*",
+    "@ipld/car": "catalog:",
+    "@ipld/dag-pb": "catalog:",
+    "blockstore-core": "catalog:",
+    "multiformats": "catalog:",
+    "ipfs-unixfs-exporter": "catalog:",
+    "ipfs-unixfs-importer": "catalog:",
     "@silvermoon-work/task-engine": "workspace:*",
     "@silvermoon-work/task-protocol": "workspace:*"
   },
   "devDependencies": {
+    "@silvermoon-work/task-builder": "workspace:*",
     "@silvermoon-work/task-builder-cli": "workspace:*",
     "@silvermoon-work/task-sdk": "workspace:*"
   },

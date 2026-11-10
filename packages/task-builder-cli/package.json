@@ -40,7 +40,6 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@silvermoon-work/task-bundle-car": "workspace:*",
     "@silvermoon-work/task-builder": "workspace:*",
     "@silvermoon-work/task-protocol": "workspace:*",
     "commander": "catalog:",

@@ -6,10 +6,6 @@
     "outDir": "dist",
     "tsBuildInfoFile": "./.cache/tsconfig.tsbuildinfo"
   },
-  "references": [
-    { "path": "../task-bundle-car" },
-    { "path": "../task-engine" },
-    { "path": "../task-protocol" }
-  ],
+  "references": [{ "path": "../task-engine" }, { "path": "../task-protocol" }],
   "include": ["src/**/*.ts"]
 }

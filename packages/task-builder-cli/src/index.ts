@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { realpath, stat } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { Command, CommanderError, InvalidArgumentError, Option } from "commander";
-import type { ReadOptions, ReadonlyFileTree } from "@silvermoon-work/task-bundle-car/tree";
+import type { ReadOptions, ReadonlyFileTree } from "@silvermoon-work/task-builder/tree";
 import { directoryTree, writeDirectory } from "./node.js";
 import { cliVersion, createCliTaskProject } from "./project.js";
 import {

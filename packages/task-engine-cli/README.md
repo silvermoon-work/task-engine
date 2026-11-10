@@ -44,8 +44,10 @@ CLI 创建的 Gateway client 最终封闭读取、取消在途获取并等待其
 共享 IPFS 节点、调用者提供的 client 和 pin 不归 `runBundle()` 所有，不会关闭或删除。
 文件系统持久化、恢复与独立内容节点管理不在单次命令的范围内。
 
-`--car <file>` 复用 `task-bundle-car` 的完整校验器，流式读取并验证 CAR v1 唯一根、
-块哈希、精确 DAG、canonical Bundle、Schema 和全部资源；通过后以只读块源复用
+`--car <file>` 使用 `@ipld/car`、MemoryBlockstore、UnixFS importer/exporter 和
+multiformats 实现离线只读块源；显式验证 CAR v1 唯一根、块 hash/codec、重复/缺失/
+不可达块和 canonical import profile，再复用既有 Protocol 规则校验完整 Task/Schema/资源。
+标准 CAR reader 本身不验证 block hash，不能省略此验证。通过后以只读块源复用
 `runBundle`/`drain`。默认有界 CAR/块/文件容量，不另起 Gateway 或网络 fallback。
 `--expected-cid` 可选且仅用于 CAR，根不符在 Worker 启动前拒绝。
 CAR 与位置 CID、`--gateway` 互斥；必须是普通文件，不接受 `--car -`，
@@ -138,10 +140,13 @@ manifest 的精确版本，不能让 CLI 依赖已经发布但没有这些 API �
 候选版本不是已发布事实；需要按仓库发布守卫单包检查、Trusted Publisher 设置和
 真实 registry 全局安装后 smoke 验证。
 
-当前源码的本地 CAR 能力直接依赖独立 `@silvermoon-work/task-bundle-car`，
-不依赖 builder 或 builder CLI；生产依赖闭包不包含 esbuild、`@esbuild/*`
-或模块编译解析器。开发测试使用 builder 不等于用户安装运行时依赖它。
-原 `task-builder/car` 子入口保留转发，CAR 格式和校验实现只有一份。
+当前源码取消独立 CAR 包，生产依赖闭包不包含 Builder、Builder CLI、esbuild、
+`@esbuild/*` 或 enhanced-resolve。开发测试使用 Builder 不等于用户运行时依赖它。
+本地适配器只提供 cid、block.get、close，不导入构建文件树或归档生产 API。
+标准库负责 CAR/UnixFS 编解码；Task 规则由 Protocol/Engine 维护；以跨消费者拒绝场景和
+既有 CID/字节 golden 防止适配差异。块存储和用于完整规则校验的临时文件快照分别受容量
+限制，快照在校验后释放，close 释放所有持有块。Node24 验证覆盖实际 Engine CAR 执行。
+本轮候选为 `0.1.0-canary-261110-2`，不是已发布事实，也不因 Builder 发布而自动发布。
 
 此依赖拆分尚未发布，已发布的 `0.1.0-canary-261110-1` 仍会间接安装 builder/esbuild。
 后续须先单独发布 CAR 包，再用新版本发布消费者，不能覆盖既有版本或移动 tag。

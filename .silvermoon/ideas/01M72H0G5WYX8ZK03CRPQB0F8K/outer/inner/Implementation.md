@@ -59,6 +59,6 @@ Builder 的 API 执行许可保持兼容；CLI 自动执行 JS/TS，JSON 不执�
 
 完整 CAR suite 与固定 CID/字节 golden 不变；验证单根、完整边界、hash/codec、
 重复/缺失/不可达块、canonical import profile、Task 文件/Schema/UTF8/LF/二进制、
-容量、取消、close 及真实 Engine CAR 消费。生产依赖闭包不得包含独立 CAR 包、
+容量、取消、close 及真实 Engine CAR 消费。Engine CLI 完整生产依赖闭包不得包含独立 CAR 包、
 Builder/Builder CLI、esbuild 或 enhanced-resolve；Builder 的懒资源/文件树行为保持，
 模板、manifest、lockfile、tsconfig、release tests 及文档一致，最终 Node24 `pnpm check` 通过。

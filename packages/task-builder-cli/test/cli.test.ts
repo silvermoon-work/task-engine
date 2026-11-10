@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
 import { readTaskBundle } from "@silvermoon-work/task-protocol";
-import { readTaskBundleCar } from "@silvermoon-work/task-bundle-car";
+import { readTaskBundleCar } from "@silvermoon-work/task-builder/car";
 import { directoryTree, writeDirectory } from "../src/node.js";
 import { runTaskBuilderCli } from "../src/index.js";
 import type { ReadonlyFileTree } from "@silvermoon-work/task-builder/tree";

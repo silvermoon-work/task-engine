@@ -7,7 +7,7 @@ import {
   readBytes,
   type FileReader,
   type ReadonlyFileTree,
-} from "@silvermoon-work/task-bundle-car/tree";
+} from "@silvermoon-work/task-builder/tree";
 
 export type CliTaskProjectOptions = Pick<TaskProjectOptions, "name" | "taskName">;
 
@@ -86,7 +86,6 @@ export async function createCliTaskProject(
         minimumReleaseAgeExclude: [
           "@silvermoon-work/task-builder-cli",
           "@silvermoon-work/task-builder",
-          "@silvermoon-work/task-bundle-car",
           "@silvermoon-work/task-sdk",
           "@silvermoon-work/task-protocol",
         ],

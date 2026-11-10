@@ -140,6 +140,7 @@ test("template locks actual CLI/Builder versions and paired SDK without remote l
     Buffer.from(await readBytes(tree, "pnpm-workspace.yaml", 65_536)).toString(),
   );
   assert.equal(config.overrides, undefined);
+  assert.ok(!config.minimumReleaseAgeExclude.includes("@silvermoon-work/task-bundle-car"));
   assert.deepEqual(config.allowBuilds, { esbuild: false });
   assert.ok(config.minimumReleaseAgeExclude.includes("@silvermoon-work/task-sdk"));
   const definition = parse(

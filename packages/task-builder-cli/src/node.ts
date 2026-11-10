@@ -10,7 +10,7 @@ import {
   type ReadonlyFileTree,
   type ReadOptions,
   type TreeEntry,
-} from "@silvermoon-work/task-bundle-car/tree";
+} from "@silvermoon-work/task-builder/tree";
 
 function inside(root: string, path: string): boolean {
   const distance = relative(root, path);

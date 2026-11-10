@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { lstat, mkdir, realpath, rename, rm, unlink } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
-import { encodeTaskBundleCar, readTaskBundleCar } from "@silvermoon-work/task-bundle-car";
+import { encodeTaskBundleCar, readTaskBundleCar } from "@silvermoon-work/task-builder/car";
 import {
   fileTree,
   readBytes,
   type ReadonlyFileTree,
   type ReadOptions,
-} from "@silvermoon-work/task-bundle-car/tree";
+} from "@silvermoon-work/task-builder/tree";
 import { parseTaskBundleYaml, validateTaskBundle } from "@silvermoon-work/task-protocol";
 import { directoryTree, writeStreamFile } from "./node.js";
 

@@ -15,6 +15,17 @@ this Commander CLI. See the
 
 ## Commands
 
+Install the precompiled CLI globally, without cloning or building this repository:
+
+```text
+npm install -g @silvermoon-work/task-builder-cli@canary
+task-builder --help
+```
+
+The package's bin points to `dist/bin.js`; it has no consumer-side compilation
+hook. esbuild's own installation script configures its precompiled native tool.
+Building a generated project compiles the author's Task, not this CLI.
+
 ```text
 task-builder init <new-directory> [--name <name>] [--cli-version <specifier>] [--builder-version <specifier>]
 task-builder build <task.build.yaml> [--root <directory>] [--trusted-contract]

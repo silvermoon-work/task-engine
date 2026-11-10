@@ -38,7 +38,7 @@ jobs:
       - name: Install verifier dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify mirrored npm metadata
+      - name: Verify npm metadata
         run: |
           node --input-type=module <<'NODE'
           import { readFileSync } from "node:fs";

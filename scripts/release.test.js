@@ -383,7 +383,7 @@ test("version-record lookups check exact identity and fail closed on missing or 
       async (url, options) => {
         assert.equal(
           url,
-          "https://mirrors.cloud.tencent.com/npm/%40example%2Futils/1.2.3",
+          "https://registry.npmjs.org/%40example%2Futils/1.2.3",
         );
         assert.equal(options.headers.Accept, "application/json");
         return { ok: true, json: async () => record };
@@ -435,10 +435,7 @@ test("registry errors fail closed, and only HTTP 404 means a missing package", a
   );
   assert.deepEqual(
     await readRegistryPackage("@example/core", async (url, options) => {
-      assert.equal(
-        url,
-        "https://mirrors.cloud.tencent.com/npm/%40example%2Fcore",
-      );
+      assert.equal(url, "https://registry.npmjs.org/%40example%2Fcore");
       assert.equal(options.headers.Accept, "application/json");
       return { ok: true, json: async () => ({ versions: { "1.2.3": {} } }) };
     }),
@@ -636,6 +633,28 @@ test("the release registry contains the core packages, builder CLI and finite ex
     assert.equal(
       value.devDependencies?.["@potential-guide/ipfs-content"],
       undefined,
+    );
+  }
+});
+
+test("public CLI packages install precompiled bins without consumer-side compilation hooks", () => {
+  for (const [id, command] of [
+    ["task-builder-cli", "task-builder"],
+    ["task-engine-cli", "task-engine"],
+  ]) {
+    const directory = resolve("packages", id);
+    const manifest = JSON.parse(
+      readFileSync(resolve(directory, "package.json"), "utf8"),
+    );
+    assert.equal(manifest.private, undefined);
+    assert.equal(manifest.bin[command], "./dist/bin.js");
+    assert.ok(manifest.files.includes("dist"));
+    for (const hook of ["preinstall", "install", "postinstall", "prepare"])
+      assert.equal(manifest.scripts[hook], undefined, `${id}: ${hook}`);
+    assert.ok(
+      readFileSync(resolve(directory, "src", "bin.ts"), "utf8").startsWith(
+        "#!/usr/bin/env node\n",
+      ),
     );
   }
 });

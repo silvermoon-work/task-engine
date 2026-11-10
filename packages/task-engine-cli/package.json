@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-engine-cli",
-  "version": "0.1.0-canary-261109-1",
+  "version": "0.1.0-canary-261110-1",
   "description": "Isolated run-to-completion host for Task Bundles.",
   "type": "module",
   "sideEffects": false,

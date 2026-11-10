@@ -7,6 +7,30 @@ Task Engine 的独立 monorepo，使用 pnpm workspaces 和 Turborepo。已从
 scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节契约及持久数据格式不因包改名而改变。已发布首轮 canary；根包
 `task-engine` 保持 private。Silvermoon 项目元数据已初始化。
 
+## 安装试用
+
+使用 Node.js 22.13 或更新版本（建议 Node.js 24），全局安装两个已编译的 CLI：
+
+```powershell
+npm install -g @silvermoon-work/task-builder-cli@canary @silvermoon-work/task-engine-cli@canary
+task-builder --help
+task-engine --help
+task-builder init my-task
+cd my-task
+npm install
+npm run build
+npm run car
+npm run check
+'{"text":"world"}' | task-engine run --car .\bundle.car
+```
+
+无需克隆本仓库、安装 TypeScript 或编译 CLI。发布时先编译再打包
+`dist`，全局命令直接执行该产物。`npm run build`
+只构建用户的任务源码。Builder 的 esbuild 安装脚本配置当前平台的预编译可执行文件，不编译这些 CLI。本地 CAR 运行无需 Gateway、Kubo 或 HTTP 服务；结果应为
+`Hello world`，
+`status: "succeeded"`、退出码 0，且 Run 回收已确认。只执行可信任务代码。全局 npm 的 bin 目录须在 PATH 中。pnpm 用户也可按端到端指南执行项目命令；其 esbuild 安装脚本需要显式批准。`latest`
+仍为占位版本，请选择 `canary`。
+
 ## 本次提取范围
 
 | 包                                                                               | 职责                                       |
@@ -171,7 +195,7 @@ Both `canary` tags and runtime dependencies passed
 The CLI's first attempt stopped before publication while dependency metadata
 propagated; the same immutable tag was retried. `latest` remains `0.0.0`. This
 round did not publish `task-engine@0.1.0-canary-261109-2` or `task-engine-cli`.
-Actual Tencent-registry install and HTTP/SQLite compatibility smoke results,
+Actual published-package install and HTTP/SQLite compatibility smoke results,
 including the Windows database-path limitation, are recorded in the
 [end-to-end guide](./docs/end-to-end-verification.md#本轮-builder-发布验证).
 
@@ -184,17 +208,17 @@ succeeded. The
 [Trusted Publishing run](https://github.com/silvermoon-work/task-engine/actions/runs/42588331015)
 published the verified tarball with signed provenance; its exact runtime
 dependency is the already published
-`@silvermoon-work/task-protocol@0.1.0-canary-261109-2`. Tencent metadata
+`@silvermoon-work/task-protocol@0.1.0-canary-261109-2`. Registry metadata
 confirms `canary` points to this SDK version and `latest` remains the
 placeholder `0.0.0`.
 
 The migrated workspace init generated a fresh private project, which installed
 the published SDK, builder `0.1.0-canary-261109-2` and builder CLI
-`0.1.0-canary-261109-1` from Tencent with a frozen lockfile and no local package
-overrides. Its installed builder completed Build/CAR/Check; the current
-workspace Engine CLI's `runBundle` executed the checked CAR in a real Worker.
-The root returned `{text: "Hello canary", bytes: 6, chunks: 1}`, exit code 0,
-one reclaimed Run and no cleanup uncertainty. The checked root was
+`0.1.0-canary-261109-1` with a frozen lockfile and no local package overrides.
+Its installed builder completed Build/CAR/Check; the current workspace Engine
+CLI's `runBundle` executed the checked CAR in a real Worker. The root returned
+`{text: "Hello canary", bytes: 6, chunks: 1}`, exit code 0, one reclaimed Run
+and no cleanup uncertainty. The checked root was
 `bafybeiefphyqt2wuttkuzfac32tkmspq7ojmd2naulejjlusolp3vj5cem`.
 
 This proves the published SDK against the migrated init source, not a newly
@@ -219,7 +243,7 @@ verification applies the same guard to the registry artifact manifest, not only
 to the current source manifest. Original protocol URI strings and MIT
 provenance/specification links remain identities, not package dependencies.
 
-Before the legacy-free rollout, Tencent's canary metadata contained these
+Before the legacy-free rollout, published canary metadata contained these
 historical development declarations; none were production dependency edges:
 
 | Published package                      | Canary                  | Old development dependencies |
@@ -233,11 +257,11 @@ historical development declarations; none were production dependency edges:
 
 The old declarations name `@potential-guide/task-sdk` and
 `@potential-guide/pguide-task-bundle`. The published protocol and SDK canaries
-are already independent of them. Tencent returned no Engine CLI package metadata
-in that audit, so its publication state was not verified there. The preceding
+are already independent of them. No Engine CLI package metadata was available in
+that audit, so its publication state was not verified there. The preceding
 builder/CLI init path also created a new project's production dependency and
 author import on the old `@potential-guide/task-sdk@0.1.0-rc.2`. This was
-confirmed from the actual builder canary 2 tarball after checking its Tencent
+confirmed from the actual builder canary 2 tarball after checking its published
 SHA-512 integrity. The rollout below replaces that default with SDK canary 2.
 Historical versions and tags remain immutable; their dependency declarations are
 not rewritten.
@@ -265,7 +289,7 @@ from `e002f29a57cb91bfaf8cca7f76392af2895375bb`. The latter commit passed
 [exact main CI](https://github.com/silvermoon-work/task-engine/actions/runs/42643404329).
 
 CLI2's immutable tag was retained after three pre-publication attempts could not
-see builder3 in the runner's cached mirror catalog. CLI3 uses strict exact
+see builder3 in the runner's cached registry catalog. CLI3 uses strict exact
 version records instead. The initial engine/HTTP/storage/server2 publications
 still declared unpublished CLI2 development references; separately authorized
 canary3 versions correct those references to CLI3. The release guard now checks
@@ -294,15 +318,15 @@ installed eight-package artifacts' lockfile integrity hashes were also checked
 against exact published records. No local workspace/tarball substitute, disabled
 TLS or disabled exotic-transitive-dependency guard was used.
 
-**Distribution limitation:** Tencent's ordinary package-wide catalogs
-intermittently returned older versions and HTTP 525, even while exact version
-records and verified tarballs were available. The final canary3 cohort's fresh
-ordinary installation could not be completed against that cached catalog; do not
-describe it as a successful fresh final-cohort install. The earlier runtime
-smoke and final artifact byte-equivalence/metadata checks are distinct evidence.
-The standalone audit host initially selected the exact published CLI3 URL as its
-direct dependency; the generated init project's normal SemVer installation
-subsequently succeeded.
+**Historical verification limitation:** The configured registry's package-wide
+catalogs intermittently returned older versions and HTTP 525, even while exact
+version records and verified tarballs were available. The final canary3 cohort's
+fresh ordinary installation could not be completed against that cached catalog;
+do not describe it as a successful fresh final-cohort install. The earlier
+runtime smoke and final artifact byte-equivalence/metadata checks are distinct
+evidence. The standalone audit host initially selected the exact published CLI3
+URL as its direct dependency; the generated init project's normal SemVer
+installation subsequently succeeded.
 
 The nine libraries are mapped in `scripts/release-packages.js`; the root and
 executable app remain private. No package is published by extraction, and there
@@ -310,12 +334,10 @@ is no automatic batch release or automatic version bumping. Artifact dependency
 discovery always reads `packages/` and includes `apps/` only when present;
 library-only repositories need no placeholder app directory.
 
-Package metadata and downloads use the Tencent mirror
-`https://mirrors.cloud.tencent.com/npm/`, including the Trusted Publishing
-client installation. The release verifier does not query the official registry
-or fall back to it. Missing/stale mirror metadata blocks release until it
-propagates. The explicitly authorized publishing operation still targets npm
-through Trusted Publishing; existing versions remain immutable and npm rejects
+Dependency installation follows the environment's registry configuration; the
+repository does not impose a device-specific mirror. Release metadata checks and
+Trusted Publishing target npm's official registry. Missing or unavailable
+metadata blocks release; existing versions remain immutable and npm rejects
 republishing them.
 
 Registry audits request full JSON metadata to include development dependencies.
@@ -329,8 +351,8 @@ version-specific record, including its exact name/version and dependency guards;
 a missing record still blocks release. This avoids treating an older
 package-wide catalog cache as proof that a known version is absent. SemVer
 ranges continue to require a satisfying version in the package catalog. CLI
-canary index 2's tag remains immutable after its pre-publication mirror catalog
-failures; the corrected release uses CLI index 3.
+canary index 2's tag remains immutable after its pre-publication registry
+catalog failures; the corrected release uses CLI index 3.
 
 ### Configure a derived repository
 

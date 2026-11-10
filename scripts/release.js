@@ -6,7 +6,6 @@ import semver from "semver";
 import { releasePackages } from "./release-packages.js";
 
 const registry = "https://registry.npmjs.org";
-const metadataRegistry = "https://mirrors.cloud.tencent.com/npm";
 const legacyPackage =
   /^(?:@potential-guide\/|(?:pguide|potential-guide)(?:@|$))/u;
 const dependencyFields = [
@@ -212,7 +211,7 @@ export async function verifyWorkspaceDependencies(
 
 export async function readRegistryPackage(name, fetchPackage = fetch) {
   const response = await fetchPackage(
-    `${metadataRegistry}/${encodeURIComponent(name)}`,
+    `${registry}/${encodeURIComponent(name)}`,
     {
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(30_000),
@@ -243,7 +242,7 @@ export async function readRegistryVersion(name, version, fetchVersion = fetch) {
     );
   }
   const response = await fetchVersion(
-    `${metadataRegistry}/${encodeURIComponent(name)}/${encodeURIComponent(version)}`,
+    `${registry}/${encodeURIComponent(name)}/${encodeURIComponent(version)}`,
     {
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(30_000),

@@ -64,8 +64,7 @@ runner 的 8/8 随即通过，未放宽期限或修改既有测试。随后使�
 使用相同代码哈希的 32/32 缓存结果并完成 release、类型与包检查。没有用针对性通过替代完整检查。首次检查发现已接受 ideal 与 schema 元数据的既有 Prettier 格式差异，因此格式工具排除 revisioned
 `.silvermoon/`，避免改写已接受内容；代码与工作区格式仍完整检查，`.cache`
 中测试生成物不作为待格式化源码；生命周期校验由父 Agent 的 Silvermoon
-gate 负责。ledger 的 I-* 已按这些验证勾选，不代表提交、同步或验收决定。已先确认 npm/pnpm 生效 registry 均为 Tencent；依赖链接恢复使用现有包，没有访问官方 npm
-registry，也没有发布、tag、生命周期事件或验收决定。
+gate 负责。ledger 的 I-* 已按这些验证勾选，不代表提交、同步或验收决定。依赖链接恢复使用现有包，没有发布、tag、生命周期事件或验收决定。
 
 候选公开版本为 engine `0.1.0-canary-261109-2` 与新 CLI
 `0.1.0-canary-261109-1`；候选不是已发布事实。CLI 打包依赖新版 engine 与现有 protocol
@@ -85,9 +84,7 @@ smoke 留给现实世界，不能用本地 dist、tarball 或本文件替代。
 turbo 任务成功，其中仅 8 项缓存，耗时约 2 分 15 秒；完整集合仍为 502 项测试，CLI
 13/13，类型与全部包 publint 通过。这次默认并发的完整验证不是依靠补正前的全体缓存结果。
 
-项目 `.npmrc` 已固定 Tencent
-mirror，避免依赖下载回退至默认官方 registry。已接受的 Ideal
-World 未修改；尚未接受的 Implementation、Deployment 与 supporting
+已接受的 Ideal World 未修改；尚未接受的 Implementation、Deployment 与 supporting
 documents 已格式化。I-* 勾选表示已完成实现证据，不自行构成生命周期审批；主 Agent 后续以准确同步 revision 的提交和验收事件记录审批。
 
 ## CLI Gateway 默认选择

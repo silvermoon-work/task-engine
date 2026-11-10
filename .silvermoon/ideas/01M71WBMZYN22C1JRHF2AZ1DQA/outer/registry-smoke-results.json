@@ -1,0 +1,2084 @@
+{
+  "startedAt": "2026-11-10T16:07:10.486Z",
+  "node": "v26.13.0",
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "platform": "win32",
+  "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+  "root": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+  "registry": "https://mirrors.cloud.tencent.com/npm/",
+  "commands": [
+    {
+      "label": "outside-cwd npm registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T16:07:10.488Z",
+      "finishedAt": "2026-11-10T16:07:10.685Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "npm client version: effective registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T16:07:10.685Z",
+      "finishedAt": "2026-11-10T16:07:10.899Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "npm client version",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm --version"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T16:07:10.899Z",
+      "finishedAt": "2026-11-10T16:07:11.087Z",
+      "exitCode": 0,
+      "stdout": "11.20.0\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "outside-cwd pnpm registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "pnpm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T16:07:11.087Z",
+      "finishedAt": "2026-11-10T16:07:11.502Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "mirror exact metadata task-protocol: effective registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T16:07:11.502Z",
+      "finishedAt": "2026-11-10T16:07:11.692Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "mirror exact metadata task-protocol",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm view @silvermoon-work/task-protocol@0.1.0-canary-261110-1 name version dist --json --prefer-online"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T16:07:11.692Z",
+      "finishedAt": "2026-11-10T16:07:12.862Z",
+      "exitCode": 0,
+      "stdout": "{\n  \"name\": \"@silvermoon-work/task-protocol\",\n  \"version\": \"0.1.0-canary-261110-1\",\n  \"dist\": {\n    \"shasum\": \"8ed688b90e006480c799399db1aa8aa4fb8b3813\",\n    \"tarball\": \"https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-protocol/-/task-protocol-0.1.0-canary-261110-1.tgz\",\n    \"fileCount\": 67,\n    \"integrity\": \"sha512-cDCnKmSMeC8TfAj1/JCo1keNw/UI/mKrgincMpIpWXzf4Qih5EmqqWLLQrPfXtLoyasxJtgBjl9wcTGpUJ/Q4A==\",\n    \"signatures\": [\n      {\n        \"sig\": \"MEUCIHQO6rZTHtimZ4nC9ke/vR0JpKWGAYl5iMvN2CCVDG0DAiEAqMFZu3zG3HsoqP6KCpYnI5x8mzi5G640eADid0sUbq8=\",\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\"\n      },\n      {\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\",\n        \"sig\": \"MEUCIGRUSf33VQ88t+uvyD79tqhNZoTHXF2ZDXxIkkaZFXVsAiEA5LWaEB8EHWwnmfzBWfD0R5VhYkNL40uMhcnAF6gjcOI=\"\n      }\n    ],\n    \"attestations\": {\n      \"url\": \"https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-protocol@0.1.0-canary-261110-1\",\n      \"provenance\": {\n        \"predicateType\": \"https://slsa.dev/provenance/v1\"\n      }\n    },\n    \"unpackedSize\": 247061\n  }\n}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "mirror exact metadata task-sdk: effective registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T16:07:12.862Z",
+      "finishedAt": "2026-11-10T16:07:13.052Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "mirror exact metadata task-sdk",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm view @silvermoon-work/task-sdk@0.1.0-canary-261110-1 name version dist --json --prefer-online"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T16:07:13.052Z",
+      "finishedAt": "2026-11-10T16:07:14.065Z",
+      "exitCode": 0,
+      "stdout": "{\n  \"name\": \"@silvermoon-work/task-sdk\",\n  \"version\": \"0.1.0-canary-261110-1\",\n  \"dist\": {\n    \"shasum\": \"04710eca40deb37c04edf668a16a85c7105d33a0\",\n    \"tarball\": \"https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-sdk/-/task-sdk-0.1.0-canary-261110-1.tgz\",\n    \"fileCount\": 11,\n    \"integrity\": \"sha512-3mKoiRakTJxeWdrCWq5lq2KlogfXnfIAFsFRxx2ZHF4BwG77kmGP0K5V6sM6uCWgrpIjD9MDy4QdRForVMr5ng==\",\n    \"signatures\": [\n      {\n        \"sig\": \"MEQCIE2fWV9do6bjQmkRflY9GapJCPZB9hGddSHFyjpdK18FAiAao9bQ566S18RLkdV4fSGRn4gNegHZsQ+DyqxceHlFQw==\",\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\"\n      },\n      {\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\",\n        \"sig\": \"MEUCIQCgnA9wRbC8G7kBY7nRPiR/18Oh2W9tOKNeSTD608qJvwIgQlUtXrUBqTkSXJc8pLzFqbNUqWONv01WOX7pwSFfhD0=\"\n      }\n    ],\n    \"attestations\": {\n      \"url\": \"https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-sdk@0.1.0-canary-261110-1\",\n      \"provenance\": {\n        \"predicateType\": \"https://slsa.dev/provenance/v1\"\n      }\n    },\n    \"unpackedSize\": 49584\n  }\n}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "mirror exact metadata task-engine: effective registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T16:07:14.065Z",
+      "finishedAt": "2026-11-10T16:07:14.253Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "mirror exact metadata task-engine",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm view @silvermoon-work/task-engine@0.1.0-canary-261110-1 name version dist --json --prefer-online"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T16:07:14.253Z",
+      "finishedAt": "2026-11-10T16:07:15.403Z",
+      "exitCode": 0,
+      "stdout": "{\n  \"name\": \"@silvermoon-work/task-engine\",\n  \"version\": \"0.1.0-canary-261110-1\",\n  \"dist\": {\n    \"shasum\": \"a51d26e7ee5c75d49b319fadea869330f7418ae8\",\n    \"tarball\": \"https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-engine/-/task-engine-0.1.0-canary-261110-1.tgz\",\n    \"fileCount\": 63,\n    \"integrity\": \"sha512-TozDmwBuHfEteTB2Snzjby27jzvllKngI4t3zC7nMpCK54ozkV1fDxBZ+sRW6/vq0cb1qmxYsHEdMxweitGZAQ==\",\n    \"signatures\": [\n      {\n        \"sig\": \"MEUCIE2DZ+DgkLo9BmolI8+v1+n+IIBTq2T1dozYi3P17MuxAiEAv4ir0HMCyztALih7bxRRYTM5rfOXbqy+A8GOhz3bhBI=\",\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\"\n      },\n      {\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\",\n        \"sig\": \"MEUCIC6l9KNOgHutlvs+axofg2lfrenGY2Mqv2ly7r1v/kkyAiEArvSVPRgGNifU6i09qWGk0Ef5HrsORnyKruU/smBDzgQ=\"\n      }\n    ],\n    \"attestations\": {\n      \"url\": \"https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-engine@0.1.0-canary-261110-1\",\n      \"provenance\": {\n        \"predicateType\": \"https://slsa.dev/provenance/v1\"\n      }\n    },\n    \"unpackedSize\": 556593\n  }\n}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "mirror exact metadata task-engine-cli: effective registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T16:07:15.404Z",
+      "finishedAt": "2026-11-10T16:07:15.592Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "mirror exact metadata task-engine-cli",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm view @silvermoon-work/task-engine-cli@0.1.0-canary-261110-2 name version dist --json --prefer-online"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T16:07:15.592Z",
+      "finishedAt": "2026-11-10T16:07:16.942Z",
+      "exitCode": 0,
+      "stdout": "{\n  \"name\": \"@silvermoon-work/task-engine-cli\",\n  \"version\": \"0.1.0-canary-261110-2\",\n  \"dist\": {\n    \"shasum\": \"6f0ef270b12b0759a8bbf38fa0dfac556c7a2902\",\n    \"tarball\": \"https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-engine-cli/-/task-engine-cli-0.1.0-canary-261110-2.tgz\",\n    \"fileCount\": 51,\n    \"integrity\": \"sha512-QXTOpu9X2n+YjsN0a4dOTyEZz9kNrF2pUt7jTvI+WhWBsqTkvudc5Cs904NkW/FD9ZBB+gGETRLukppgitSlKw==\",\n    \"signatures\": [\n      {\n        \"sig\": \"MEYCIQCSvER4CbQ2D+Q2NO2vWPEapKoqHOr+FB0Af6ugwQhrywIhAI8U0n6EhE9UfqPbH4jsPck4gsEb7tS0G4L+CXqZTvq9\",\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\"\n      },\n      {\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\",\n        \"sig\": \"MEUCIGHfSmRUr51qEHVsJXS+bWyrVQUueLpMIqFnuJPP0EWVAiEA54P7XmwTelVOZ24fPrrQU7jRzjsuAV2zm6w3YasgHvg=\"\n      }\n    ],\n    \"attestations\": {\n      \"url\": \"https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-engine-cli@0.1.0-canary-261110-2\",\n      \"provenance\": {\n        \"predicateType\": \"https://slsa.dev/provenance/v1\"\n      }\n    },\n    \"unpackedSize\": 284352\n  }\n}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "registry install exact consumer CLI: effective registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T16:07:16.942Z",
+      "finishedAt": "2026-11-10T16:07:17.135Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "registry install exact consumer CLI",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm install --prefix D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install --save-exact --omit=dev --ignore-scripts @silvermoon-work/task-engine-cli@0.1.0-canary-261110-2"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T16:07:17.135Z",
+      "finishedAt": "2026-11-10T16:07:18.110Z",
+      "exitCode": 0,
+      "stdout": "\nup to date, audited 263 packages in 815ms\n\n33 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "installed CLI --version",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "--version"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:18.111Z",
+      "finishedAt": "2026-11-10T16:07:18.576Z",
+      "exitCode": 0,
+      "stdout": "0.1.0-canary-261110-2\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "npm-generated executable shim --version",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "call \"D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\.bin\\task-engine.cmd\" --version"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:18.576Z",
+      "finishedAt": "2026-11-10T16:07:19.049Z",
+      "exitCode": 0,
+      "stdout": "0.1.0-canary-261110-2\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "installed CLI --help",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "--help"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:19.049Z",
+      "finishedAt": "2026-11-10T16:07:19.488Z",
+      "exitCode": 0,
+      "stdout": "Usage: task-engine <command>\n  server start|status|stop  Manage a local background Server by --data-dir\n  run --cid <cid>|--car <file> --input <file|-> [--async]\n  task query|logs|await    Query persistent tasks, logs or final results\n  data prune              Offline explicit history/cache cleanup\n  config list|get|set|reset\nBusiness results: one stdout JSON. stderr: logging only. Exit 0 success, 1 failure, 130 interrupted.\nNo automatic Server startup, interactive prompts, dry-run or format switches.\nUse task-engine <command> --help for options.\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "installed native metadata SQLite guard",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--input-type=module",
+        "--eval",
+        "import * as module from \"node:module\";\nif(typeof module.registerHooks===\"function\")module.registerHooks({resolve:function resolve(specifier,context,nextResolve){if(specifier===\"node:sqlite\")throw new Error(\"Metadata loaded SQLite.\");return nextResolve(specifier,context);}});\nelse module.register(\"data:text/javascript,export%20function%20resolve(specifier%2Ccontext%2CnextResolve)%7Bif(specifier%3D%3D%3D%22node%3Asqlite%22)throw%20new%20Error(%22Metadata%20loaded%20SQLite.%22)%3Breturn%20nextResolve(specifier%2Ccontext)%3B%7D\",import.meta.url);\nconst {main}=await import(\"file:///D:/Code/task-engine-canary-261110-d30f1b98/cli-install/node_modules/@silvermoon-work/task-engine-cli/dist/index.js\");await main([\"--help\"]);await main([\"--version\"]);"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:19.488Z",
+      "finishedAt": "2026-11-10T16:07:19.948Z",
+      "exitCode": 0,
+      "stdout": "Usage: task-engine <command>\n  server start|status|stop  Manage a local background Server by --data-dir\n  run --cid <cid>|--car <file> --input <file|-> [--async]\n  task query|logs|await    Query persistent tasks, logs or final results\n  data prune              Offline explicit history/cache cleanup\n  config list|get|set|reset\nBusiness results: one stdout JSON. stderr: logging only. Exit 0 success, 1 failure, 130 interrupted.\nNo automatic Server startup, interactive prompts, dry-run or format switches.\nUse task-engine <command> --help for options.\n0.1.0-canary-261110-2\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "config list defaults",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "config",
+        "list"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:20.075Z",
+      "finishedAt": "2026-11-10T16:07:20.543Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"items\":[{\"key\":\"client.engine\",\"userValue\":null,\"productDefault\":\"http://127.0.0.1:8787\",\"effectiveValue\":\"http://127.0.0.1:8787\",\"source\":\"product\"},{\"key\":\"server.bundleConcurrency\",\"userValue\":null,\"productDefault\":4,\"effectiveValue\":4,\"source\":\"product\"},{\"key\":\"server.bundleMaxBytes\",\"userValue\":null,\"productDefault\":67108864,\"effectiveValue\":67108864,\"source\":\"product\"},{\"key\":\"server.dataDir\",\"userValue\":null,\"productDefault\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\profile\\\\home\\\\.silvermoon.work\\\\task-engine\",\"effectiveValue\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\profile\\\\home\\\\.silvermoon.work\\\\task-engine\",\"source\":\"product\"},{\"key\":\"server.host\",\"userValue\":null,\"productDefault\":\"127.0.0.1\",\"effectiveValue\":\"127.0.0.1\",\"source\":\"product\"},{\"key\":\"server.ipfsGateway\",\"userValue\":null,\"productDefault\":null,\"effectiveValue\":null,\"source\":\"unset\"},{\"key\":\"server.maxChildConcurrent\",\"userValue\":null,\"productDefault\":4,\"effectiveValue\":4,\"source\":\"product\"},{\"key\":\"server.maxChildDepth\",\"userValue\":null,\"productDefault\":4,\"effectiveValue\":4,\"source\":\"product\"},{\"key\":\"server.maxChildTotal\",\"userValue\":null,\"productDefault\":64,\"effectiveValue\":64,\"source\":\"product\"},{\"key\":\"server.maxConcurrent\",\"userValue\":null,\"productDefault\":64,\"effectiveValue\":64,\"source\":\"product\"},{\"key\":\"server.maxConnections\",\"userValue\":null,\"productDefault\":256,\"effectiveValue\":256,\"source\":\"product\"},{\"key\":\"server.maxPayloadBytes\",\"userValue\":null,\"productDefault\":65536,\"effectiveValue\":65536,\"source\":\"product\"},{\"key\":\"server.maxPreparing\",\"userValue\":null,\"productDefault\":1000,\"effectiveValue\":1000,\"source\":\"product\"},{\"key\":\"server.port\",\"userValue\":null,\"productDefault\":8787,\"effectiveValue\":8787,\"source\":\"product\"},{\"key\":\"task.timeoutMs\",\"userValue\":null,\"productDefault\":60000,\"effectiveValue\":60000,\"source\":\"product\"}]}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "config get timeout",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "config",
+        "get",
+        "task.timeoutMs"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:20.544Z",
+      "finishedAt": "2026-11-10T16:07:21.029Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"key\":\"task.timeoutMs\",\"userValue\":null,\"productDefault\":60000,\"effectiveValue\":60000,\"source\":\"product\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "config set timeout",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "config",
+        "set",
+        "task.timeoutMs",
+        "45000"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:21.029Z",
+      "finishedAt": "2026-11-10T16:07:21.510Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"key\":\"task.timeoutMs\",\"value\":45000,\"changed\":true,\"appliesTo\":\"future-client-invocations\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "config get saved timeout",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "config",
+        "get",
+        "task.timeoutMs"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:21.510Z",
+      "finishedAt": "2026-11-10T16:07:21.980Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"key\":\"task.timeoutMs\",\"userValue\":45000,\"productDefault\":60000,\"effectiveValue\":45000,\"source\":\"user\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "config reset timeout",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "config",
+        "reset",
+        "task.timeoutMs"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:21.980Z",
+      "finishedAt": "2026-11-10T16:07:22.475Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"key\":\"task.timeoutMs\",\"changed\":true,\"effectiveValue\":60000,\"source\":\"product\",\"appliesTo\":\"future-client-invocations\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "config reset timeout idempotent",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "config",
+        "reset",
+        "task.timeoutMs"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:22.475Z",
+      "finishedAt": "2026-11-10T16:07:22.953Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"key\":\"task.timeoutMs\",\"changed\":false,\"effectiveValue\":60000,\"source\":\"product\",\"appliesTo\":\"future-client-invocations\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "config set listener port",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "config",
+        "set",
+        "server.port",
+        "9999"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:22.953Z",
+      "finishedAt": "2026-11-10T16:07:23.441Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"key\":\"server.port\",\"value\":9999,\"changed\":true,\"appliesTo\":\"next-engine-start\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "independent client address",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "config",
+        "get",
+        "client.engine"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:23.441Z",
+      "finishedAt": "2026-11-10T16:07:23.919Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"key\":\"client.engine\",\"userValue\":null,\"productDefault\":\"http://127.0.0.1:8787\",\"effectiveValue\":\"http://127.0.0.1:8787\",\"source\":\"product\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "config reset listener port",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "config",
+        "reset",
+        "server.port"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:23.919Z",
+      "finishedAt": "2026-11-10T16:07:24.408Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"key\":\"server.port\",\"changed\":true,\"effectiveValue\":8787,\"source\":\"product\",\"appliesTo\":\"next-engine-start\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "registry install published producer tools: effective registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T16:07:24.408Z",
+      "finishedAt": "2026-11-10T16:07:24.597Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "registry install published producer tools",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm install --prefix D:\\Code\\task-engine-canary-261110-d30f1b98\\producer --save-exact --ignore-scripts @silvermoon-work/task-builder-cli@0.1.0-canary-261110-1 @silvermoon-work/task-builder@0.1.0-canary-261110-1"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T16:07:24.597Z",
+      "finishedAt": "2026-11-10T16:07:27.543Z",
+      "exitCode": 0,
+      "stdout": "\nup to date, audited 93 packages in 3s\n\n13 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "published Builder CLI init",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\producer\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "init",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\project"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T16:07:27.543Z",
+      "finishedAt": "2026-11-10T16:07:27.734Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"directory\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\project\",\"files\":[\".gitignore\",\"assets/greeting.txt\",\"package.json\",\"pnpm-workspace.yaml\",\"src/contract.json\",\"src/helper.ts\",\"src/main.ts\",\"task.build.yaml\"],\"nextSteps\":[\"Enter the project directory, install dependencies as needed, and edit the task.\",\"Run task-builder build.\"]}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "explicit new SDK instead of fixed template default: effective registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\project",
+      "startedAt": "2026-11-10T16:07:27.734Z",
+      "finishedAt": "2026-11-10T16:07:27.930Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "explicit new SDK instead of fixed template default",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm pkg set dependencies.@silvermoon-work/task-sdk=0.1.0-canary-261110-1"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\project",
+      "startedAt": "2026-11-10T16:07:27.930Z",
+      "finishedAt": "2026-11-10T16:07:28.113Z",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "registry install generated project with exact SDK: effective registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\project",
+      "startedAt": "2026-11-10T16:07:28.113Z",
+      "finishedAt": "2026-11-10T16:07:28.289Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "registry install generated project with exact SDK",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm install --ignore-scripts"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\project",
+      "startedAt": "2026-11-10T16:07:28.289Z",
+      "finishedAt": "2026-11-10T16:07:40.292Z",
+      "exitCode": 0,
+      "stdout": "\nadded 94 packages, and audited 95 packages in 12s\n\n13 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "resolve actual installed producer ESM exports",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--input-type=module",
+        "--eval",
+        "console.log(JSON.stringify({car:import.meta.resolve(\"@ipld/car/reader\"),builderCar:import.meta.resolve(\"@silvermoon-work/task-builder/car\"),builderTree:import.meta.resolve(\"@silvermoon-work/task-builder/tree\")}));"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\producer",
+      "startedAt": "2026-11-10T16:07:40.293Z",
+      "finishedAt": "2026-11-10T16:07:40.333Z",
+      "exitCode": 0,
+      "stdout": "{\"car\":\"file:///D:/Code/task-engine-canary-261110-d30f1b98/producer/node_modules/@ipld/car/src/reader.js\",\"builderCar\":\"file:///D:/Code/task-engine-canary-261110-d30f1b98/producer/node_modules/@silvermoon-work/task-builder/dist/car.js\",\"builderTree\":\"file:///D:/Code/task-engine-canary-261110-d30f1b98/producer/node_modules/@silvermoon-work/task-builder/dist/tree.js\"}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "published Builder CLI build fixture-a",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\producer\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "build",
+        "task.build.yaml",
+        "--out-dir",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-a"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\project",
+      "startedAt": "2026-11-10T16:07:40.488Z",
+      "finishedAt": "2026-11-10T16:07:40.970Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"module\":{\"directory\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\project\\\\fixture-a\",\"declaration\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\project\\\\fixture-a\\\\task.yaml\",\"files\":[\"resources/greeting.txt\",\"resources/shared.txt\",\"schemas/input.json\",\"schemas/message.json\",\"schemas/result.json\",\"task.yaml\",\"worker.cjs\"]},\"cid\":\"bafybeibcljlmn7vacn7v7pf3suzlq6dxnupxrqyg7gp7yzcwuf2ylt4x2y\",\"car\":{\"path\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\project\\\\fixture-a.car\"}}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "published Builder CLI build fixture-b",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\producer\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "build",
+        "task.build.yaml",
+        "--out-dir",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-b"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\project",
+      "startedAt": "2026-11-10T16:07:40.973Z",
+      "finishedAt": "2026-11-10T16:07:41.464Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"module\":{\"directory\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\project\\\\fixture-b\",\"declaration\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\project\\\\fixture-b\\\\task.yaml\",\"files\":[\"resources/greeting.txt\",\"resources/shared.txt\",\"schemas/input.json\",\"schemas/message.json\",\"schemas/result.json\",\"task.yaml\",\"worker.cjs\"]},\"cid\":\"bafybeihfahks4aawhgn6ddir5lz7ttrlujvnybrywato2d33hikh6nqwgm\",\"car\":{\"path\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\project\\\\fixture-b.car\"}}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "published Builder CLI build fixture-c",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\producer\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "build",
+        "task.build.yaml",
+        "--out-dir",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-c"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\project",
+      "startedAt": "2026-11-10T16:07:41.465Z",
+      "finishedAt": "2026-11-10T16:07:41.966Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"module\":{\"directory\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\project\\\\fixture-c\",\"declaration\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\project\\\\fixture-c\\\\task.yaml\",\"files\":[\"resources/greeting.txt\",\"resources/orphan-only.txt\",\"resources/shared.txt\",\"schemas/input.json\",\"schemas/message.json\",\"schemas/result.json\",\"task.yaml\",\"worker.cjs\"]},\"cid\":\"bafybeifvjiknyqicyzyhgofbz6awnea2tdpdnduxoaminfug7kqaumeyrm\",\"car\":{\"path\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\project\\\\fixture-c.car\"}}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "published Builder CLI build fixture-parent",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\producer\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "build",
+        "task.build.yaml",
+        "--out-dir",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-parent"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\project",
+      "startedAt": "2026-11-10T16:07:42.019Z",
+      "finishedAt": "2026-11-10T16:07:42.543Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"module\":{\"directory\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\project\\\\fixture-parent\",\"declaration\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\project\\\\fixture-parent\\\\task.yaml\",\"files\":[\"resources/child/resources/greeting.txt\",\"resources/child/resources/shared.txt\",\"resources/child/schemas/input.json\",\"resources/child/schemas/message.json\",\"resources/child/schemas/result.json\",\"resources/child/task.yaml\",\"resources/child/worker.cjs\",\"resources/greeting.txt\",\"resources/shared.txt\",\"schemas/input.json\",\"schemas/message.json\",\"schemas/result.json\",\"task.yaml\",\"worker.cjs\"]},\"cid\":\"bafybeigc6dcb6x2hwbcl2oejize44hvmaiebl4hdkyd2oz4jqcejeudcfa\",\"car\":{\"path\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\project\\\\fixture-parent.car\"}}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "default Home background start without Gateway",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "start",
+        "--port",
+        "62571"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:42.551Z",
+      "finishedAt": "2026-11-10T16:07:43.826Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"state\":\"ready\",\"engineUrl\":\"http://127.0.0.1:62571\",\"instanceId\":\"15a2f6b1-1376-4a2f-8a81-49b973cd1996\",\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\profile\\\\home\\\\.silvermoon.work\\\\task-engine\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "default Home status",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "status"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:43.826Z",
+      "finishedAt": "2026-11-10T16:07:44.569Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"state\":\"ready\",\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\profile\\\\home\\\\.silvermoon.work\\\\task-engine\",\"instanceId\":\"15a2f6b1-1376-4a2f-8a81-49b973cd1996\",\"engineUrl\":\"http://127.0.0.1:62571\",\"activeTasks\":0}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "default Home duplicate start refuses reuse",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "start",
+        "--port",
+        "62577"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:44.570Z",
+      "finishedAt": "2026-11-10T16:07:45.760Z",
+      "exitCode": 1,
+      "stdout": "{\"ok\":false,\"error\":{\"code\":\"DATA_IN_USE\",\"message\":\"Instance directory is locked: D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\profile\\\\home\\\\.silvermoon.work\\\\task-engine. database is locked\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "CAR execution from installed CLI",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "run",
+        "--car",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-a.car",
+        "--input",
+        "-",
+        "--engine",
+        "http://127.0.0.1:62571"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:45.761Z",
+      "finishedAt": "2026-11-10T16:07:47.947Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733EAB4N819G4WQSFFF0TQF\",\"status\":\"succeeded\",\"result\":{\"echo\":7}}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "only persistent cache CID execution",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "run",
+        "--cid",
+        "bafybeibcljlmn7vacn7v7pf3suzlq6dxnupxrqyg7gp7yzcwuf2ylt4x2y",
+        "--input",
+        "-",
+        "--engine",
+        "http://127.0.0.1:62571"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:47.947Z",
+      "finishedAt": "2026-11-10T16:07:49.944Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733ECE9RCG4S859RP9WZ81Y\",\"status\":\"succeeded\",\"result\":{\"echo\":\"cache\"}}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "async durable receipt",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "run",
+        "--car",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-a.car",
+        "--input",
+        "-",
+        "--engine",
+        "http://127.0.0.1:62571",
+        "--async"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:49.944Z",
+      "finishedAt": "2026-11-10T16:07:50.468Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733EED8PDAF1S1FTPSSF763\",\"status\":\"pending\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "async query by opaque ID",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "task",
+        "query",
+        "--id",
+        "01M733EED8PDAF1S1FTPSSF763",
+        "--engine",
+        "http://127.0.0.1:62571"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:50.468Z",
+      "finishedAt": "2026-11-10T16:07:50.955Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"items\":[{\"taskId\":\"01M733EED8PDAF1S1FTPSSF763\",\"status\":\"pending\",\"createdAt\":\"2026-11-10T16:07:50.440Z\"}],\"nextCursor\":null}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "await complete async task",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "task",
+        "await",
+        "01M733EED8PDAF1S1FTPSSF763",
+        "--engine",
+        "http://127.0.0.1:62571"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:50.955Z",
+      "finishedAt": "2026-11-10T16:07:51.993Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733EED8PDAF1S1FTPSSF763\",\"status\":\"succeeded\",\"result\":{\"echo\":\"async\"}}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "persistent logs first page",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "task",
+        "logs",
+        "01M733EED8PDAF1S1FTPSSF763",
+        "--engine",
+        "http://127.0.0.1:62571",
+        "--limit",
+        "17"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:51.993Z",
+      "finishedAt": "2026-11-10T16:07:52.491Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733EED8PDAF1S1FTPSSF763\",\"logs\":[{\"time\":\"2026-11-10T16:07:51.000Z\",\"level\":\"info\",\"message\":\"entry-0\"},{\"time\":\"2026-11-10T16:07:51.003Z\",\"level\":\"info\",\"message\":\"entry-1\"},{\"time\":\"2026-11-10T16:07:51.007Z\",\"level\":\"info\",\"message\":\"entry-2\"},{\"time\":\"2026-11-10T16:07:51.013Z\",\"level\":\"info\",\"message\":\"entry-3\"},{\"time\":\"2026-11-10T16:07:51.021Z\",\"level\":\"info\",\"message\":\"entry-4\"},{\"time\":\"2026-11-10T16:07:51.031Z\",\"level\":\"info\",\"message\":\"entry-5\"},{\"time\":\"2026-11-10T16:07:51.043Z\",\"level\":\"info\",\"message\":\"entry-6\"},{\"time\":\"2026-11-10T16:07:51.057Z\",\"level\":\"info\",\"message\":\"entry-7\"},{\"time\":\"2026-11-10T16:07:51.073Z\",\"level\":\"info\",\"message\":\"entry-8\"},{\"time\":\"2026-11-10T16:07:51.097Z\",\"level\":\"info\",\"message\":\"entry-9\"},{\"time\":\"2026-11-10T16:07:51.117Z\",\"level\":\"info\",\"message\":\"entry-10\"},{\"time\":\"2026-11-10T16:07:51.139Z\",\"level\":\"info\",\"message\":\"entry-11\"},{\"time\":\"2026-11-10T16:07:51.163Z\",\"level\":\"info\",\"message\":\"entry-12\"},{\"time\":\"2026-11-10T16:07:51.189Z\",\"level\":\"info\",\"message\":\"entry-13\"},{\"time\":\"2026-11-10T16:07:51.217Z\",\"level\":\"info\",\"message\":\"entry-14\"},{\"time\":\"2026-11-10T16:07:51.247Z\",\"level\":\"info\",\"message\":\"entry-15\"},{\"time\":\"2026-11-10T16:07:51.279Z\",\"level\":\"info\",\"message\":\"entry-16\"}],\"nextCursor\":\"eyJzY29wZSI6IltcImxvZ3NcIixcIkQ6XFxcXENvZGVcXFxcdGFzay1lbmdpbmUtY2FuYXJ5LTI2MTExMC1kMzBmMWI5OFxcXFxwcm9maWxlXFxcXGhvbWVcXFxcLnNpbHZlcm1vb24ud29ya1xcXFx0YXNrLWVuZ2luZVwiLFwiMDFNNzMzRUVEOFBEQUYxUzFGVFBTU0Y3NjNcIl0iLCJvZmZzZXQiOjEwODN9.2FRrfcAJRGSMudZF4fYrLoiNkleQas3g5o5fYisRVUs\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "persistent logs next page",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "task",
+        "logs",
+        "01M733EED8PDAF1S1FTPSSF763",
+        "--engine",
+        "http://127.0.0.1:62571",
+        "--limit",
+        "17",
+        "--cursor",
+        "eyJzY29wZSI6IltcImxvZ3NcIixcIkQ6XFxcXENvZGVcXFxcdGFzay1lbmdpbmUtY2FuYXJ5LTI2MTExMC1kMzBmMWI5OFxcXFxwcm9maWxlXFxcXGhvbWVcXFxcLnNpbHZlcm1vb24ud29ya1xcXFx0YXNrLWVuZ2luZVwiLFwiMDFNNzMzRUVEOFBEQUYxUzFGVFBTU0Y3NjNcIl0iLCJvZmZzZXQiOjEwODN9.2FRrfcAJRGSMudZF4fYrLoiNkleQas3g5o5fYisRVUs"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:52.491Z",
+      "finishedAt": "2026-11-10T16:07:53.012Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733EED8PDAF1S1FTPSSF763\",\"logs\":[{\"time\":\"2026-11-10T16:07:51.313Z\",\"level\":\"info\",\"message\":\"entry-17\"},{\"time\":\"2026-11-10T16:07:51.349Z\",\"level\":\"info\",\"message\":\"entry-18\"},{\"time\":\"2026-11-10T16:07:51.387Z\",\"level\":\"info\",\"message\":\"entry-19\"},{\"time\":\"2026-11-10T16:07:51.427Z\",\"level\":\"info\",\"message\":\"entry-20\"},{\"time\":\"2026-11-10T16:07:51.469Z\",\"level\":\"info\",\"message\":\"entry-21\"},{\"time\":\"2026-11-10T16:07:51.513Z\",\"level\":\"info\",\"message\":\"entry-22\"},{\"time\":\"2026-11-10T16:07:51.559Z\",\"level\":\"info\",\"message\":\"entry-23\"},{\"time\":\"2026-11-10T16:07:51.607Z\",\"level\":\"info\",\"message\":\"entry-24\"},{\"time\":\"2026-11-10T16:07:51.657Z\",\"level\":\"info\",\"message\":\"entry-25\"},{\"time\":\"2026-11-10T16:07:51.709Z\",\"level\":\"info\",\"message\":\"entry-26\"},{\"time\":\"2026-11-10T16:07:51.763Z\",\"level\":\"info\",\"message\":\"entry-27\"},{\"time\":\"2026-11-10T16:07:51.819Z\",\"level\":\"info\",\"message\":\"entry-28\"},{\"time\":\"2026-11-10T16:07:51.877Z\",\"level\":\"info\",\"message\":\"entry-29\"}],\"nextCursor\":null}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "legitimate null result",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "run",
+        "--car",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-a.car",
+        "--input",
+        "-",
+        "--engine",
+        "http://127.0.0.1:62571"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:53.012Z",
+      "finishedAt": "2026-11-10T16:07:55.065Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733EHCW4PM6XBAVVF5D4FB0\",\"status\":\"succeeded\",\"result\":null}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "business failure remains one stdout error result",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "run",
+        "--car",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-a.car",
+        "--input",
+        "-",
+        "--engine",
+        "http://127.0.0.1:62571"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:55.065Z",
+      "finishedAt": "2026-11-10T16:07:57.077Z",
+      "exitCode": 1,
+      "stdout": "{\"ok\":false,\"data\":{\"taskId\":\"01M733EKD34VSM84ZQ8474B7E3\",\"status\":\"failed\"},\"error\":{\"code\":\"run_failed\",\"message\":\"registry smoke business failure\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "real parent and child resource closure",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "run",
+        "--car",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-parent.car",
+        "--input",
+        "-",
+        "--engine",
+        "http://127.0.0.1:62571"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:07:57.077Z",
+      "finishedAt": "2026-11-10T16:08:00.516Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733ENBSTCFTD2X0KQBC3KYT\",\"status\":\"succeeded\",\"result\":{\"echo\":\"nested\"}}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "async work for await interruption",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "run",
+        "--car",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-a.car",
+        "--input",
+        "-",
+        "--engine",
+        "http://127.0.0.1:62571",
+        "--async"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:00.516Z",
+      "finishedAt": "2026-11-10T16:08:01.044Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733ERQQ545TB9GGTYK7X3QM\",\"status\":\"pending\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "wait for durable logs 0",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "task",
+        "logs",
+        "01M733ERQQ545TB9GGTYK7X3QM",
+        "--engine",
+        "http://127.0.0.1:62571",
+        "--limit",
+        "100"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:01.044Z",
+      "finishedAt": "2026-11-10T16:08:01.533Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733ERQQ545TB9GGTYK7X3QM\",\"logs\":[],\"nextCursor\":null}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "wait for durable logs 1",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "task",
+        "logs",
+        "01M733ERQQ545TB9GGTYK7X3QM",
+        "--engine",
+        "http://127.0.0.1:62571",
+        "--limit",
+        "100"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:01.647Z",
+      "finishedAt": "2026-11-10T16:08:02.184Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733ERQQ545TB9GGTYK7X3QM\",\"logs\":[{\"time\":\"2026-11-10T16:08:01.518Z\",\"level\":\"info\",\"message\":\"entry-0\"},{\"time\":\"2026-11-10T16:08:01.520Z\",\"level\":\"info\",\"message\":\"entry-1\"},{\"time\":\"2026-11-10T16:08:01.524Z\",\"level\":\"info\",\"message\":\"entry-2\"},{\"time\":\"2026-11-10T16:08:01.530Z\",\"level\":\"info\",\"message\":\"entry-3\"},{\"time\":\"2026-11-10T16:08:01.538Z\",\"level\":\"info\",\"message\":\"entry-4\"},{\"time\":\"2026-11-10T16:08:01.548Z\",\"level\":\"info\",\"message\":\"entry-5\"},{\"time\":\"2026-11-10T16:08:01.560Z\",\"level\":\"info\",\"message\":\"entry-6\"},{\"time\":\"2026-11-10T16:08:01.574Z\",\"level\":\"info\",\"message\":\"entry-7\"},{\"time\":\"2026-11-10T16:08:01.590Z\",\"level\":\"info\",\"message\":\"entry-8\"},{\"time\":\"2026-11-10T16:08:01.608Z\",\"level\":\"info\",\"message\":\"entry-9\"},{\"time\":\"2026-11-10T16:08:01.628Z\",\"level\":\"info\",\"message\":\"entry-10\"},{\"time\":\"2026-11-10T16:08:01.650Z\",\"level\":\"info\",\"message\":\"entry-11\"},{\"time\":\"2026-11-10T16:08:01.674Z\",\"level\":\"info\",\"message\":\"entry-12\"},{\"time\":\"2026-11-10T16:08:01.700Z\",\"level\":\"info\",\"message\":\"entry-13\"},{\"time\":\"2026-11-10T16:08:01.728Z\",\"level\":\"info\",\"message\":\"entry-14\"},{\"time\":\"2026-11-10T16:08:01.758Z\",\"level\":\"info\",\"message\":\"entry-15\"},{\"time\":\"2026-11-10T16:08:01.790Z\",\"level\":\"info\",\"message\":\"entry-16\"},{\"time\":\"2026-11-10T16:08:01.824Z\",\"level\":\"info\",\"message\":\"entry-17\"},{\"time\":\"2026-11-10T16:08:01.860Z\",\"level\":\"info\",\"message\":\"entry-18\"},{\"time\":\"2026-11-10T16:08:01.898Z\",\"level\":\"info\",\"message\":\"entry-19\"},{\"time\":\"2026-11-10T16:08:01.938Z\",\"level\":\"info\",\"message\":\"entry-20\"},{\"time\":\"2026-11-10T16:08:01.980Z\",\"level\":\"info\",\"message\":\"entry-21\"},{\"time\":\"2026-11-10T16:08:02.024Z\",\"level\":\"info\",\"message\":\"entry-22\"},{\"time\":\"2026-11-10T16:08:02.070Z\",\"level\":\"info\",\"message\":\"entry-23\"},{\"time\":\"2026-11-10T16:08:02.118Z\",\"level\":\"info\",\"message\":\"entry-24\"}],\"nextCursor\":null}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "wait for durable logs 2",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "task",
+        "logs",
+        "01M733ERQQ545TB9GGTYK7X3QM",
+        "--engine",
+        "http://127.0.0.1:62571",
+        "--limit",
+        "100"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:02.298Z",
+      "finishedAt": "2026-11-10T16:08:02.793Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733ERQQ545TB9GGTYK7X3QM\",\"logs\":[{\"time\":\"2026-11-10T16:08:01.518Z\",\"level\":\"info\",\"message\":\"entry-0\"},{\"time\":\"2026-11-10T16:08:01.520Z\",\"level\":\"info\",\"message\":\"entry-1\"},{\"time\":\"2026-11-10T16:08:01.524Z\",\"level\":\"info\",\"message\":\"entry-2\"},{\"time\":\"2026-11-10T16:08:01.530Z\",\"level\":\"info\",\"message\":\"entry-3\"},{\"time\":\"2026-11-10T16:08:01.538Z\",\"level\":\"info\",\"message\":\"entry-4\"},{\"time\":\"2026-11-10T16:08:01.548Z\",\"level\":\"info\",\"message\":\"entry-5\"},{\"time\":\"2026-11-10T16:08:01.560Z\",\"level\":\"info\",\"message\":\"entry-6\"},{\"time\":\"2026-11-10T16:08:01.574Z\",\"level\":\"info\",\"message\":\"entry-7\"},{\"time\":\"2026-11-10T16:08:01.590Z\",\"level\":\"info\",\"message\":\"entry-8\"},{\"time\":\"2026-11-10T16:08:01.608Z\",\"level\":\"info\",\"message\":\"entry-9\"},{\"time\":\"2026-11-10T16:08:01.628Z\",\"level\":\"info\",\"message\":\"entry-10\"},{\"time\":\"2026-11-10T16:08:01.650Z\",\"level\":\"info\",\"message\":\"entry-11\"},{\"time\":\"2026-11-10T16:08:01.674Z\",\"level\":\"info\",\"message\":\"entry-12\"},{\"time\":\"2026-11-10T16:08:01.700Z\",\"level\":\"info\",\"message\":\"entry-13\"},{\"time\":\"2026-11-10T16:08:01.728Z\",\"level\":\"info\",\"message\":\"entry-14\"},{\"time\":\"2026-11-10T16:08:01.758Z\",\"level\":\"info\",\"message\":\"entry-15\"},{\"time\":\"2026-11-10T16:08:01.790Z\",\"level\":\"info\",\"message\":\"entry-16\"},{\"time\":\"2026-11-10T16:08:01.824Z\",\"level\":\"info\",\"message\":\"entry-17\"},{\"time\":\"2026-11-10T16:08:01.860Z\",\"level\":\"info\",\"message\":\"entry-18\"},{\"time\":\"2026-11-10T16:08:01.898Z\",\"level\":\"info\",\"message\":\"entry-19\"},{\"time\":\"2026-11-10T16:08:01.938Z\",\"level\":\"info\",\"message\":\"entry-20\"},{\"time\":\"2026-11-10T16:08:01.980Z\",\"level\":\"info\",\"message\":\"entry-21\"},{\"time\":\"2026-11-10T16:08:02.024Z\",\"level\":\"info\",\"message\":\"entry-22\"},{\"time\":\"2026-11-10T16:08:02.070Z\",\"level\":\"info\",\"message\":\"entry-23\"},{\"time\":\"2026-11-10T16:08:02.118Z\",\"level\":\"info\",\"message\":\"entry-24\"},{\"time\":\"2026-11-10T16:08:02.168Z\",\"level\":\"info\",\"message\":\"entry-25\"},{\"time\":\"2026-11-10T16:08:02.220Z\",\"level\":\"info\",\"message\":\"entry-26\"},{\"time\":\"2026-11-10T16:08:02.274Z\",\"level\":\"info\",\"message\":\"entry-27\"},{\"time\":\"2026-11-10T16:08:02.330Z\",\"level\":\"info\",\"message\":\"entry-28\"},{\"time\":\"2026-11-10T16:08:02.392Z\",\"level\":\"info\",\"message\":\"entry-29\"}],\"nextCursor\":null}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "await interruption stops only waiting",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "--input-type=module",
+        "--eval",
+        "import {main} from \"file:///D:/Code/task-engine-canary-261110-d30f1b98/cli-install/node_modules/@silvermoon-work/task-engine-cli/dist/index.js\";\nconst timer=setTimeout(()=>process.emit(\"SIGINT\"),250);\ntry{process.exitCode=await main(process.argv.slice(1));}finally{clearTimeout(timer);}",
+        "--",
+        "task",
+        "await",
+        "01M733ERQQ545TB9GGTYK7X3QM",
+        "--engine",
+        "http://127.0.0.1:62571"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:02.793Z",
+      "finishedAt": "2026-11-10T16:08:03.504Z",
+      "exitCode": 130,
+      "stdout": "{\"ok\":false,\"error\":{\"code\":\"INTERRUPTED\",\"message\":\"User interrupted the command.\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "default stop refuses active work",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "stop"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:03.504Z",
+      "finishedAt": "2026-11-10T16:08:04.275Z",
+      "exitCode": 1,
+      "stdout": "{\"ok\":false,\"error\":{\"code\":\"ACTIVE_TASKS\",\"message\":\"Instance has active tasks; use --cancel-running to cancel and stop.\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "offline prune refuses active instance",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "data",
+        "prune",
+        "--cache"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:04.275Z",
+      "finishedAt": "2026-11-10T16:08:04.936Z",
+      "exitCode": 1,
+      "stdout": "{\"ok\":false,\"error\":{\"code\":\"DATA_IN_USE\",\"message\":\"Instance directory is locked: D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\profile\\\\home\\\\.silvermoon.work\\\\task-engine. database is locked\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "explicit cancel and confirmed stop",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "stop",
+        "--data-dir",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\profile\\home\\.silvermoon.work\\task-engine",
+        "--cancel-running"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:04.937Z",
+      "finishedAt": "2026-11-10T16:08:05.956Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"state\":\"stopped\",\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\profile\\\\home\\\\.silvermoon.work\\\\task-engine\",\"instanceId\":\"15a2f6b1-1376-4a2f-8a81-49b973cd1996\",\"changed\":true,\"cancelledTasks\":1}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "repeated stop idempotent",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "stop"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:05.956Z",
+      "finishedAt": "2026-11-10T16:08:06.445Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"state\":\"stopped\",\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\profile\\\\home\\\\.silvermoon.work\\\\task-engine\",\"changed\":false}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "restart keeps histories and cache",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "start",
+        "--port",
+        "53125"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:06.446Z",
+      "finishedAt": "2026-11-10T16:08:07.658Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"state\":\"ready\",\"engineUrl\":\"http://127.0.0.1:53125\",\"instanceId\":\"5d289ff0-f66f-475d-b81b-1218e381b5ad\",\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\profile\\\\home\\\\.silvermoon.work\\\\task-engine\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "historical result survives restart",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "task",
+        "await",
+        "01M733EAB4N819G4WQSFFF0TQF",
+        "--engine",
+        "http://127.0.0.1:53125"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:07.658Z",
+      "finishedAt": "2026-11-10T16:08:08.149Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733EAB4N819G4WQSFFF0TQF\",\"status\":\"succeeded\",\"result\":{\"echo\":7}}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "historical logs survive restart",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "task",
+        "logs",
+        "01M733EED8PDAF1S1FTPSSF763",
+        "--engine",
+        "http://127.0.0.1:53125",
+        "--limit",
+        "100"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:08.150Z",
+      "finishedAt": "2026-11-10T16:08:08.625Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733EED8PDAF1S1FTPSSF763\",\"logs\":[{\"time\":\"2026-11-10T16:07:51.000Z\",\"level\":\"info\",\"message\":\"entry-0\"},{\"time\":\"2026-11-10T16:07:51.003Z\",\"level\":\"info\",\"message\":\"entry-1\"},{\"time\":\"2026-11-10T16:07:51.007Z\",\"level\":\"info\",\"message\":\"entry-2\"},{\"time\":\"2026-11-10T16:07:51.013Z\",\"level\":\"info\",\"message\":\"entry-3\"},{\"time\":\"2026-11-10T16:07:51.021Z\",\"level\":\"info\",\"message\":\"entry-4\"},{\"time\":\"2026-11-10T16:07:51.031Z\",\"level\":\"info\",\"message\":\"entry-5\"},{\"time\":\"2026-11-10T16:07:51.043Z\",\"level\":\"info\",\"message\":\"entry-6\"},{\"time\":\"2026-11-10T16:07:51.057Z\",\"level\":\"info\",\"message\":\"entry-7\"},{\"time\":\"2026-11-10T16:07:51.073Z\",\"level\":\"info\",\"message\":\"entry-8\"},{\"time\":\"2026-11-10T16:07:51.097Z\",\"level\":\"info\",\"message\":\"entry-9\"},{\"time\":\"2026-11-10T16:07:51.117Z\",\"level\":\"info\",\"message\":\"entry-10\"},{\"time\":\"2026-11-10T16:07:51.139Z\",\"level\":\"info\",\"message\":\"entry-11\"},{\"time\":\"2026-11-10T16:07:51.163Z\",\"level\":\"info\",\"message\":\"entry-12\"},{\"time\":\"2026-11-10T16:07:51.189Z\",\"level\":\"info\",\"message\":\"entry-13\"},{\"time\":\"2026-11-10T16:07:51.217Z\",\"level\":\"info\",\"message\":\"entry-14\"},{\"time\":\"2026-11-10T16:07:51.247Z\",\"level\":\"info\",\"message\":\"entry-15\"},{\"time\":\"2026-11-10T16:07:51.279Z\",\"level\":\"info\",\"message\":\"entry-16\"},{\"time\":\"2026-11-10T16:07:51.313Z\",\"level\":\"info\",\"message\":\"entry-17\"},{\"time\":\"2026-11-10T16:07:51.349Z\",\"level\":\"info\",\"message\":\"entry-18\"},{\"time\":\"2026-11-10T16:07:51.387Z\",\"level\":\"info\",\"message\":\"entry-19\"},{\"time\":\"2026-11-10T16:07:51.427Z\",\"level\":\"info\",\"message\":\"entry-20\"},{\"time\":\"2026-11-10T16:07:51.469Z\",\"level\":\"info\",\"message\":\"entry-21\"},{\"time\":\"2026-11-10T16:07:51.513Z\",\"level\":\"info\",\"message\":\"entry-22\"},{\"time\":\"2026-11-10T16:07:51.559Z\",\"level\":\"info\",\"message\":\"entry-23\"},{\"time\":\"2026-11-10T16:07:51.607Z\",\"level\":\"info\",\"message\":\"entry-24\"},{\"time\":\"2026-11-10T16:07:51.657Z\",\"level\":\"info\",\"message\":\"entry-25\"},{\"time\":\"2026-11-10T16:07:51.709Z\",\"level\":\"info\",\"message\":\"entry-26\"},{\"time\":\"2026-11-10T16:07:51.763Z\",\"level\":\"info\",\"message\":\"entry-27\"},{\"time\":\"2026-11-10T16:07:51.819Z\",\"level\":\"info\",\"message\":\"entry-28\"},{\"time\":\"2026-11-10T16:07:51.877Z\",\"level\":\"info\",\"message\":\"entry-29\"}],\"nextCursor\":null}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "unfinished task before real Server interruption",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "run",
+        "--car",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-a.car",
+        "--input",
+        "-",
+        "--engine",
+        "http://127.0.0.1:53125",
+        "--async"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:08.625Z",
+      "finishedAt": "2026-11-10T16:08:09.159Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733F0NBAQKYQYX96FDZCJ4T\",\"status\":\"pending\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "wait for durable logs 0",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "task",
+        "logs",
+        "01M733F0NBAQKYQYX96FDZCJ4T",
+        "--engine",
+        "http://127.0.0.1:53125",
+        "--limit",
+        "100"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:09.160Z",
+      "finishedAt": "2026-11-10T16:08:09.658Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733F0NBAQKYQYX96FDZCJ4T\",\"logs\":[],\"nextCursor\":null}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "wait for durable logs 1",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "task",
+        "logs",
+        "01M733F0NBAQKYQYX96FDZCJ4T",
+        "--engine",
+        "http://127.0.0.1:53125",
+        "--limit",
+        "100"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:09.760Z",
+      "finishedAt": "2026-11-10T16:08:10.347Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733F0NBAQKYQYX96FDZCJ4T\",\"logs\":[{\"time\":\"2026-11-10T16:08:09.730Z\",\"level\":\"info\",\"message\":\"entry-0\"},{\"time\":\"2026-11-10T16:08:09.732Z\",\"level\":\"info\",\"message\":\"entry-1\"},{\"time\":\"2026-11-10T16:08:09.736Z\",\"level\":\"info\",\"message\":\"entry-2\"},{\"time\":\"2026-11-10T16:08:09.742Z\",\"level\":\"info\",\"message\":\"entry-3\"},{\"time\":\"2026-11-10T16:08:09.751Z\",\"level\":\"info\",\"message\":\"entry-4\"},{\"time\":\"2026-11-10T16:08:09.761Z\",\"level\":\"info\",\"message\":\"entry-5\"},{\"time\":\"2026-11-10T16:08:09.773Z\",\"level\":\"info\",\"message\":\"entry-6\"},{\"time\":\"2026-11-10T16:08:09.786Z\",\"level\":\"info\",\"message\":\"entry-7\"},{\"time\":\"2026-11-10T16:08:09.802Z\",\"level\":\"info\",\"message\":\"entry-8\"},{\"time\":\"2026-11-10T16:08:09.821Z\",\"level\":\"info\",\"message\":\"entry-9\"},{\"time\":\"2026-11-10T16:08:09.840Z\",\"level\":\"info\",\"message\":\"entry-10\"},{\"time\":\"2026-11-10T16:08:09.863Z\",\"level\":\"info\",\"message\":\"entry-11\"},{\"time\":\"2026-11-10T16:08:09.887Z\",\"level\":\"info\",\"message\":\"entry-12\"},{\"time\":\"2026-11-10T16:08:09.913Z\",\"level\":\"info\",\"message\":\"entry-13\"},{\"time\":\"2026-11-10T16:08:09.941Z\",\"level\":\"info\",\"message\":\"entry-14\"},{\"time\":\"2026-11-10T16:08:09.971Z\",\"level\":\"info\",\"message\":\"entry-15\"},{\"time\":\"2026-11-10T16:08:10.003Z\",\"level\":\"info\",\"message\":\"entry-16\"},{\"time\":\"2026-11-10T16:08:10.036Z\",\"level\":\"info\",\"message\":\"entry-17\"},{\"time\":\"2026-11-10T16:08:10.072Z\",\"level\":\"info\",\"message\":\"entry-18\"},{\"time\":\"2026-11-10T16:08:10.111Z\",\"level\":\"info\",\"message\":\"entry-19\"},{\"time\":\"2026-11-10T16:08:10.151Z\",\"level\":\"info\",\"message\":\"entry-20\"},{\"time\":\"2026-11-10T16:08:10.192Z\",\"level\":\"info\",\"message\":\"entry-21\"},{\"time\":\"2026-11-10T16:08:10.237Z\",\"level\":\"info\",\"message\":\"entry-22\"},{\"time\":\"2026-11-10T16:08:10.283Z\",\"level\":\"info\",\"message\":\"entry-23\"}],\"nextCursor\":null}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "wait for durable logs 2",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "task",
+        "logs",
+        "01M733F0NBAQKYQYX96FDZCJ4T",
+        "--engine",
+        "http://127.0.0.1:53125",
+        "--limit",
+        "100"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:10.456Z",
+      "finishedAt": "2026-11-10T16:08:10.954Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733F0NBAQKYQYX96FDZCJ4T\",\"logs\":[{\"time\":\"2026-11-10T16:08:09.730Z\",\"level\":\"info\",\"message\":\"entry-0\"},{\"time\":\"2026-11-10T16:08:09.732Z\",\"level\":\"info\",\"message\":\"entry-1\"},{\"time\":\"2026-11-10T16:08:09.736Z\",\"level\":\"info\",\"message\":\"entry-2\"},{\"time\":\"2026-11-10T16:08:09.742Z\",\"level\":\"info\",\"message\":\"entry-3\"},{\"time\":\"2026-11-10T16:08:09.751Z\",\"level\":\"info\",\"message\":\"entry-4\"},{\"time\":\"2026-11-10T16:08:09.761Z\",\"level\":\"info\",\"message\":\"entry-5\"},{\"time\":\"2026-11-10T16:08:09.773Z\",\"level\":\"info\",\"message\":\"entry-6\"},{\"time\":\"2026-11-10T16:08:09.786Z\",\"level\":\"info\",\"message\":\"entry-7\"},{\"time\":\"2026-11-10T16:08:09.802Z\",\"level\":\"info\",\"message\":\"entry-8\"},{\"time\":\"2026-11-10T16:08:09.821Z\",\"level\":\"info\",\"message\":\"entry-9\"},{\"time\":\"2026-11-10T16:08:09.840Z\",\"level\":\"info\",\"message\":\"entry-10\"},{\"time\":\"2026-11-10T16:08:09.863Z\",\"level\":\"info\",\"message\":\"entry-11\"},{\"time\":\"2026-11-10T16:08:09.887Z\",\"level\":\"info\",\"message\":\"entry-12\"},{\"time\":\"2026-11-10T16:08:09.913Z\",\"level\":\"info\",\"message\":\"entry-13\"},{\"time\":\"2026-11-10T16:08:09.941Z\",\"level\":\"info\",\"message\":\"entry-14\"},{\"time\":\"2026-11-10T16:08:09.971Z\",\"level\":\"info\",\"message\":\"entry-15\"},{\"time\":\"2026-11-10T16:08:10.003Z\",\"level\":\"info\",\"message\":\"entry-16\"},{\"time\":\"2026-11-10T16:08:10.036Z\",\"level\":\"info\",\"message\":\"entry-17\"},{\"time\":\"2026-11-10T16:08:10.072Z\",\"level\":\"info\",\"message\":\"entry-18\"},{\"time\":\"2026-11-10T16:08:10.111Z\",\"level\":\"info\",\"message\":\"entry-19\"},{\"time\":\"2026-11-10T16:08:10.151Z\",\"level\":\"info\",\"message\":\"entry-20\"},{\"time\":\"2026-11-10T16:08:10.192Z\",\"level\":\"info\",\"message\":\"entry-21\"},{\"time\":\"2026-11-10T16:08:10.237Z\",\"level\":\"info\",\"message\":\"entry-22\"},{\"time\":\"2026-11-10T16:08:10.283Z\",\"level\":\"info\",\"message\":\"entry-23\"},{\"time\":\"2026-11-10T16:08:10.331Z\",\"level\":\"info\",\"message\":\"entry-24\"},{\"time\":\"2026-11-10T16:08:10.381Z\",\"level\":\"info\",\"message\":\"entry-25\"},{\"time\":\"2026-11-10T16:08:10.433Z\",\"level\":\"info\",\"message\":\"entry-26\"},{\"time\":\"2026-11-10T16:08:10.486Z\",\"level\":\"info\",\"message\":\"entry-27\"},{\"time\":\"2026-11-10T16:08:10.542Z\",\"level\":\"info\",\"message\":\"entry-28\"},{\"time\":\"2026-11-10T16:08:10.600Z\",\"level\":\"info\",\"message\":\"entry-29\"}],\"nextCursor\":null}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "verify exact owned instance before fault",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "status"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:10.954Z",
+      "finishedAt": "2026-11-10T16:08:11.697Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"state\":\"ready\",\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\profile\\\\home\\\\.silvermoon.work\\\\task-engine\",\"instanceId\":\"5d289ff0-f66f-475d-b81b-1218e381b5ad\",\"engineUrl\":\"http://127.0.0.1:53125\",\"activeTasks\":1}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "observe exact owned Server exit 0",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "status"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:11.697Z",
+      "finishedAt": "2026-11-10T16:08:12.176Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"state\":\"stopped\",\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\profile\\\\home\\\\.silvermoon.work\\\\task-engine\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "restart fails unfinished task without rerun",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "start",
+        "--port",
+        "50840"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:12.177Z",
+      "finishedAt": "2026-11-10T16:08:13.375Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"state\":\"ready\",\"engineUrl\":\"http://127.0.0.1:50840\",\"instanceId\":\"6b003403-c418-4a72-9d82-c601d5f5a140\",\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\profile\\\\home\\\\.silvermoon.work\\\\task-engine\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "persistent restart failure",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "task",
+        "await",
+        "01M733F0NBAQKYQYX96FDZCJ4T",
+        "--engine",
+        "http://127.0.0.1:50840"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:13.375Z",
+      "finishedAt": "2026-11-10T16:08:13.860Z",
+      "exitCode": 1,
+      "stdout": "{\"ok\":false,\"data\":{\"taskId\":\"01M733F0NBAQKYQYX96FDZCJ4T\",\"status\":\"failed\"},\"error\":{\"code\":\"TASK_INTERRUPTED_BY_RESTART\",\"message\":\"Task interrupted by device or Server restart; not automatically rerun.\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "restart did not rerun or append logs",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "task",
+        "logs",
+        "01M733F0NBAQKYQYX96FDZCJ4T",
+        "--engine",
+        "http://127.0.0.1:50840",
+        "--limit",
+        "100"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:13.860Z",
+      "finishedAt": "2026-11-10T16:08:14.332Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733F0NBAQKYQYX96FDZCJ4T\",\"logs\":[{\"time\":\"2026-11-10T16:08:09.730Z\",\"level\":\"info\",\"message\":\"entry-0\"},{\"time\":\"2026-11-10T16:08:09.732Z\",\"level\":\"info\",\"message\":\"entry-1\"},{\"time\":\"2026-11-10T16:08:09.736Z\",\"level\":\"info\",\"message\":\"entry-2\"},{\"time\":\"2026-11-10T16:08:09.742Z\",\"level\":\"info\",\"message\":\"entry-3\"},{\"time\":\"2026-11-10T16:08:09.751Z\",\"level\":\"info\",\"message\":\"entry-4\"},{\"time\":\"2026-11-10T16:08:09.761Z\",\"level\":\"info\",\"message\":\"entry-5\"},{\"time\":\"2026-11-10T16:08:09.773Z\",\"level\":\"info\",\"message\":\"entry-6\"},{\"time\":\"2026-11-10T16:08:09.786Z\",\"level\":\"info\",\"message\":\"entry-7\"},{\"time\":\"2026-11-10T16:08:09.802Z\",\"level\":\"info\",\"message\":\"entry-8\"},{\"time\":\"2026-11-10T16:08:09.821Z\",\"level\":\"info\",\"message\":\"entry-9\"},{\"time\":\"2026-11-10T16:08:09.840Z\",\"level\":\"info\",\"message\":\"entry-10\"},{\"time\":\"2026-11-10T16:08:09.863Z\",\"level\":\"info\",\"message\":\"entry-11\"},{\"time\":\"2026-11-10T16:08:09.887Z\",\"level\":\"info\",\"message\":\"entry-12\"},{\"time\":\"2026-11-10T16:08:09.913Z\",\"level\":\"info\",\"message\":\"entry-13\"},{\"time\":\"2026-11-10T16:08:09.941Z\",\"level\":\"info\",\"message\":\"entry-14\"},{\"time\":\"2026-11-10T16:08:09.971Z\",\"level\":\"info\",\"message\":\"entry-15\"},{\"time\":\"2026-11-10T16:08:10.003Z\",\"level\":\"info\",\"message\":\"entry-16\"},{\"time\":\"2026-11-10T16:08:10.036Z\",\"level\":\"info\",\"message\":\"entry-17\"},{\"time\":\"2026-11-10T16:08:10.072Z\",\"level\":\"info\",\"message\":\"entry-18\"},{\"time\":\"2026-11-10T16:08:10.111Z\",\"level\":\"info\",\"message\":\"entry-19\"},{\"time\":\"2026-11-10T16:08:10.151Z\",\"level\":\"info\",\"message\":\"entry-20\"},{\"time\":\"2026-11-10T16:08:10.192Z\",\"level\":\"info\",\"message\":\"entry-21\"},{\"time\":\"2026-11-10T16:08:10.237Z\",\"level\":\"info\",\"message\":\"entry-22\"},{\"time\":\"2026-11-10T16:08:10.283Z\",\"level\":\"info\",\"message\":\"entry-23\"},{\"time\":\"2026-11-10T16:08:10.331Z\",\"level\":\"info\",\"message\":\"entry-24\"},{\"time\":\"2026-11-10T16:08:10.381Z\",\"level\":\"info\",\"message\":\"entry-25\"},{\"time\":\"2026-11-10T16:08:10.433Z\",\"level\":\"info\",\"message\":\"entry-26\"},{\"time\":\"2026-11-10T16:08:10.486Z\",\"level\":\"info\",\"message\":\"entry-27\"},{\"time\":\"2026-11-10T16:08:10.542Z\",\"level\":\"info\",\"message\":\"entry-28\"},{\"time\":\"2026-11-10T16:08:10.600Z\",\"level\":\"info\",\"message\":\"entry-29\"}],\"nextCursor\":null}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "stop default lifecycle instance",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "stop",
+        "--data-dir",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\profile\\home\\.silvermoon.work\\task-engine"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:14.332Z",
+      "finishedAt": "2026-11-10T16:08:15.363Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"state\":\"stopped\",\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\profile\\\\home\\\\.silvermoon.work\\\\task-engine\",\"instanceId\":\"6b003403-c418-4a72-9d82-c601d5f5a140\",\"changed\":true,\"cancelledTasks\":0}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "explicit independent cache instance",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "start",
+        "--port",
+        "50850",
+        "--data-dir",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cache-data"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:15.364Z",
+      "finishedAt": "2026-11-10T16:08:16.609Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"state\":\"ready\",\"engineUrl\":\"http://127.0.0.1:50850\",\"instanceId\":\"4da7d45a-aa88-4f3f-85fc-5f638e74924f\",\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\cache-data\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "explicit directory status",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "status",
+        "--data-dir",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cache-data"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:16.609Z",
+      "finishedAt": "2026-11-10T16:08:17.360Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"state\":\"ready\",\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\cache-data\",\"instanceId\":\"4da7d45a-aa88-4f3f-85fc-5f638e74924f\",\"engineUrl\":\"http://127.0.0.1:50850\",\"activeTasks\":0}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "default target remains distinct and stopped",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "status"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:17.360Z",
+      "finishedAt": "2026-11-10T16:08:17.845Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"state\":\"stopped\",\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\profile\\\\home\\\\.silvermoon.work\\\\task-engine\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "explicit same directory duplicate refusal",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "start",
+        "--data-dir",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cache-data",
+        "--port",
+        "49927"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:17.846Z",
+      "finishedAt": "2026-11-10T16:08:18.953Z",
+      "exitCode": 1,
+      "stdout": "{\"ok\":false,\"error\":{\"code\":\"DATA_IN_USE\",\"message\":\"Instance directory is locked: D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\cache-data. database is locked\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "cache graph A",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "run",
+        "--car",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-a.car",
+        "--input",
+        "-",
+        "--engine",
+        "http://127.0.0.1:50850"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:18.953Z",
+      "finishedAt": "2026-11-10T16:08:21.074Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733FAQXNEATTJYJZFF0V7NQ\",\"status\":\"succeeded\",\"result\":{\"echo\":\"ok\"}}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "cache graph B",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "run",
+        "--car",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-b.car",
+        "--input",
+        "-",
+        "--engine",
+        "http://127.0.0.1:50850"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:21.074Z",
+      "finishedAt": "2026-11-10T16:08:23.074Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733FCSVRY1A0YERMGP8689G\",\"status\":\"succeeded\",\"result\":{\"echo\":\"ok\"}}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "cache graph C",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "run",
+        "--car",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-c.car",
+        "--input",
+        "-",
+        "--engine",
+        "http://127.0.0.1:50850"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:23.074Z",
+      "finishedAt": "2026-11-10T16:08:25.214Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733FEQVFWBR1T7EMR1DVJDQ\",\"status\":\"succeeded\",\"result\":{\"echo\":\"ok\"}}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "stop before offline graph maintenance",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "stop",
+        "--data-dir",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cache-data"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:25.214Z",
+      "finishedAt": "2026-11-10T16:08:26.215Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"state\":\"stopped\",\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\cache-data\",\"instanceId\":\"4da7d45a-aa88-4f3f-85fc-5f638e74924f\",\"changed\":true,\"cancelledTasks\":0}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "cache-only protects every retained transitive root",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "data",
+        "prune",
+        "--cache",
+        "--data-dir",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cache-data"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:26.216Z",
+      "finishedAt": "2026-11-10T16:08:26.705Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\cache-data\",\"selection\":{\"cache\":true},\"deletedTasks\":0,\"deletedLogs\":0,\"deletedCacheBlocks\":0,\"deletedCacheBytes\":0}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "history-only leaves all content blocks",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "data",
+        "prune",
+        "--task",
+        "01M733FEQVFWBR1T7EMR1DVJDQ",
+        "--data-dir",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cache-data"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:26.705Z",
+      "finishedAt": "2026-11-10T16:08:27.199Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\cache-data\",\"selection\":{\"taskIds\":[\"01M733FEQVFWBR1T7EMR1DVJDQ\"]},\"deletedTasks\":1,\"deletedLogs\":30}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "cache-only removes only orphan C nodes",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "data",
+        "prune",
+        "--cache",
+        "--data-dir",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cache-data"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:27.199Z",
+      "finishedAt": "2026-11-10T16:08:27.685Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\cache-data\",\"selection\":{\"cache\":true},\"deletedTasks\":0,\"deletedLogs\":0,\"deletedCacheBlocks\":5,\"deletedCacheBytes\":12134}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "combined history then transitive cache cleanup",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "data",
+        "prune",
+        "--task",
+        "01M733FAQXNEATTJYJZFF0V7NQ",
+        "--cache",
+        "--data-dir",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cache-data"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:27.685Z",
+      "finishedAt": "2026-11-10T16:08:28.186Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\cache-data\",\"selection\":{\"taskIds\":[\"01M733FAQXNEATTJYJZFF0V7NQ\"],\"cache\":true},\"deletedTasks\":1,\"deletedLogs\":30,\"deletedCacheBlocks\":3,\"deletedCacheBytes\":11856}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "retained B remains executable after graph cleanup",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "start",
+        "--port",
+        "62149",
+        "--data-dir",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cache-data"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:28.187Z",
+      "finishedAt": "2026-11-10T16:08:29.380Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"state\":\"ready\",\"engineUrl\":\"http://127.0.0.1:62149\",\"instanceId\":\"df75057f-137e-43b7-9028-c0d6a4816595\",\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\cache-data\"}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "retained B persistent result",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "task",
+        "await",
+        "01M733FCSVRY1A0YERMGP8689G",
+        "--engine",
+        "http://127.0.0.1:62149"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:29.381Z",
+      "finishedAt": "2026-11-10T16:08:29.881Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733FCSVRY1A0YERMGP8689G\",\"status\":\"succeeded\",\"result\":{\"echo\":\"ok\"}}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "retained B CID without Gateway",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "run",
+        "--cid",
+        "bafybeihfahks4aawhgn6ddir5lz7ttrlujvnybrywato2d33hikh6nqwgm",
+        "--input",
+        "-",
+        "--engine",
+        "http://127.0.0.1:62149"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:29.881Z",
+      "finishedAt": "2026-11-10T16:08:31.901Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"taskId\":\"01M733FND0WVGGG612CVKYT7QQ\",\"status\":\"succeeded\",\"result\":{\"echo\":\"B-cache\"}}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "final cleanup confirmed stop",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "stop",
+        "--data-dir",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\profile\\home\\.silvermoon.work\\task-engine",
+        "--cancel-running"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:31.902Z",
+      "finishedAt": "2026-11-10T16:08:32.385Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"state\":\"stopped\",\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\profile\\\\home\\\\.silvermoon.work\\\\task-engine\",\"changed\":false}}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "final cleanup confirmed stop",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "server",
+        "stop",
+        "--data-dir",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cache-data",
+        "--cancel-running"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T16:08:32.385Z",
+      "finishedAt": "2026-11-10T16:08:33.379Z",
+      "exitCode": 0,
+      "stdout": "{\"ok\":true,\"data\":{\"state\":\"stopped\",\"dataDir\":\"D:\\\\Code\\\\task-engine-canary-261110-d30f1b98\\\\cache-data\",\"instanceId\":\"df75057f-137e-43b7-9028-c0d6a4816595\",\"changed\":true,\"cancelledTasks\":0}}\n",
+      "stderr": "",
+      "timedOut": false
+    }
+  ],
+  "checks": [
+    {
+      "name": "registry-installed production closure excludes Builder and compilers",
+      "packages": [
+        "@assemblyscript/loader",
+        "@chainsafe/is-ip",
+        "@chainsafe/netmask",
+        "@dnsquery/dns-packet",
+        "@helia/bitswap",
+        "@helia/block-brokers",
+        "@helia/delegated-routing-v1-http-api-client",
+        "@helia/http",
+        "@helia/interface",
+        "@helia/routers",
+        "@helia/unixfs",
+        "@helia/utils",
+        "@ipld/car",
+        "@ipld/dag-cbor",
+        "@ipld/dag-json",
+        "@ipld/dag-pb",
+        "@ipshipyard/crypto",
+        "@ipshipyard/keychain",
+        "@leichtgewicht/ip-codec",
+        "@libp2p/config",
+        "@libp2p/crypto",
+        "@libp2p/interface",
+        "@libp2p/interface-internal",
+        "@libp2p/keychain",
+        "@libp2p/logger",
+        "@libp2p/multistream-select",
+        "@libp2p/peer-collections",
+        "@libp2p/peer-id",
+        "@libp2p/peer-record",
+        "@libp2p/peer-store",
+        "@libp2p/utils",
+        "@multiformats/dns",
+        "@multiformats/multiaddr",
+        "@multiformats/multiaddr-matcher",
+        "@multiformats/multiaddr-to-uri",
+        "@multiformats/murmur3",
+        "@multiformats/uri-to-multiaddr",
+        "@noble/curves",
+        "@noble/hashes",
+        "@nodelib/fs.scandir",
+        "@nodelib/fs.stat",
+        "@nodelib/fs.walk",
+        "@silvermoon-work/task-engine",
+        "@silvermoon-work/task-engine-cli",
+        "@silvermoon-work/task-protocol",
+        "@sindresorhus/fnv1a",
+        "abort-error",
+        "ajv",
+        "any-signal",
+        "asn1js",
+        "base64-js",
+        "birnam",
+        "bl",
+        "blockstore-core",
+        "braces",
+        "browser-readablestream-to-it",
+        "buffer",
+        "cborg",
+        "clone-regexp",
+        "convert-hrtime",
+        "datastore-core",
+        "debug",
+        "delay",
+        "eventemitter3",
+        "fast-deep-equal",
+        "fast-glob",
+        "fast-uri",
+        "fastq",
+        "fill-range",
+        "function-timeout",
+        "glob-parent",
+        "hamt-sharding",
+        "hashlru",
+        "ieee754",
+        "inherits",
+        "interface-blockstore",
+        "interface-datastore",
+        "interface-store",
+        "ip-regex",
+        "ipfs-unixfs",
+        "ipfs-unixfs-exporter",
+        "ipfs-unixfs-importer",
+        "ipns",
+        "is-extglob",
+        "is-glob",
+        "is-ip",
+        "is-loopback-addr",
+        "is-network-error",
+        "is-number",
+        "is-regexp",
+        "it-all",
+        "it-batch",
+        "it-drain",
+        "it-filter",
+        "it-first",
+        "it-foreach",
+        "it-glob",
+        "it-last",
+        "it-length-prefixed",
+        "it-map",
+        "it-merge",
+        "it-ndjson",
+        "it-parallel",
+        "it-parallel-batch",
+        "it-peekable",
+        "it-pipe",
+        "it-pushable",
+        "it-queue",
+        "it-queueless-pushable",
+        "it-reader",
+        "it-sort",
+        "it-stream-types",
+        "it-take",
+        "it-to-buffer",
+        "json-schema-traverse",
+        "libp2p",
+        "main-event",
+        "merge2",
+        "micromatch",
+        "minimist",
+        "mortice",
+        "ms",
+        "multiformats",
+        "netmask",
+        "node-fetch",
+        "p-defer",
+        "p-event",
+        "p-queue",
+        "p-retry",
+        "p-timeout",
+        "picomatch",
+        "progress-events",
+        "protons-runtime",
+        "pvtsutils",
+        "pvutils",
+        "queue-microtask",
+        "rabin-wasm",
+        "race-event",
+        "race-signal",
+        "random-int",
+        "readable-stream",
+        "require-from-string",
+        "reusify",
+        "run-parallel",
+        "safe-buffer",
+        "sanitize-filename",
+        "semver",
+        "sparse-array",
+        "string_decoder",
+        "super-regex",
+        "supports-color",
+        "time-span",
+        "timestamp-nano",
+        "to-regex-range",
+        "tr46",
+        "truncate-utf8-bytes",
+        "tslib",
+        "uint8-varint",
+        "uint8arraylist",
+        "uint8arrays",
+        "unlimited-timeout",
+        "utf8-byte-length",
+        "utf8-codec",
+        "util-deprecate",
+        "varint",
+        "weald",
+        "webidl-conversions",
+        "whatwg-url",
+        "yaml"
+      ],
+      "count": 262
+    },
+    {
+      "name": "transitive graph counts",
+      "sharedBlocks": 10,
+      "cUniqueBlocks": 5,
+      "cUniqueBytes": 12134,
+      "aUniqueBlocks": 3,
+      "aUniqueBytes": 11856,
+      "retainedBBlocks": 13
+    }
+  ],
+  "cleanup": [
+    {
+      "dataDir": "D:\\Code\\task-engine-canary-261110-d30f1b98\\profile\\home\\.silvermoon.work\\task-engine",
+      "instanceId": "6b003403-c418-4a72-9d82-c601d5f5a140",
+      "stopped": true
+    },
+    {
+      "dataDir": "D:\\Code\\task-engine-canary-261110-d30f1b98\\cache-data",
+      "instanceId": "df75057f-137e-43b7-9028-c0d6a4816595",
+      "stopped": true
+    }
+  ],
+  "npmVersion": "11.20.0",
+  "installMetadata": {
+    "task-protocol": {
+      "name": "@silvermoon-work/task-protocol",
+      "version": "0.1.0-canary-261110-1",
+      "dist": {
+        "shasum": "8ed688b90e006480c799399db1aa8aa4fb8b3813",
+        "tarball": "https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-protocol/-/task-protocol-0.1.0-canary-261110-1.tgz",
+        "fileCount": 67,
+        "integrity": "sha512-cDCnKmSMeC8TfAj1/JCo1keNw/UI/mKrgincMpIpWXzf4Qih5EmqqWLLQrPfXtLoyasxJtgBjl9wcTGpUJ/Q4A==",
+        "signatures": [
+          {
+            "sig": "MEUCIHQO6rZTHtimZ4nC9ke/vR0JpKWGAYl5iMvN2CCVDG0DAiEAqMFZu3zG3HsoqP6KCpYnI5x8mzi5G640eADid0sUbq8=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEUCIGRUSf33VQ88t+uvyD79tqhNZoTHXF2ZDXxIkkaZFXVsAiEA5LWaEB8EHWwnmfzBWfD0R5VhYkNL40uMhcnAF6gjcOI="
+          }
+        ],
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-protocol@0.1.0-canary-261110-1",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        },
+        "unpackedSize": 247061
+      }
+    },
+    "task-sdk": {
+      "name": "@silvermoon-work/task-sdk",
+      "version": "0.1.0-canary-261110-1",
+      "dist": {
+        "shasum": "04710eca40deb37c04edf668a16a85c7105d33a0",
+        "tarball": "https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-sdk/-/task-sdk-0.1.0-canary-261110-1.tgz",
+        "fileCount": 11,
+        "integrity": "sha512-3mKoiRakTJxeWdrCWq5lq2KlogfXnfIAFsFRxx2ZHF4BwG77kmGP0K5V6sM6uCWgrpIjD9MDy4QdRForVMr5ng==",
+        "signatures": [
+          {
+            "sig": "MEQCIE2fWV9do6bjQmkRflY9GapJCPZB9hGddSHFyjpdK18FAiAao9bQ566S18RLkdV4fSGRn4gNegHZsQ+DyqxceHlFQw==",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEUCIQCgnA9wRbC8G7kBY7nRPiR/18Oh2W9tOKNeSTD608qJvwIgQlUtXrUBqTkSXJc8pLzFqbNUqWONv01WOX7pwSFfhD0="
+          }
+        ],
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-sdk@0.1.0-canary-261110-1",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        },
+        "unpackedSize": 49584
+      }
+    },
+    "task-engine": {
+      "name": "@silvermoon-work/task-engine",
+      "version": "0.1.0-canary-261110-1",
+      "dist": {
+        "shasum": "a51d26e7ee5c75d49b319fadea869330f7418ae8",
+        "tarball": "https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-engine/-/task-engine-0.1.0-canary-261110-1.tgz",
+        "fileCount": 63,
+        "integrity": "sha512-TozDmwBuHfEteTB2Snzjby27jzvllKngI4t3zC7nMpCK54ozkV1fDxBZ+sRW6/vq0cb1qmxYsHEdMxweitGZAQ==",
+        "signatures": [
+          {
+            "sig": "MEUCIE2DZ+DgkLo9BmolI8+v1+n+IIBTq2T1dozYi3P17MuxAiEAv4ir0HMCyztALih7bxRRYTM5rfOXbqy+A8GOhz3bhBI=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEUCIC6l9KNOgHutlvs+axofg2lfrenGY2Mqv2ly7r1v/kkyAiEArvSVPRgGNifU6i09qWGk0Ef5HrsORnyKruU/smBDzgQ="
+          }
+        ],
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-engine@0.1.0-canary-261110-1",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        },
+        "unpackedSize": 556593
+      }
+    },
+    "task-engine-cli": {
+      "name": "@silvermoon-work/task-engine-cli",
+      "version": "0.1.0-canary-261110-2",
+      "dist": {
+        "shasum": "6f0ef270b12b0759a8bbf38fa0dfac556c7a2902",
+        "tarball": "https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-engine-cli/-/task-engine-cli-0.1.0-canary-261110-2.tgz",
+        "fileCount": 51,
+        "integrity": "sha512-QXTOpu9X2n+YjsN0a4dOTyEZz9kNrF2pUt7jTvI+WhWBsqTkvudc5Cs904NkW/FD9ZBB+gGETRLukppgitSlKw==",
+        "signatures": [
+          {
+            "sig": "MEYCIQCSvER4CbQ2D+Q2NO2vWPEapKoqHOr+FB0Af6ugwQhrywIhAI8U0n6EhE9UfqPbH4jsPck4gsEb7tS0G4L+CXqZTvq9",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEUCIGHfSmRUr51qEHVsJXS+bWyrVQUueLpMIqFnuJPP0EWVAiEA54P7XmwTelVOZ24fPrrQU7jRzjsuAV2zm6w3YasgHvg="
+          }
+        ],
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-engine-cli@0.1.0-canary-261110-2",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        },
+        "unpackedSize": 284352
+      }
+    }
+  },
+  "cliEntry": "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+  "cliIndex": "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\index.js",
+  "cliShim": "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\.bin\\task-engine.cmd",
+  "configPath": "D:\\Code\\task-engine-canary-261110-d30f1b98\\profile\\local\\TaskEngine\\config.json",
+  "producerEntry": "D:\\Code\\task-engine-canary-261110-d30f1b98\\producer\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+  "fixtures": [
+    {
+      "name": "fixture-a",
+      "car": "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-a.car",
+      "cid": "bafybeibcljlmn7vacn7v7pf3suzlq6dxnupxrqyg7gp7yzcwuf2ylt4x2y",
+      "blocks": 13,
+      "bytes": 612473
+    },
+    {
+      "name": "fixture-b",
+      "car": "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-b.car",
+      "cid": "bafybeihfahks4aawhgn6ddir5lz7ttrlujvnybrywato2d33hikh6nqwgm",
+      "blocks": 13,
+      "bytes": 612473
+    },
+    {
+      "name": "fixture-c",
+      "car": "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-c.car",
+      "cid": "bafybeifvjiknyqicyzyhgofbz6awnea2tdpdnduxoaminfug7kqaumeyrm",
+      "blocks": 14,
+      "bytes": 612635
+    },
+    {
+      "name": "fixture-parent",
+      "car": "D:\\Code\\task-engine-canary-261110-d30f1b98\\project\\fixture-parent.car",
+      "cid": "bafybeigc6dcb6x2hwbcl2oejize44hvmaiebl4hdkyd2oz4jqcejeudcfa",
+      "blocks": 17,
+      "bytes": 624865
+    }
+  ],
+  "fault": {
+    "instanceId": "5d289ff0-f66f-475d-b81b-1218e381b5ad",
+    "pid": 45360,
+    "action": "SIGKILL of exact owned Server only"
+  },
+  "consumerLockIdentities": [
+    {
+      "name": "@silvermoon-work/task-engine-cli",
+      "version": "0.1.0-canary-261110-2",
+      "integrity": "sha512-QXTOpu9X2n+YjsN0a4dOTyEZz9kNrF2pUt7jTvI+WhWBsqTkvudc5Cs904NkW/FD9ZBB+gGETRLukppgitSlKw==",
+      "resolved": "https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-engine-cli/-/task-engine-cli-0.1.0-canary-261110-2.tgz"
+    },
+    {
+      "name": "@silvermoon-work/task-engine",
+      "version": "0.1.0-canary-261110-1",
+      "integrity": "sha512-TozDmwBuHfEteTB2Snzjby27jzvllKngI4t3zC7nMpCK54ozkV1fDxBZ+sRW6/vq0cb1qmxYsHEdMxweitGZAQ==",
+      "resolved": "https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-engine/-/task-engine-0.1.0-canary-261110-1.tgz"
+    },
+    {
+      "name": "@silvermoon-work/task-protocol",
+      "version": "0.1.0-canary-261110-1",
+      "integrity": "sha512-cDCnKmSMeC8TfAj1/JCo1keNw/UI/mKrgincMpIpWXzf4Qih5EmqqWLLQrPfXtLoyasxJtgBjl9wcTGpUJ/Q4A==",
+      "resolved": "https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-protocol/-/task-protocol-0.1.0-canary-261110-1.tgz"
+    }
+  ],
+  "producerLockIdentities": [
+    {
+      "name": "@silvermoon-work/task-sdk",
+      "version": "0.1.0-canary-261110-1",
+      "integrity": "sha512-3mKoiRakTJxeWdrCWq5lq2KlogfXnfIAFsFRxx2ZHF4BwG77kmGP0K5V6sM6uCWgrpIjD9MDy4QdRForVMr5ng==",
+      "resolved": "https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-sdk/-/task-sdk-0.1.0-canary-261110-1.tgz"
+    },
+    {
+      "name": "@silvermoon-work/task-builder",
+      "version": "0.1.0-canary-261110-1",
+      "integrity": "sha512-KTfDzyqxKLneXvmWa+HnoJgG/1kbGs4Z3W0p4zCsyBlILY/hgwT9MosKN+dKcMEaxfu6JiqARV49jMydGuIIBw==",
+      "resolved": "https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-builder/-/task-builder-0.1.0-canary-261110-1.tgz"
+    },
+    {
+      "name": "@silvermoon-work/task-builder-cli",
+      "version": "0.1.0-canary-261110-1",
+      "integrity": "sha512-5zu7KvdHQ0lptizpRoU3fIAF5plIb5/uPsn03lJpkjR+eCXyGO9Y4anuqEdt7sCVufsR20rhu1p3Zw9rKc+1GA==",
+      "resolved": "https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-builder-cli/-/task-builder-cli-0.1.0-canary-261110-1.tgz"
+    }
+  ],
+  "ok": true,
+  "runtimeDataRemoved": true,
+  "finishedAt": "2026-11-10T16:08:33.382Z"
+}

@@ -3,6 +3,8 @@
 以已接受的 [CLI Spec r14](./ideal/task-builder-cli-spec.html) 为唯一接口依据。
 实现范围是 Builder、独立 CLI、直接相关测试、文档和包交付，不修改 Ideal World。
 实际命令和验收映射记录于 [实现验证](./verification.md)。
+用户已授权取消独立 task-bundle-car 发布单元并重新实施；此前已接受的证明不覆盖本次
+依赖拓扑变化。Ideal r14、事件历史及旧失败 tag 保持不变，重新完成全部 I 项后提交新修订。
 
 ## Steps
 
@@ -27,6 +29,14 @@
 
 将 Spec 场景转为可重复的验证，补齐失败、取消和重复构建覆盖，更新直接相关使用文档。
 
+### I-S04: 按实际职责取消独立 CAR 包
+
+Builder 拥有可遍历/可重读文件树 IO 端口，以及不加载编译器的 `./car` 生产和交付复核；
+Engine CLI 使用标准 CAR/UnixFS 库组合为有界、可关闭的离线 block source，不依赖 Builder。
+Task 规则复用现有 Protocol/Engine 校验，不复制整套归档实现到两个 CLI，不增加 Protocol
+发布候选。迁移独立包的完整测试，移除发布 mapping、工作区/构建引用与过时模板配置，
+保留不可变历史证据，并为受影响已发布 Engine CLI 准备独立未发布候选而不发布。
+
 ## Acceptance criteria
 
 ### I-AC01: 命令与结果契约一致
@@ -44,3 +54,11 @@ Builder 的 API 执行许可保持兼容；CLI 自动执行 JS/TS，JSON 不执�
 ### I-AC03: 示例与回归验证可复现
 
 为十个设计示例建立可复现验证，记录实际命令和结果；相关测试及仓库检查通过，文档不把预期示例冒充执行证据。
+
+### I-AC04: 标准库迁移保持身份和验证强度
+
+完整 CAR suite 与固定 CID/字节 golden 不变；验证单根、完整边界、hash/codec、
+重复/缺失/不可达块、canonical import profile、Task 文件/Schema/UTF8/LF/二进制、
+容量、取消、close 及真实 Engine CAR 消费。生产依赖闭包不得包含独立 CAR 包、
+Builder/Builder CLI、esbuild 或 enhanced-resolve；Builder 的懒资源/文件树行为保持，
+模板、manifest、lockfile、tsconfig、release tests 及文档一致，最终 Node24 `pnpm check` 通过。

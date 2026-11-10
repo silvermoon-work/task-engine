@@ -39,5 +39,11 @@
   package.
 - Use npm Trusted Publishing, not stored tokens. Manual workflow runs are dry
   runs only. Never push release tags or publish without explicit authorization.
+- Publish npm packages only through GitHub Actions
+  `.github/workflows/publish-npm.yaml`, triggered by pushing an authorized
+  package-specific release tag. Never run a real `npm publish` locally.
+- If the Actions publish step fails authentication, check the package's npm
+  Trusted Publisher binding to this repository, `publish-npm.yaml`, and the
+  `npm` environment. Do not bypass it with local login or stored tokens.
 - Release tags are immutable. Retry a failed pre-publication run without moving
   its tag; an existing npm version must block publication.

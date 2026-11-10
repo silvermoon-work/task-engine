@@ -1,4 +1,4 @@
-import { posix } from "node:path";
+import { isAbsolute, posix } from "node:path";
 import {
   json,
   normalizeTaskText,
@@ -164,24 +164,24 @@ export async function buildTaskBundle(
   const limits = limitsFor(options);
   const resources = await selectResources(input, options.include ?? [], limits, options);
   let contract: unknown = options.source.contract;
+  let evaluated: ReturnType<typeof contractSchemas> | undefined;
   if (typeof contract === "string") {
     checkTreePath(contract);
     if (posix.extname(contract) === ".json")
       contract = parseTaskBundleYaml(await readBytes(input, contract, 65_536, options));
     else {
       if (!options.allowContractExecution)
-        throw new Error(
-          "Code contracts require allowContractExecution: true (CLI --trusted-contract).",
-        );
-      contract = evaluateContract(
+        throw new Error("Code contracts require allowContractExecution: true.");
+      evaluated = await evaluateContract(
         await compileTree(input, contract, {
           ...limits,
           ...(options.signal ? { signal: options.signal } : {}),
         }),
+        options,
       );
     }
   }
-  const schemas = contractSchemas(contract);
+  const schemas = evaluated ?? contractSchemas(contract);
   const primarySchemaPaths = [
     "schemas/input.json",
     "schemas/result.json",
@@ -237,7 +237,10 @@ export interface TaskBuildFile {
 export async function readTaskBuild(
   input: ReadonlyFileTree,
   path: string,
-  options: ReadOptions & { readonly allowContractExecution?: boolean } = {},
+  options: ReadOptions & {
+    readonly allowContractExecution?: boolean;
+    readonly outDirectory?: string;
+  } = {},
 ): Promise<TaskBuildFile> {
   checkTreePath(path);
   const value = parseTaskBundleYaml(await readBytes(input, path, 65_536, options));
@@ -252,7 +255,7 @@ export async function readTaskBuild(
         ),
     ) ||
     typeof value.name !== "string" ||
-    typeof value.outDirectory !== "string"
+    (value.outDirectory !== undefined && typeof value.outDirectory !== "string")
   )
     throw new Error("Invalid Task build file fields.");
   const runtime = value.runtime;
@@ -324,8 +327,15 @@ export async function readTaskBuild(
     binary,
     ...options,
   };
-  const outDirectory = relative(value.outDirectory);
+  const selectedOutput = options.outDirectory ?? value.outDirectory ?? "dist";
+  if (typeof selectedOutput !== "string" || !selectedOutput.trim())
+    throw new Error("Output directory must not be empty.");
+  const outDirectory = isAbsolute(selectedOutput)
+    ? selectedOutput
+    : posix.normalize(posix.join(base, selectedOutput.replaceAll("\\", "/")));
   if (
+    outDirectory === "." ||
+    outDirectory.split("/").every((part) => part === "..") ||
     [path, buildOptions.source.entry, String(buildOptions.source.contract)].some(
       (inputPath) => inputPath === outDirectory || inputPath.startsWith(`${outDirectory}/`),
     )

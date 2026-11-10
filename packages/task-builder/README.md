@@ -165,6 +165,12 @@ and unsupported metadata/format semantics are rejected. Code contracts require
 `allowContractExecution: true`. They are compiled using the same tree resolver,
 then **executed as trusted Node code, not in a sandbox**. Builtins and global
 APIs can have side effects; a read-only tree is not an execution security boundary.
+Evaluation runs in a short-lived Node process (30-second internal budget).
+Console and standard-stream output attempts, including dependencies and caught
+or deferred calls, fail with `CONTRACT_OUTPUT_FORBIDDEN`; captured bytes are
+never forwarded. CLI build supplies execution permission automatically; the
+library retains its explicit `allowContractExecution` opt-in. Runtime Worker
+logging is unaffected.
 Their `__filename`, `__dirname` and `import.meta.url` are logical `task-tree:///`
 locations, not host source paths. Use JSON contracts for non-executing builds.
 
@@ -223,6 +229,8 @@ use the version 3 core and version 3 CLI for the migrated template.
 An explicit local `sdkVersion` specifier (such as `file:task-sdk.tgz`) remains
 available for development.
 `sdkVersion`, `minRuntimeVersion`, `taskName` and npm `name` can be supplied.
+Without `taskName`, the package's unscoped name is used. The CLI does not expose
+SDK/runtime/version overrides; authors edit the generated project instead.
 It has no CLI dependency, npm scripts, package-manager selection or pnpm
 installation policy. The CLI composes this tree with its own scripts,
 dependency versions and scoped release-age exceptions before writing it to disk.

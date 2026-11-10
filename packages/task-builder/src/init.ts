@@ -18,7 +18,7 @@ export function createTaskProject(options: TaskProjectOptions = {}): ReadonlyFil
     !/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/.test(name)
   )
     throw new Error("Task project name must be a valid lowercase npm package name.");
-  const taskName = options.taskName ?? "Echo";
+  const taskName = options.taskName ?? name.split("/").at(-1)!;
   const minVersion = options.minRuntimeVersion ?? "22.13.0";
   const sdkVersion = options.sdkVersion ?? "0.1.0-canary-261109-2";
   if (!sdkVersion.trim() || [...sdkVersion].some((char) => char.charCodeAt(0) < 32))
@@ -48,7 +48,7 @@ export function createTaskProject(options: TaskProjectOptions = {}): ReadonlyFil
       null,
       2,
     )}\n`,
-    ".gitignore": "node_modules/\ndist/\nbundle.car\nbundle.cid\n.verification/\n",
+    ".gitignore": "node_modules/\ndist/\n*.car\n",
     "task.build.yaml": stringify({
       name: taskName,
       runtime: { minVersion },

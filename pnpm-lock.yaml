@@ -192,6 +192,9 @@ importers:
       '@silvermoon-work/task-bundle-car':
         specifier: workspace:*
         version: link:../task-bundle-car
+      '@silvermoon-work/task-protocol':
+        specifier: workspace:*
+        version: link:../task-protocol
       commander:
         specifier: 'catalog:'
         version: 14.0.3
@@ -199,9 +202,6 @@ importers:
         specifier: 'catalog:'
         version: 2.9.1
     devDependencies:
-      '@silvermoon-work/task-protocol':
-        specifier: workspace:*
-        version: link:../task-protocol
       '@silvermoon-work/task-sdk':
         specifier: workspace:*
         version: link:../task-sdk

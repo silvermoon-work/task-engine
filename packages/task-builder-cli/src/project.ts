@@ -9,10 +9,7 @@ import {
   type ReadonlyFileTree,
 } from "@silvermoon-work/task-bundle-car/tree";
 
-export interface CliTaskProjectOptions extends TaskProjectOptions {
-  readonly cliVersion?: string;
-  readonly builderVersion?: string;
-}
+export type CliTaskProjectOptions = Pick<TaskProjectOptions, "name" | "taskName">;
 
 async function packageVersion(url: URL, name: string): Promise<string> {
   const value: unknown = JSON.parse(await readFile(url, "utf8"));
@@ -23,7 +20,10 @@ async function packageVersion(url: URL, name: string): Promise<string> {
     !("name" in value) ||
     value.name !== name ||
     !("version" in value) ||
-    typeof value.version !== "string"
+    typeof value.version !== "string" ||
+    !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.test(
+      value.version,
+    )
   )
     throw new Error(`Invalid installed package metadata: ${name}`);
   return value.version;
@@ -40,23 +40,16 @@ export function cliVersion(): Promise<string> {
 export async function createCliTaskProject(
   options: CliTaskProjectOptions = {},
 ): Promise<ReadonlyFileTree> {
-  const {
-    cliVersion: selectedCliVersion,
-    builderVersion: selectedBuilderVersion,
-    ...coreOptions
-  } = options;
   const { createTaskProject } = await import("@silvermoon-work/task-builder/init");
-  const template = createTaskProject(coreOptions);
-  const cli = selectedCliVersion ?? (await cliVersion());
-  const builder =
-    selectedBuilderVersion ??
-    (await packageVersion(
-      new URL("../package.json", import.meta.resolve("@silvermoon-work/task-builder")),
-      "@silvermoon-work/task-builder",
-    ));
-  for (const specifier of [cli, builder])
-    if (!specifier.trim() || [...specifier].some((char) => char.charCodeAt(0) < 32))
-      throw new Error("Dependency specifiers must be nonempty without control characters.");
+  const template = createTaskProject({
+    ...(options.name !== undefined ? { name: options.name } : {}),
+    ...(options.taskName !== undefined ? { taskName: options.taskName } : {}),
+  });
+  const cli = await cliVersion();
+  const builder = await packageVersion(
+    new URL("../package.json", import.meta.resolve("@silvermoon-work/task-builder")),
+    "@silvermoon-work/task-builder",
+  );
   const value: unknown = JSON.parse(
     Buffer.from(await readBytes(template, "package.json", 65_536)).toString(),
   );
@@ -67,8 +60,7 @@ export async function createCliTaskProject(
     packageManager: "pnpm@11.22.0",
     scripts: {
       build: "task-builder build task.build.yaml",
-      car: "task-builder car dist bundle.car --cid-file bundle.cid",
-      check: "task-builder check bundle.car",
+      car: "task-builder car dist/task.yaml --output bundle.car",
     },
     devDependencies: {
       "@silvermoon-work/task-builder-cli": cli,
@@ -91,9 +83,6 @@ export async function createCliTaskProject(
       "pnpm-workspace.yaml",
       stringify({
         allowBuilds: { esbuild: false },
-        ...(selectedBuilderVersion !== undefined
-          ? { overrides: { "@silvermoon-work/task-builder": builder } }
-          : {}),
         minimumReleaseAgeExclude: [
           "@silvermoon-work/task-builder-cli",
           "@silvermoon-work/task-builder",

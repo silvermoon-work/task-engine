@@ -7,7 +7,7 @@ service、认证、SQLite 数据库或任务轮询。Windows、macOS、Linux 使
 
 - 使用满足所选包 `engines` 和 `packageManager` 声明的 Node.js 与 pnpm。
 - `@silvermoon-work/task-builder` 与独立 `task-builder-cli`
-  提供 init/build/car/check。
+  提供新接口 init/build/car；build 默认同时生成并验证模块与 CAR。
 - `@silvermoon-work/task-engine-cli` 提供命令和可复用的 `runBundle`；它依赖包含
   `drain`、公开 `MemoryStore` 与 Gateway `close` 的新版 engine。
 - SDK 已迁入本仓库；验证迁移结果时，所选模板必须声明兼容的
@@ -32,7 +32,7 @@ override 和已有 lockfile 下载 URL，确保与环境策略一致。包或版
 已发布版本可直接初始化一个不存在、且父目录已存在的新项目：
 
 ```text
-pnpm dlx @silvermoon-work/task-builder-cli@<builder-cli-version> init "<absolute-new-project-directory>" --name task-engine-e2e
+pnpm dlx @silvermoon-work/task-builder-cli@<builder-cli-version> init "<absolute-new-project-directory>" --package-name task-engine-e2e
 cd "<absolute-new-project-directory>"
 pnpm install
 ```
@@ -51,26 +51,28 @@ contract、具名 `schemas.text`/`$ref`
 和 greeting 资源。当前源码模板不自动批准安装脚本；发布年龄例外仅限明确选定的包，不全局关闭供应链检查。项目不要执行
 `npm publish`。
 
-## 2. Build → CAR → Check
+## 2. Build → 独立 CAR
 
 ```text
 pnpm build
 pnpm car
-pnpm check
 ```
 
-这里生成项目的 `pnpm check` 是 `task-builder check bundle.car`，不是 task-engine
-monorepo 的全量检查。命令失败立即停止，不继续运行旧输出。
+生成项目不再包含 `pnpm check` 或
+`task-builder check`。命令失败立即停止，不继续运行旧输出。仓库自身的
+`pnpm check` 仍是完整回归检查。
 
-得到 `dist/` Bundle、`bundle.car` 和 `bundle.cid`；`bundle.cid`
-是 UnixFS 根 CID，不是 CAR 文件路径或摘要。完整 check 消费所有内容，验证 manifest、Schema 闭包、文本规范、资源、CID 和 DAG 块，不只验证文件能打开。输出必须是新路径；重复验证创建另一新项目，不递归删除任意路径。
+build 得到 `dist/` Bundle 和 `dist.car`；独立 car 通过
+`task-builder car dist/task.yaml --output bundle.car` 生成
+`bundle.car`。两个命令的 stdout 都是单个 `{ok:true,data}`；保存 `data.cid`
+作为 UnixFS 根 CID。build 校验所有模块及 CAR 字节，重复执行只替换本次同名文件；独立 car 仍拒绝覆盖，再次验证须显式选择新文件名，不递归删除任意目录。
 
 参数、格式与流所有权细节复用 [builder 文档](../packages/task-builder/README.md)
 和 [builder CLI 文档](../packages/task-builder-cli/README.md)：
 
 ```text
 pnpm exec task-builder --help
-pnpm exec task-builder check bundle.car --format text
+pnpm exec task-builder car --help
 ```
 
 ## 3. Run：按内容源选择一条路径
@@ -82,8 +84,8 @@ shell。显式 `--input -` 等价；需要文件输入时才使用
 
 ### CID 模式：本地 Gateway 或显式配置
 
-如果 Bundle 已经能从受控 Gateway 读取，把 `<bundle-root-cid>` 替换为
-`bundle.cid` 的内容。未指定 Gateway 时，使用
+如果 Bundle 已经能从受控 Gateway 读取，把 `<bundle-root-cid>`
+替换为 build/car 结果中的 `data.cid`。未指定 Gateway 时，使用
 `TASK_ENGINE_GATEWAY`；该变量未设置时读取 `IPFS_PATH/config` 的
 `Addresses.Gateway`， `IPFS_PATH` 未设置则检查默认 Kubo 仓库 `~/.ipfs/config`：
 
@@ -113,8 +115,8 @@ echo '{"text":"world"}' | pnpm exec task-engine run --car bundle.car --timeout-m
 ```
 
 CLI 先完整校验 CAR，再按唯一根 CID 驱动同一个 engine；不从作者源码或 `dist`
-执行，不做网络 fallback。可选 `--expected-cid <bundle-root-cid>` 对照
-`bundle.cid`；不需要另传 CID 或 `--gateway`，混用明确拒绝。
+执行，不做网络 fallback。可选 `--expected-cid <bundle-root-cid>` 对照保存的
+`data.cid`；不需要另传 CID 或 `--gateway`，混用明确拒绝。
 
 通过条件同 Gateway 路径：自然退出 0、`succeeded`、根结果
 `{text:"Hello world",bytes:6,chunks:1}`、全体 Task 完成、Run 已回收且无 cleanupUnknown。CLI 负责关闭 CAR 内存和文件句柄。错误类型输入
@@ -141,10 +143,9 @@ node -e "require('node:fs').writeFileSync(require('node:path').join('assets','gr
 此路径要求 checkout 同时包含所需 builder 与 engine
 CLI 实现。只想复现已发布包 smoke test 时，不使用此节，不用本地依赖兜底。
 
-如果目标模板所需 SDK 或 protocol 尚未发布，先构建并打包相应 workspace，通过
-`createCliTaskProject` 的 `sdkVersion`、`builderVersion`、`cliVersion` 指定本地
-`file:` 包，并在生成项目的 pnpm
-overrides 中将 SDK/protocol 依赖指向对应本地 tarball。此时不要直接用下面默认 init 的依赖安装命令请求不存在的发布版本。详细选项见
+如果目标模板所需 SDK 或 protocol 尚未发布，先构建并打包相应 workspace，然后由作者直接编辑新项目 package.json 的依赖与 pnpm
+overrides，改为相应本地 `file:`
+包。init 不再提供版本覆盖选项。此时不要请求不存在的发布版本。详细接口见
 [builder CLI 文档](../packages/task-builder-cli/README.md)。该路径只证明本地集成，不证明 SDK 或其依赖已发布。
 
 ```text
@@ -155,12 +156,12 @@ pnpm --filter @silvermoon-work/task-builder --config.ignore-scripts=true pack --
 pnpm --filter @silvermoon-work/task-builder-cli --config.ignore-scripts=true pack --out "<absolute-path-to-builder-cli.tgz>"
 pnpm --filter @silvermoon-work/task-engine --config.ignore-scripts=true pack --out "<absolute-path-to-engine.tgz>"
 pnpm --filter @silvermoon-work/task-engine-cli --config.ignore-scripts=true pack --out "<absolute-path-to-engine-cli.tgz>"
-node packages/task-builder-cli/dist/bin.js init "<absolute-new-project-directory>" --name task-engine-e2e --cli-version "file:<absolute-path-to-builder-cli.tgz>" --builder-version "file:<absolute-path-to-builder.tgz>"
+node packages/task-builder-cli/dist/bin.js init "<absolute-new-project-directory>" --package-name task-engine-e2e
 ```
 
 tarball 父目录必须已存在。打包不发布且禁用 lifecycle
-hooks；builder 的两个 tarball 及 scoped override 仍由 CLI init 装配。在生成的
-`pnpm-workspace.yaml` 中保留已有 override，并添加：
+hooks；作者编辑 package.json 的 CLI/Builder 依赖为对应 tarball，再在生成的
+`pnpm-workspace.yaml` 中添加：
 
 ```yaml
 overrides:
@@ -185,7 +186,7 @@ override 确保 CLI 的 packed 精确依赖也使用新版 engine，而不是试
 
 主流程通过条件：
 
-- init/build/CAR/完整 check 均成功，使用所选的已发布兼容包或明确标记的开发制品。
+- init/build（默认 CAR）/独立 car 与 Engine 的完整 CAR 校验均成功，使用所选的已发布兼容包或明确标记的开发制品。
 - 真实 SDK Worker 的根结果和资源字节正确；Run 已物理回收，进程自然退出。
 - 本地 CAR CLI 验证错误类型输入、损坏 CAR 和 expected
   CID 不符明确拒绝，文件句柄和 CAR 内存释放；保存单行 JSON 输出及实际进程退出码。

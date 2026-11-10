@@ -20,13 +20,14 @@ cd my-task
 npm install
 npm run build
 npm run car
-npm run check
 '{"text":"world"}' | task-engine run --car .\bundle.car
 ```
 
 无需克隆本仓库、安装 TypeScript 或编译 CLI。发布时先编译再打包
 `dist`，全局命令直接执行该产物。`npm run build`
-只构建用户的任务源码。Builder 在执行 build 时调用 esbuild；npm 通过 optional
+只构建用户的任务源码。新三命令接口的 build 默认同时交付
+`dist.car`，`npm run car` 另按声明交付拒绝覆盖的 `bundle.car`；不再提供 Builder
+check 子命令。此新接口仍须独立 Canary 发布与 registry 安装验证，不能据此认定当前 canary 已升级。Builder 在执行 build 时调用 esbuild；npm 通过 optional
 dependency 安装当前 OS/CPU 对应的预编译二进制，跳过 esbuild
 postinstall 仍可构建，不要同时使用
 `--omit=optional`。build 不会补跑安装脚本。本地 CAR 运行无需 Gateway、Kubo 或 HTTP 服务；结果应为

@@ -594,10 +594,31 @@ test("build files use tree-relative paths, reject unknown fields, and protect au
   assert.deepEqual(parsed.options.include, [{ from: "project/assets/**", to: "resources/" }]);
   for (const invalid of [
     { ...definition, unexpected: true },
-    { ...definition, outDirectory: "../escape" },
+    { ...definition, outDirectory: "" },
+    { ...definition, outDirectory: "." },
   ]) {
     await assert.rejects(
       readTaskBuild(tree({ "task.build.yaml": JSON.stringify(invalid) }).input, "task.build.yaml"),
     );
   }
+  const outside = await readTaskBuild(
+    tree({
+      "project/task.build.yaml": JSON.stringify({ ...definition, outDirectory: "../release" }),
+    }).input,
+    "project/task.build.yaml",
+  );
+  assert.equal(outside.outDirectory, "release");
+  const fallback = { ...definition } as Partial<typeof definition>;
+  delete fallback.outDirectory;
+  assert.equal(
+    (
+      await readTaskBuild(
+        tree({
+          "project/task.build.yaml": JSON.stringify(fallback),
+        }).input,
+        "project/task.build.yaml",
+      )
+    ).outDirectory,
+    "project/dist",
+  );
 });

@@ -42,11 +42,11 @@
   "dependencies": {
     "@silvermoon-work/task-bundle-car": "workspace:*",
     "@silvermoon-work/task-builder": "workspace:*",
+    "@silvermoon-work/task-protocol": "workspace:*",
     "commander": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {
-    "@silvermoon-work/task-protocol": "workspace:*",
     "@silvermoon-work/task-sdk": "workspace:*"
   },
   "repository": {

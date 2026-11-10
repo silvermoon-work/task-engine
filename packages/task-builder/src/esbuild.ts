@@ -1,4 +1,5 @@
-import { isBuiltin, createRequire } from "node:module";
+import { isBuiltin } from "node:module";
+import { fork } from "node:child_process";
 import { posix } from "node:path";
 import enhancedResolve, { type FileSystem } from "enhanced-resolve";
 import { build, type Loader, type Plugin } from "esbuild";
@@ -269,22 +270,65 @@ runTask(async (input, context) => {
   return result.outputFiles[0]!.contents;
 }
 
-export function evaluateContract(bytes: Uint8Array): unknown {
-  const module: { exports: unknown } = { exports: {} };
-  const require = createRequire(import.meta.url);
-  const builtinRequire = (specifier: string) => {
-    if (!isBuiltin(specifier))
-      throw new Error(`Contract has an unbundled dependency: ${specifier}`);
-    return require(specifier);
+export async function evaluateContract(
+  bytes: Uint8Array,
+  options: ReadOptions = {},
+): Promise<ReturnType<typeof import("./contract.js").contractSchemas>> {
+  options.signal?.throwIfAborted();
+  const worker = fork(new URL("../dist/contract-worker.js", import.meta.url), [], {
+    silent: true,
+    execArgv: [],
+  });
+  let forbidden = false;
+  let schemas: ReturnType<typeof import("./contract.js").contractSchemas> | undefined;
+  let failure: Error | undefined;
+  const abort = () => {
+    worker.kill("SIGKILL");
   };
-  new Function(
-    "require",
-    "module",
-    "exports",
-    new TextDecoder("utf-8", { fatal: true }).decode(bytes),
-  )(builtinRequire, module, module.exports);
-  const value = module.exports;
-  if (!value || typeof value !== "object" || !("default" in value))
-    throw new Error("Contract module must default-export a contract.");
-  return value.default;
+  options.signal?.addEventListener("abort", abort, { once: true });
+  const timer = setTimeout(() => {
+    failure = new Error("Contract evaluation exceeded its time budget.");
+    worker.kill("SIGKILL");
+  }, 30_000);
+  try {
+    await new Promise<void>((done) => {
+      worker.stdout!.on("data", () => {
+        forbidden = true;
+      });
+      worker.stderr!.on("data", () => {
+        forbidden = true;
+      });
+      worker.on("message", (message) => {
+        if (!message || typeof message !== "object") return;
+        if ("forbidden" in message) forbidden = true;
+        if ("failure" in message) failure = new Error("Contract evaluation failed.");
+        if ("schemas" in message) schemas = message.schemas as typeof schemas;
+      });
+      worker.on("error", (error) => {
+        failure = error;
+      });
+      worker.once("close", (code) => {
+        if (code === 78) forbidden = true;
+        if (code !== 0) failure ??= new Error("Contract evaluation did not complete.");
+        done();
+      });
+      worker.send(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+    });
+    if (forbidden)
+      throw Object.assign(
+        new Error(
+          "Contract evaluation forbids logs and standard-stream output. Existing outputs are unchanged.",
+        ),
+        {
+          code: "CONTRACT_OUTPUT_FORBIDDEN",
+        },
+      );
+    options.signal?.throwIfAborted();
+    if (failure) throw failure;
+    if (!schemas) throw new Error("Contract evaluation did not return schemas.");
+    return schemas;
+  } finally {
+    clearTimeout(timer);
+    options.signal?.removeEventListener("abort", abort);
+  }
 }

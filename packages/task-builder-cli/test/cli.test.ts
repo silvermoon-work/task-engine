@@ -275,6 +275,41 @@ test("standalone CAR never reads unselected content and rejects changing selecte
   });
 });
 
+test("standalone CAR rejects linked input module and ancestor aliases without changing inputs", async () => {
+  await fixture(async (root) => {
+    const built = await invoke(root, ["build", "--no-car"]);
+    const module = join(root, "dist");
+    const linkType = process.platform === "win32" ? "junction" : "dir";
+    await symlink(module, join(root, "alias"), linkType);
+    await symlink(root, join(root, "ancestor"), linkType);
+    const paths = built.data.module.files.map((file: string) => join("dist", file));
+    const before = await snapshot(root, paths);
+    const entries = await readdir(module, { recursive: true });
+    for (const [declaration, output, actual] of [
+      ["alias/task.yaml", "dist/inside-module.car", "dist/inside-module.car"],
+      ["ancestor/dist/task.yaml", "dist/inside-ancestor.car", "dist/inside-ancestor.car"],
+      ["dist/task.yaml", "alias/inside-output.car", "dist/inside-output.car"],
+      [
+        "dist/task.yaml",
+        "ancestor/dist/inside-output-ancestor.car",
+        "dist/inside-output-ancestor.car",
+      ],
+      ["alias/task.yaml", "outside-alias.car", "outside-alias.car"],
+      ["ancestor/dist/task.yaml", "outside-ancestor.car", "outside-ancestor.car"],
+    ] as const) {
+      const failed = await invoke(root, ["car", declaration, "--output", output], 1);
+      assert.equal(failed.error.code, "UNSAFE_PATH");
+      await assert.rejects(readFile(join(root, actual)), { code: "ENOENT" });
+      assert.deepEqual(await snapshot(root, paths), before);
+      assert.deepEqual(await readdir(module, { recursive: true }), entries);
+    }
+    const normal = await invoke(root, ["car", "dist/task.yaml", "--output", "outside.car"]);
+    assert.equal(normal.data.cid, built.data.cid);
+    assert.deepEqual(await snapshot(root, paths), before);
+    assert.deepEqual(await readdir(module, { recursive: true }), entries);
+  });
+});
+
 test("invalid resource bytes fail before replacing module or CAR; symlink outputs never redirect writes", async () => {
   await fixture(async (root) => {
     await invoke(root, ["build"]);

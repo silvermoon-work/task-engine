@@ -41,6 +41,12 @@
 
 ## 故障与覆盖验证
 
+- 父级审查在 `ping#5` 指出独立 CAR 的 lexical 输入目录与 realpath 文件树边界不一致。
+  新增真实 CLI 回归先复现失败：`car alias/task.yaml --output dist/inside-module.car`
+  在旧实现返回 0 并写入真实输入目录。随后修复为在计算边界/交付之前拒绝输入模块及
+  其所有祖先中的 symlink/junction。不是只检查输出路径，也未修改 Spec。
+  模块 alias、祖先 alias、输出 alias 共六种拒绝场景均验证退出 1/`UNSAFE_PATH`、
+  目标未创建、输入完整字节快照与递归目录项不变；正常外部输出仍成功且 CID 一致。
 - 输出位置优先级：描述目录缺省 dist、描述 outDirectory、cwd 相对 --out-dir；
   显式位置不重写构建描述。资源遍历/输入重叠和链接输出被拒绝。
 - 模块/CAR 按声明选取；无效 UTF-8 的未选择 notes、旧 resources 文件与空目录不会
@@ -73,7 +79,7 @@ pnpm --filter @silvermoon-work/task-builder-cli test
 pnpm check
 ```
 
-- 构建成功；Builder **41/41**，最终 CLI **18/18**，均无跳过/取消/失败。
+- 构建成功；Builder **41/41**，最终 CLI **19/19**，均无跳过/取消/失败。
 - `pnpm check` 成功：format、release lint/test、Turborepo **44/44** lint/typecheck/test/build、
   测试类型检查及各包 publint。未修改测试以规避现有 Node26 identity 弃用警告。
 - publint 仅对既有私有 app 给出建议，无失败；不将无关建议纳入修改。
@@ -87,14 +93,46 @@ pnpm check
 
 | 包 | 当前源 manifest / registry 观测 | 部署影响 |
 | --- | --- | --- |
-| task-builder-cli | `0.1.0-canary-261109-3`，本次未改版本 | 新发布需要新的精确 Canary 版本，不复用旧 tag/version。 |
-| task-builder | `0.1.0-canary-261109-3`；registry 有该版本 | 本次代码已变化，必须先明确授权准备并单独发布新 Builder，不能将旧已发布字节视作本次实现。 |
-| task-bundle-car | 源 manifest 已是 `0.1.0-canary-261110-1`；registry 返回 **E404** | CLI/Builder 的必要运行依赖；设备 registry 未观察到可安装版本，须父代理明确处理首次发布/可用性，不能自动发布依赖。 |
+| task-builder-cli | 按父级授权准备 `0.1.0-canary-261110-1`；registry 仍只有旧版本 | 版本准备不是发布；未推 tag，必须单独通过父级发布门禁。 |
+| task-builder | 按父级授权准备 `0.1.0-canary-261110-1`；registry 仍只有旧版本 | CLI 的 packed runtime 依赖已固定到该新 Builder，不再指向旧 `261109-3` 字节。 |
+| task-bundle-car | 源 manifest 原已是 `0.1.0-canary-261110-1`，本次未改；设备 registry 返回 **E404** | CLI/Builder 的必要运行依赖；父级另核实官方 registry 也缺失，首次发布/身份/Trusted Publisher 仍须明确门禁。 |
 | task-protocol | `0.1.0-canary-261109-2`；registry 版本列表含该版本 | 未修改业务代码或版本。 |
 | task-sdk | `0.1.0-canary-261109-2`；registry 版本列表含该版本 | 当前 Builder 模板的发行配套 SDK；未修改代码/版本，仅更新直接相关使用文档。 |
 
-父代理保留版本准备、内部依赖发布及 CLI 发布决策；发布前须重新查询，
+父代理保留内部依赖发布及 CLI 发布决策；发布前须重新查询，
 按精确 main commit 的 CI 和单包映射顺序处理，不能批量自动发布。
 如需变更实现交付物/版本，先重新验证并同步对应候选，不将旧提交视为新字节的证明。
 Deployment.md 已细化必须真实发布 Canary、registry 独立安装、核实 bin 来源并完整闭环；
 所有 D 项仍未勾选。
+
+### 本轮候选版本准备与打包检查
+
+父级授权的两个候选版本均为 `0.1.0-canary-261110-1`。2026-11-10 本轮准备前再次执行
+`npm view @silvermoon-work/task-builder versions --json`、
+`npm view @silvermoon-work/task-builder-cli versions --json`，设备 Tencent registry 的
+版本列表均不含候选；`git ls-remote --tags origin` 对两个精确候选 tag（含 peeled 引用）
+均返回空。未据此推送 tag 或发包。
+
+`pnpm install --lockfile-only --ignore-scripts` 成功，431 项 supply-chain 检查通过；
+lockfile 无 diff 是因为内部依赖仍使用 `workspace:*` / `link:../...`，不应伪造版本条目。
+模板测试从实际安装 metadata 读取 CLI/Builder 新版本，配套 SDK 仍为
+`0.1.0-canary-261109-2`；root --version 测试与模板版本测试均通过。
+
+额外执行两个禁用 lifecycle 的本地 pack，并读取 tarball 内的 `package/package.json`：
+
+```powershell
+pnpm --filter @silvermoon-work/task-builder --config.ignore-scripts=true pack --out <repo-owned-candidate.tgz>
+pnpm --filter @silvermoon-work/task-builder-cli --config.ignore-scripts=true pack --out <repo-owned-cli-candidate.tgz>
+```
+
+实际 packed Builder/CLI version 均为 `0.1.0-canary-261110-1`；
+CLI 的 Builder、CAR 运行依赖均为 `0.1.0-canary-261110-1`，protocol 为
+`0.1.0-canary-261109-2`；Builder 包包含 `dist/contract-worker.js`。
+这些只证明本地打包候选，不替代 registry 安装/部署成功；操作自有 tarball 在检查后清理。
+
+父代理提供的独立只读发布前置证据：
+[verify-npm run 42809088942](https://github.com/silvermoon-work/task-engine/actions/runs/42809088942)，
+head `48e8d1020548a0d9057b9efbfb4ab59ddd931e06`。
+该 CI 针对 task-bundle-car 查询官方 registry，返回 `availableVersions: []`、
+`expectedVersion: 0.1.0-canary-261110-1` 缺失，不是仅本地镜像延迟。
+此项是父级执行的外部观测，不冒充本子代理的本地查询；本地包操作仍只用 Tencent registry。

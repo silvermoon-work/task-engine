@@ -53,9 +53,9 @@ export async function safePath(path: string): Promise<void> {
   if (parent !== path) await safePath(parent);
   const value = await info(path);
   if (value?.isSymbolicLink())
-    throw new CliError("UNSAFE_PATH", "Output paths must not contain symbolic links.");
+    throw new CliError("UNSAFE_PATH", "Paths must not contain symbolic links.");
   if (value && (await realpath(path)).toLowerCase() !== resolve(path).toLowerCase())
-    throw new CliError("UNSAFE_PATH", "Output paths must be canonical.");
+    throw new CliError("UNSAFE_PATH", "Paths must be canonical.");
 }
 
 export async function selectedModule(directory: string, options: ReadOptions = {}) {

@@ -3,16 +3,16 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Task Engine CLI Spec — 讨论草案</title>
+    <title>Task Engine CLI Spec — 已批准 v1.0</title>
     <style>
       :root {
         color-scheme: light;
-        --paper: #fff;
-        --ink: #203047;
-        --muted: #4c6077;
-        --link: #1756a9;
-        --line: #c6d3e2;
-        --panel: #eef4fa;
+        --paper: #ffffff;
+        --ink: #243247;
+        --muted: #627186;
+        --link: #315fba;
+        --line: #e2e7ef;
+        --panel: #f6f8fb;
         font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
         color: var(--ink);
         background: var(--paper);
@@ -23,23 +23,72 @@
       }
       body {
         margin: 0;
+        overflow: hidden;
       }
       main {
-        max-width: 96rem;
-        margin: auto;
-        padding: 2rem clamp(1rem, 4vw, 3rem) 5rem;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        width: 100%;
+        height: 100vh;
+        height: 100dvh;
       }
       .spec-layout {
         display: grid;
-        grid-template-columns: 17rem minmax(0, 1fr);
-        gap: 2rem;
-        align-items: start;
+        grid-template-columns:
+          clamp(16rem, var(--nav-width, 22rem), calc(100% - 21rem))
+          minmax(0, 1fr);
+        min-height: 0;
+      }
+      .spec-layout.is-resizable {
+        grid-template-columns:
+          clamp(16rem, var(--nav-width, 22rem), calc(100% - 21rem))
+          0.5rem minmax(0, 1fr);
+      }
+      .spec-layout.is-nav-collapsed {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .is-nav-collapsed > .tree,
+      .is-nav-collapsed > .splitter {
+        display: none;
+      }
+      .tree,
+      .details {
+        min-height: 0;
+        overflow: auto;
+        overscroll-behavior: contain;
       }
       .details {
         min-width: 0;
+        padding: clamp(1.25rem, 3vw, 3rem);
+        scrollbar-gutter: stable;
+      }
+      .splitter {
+        display: none;
+        position: relative;
+        cursor: col-resize;
+        touch-action: none;
+        background: var(--paper);
+      }
+      .splitter::after {
+        content: "";
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 1px;
+        background: var(--line);
+      }
+      .is-resizable:not(.is-nav-collapsed) > .splitter {
+        display: block;
+      }
+      .splitter:focus-visible {
+        outline: 2px solid var(--link);
+        outline-offset: -2px;
+      }
+      .is-resizing {
+        cursor: col-resize;
+        user-select: none;
       }
       h1 {
-        font-size: clamp(1.8rem, 4vw, 2.8rem);
+        font-size: 1.4rem;
         margin: 0;
         line-height: 1.2;
       }
@@ -53,7 +102,7 @@
       }
       p,
       dd {
-        max-width: 80ch;
+        max-width: 76ch;
       }
       a {
         color: var(--link);
@@ -63,36 +112,75 @@
         outline: 3px solid var(--link);
         outline-offset: 4px;
       }
-      section,
-      nav {
+      section {
         scroll-margin-top: 1rem;
       }
       header {
-        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        padding: 1rem 1.5rem;
+        background: var(--paper);
+        border-bottom: 1px solid var(--line);
       }
-      .meta,
-      .status {
+      .nav-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        width: 2.25rem;
+        height: 2.25rem;
+        padding: 0.5rem;
+        color: var(--muted);
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 0.6rem;
+        cursor: pointer;
+      }
+      .nav-toggle[hidden] {
+        display: none;
+      }
+      .nav-toggle:hover {
+        color: var(--link);
+        background: var(--panel);
+      }
+      .nav-toggle:focus-visible {
+        outline: 2px solid var(--link);
+        outline-offset: 3px;
+      }
+      .nav-toggle[aria-expanded="false"] .nav-icon-pane {
+        display: none;
+      }
+      .nav-toggle svg {
+        width: 100%;
+        height: 100%;
+      }
+      .meta {
         color: var(--muted);
       }
-      .status {
-        font-size: 0.9rem;
-      }
       .tree {
-        position: sticky;
-        top: 1rem;
-        max-height: calc(100vh - 2rem);
-        overflow-y: auto;
         overflow-wrap: anywhere;
         background: var(--panel);
-        padding: 1.5rem;
-        border-left: 4px solid var(--link);
+        padding: 1.5rem 1.25rem;
       }
       .tree h2 {
-        font-size: 1.1rem;
+        font-size: 0.85rem;
+        letter-spacing: 0.04em;
+        color: var(--muted);
       }
       .tree a {
         display: inline-block;
-        padding: 0.2rem 0;
+        padding: 0.3rem 0.5rem;
+        border-radius: 0.4rem;
+        text-decoration: none;
+      }
+      .tree a:hover,
+      .tree a:focus-visible {
+        background: #e7eefb;
+        color: var(--link);
       }
       .tree ul {
         list-style: none;
@@ -116,17 +204,22 @@
         overflow-wrap: anywhere;
       }
       pre {
-        padding: 1rem;
+        padding: 1rem 1.25rem;
         background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 0.6rem;
         overflow-x: auto;
-        line-height: 1.5;
+        line-height: 1.6;
+        font-size: 0.9rem;
       }
       pre code {
         overflow-wrap: normal;
       }
       .chapter,
       .shared {
-        margin: 0 0 3rem;
+        width: 100%;
+        max-width: 72rem;
+        margin: 0 auto 3rem;
       }
       @supports selector(:has(*)) {
         .details > .chapter {
@@ -139,8 +232,14 @@
           display: none;
         }
       }
+      .status {
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
       .table-scroll {
         overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 0.6rem;
       }
       .table-scroll:focus-visible {
         outline: 3px solid var(--link);
@@ -175,24 +274,57 @@
       }
       .examples {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
-        gap: 1.5rem;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 1rem;
       }
       .example {
         min-width: 0;
+        padding: 1.25rem;
+        border: 1px solid var(--line);
+        border-radius: 0.8rem;
+      }
+      .example dl {
+        margin-bottom: 0;
+      }
+      .example dd {
+        max-width: none;
+      }
+      .example pre {
+        white-space: pre-wrap;
+      }
+      .example pre code {
+        overflow-wrap: anywhere;
       }
       .example h3 {
         margin-top: 0.5rem;
       }
-      .notice {
-        padding: 1rem;
-        background: #fff7e6;
-        border-left: 4px solid #a56a00;
-      }
       @media (max-width: 48rem) {
-        .spec-layout {
+        body {
+          overflow: auto;
+        }
+        main {
+          display: block;
+          height: auto;
+          min-height: 100dvh;
+        }
+        .spec-layout,
+        .spec-layout.is-resizable,
+        .spec-layout.is-nav-collapsed {
           grid-template-columns: minmax(0, 1fr);
-          gap: 1.5rem;
+        }
+        .spec-layout > .splitter {
+          display: none !important;
+        }
+        .tree,
+        .details {
+          overflow: visible;
+        }
+        .details {
+          padding: 1rem;
+        }
+        section,
+        nav {
+          scroll-margin-top: 5rem;
         }
         .examples {
           grid-template-columns: 1fr;
@@ -202,24 +334,42 @@
           padding: 0.5rem;
         }
         .tree {
-          position: static;
-          max-height: none;
           padding: 1rem;
+          border-bottom: 1px solid var(--line);
         }
       }
       @media print {
+        body {
+          overflow: visible;
+        }
         main {
-          max-width: none;
-          padding: 0;
+          display: block;
+          height: auto;
+          min-height: 0;
+        }
+        header {
+          position: static;
+          padding: 0 0 1rem;
         }
         .spec-layout {
           display: block;
         }
-        .tree {
-          position: static;
-          max-height: none;
-          overflow: visible;
+        .spec-layout > .tree {
+          display: block;
           margin-bottom: 2rem;
+        }
+        .tree,
+        .details {
+          overflow: visible;
+          padding: 0;
+        }
+        .spec-layout > .splitter,
+        .nav-toggle {
+          display: none !important;
+        }
+        .chapter,
+        .shared {
+          max-width: none;
         }
         .details > .chapter,
         .details > .shared {
@@ -234,6 +384,7 @@
         }
         .table-scroll {
           overflow: visible;
+          border: 0;
         }
         table {
           min-width: 0;
@@ -251,30 +402,47 @@
           break-inside: avoid;
         }
       }
+
+      .notice {
+        padding: 1rem;
+        background: #fff7e6;
+        border-left: 4px solid #a56a00;
+      }
     </style>
   </head>
   <body>
     <main>
       <header>
+        <button
+          class="nav-toggle"
+          type="button"
+          aria-label="折叠或展开命令导航"
+          title="折叠或展开命令导航"
+          aria-controls="command-tree"
+          aria-expanded="true"
+          hidden
+        >
+          <svg
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            aria-hidden="true"
+          >
+            <rect x="2.5" y="3" width="15" height="14" rx="2"></rect>
+            <path d="M8 3v14"></path>
+            <path class="nav-icon-pane" d="M5 6v8"></path>
+          </svg>
+        </button>
         <h1>Task Engine CLI Spec</h1>
-        <p class="meta">
-          v0.3 · 2026-11-10 · 已补录批准的持久 IPFS 内容缓存需求； 保留 Server
-          命名、IPFS Gateway、原 11 项独立限制及本地生命周期边界的局部批准。
-          缓存接口映射、具体默认数值和其余接口仍待讨论。
-        </p>
-        <p>
-          面向任务使用方。依据<a href="task-engine-cli-requirements.md"
-            >已批准需求模型</a
-          >设计具体接口。文档可按授权提交同步至 primary； 不实现代码，不修改仓库
-          Idea，不推进其生命周期。
-        </p>
       </header>
 
       <div class="spec-layout">
         <nav id="command-tree" class="tree" aria-labelledby="tree-title">
           <h2 id="tree-title">命令树</h2>
           <p class="status">
-            Server 命名及本地管理边界已确认；完整命令树仍待确认，
+            第 10 项已批准：用户 19:26 确认下列 12 个叶命令的分组、命名及职责。
+            Server 本地管理边界及已批准局部接口保留，不新增独立详情命令。
             不因本轮修订批准其他章节参数、默认数值或输出细节。
           </p>
           <p><a href="#shared-contracts">共享契约与批准状态</a></p>
@@ -300,18 +468,23 @@
                   </ul>
                 </li>
                 <li>
-                  <a href="#run"><code>run</code></a> 执行任务并等待结果 · S1
+                  <a href="#run"><code>run</code></a>
+                  提交执行，默认等待或异步回执 · S1
                 </li>
                 <li>
-                  <code>task</code> — 查询引擎中的任务记录
+                  <code>task</code> — 查询记录、日志及等待最终结果
                   <ul>
                     <li>
                       <a href="#task-query"><code>query</code></a>
-                      按条件查询任务列表 · A4Q
+                      查询列表或按 ID 查看无日志详情 · A4Q、A4D
                     </li>
                     <li>
-                      <a href="#task-detail"><code>detail</code></a>
-                      查看单次任务详情 · A4D
+                      <a href="#task-logs"><code>logs</code></a>
+                      分页查看单次任务日志 · A4L
+                    </li>
+                    <li>
+                      <a href="#task-await"><code>await</code></a>
+                      等待完整释放并取得最终结果 · A6（命名已批准）
                     </li>
                   </ul>
                 </li>
@@ -320,7 +493,7 @@
                   <ul>
                     <li>
                       <a href="#data-prune"><code>prune</code></a>
-                      清理明确选定的历史数据 · A5
+                      清理所选历史或未引用缓存 · A5
                     </li>
                   </ul>
                 </li>
@@ -358,7 +531,16 @@
           </p>
         </nav>
 
-        <div class="details">
+        <div
+          class="splitter"
+          role="separator"
+          aria-label="调整导航栏宽度"
+          aria-orientation="vertical"
+          aria-controls="command-tree spec-details"
+          tabindex="0"
+          hidden
+        ></div>
+        <div id="spec-details" class="details">
           <section
             id="shared-contracts"
             class="shared"
@@ -366,15 +548,26 @@
             tabindex="-1"
           >
             <h2 id="shared-title">共享契约</h2>
+            <p class="meta">
+              v1.0 · 2026-11-10 19:37 · 本轮需求、完整命令树、12
+              个命令章节及共享接口契约已批准。先前配额方案及被移除字段不属于当前规格；示例是已批准的预期契约，不是已实现或已运行证明。
+            </p>
+            <p>
+              面向任务使用方。依据<a href="task-engine-cli-requirements.md"
+                >已批准需求模型</a
+              >设计具体接口。文档可按授权提交同步至 primary；
+              不实现代码，不修改仓库 Idea，不推进其生命周期。
+            </p>
             <p class="status">
-              共享接口契约待确认；已批准的需求与局部接口选择保留，
-              不扩大为整节批准。各命令按章节讨论适用部分，最终另行确认跨命令一致性。
+              前 15 项逐项确认，剩余第 16–21 项于 19:37
+              集中确认。本文件是本轮已批准的 CLI 接口基线；不授权实现、不更改
+              Idea 或生命周期。
             </p>
             <div class="notice">
-              除明确标注的局部批准外，以下数值、路径、标志名、JSON
-              字段及生命周期方式均是接口提案，不是现有实现证明。示例是预期契约，未执行。这里只面向可信环境，不宣称具有多租户隔离或可安全公开暴露的能力。
+              规格描述产品目标，不是现有实现证明。示例均未作为实际 CLI
+              命令执行。仅面向可信环境，不宣称具有多租户隔离或可安全公开暴露的能力。
             </div>
-            <h3 id="approval-status">批准状态与当前接力点</h3>
+            <h3 id="approval-status">批准状态与设计基线</h3>
             <div
               class="table-scroll"
               tabindex="0"
@@ -383,7 +576,7 @@
             >
               <table>
                 <caption>
-                  批准范围独立记录，不以局部选择替代整体确认
+                  本轮设计确认完成；不等于代码实施或 Idea 生命周期批准
                 </caption>
                 <thead>
                   <tr>
@@ -395,74 +588,186 @@
                 <tbody>
                   <tr>
                     <th scope="row">需求模型</th>
-                    <td>已批准；持久 IPFS 内容缓存已补录</td>
+                    <td>已批准</td>
                     <td>
-                      沿用已批准五步模型；缓存依据用户 2026-11-10
-                      接力说明，不重复审批
-                    </td>
-                  </tr>
-                  <tr>
-                    <th scope="row">局部接口选择</th>
-                    <td>保留批准</td>
-                    <td>
-                      server 命名、IPFS Gateway 命名、原 11 项独立限制清单、本地
-                      status/stop 边界及 task query/detail 分离
+                      沿用五步模型及后续明确修订；角色、两主场景、持久化、无配额缓存、完整释放、重启失败规则均保留。
                     </td>
                   </tr>
                   <tr>
                     <th scope="row">完整命令树</th>
-                    <td>待确认</td>
+                    <td>19:26 已批准</td>
                     <td>
-                      不新增缓存管理或远程 health 命令；分组及其余叶命令仍为提案
+                      12
+                      个叶命令的分组、命名及职责，不新增独立详情、缓存命令组或远程健康命令。
                     </td>
                   </tr>
                   <tr>
-                    <th scope="row">命令章节</th>
-                    <td>11 个章节均待逐项确认</td>
+                    <th scope="row">逐项收口</th>
+                    <td>第 1–15 项已批准</td>
                     <td>
-                      章节内已批准的局部选择保留，参数、输出及示例不因此整体批准
+                      19:03–19:33
+                      的明确回复已记录在需求文档，命名、字段、清理、默认值及生命周期选择保持不变。
                     </td>
                   </tr>
                   <tr>
-                    <th scope="row">共享契约</th>
-                    <td>待逐项确认</td>
+                    <th scope="row">命令章节及共享契约</th>
+                    <td>19:37 集中确认完成</td>
                     <td>
-                      缓存需求已批准，不等于缓存选项名、配置键或其他共享接口已批准
+                      用户回复“这些项目都没有问题，可以确认。”，批准第 16–21
+                      项剩余契约，覆盖筛选、返回对象、日志游标、用户配置、目录与清理边界及通用输出帮助。
                     </td>
                   </tr>
                   <tr>
-                    <th scope="row">具体默认数值</th>
-                    <td>待确认</td>
-                    <td>现有数值仅为草案；持久缓存磁盘预算尚不指定数值</td>
+                    <th scope="row">默认数值</th>
+                    <td>已批准</td>
+                    <td>
+                      Home
+                      数据目录、监听/调用地址、执行时限、分页及九项服务限制均已确定；没有历史条数、内存内容缓存或持久缓存容量配额。
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row">实施与 Idea</th>
+                    <td>未在本次操作中启动</td>
+                    <td>
+                      仅完成文档定稿与提交同步；内部存储、锁、传输和标记清除技术在实施阶段细化，不豁免实现验证或正式生命周期批准。
+                    </td>
                   </tr>
                 </tbody>
               </table>
             </div>
             <p>
-              本轮先补录批准的缓存需求并核对边界，下一步讨论完整命令树；
-              之后按树顺序逐章讨论及确认相关共享契约。缓存预算的映射建议单独待议，
-              不重新开始需求建模，也不把本文标为最终 Spec。
+              本地生命周期仅管理本 CLI 管理的本机 Server；任务调用、查询、日志与
+              await 可以连接显式指定的引擎。远程 health
+              不在本轮范围。生命周期章节沿用既有锚点以保持历史链接有效。
             </p>
-            <p>
-              本轮将生命周期管理限定为本机由本 CLI 管理的
-              Server，不提供远程停止能力。 run 与 task
-              查询仍可使用明确指定的引擎服务地址。 远程 health
-              是不同于本地进程状态的只读能力，目前仅记录为候选，不新增命令或场景。
-              为保持已有文档链接有效，生命周期章节继续沿用原有锚点。
-            </p>
-
             <h3 id="shared-options">公共选项、配置与默认值</h3>
+            <div class="notice" id="remaining-contracts-review">
+              <h3>第 16–21 项集中确认记录</h3>
+              <p>
+                用户 2026-11-10 19:37
+                回复“这些项目都没有问题，可以确认。”，明确批准以下剩余契约，与前
+                15
+                项共同组成当前设计基线。内部技术选型留在实施阶段；本记录不是开工指令或
+                Idea 生命周期决定。
+              </p>
+              <dl>
+                <dt>16. 查询筛选与排序</dt>
+                <dd>
+                  重复 --status 取并集，不同条件取交集；since 含下界、until
+                  不含上界， 使用带时区 RFC 3339 并按 createdAt 筛选，since
+                  必须早于 until。 固定 createdAt 升序、同时间 taskId 升序。--id
+                  不与状态/时间筛选混用。
+                </dd>
+                <dt>17. 任务状态与结果对象</dt>
+                <dd>
+                  采用现有
+                  pending/running/succeeded/failed/timed_out/cancelled/rejected
+                  状态； pending 含拉包、准备和排队，succeeded 不替代释放确认。
+                  同步 run 与 await 的可信任务 data 为 {taskId,status,result?}，
+                  失败在同一对象附 error；异步回执为 {taskId,status}。
+                  查询列表项为
+                  {taskId,status,createdAt,resultSummary}，摘要为简短字符串，
+                  只描述可用性和结论、不复制业务输入输出；按 ID 项为
+                  {taskId,status,createdAt,result?}。 result
+                  仅实际取得时存在，合法 null
+                  与缺失不同，不再增加结果状态或释放字段。
+                </dd>
+                <dt>18. 日志字段与游标</dt>
+                <dd>
+                  logs 返回 {taskId,logs:[{time,level,message}],nextCursor}，
+                  level 为 debug/info/warn/error，不混入完整任务结果、不增加
+                  --follow。 日志按持久化追加顺序分页；游标为不透明字符串或
+                  null，绑定相同服务、任务及筛选，
+                  不兼容游标报错，不承诺跨页事务快照。空日志成功，任务不存在报错，
+                  查询到失败任务本身不使日志读取失败。日志不自动截断，分页默认值保持已批准选择。
+                </dd>
+                <dt>19. 用户配置位置、类型与读写</dt>
+                <dd>
+                  采用独立配置文件：Windows 为
+                  %LOCALAPPDATA%\TaskEngine\config.json， 其他平台为
+                  ~/.task-engine/config.json；不随 --data-dir 迁移。
+                  优先级为显式选项 &gt; 用户配置 &gt;
+                  产品默认，无项目级或环境变量配置层。
+                  缺文件视为未设置，损坏/未知键/无效值报错；端口与资源限制按现有整数约束。
+                  list/get 使用
+                  {key,userValue,productDefault,effectiveValue,source}， source
+                  为 user/product/unset，未设置值使用 null；list 按键名排序。
+                  set/reset 只改所选键，无热更新；服务配置下次启动生效，
+                  调用配置下次调用生效。set 成功结构保持已批准的四字段； reset
+                  返回 {key,changed,effectiveValue,source,appliesTo}，
+                  已无覆盖时 changed:false，仍成功。保留其他键，不批量覆盖。
+                </dd>
+                <dt>20. 目录实例与离线清理边界</dt>
+                <dd>
+                  保留 --data-dir 命名，同一实际目录同时最多一个受管 Server，
+                  运行期间持续持锁，路径别名也互斥；重启使用新运行身份，不只凭
+                  PID/端口/锁文件判断归属。 prune
+                  必须离线取得同一实例锁，历史只清理已终结且释放确认的任务，
+                  --before 按完成时间而非创建时间选择。
+                  缓存必须完整标记剩余历史根的传递可达节点后才清除，引用无法核实则拒绝删缓存；
+                  不联网补图、不删共享或在用块、不碰原始包或其他实例。
+                  这些保护不改变已批准的 --cache 组合顺序和部分失败计数。
+                </dd>
+                <dt>21. 通用输出、退出码与帮助</dt>
+                <dd>
+                  沿用已经明确的 stdout JSON、stderr 仅日志、code/message
+                  错误、不加静默或格式参数、 无交互确认。剩余退出码选择为 0
+                  成功、1 失败、130 用户中断；
+                  已有变更或释放无法确认时用失败，不以中断掩盖未知结果。
+                  根/分组无子命令只显示帮助并退出 0；--help/--version
+                  不连接或写数据，
+                  缺必需参数/未知选项明确报错，不忽略或自动纠正。
+                </dd>
+              </dl>
+              <p>
+                本清单同时对齐上述少量字段类型与日志顺序的未展开处。
+                真正的内部选型（存储引擎、锁技术、传输实现、具体标记清除实现）留在实施设计，
+                不再制造额外的 CLI
+                产品选择；但不豁免实现验证或正式生命周期批准。
+              </p>
+            </div>
+            <div class="notice" id="ordinary-defaults-review">
+              <strong>第 8 项已批准：连接、执行时限与分页默认值。</strong>
+              默认监听 127.0.0.1:8787；调用端独立默认连接
+              http://127.0.0.1:8787， 更改监听设置不自动修改调用地址。任务
+              Worker 执行时限默认 60000 毫秒，
+              不包含拉包、准备、排队或等待资源释放。 列表与日志查询每页默认 100
+              条，--limit 为 1–1000，不自动拉取全部页； 按 ID
+              查询不分页，分页值不保存为用户配置。
+              这是可覆盖的初始产品选择，不是服务性能或可用性保证。 依据用户
+              2026-11-10 19:23 “好的，同意，没有问题。”的直接批准，
+              本项仅确认这组默认数值与分页范围，其他产品契约按后续已确认的集中清单执行，不扩大产品范围。
+            </div>
+            <div class="notice" id="service-defaults-review">
+              <strong>第 9 项已批准：九项已暴露服务限制的默认值。</strong>
+              沿用下表：根层并发执行组 64、同时准备请求 1000、子任务派生深度 4、
+              每父 Run 在途子调用 4、每根 Run 累计子调用 64、单个受限制 JSON
+              载荷 65536 字节、 同时任务包准备 4、单包文件内容累计 67108864
+              字节、HTTP 同时连接 256。
+              各值均支持用户配置和本次启动覆盖。并发与准备数量控制不同阶段，
+              包大小与载荷大小约束不同内容；这些是容量边界，不保证设备能以该并发满载运行。
+              依据用户 2026-11-10 19:25 “同意，没问题”的直接批准，
+              本项只确认既有九项默认数值，不改变其含义、不新增限制；
+              不恢复历史记录数量、内存内容缓存或持久缓存容量配额。
+            </div>
+            <p class="status">
+              公共选项与输出形式已确认：不提供通用静默选项或格式切换参数；不输出常规进度。业务结果统一为
+              stdout JSON，stderr 仅用于 logging。
+            </p>
             <p>
-              叶命令均接受 <code>--json</code>、<code>--quiet</code>、<code
-                >-h / --help</code
-              >。其他选项仅在章节声明时可用；未知选项退出
-              2，不忽略、不自动纠正。公共选项置于叶命令之后。<code>--json</code>
-              与 <code>--quiet</code> 可组合；quiet 不隐藏结果、警告或错误。
+              叶命令均接受 <code>-h / --help</code>；业务结果默认输出
+              JSON，不设格式切换参数。 其他选项仅在章节声明时可用；未知选项退出
+              1，不忽略、不自动纠正。公共选项置于叶命令之后。
+              不输出常规进度，不再增加另一层抑制开关。
+              调用及参数直接表达操作意图，不增加交互确认开关。
+              警告和错误按共享输出契约处理，目录归属、互斥及在用检查仍保留。
             </p>
             <p>
               业务值优先级仅为显式选项 &gt; 用户配置 &gt;
-              产品默认。不新增环境变量或项目级配置层。用户配置位置提案：Windows
-              为
+              产品默认。不新增环境变量或项目级配置层。 实例数据默认位于用户 Home
+              下的 <code>~/.silvermoon.work/task-engine</code>，
+              按平台解析为绝对路径；这不自动迁移独立的用户配置文件。
+              用户配置位置：Windows 为
               <code>%LOCALAPPDATA%\TaskEngine\config.json</code
               >；其他平台为用户主目录内
               <code>.task-engine/config.json</code
@@ -476,13 +781,13 @@
             >
               <table>
                 <caption>
-                  可复用业务配置映射（所有具体默认均待批准）
+                  可复用业务配置映射（本表默认值已批准；无缓存容量配置）
                 </caption>
                 <thead>
                   <tr>
                     <th scope="col">配置键</th>
                     <th scope="col">类型与约束</th>
-                    <th scope="col">提议默认</th>
+                    <th scope="col">已定默认</th>
                     <th scope="col">对应场景 / 选项</th>
                   </tr>
                 </thead>
@@ -512,15 +817,6 @@
                     <td>正安全整数；同时处于准备阶段的请求数上限</td>
                     <td><code>1000</code></td>
                     <td>S2 / <code>--max-preparing</code></td>
-                  </tr>
-                  <tr>
-                    <th scope="row"><code>server.maxTasks</code></th>
-                    <td>
-                      正安全整数；引擎保有的 Task
-                      记录容量，包含历史记录，不是并发数或仅排队数量
-                    </td>
-                    <td><code>10000</code></td>
-                    <td>S2 / <code>--max-tasks</code></td>
                   </tr>
                   <tr>
                     <th scope="row"><code>server.maxChildDepth</code></th>
@@ -570,15 +866,6 @@
                     <td>S2 / <code>--bundle-max-bytes</code></td>
                   </tr>
                   <tr>
-                    <th scope="row"><code>server.bundleCacheBytes</code></th>
-                    <td>
-                      正安全整数；任务包内容块的内存驻留字节预算， 不是持久 IPFS
-                      磁盘缓存预算，也不是全部进程内存硬上限
-                    </td>
-                    <td><code>268435456</code>（256 MiB）</td>
-                    <td>S2 / <code>--bundle-cache-bytes</code></td>
-                  </tr>
-                  <tr>
                     <th scope="row"><code>server.maxConnections</code></th>
                     <td>正安全整数；HTTP 同时连接数上限，不是任务并发数</td>
                     <td><code>256</code></td>
@@ -590,7 +877,7 @@
                       读取任务包内容的 IPFS Gateway
                       URL；无用户名、口令、查询串和片段的 HTTP(S) URL
                     </td>
-                    <td>无；启动时须提供或配置</td>
+                    <td>无；可不配置，按 CID 读取时仅查本地缓存，不隐式联网</td>
                     <td>S2 / <code>--ipfs-gateway</code></td>
                   </tr>
                   <tr>
@@ -599,9 +886,9 @@
                       目录路径，解析后以绝对路径显示；包含持久 IPFS 内容缓存
                     </td>
                     <td>
-                      Windows：<code>%LOCALAPPDATA%\TaskEngine\data</code>；其他平台：<code
-                        >~/.task-engine/data</code
-                      >
+                      各平台统一为用户 Home 下的
+                      <code>~/.silvermoon.work/task-engine</code
+                      >，输出时解析为绝对路径
                     </td>
                     <td>S2、A2、A3、A5 / <code>--data-dir</code></td>
                   </tr>
@@ -610,14 +897,15 @@
                     <td>无用户名、口令、查询串和片段的 HTTP(S) 服务 URL</td>
                     <td><code>http://127.0.0.1:8787</code></td>
                     <td>
-                      S1、A4Q、A4D /
+                      S1、A4Q、A4D、A4L、A6 /
                       <code>--engine</code>；不得选择本地生命周期目标
                     </td>
                   </tr>
                   <tr>
                     <th scope="row"><code>task.timeoutMs</code></th>
                     <td>
-                      正安全整数，单位毫秒；服务端执行时限，不是客户端连接等待时限
+                      正安全整数，单位毫秒；从任务 Worker 启动开始计时，
+                      拉包、准备和排队不计入；不是客户端连接或等待结果时限
                     </td>
                     <td><code>60000</code></td>
                     <td>S1 / <code>--timeout-ms</code></td>
@@ -626,13 +914,13 @@
               </table>
             </div>
             <p>
-              限制项分别覆盖，不再接受 --limits 对象或 server.limits 配置。
-              上述原 11 项限制的独立暴露清单已批准，其中 bundleCacheBytes
-              仅指内存驻留； 新批准的持久 IPFS
-              磁盘缓存预算必须另行配置，不挤占或重解释该项。
-              原清单不因此变成已批准的 12 项接口清单。
-              具体默认数值仍为参考现有内核能力提出的草案；
-              不把所有内部调度、心跳、协议校验和日志参数直接公开。
+              限制项分别覆盖，不再接受 --limits 对象或 server.limits 配置。 原
+              11 项限制经本轮反馈移除历史任务记录数量与内存内容缓存预算，
+              上述其余 9 项保留局部批准。任务记录持久化且不设历史条数上限；
+              当前不做内存内容缓存，未来性能优化再讨论。持久缓存不设应用配额，
+              不再增加第十项容量限制，不通过改名或“0
+              表示无限”保留已撤回的缓存参数。这些限制项的具体默认值已于 19:25
+              批准； 不把所有内部调度、心跳、协议校验和日志参数直接公开。
               这些预算不授予额外子任务权限，也不绕过固定协议边界。
               配置相对路径按配置文件所在目录解析，命令行相对路径按调用工作目录解析。启动时解析并固定服务配置；更改配置不热更新已有服务。<code
                 >server.host/port</code
@@ -641,49 +929,163 @@
               <code>client.engine</code>
               不联动、不推导彼此；更换端口后调用方应明确选择对应地址。任务包、业务输入、查询条件、任务标识及清理范围不得保存为用户默认。
             </p>
-            <h3 id="shared-ipfs-cache">持久 IPFS 内容缓存与双预算边界</h3>
+            <h3 id="shared-ipfs-cache">持久 IPFS 内容缓存与实际磁盘空间</h3>
             <p class="status">
-              本节需求已批准并补录；具体选项、配置键、类型约束和默认数值仍待接口确认。
+              18:33 反馈取代此前有界缓存及配额接口：持久缓存不设应用容量上限，
+              显式清理按历史引用执行标记清除。不恢复内存内容缓存，不扩大为整份
+              Spec 批准。
             </p>
             <ul>
               <li>
                 缓存按 CID 标识的内容块，不是运行中的节点，不要求完整 IPFS
                 daemon。
-                默认启用、有界，属于引擎应用资源，位于所选引擎数据目录范围内，
+                默认启用、不设应用容量配额，属于引擎应用资源，位于所选引擎数据目录范围内，
                 随服务重启保留，不在调用端另建一份缓存。
               </li>
               <li>
-                命中时校验并复用，缺块时通过配置的 IPFS Gateway 获取；
+                命中时校验并复用；配置了 IPFS Gateway 时通过它获取缺块。
+                解析后的启动配置未包含 Gateway 时，按 CID 读取仅查本地缓存；
+                缺块使任务准备失败，不使用默认站点、网络发现或其他回退来源。
                 缓存不能替代任务包完整校验，不能将损坏或不完整内容当作有效任务包。
               </li>
               <li>
-                磁盘缓存预算与任务包内存驻留预算分开，均为 Y/Y：
-                有产品默认，支持用户配置和本次启动覆盖，不是任务调用参数。
-                两者具体默认数值均未批准。
+                没有缓存配额选项、用户配置或容量默认值，仅受实际磁盘可用空间限制。
+                当前不做内存内容缓存。读取、校验和 Worker
+                执行仍会使用必要的临时内存， 不取消任务包大小及协议载荷限制。
               </li>
               <li>
-                自动淘汰可回收内容，不删除活跃任务依赖的块。
+                不按容量、冷热或期限自动淘汰缓存；显式缓存清理保留历史引用可达及在用的块。
                 任务结束释放执行资源不等于清空持久缓存； server stop
-                保留缓存，重新启动可校验复用。
+                保留缓存，重新启动可校验复用。 实际磁盘空间不足时仍按下述规则使
+                Server 失败退出， 不隐式清理历史或缓存来掩盖磁盘耗尽。
               </li>
               <li>
                 清理任务历史不能顺便删除它用过的全部内容块，因为其他任务可能共享这些块；
-                历史清理不代替缓存自动淘汰，也不因此新增一组缓存管理命令。
+                仅删除历史不连带删除缓存；显式选择缓存清理时，以剩余历史为根执行标记清除。
+                复用 data prune，不新增独立缓存管理命令组。
               </li>
               <li>
                 不自动上传、pin 或提供 IPFS 服务，不承诺所有任务可离线执行。
-                缓存本身不改变 Gateway 的启动必需性提案，也不引入离线模式保证。
+                Gateway
+                可不配置，未配置不会阻止启动，也不等于任意任务包必然已在缓存中。
+                显式提供的本地 CAR
+                仍按既有入口完整校验；缺失且缓存也没有的块不联网补齐。
               </li>
             </ul>
-            <p>
-              <strong>待讨论映射：</strong>独立启动选项
-              <code>--ipfs-cache-max-bytes &lt;bytes&gt;</code> 与用户配置
-              <code>server.ipfsCacheMaxBytes</code> 仅是候选。
-              具体默认数值未定；尚未加入上方配置键清单、启动语法或配置输出示例，
-              待讨论确认后再同步这些接口表面。缓存需求批准不批准这组命名。
-              淘汰算法、目录内部结构和完整 IPFS daemon 均不由此指定。
+            <p id="cache-budget-decision">
+              <strong>已取代先前审定：</strong>18:18 的容量配额方案已按 18:33
+              反馈撤回。
+              当前没有缓存容量默认值或对应配置，不通过“无限”哨兵值保留旧接口。
+              缓存、任务记录、日志及元数据仍共享实际磁盘空间，不预分配空间，不保证物理容量无限。
             </p>
+            <div class="notice" id="cache-full-proposal">
+              <strong>实际磁盘空间不足仍使 Server 失败退出。</strong>
+              若实际磁盘可用空间不足而无法存储所需内容，
+              则停止接收新任务，报告致命错误并使 Server 以退出码 1 退出。
+              不自动删除历史或活跃块、不启用隐藏内存缓存，不采用仅拒绝新任务后继续服务的旧方案。
+            </div>
+            <p>
+              这是 Server 故障退出，不是用户调用
+              stop，因此不依赖用户的取消选项，
+              也不承诺其他在途任务继续执行。退出流程仍处理所属任务及执行资源，
+              能确定的失败原因、任务状态和释放结果应持久保存；
+              空间故障导致无法落盘时须明确报告，不能伪造写入成功或
+              资源已释放的证据。
+              下次启动继续按重启规则将遗留未完成任务标记失败，不自动重跑。
+            </p>
+            <p>
+              若故障发生在启动就绪之前，start 返回失败且不报告 ready；
+              若后台服务已就绪后才故障，不能追溯更改此前 start 的成功回执。
+              run/await 客户端仅在取得可信失败结论时返回相应原因；
+              若只观察到断连，则返回结果未知的标准错误，不推断任务已完成或已释放。
+              这些命令结果仍走 stdout，stderr 仅用于 logging。
+            </p>
+            <h3 id="shared-cache-prune">缓存标记清除：引用根与删除边界</h3>
+            <p class="status">
+              缓存标记清除、--cache
+              独立/组合范围、执行顺序、删除计数与部分失败返回方式均已批准；不新增独立缓存命令组或交互确认。
+            </p>
+            <ol>
+              <li>
+                引擎必须停止，清理过程取得同一实例独占锁并核实目录归属与旧资源使用状态，
+                防止启动、新增历史或写缓存与扫描并发；锁可取得不等于未知旧资源已释放。
+                缺少可信使用状态时拒绝清理，不删除在用块。
+              </li>
+              <li>
+                仅选择缓存时保持所有历史和日志不变。组合清理先完成显式选定、
+                已终结且整个任务资源释放确认的历史及其关联日志删除，再建立剩余引用根集。
+                不选缓存时到此结束，不连带删除内容块。
+              </li>
+              <li>
+                根集来自全部保留任务及子任务历史中明确登记的内容引用： 任务包根
+                CID 及其他已登记内容根，不按成功、失败或时间另行排除记录。
+                业务输入输出里的任意字符串不能只因外观像 CID 就被猜作内容引用。
+              </li>
+              <li>
+                从根出发遍历内容链接，标记全部传递可达节点。
+                只保留根本身而删除其文件块或后继节点是不允许的；
+                任何保留记录仍可达的共享块都要保留。
+                空根集且已确认没有在用引用时，当前实例缓存内的块才可全部列入清理集合。
+              </li>
+              <li>
+                标记完整成功后，只清除当前实例缓存中未标记且未被使用的块。
+                根集读取失败、引用缺块、图损坏或不支持的链接编码导致无法判定可达性时，
+                在缓存删除前明确失败；不把未知视为未引用，也不联网补齐引用图。
+              </li>
+              <li>
+                清除时仅更新本实例缓存及其配套索引，不递归删除数据目录、不动原始任务包或外部内容。
+                中断或存储错误须报告已实际完成的删除范围；
+                组合操作的历史阶段已完成时，即使后续标记失败也不能声称全部未变更或已回滚。
+              </li>
+            </ol>
             <h3 id="shared-local-server">本地 Server 的选择与身份</h3>
+            <div class="notice" id="local-instance-identity-proposal">
+              <strong>目录实例与命名已确认：</strong>
+              一个实际数据目录在同一时刻最多有一个运行中的本机 Server。
+              目录标识逻辑实例；instanceId
+              标识本次运行，重启不能沿用旧运行身份。 保留 --data-dir /
+              server.dataDir，不改为含义更宽泛的根目录名称：
+              该目录承载状态、日志、内容缓存及生命周期记录，不是项目根目录、
+              任务文件系统根目录，也不改变外部用户配置文件的位置。
+            </div>
+            <ul>
+              <li>
+                start 必须先取得目录的实例独占锁，再初始化实例数据并启动服务；
+                锁由运行中的 Server 持有整个生命周期，不能因启动命令返回而释放。
+                锁冲突即明确失败，不静默复用、重启或另选目录。
+              </li>
+              <li>
+                互斥针对实际目录，不能只按原始路径字符串建锁。
+                相对路径、大小写别名以及符号链接或目录联接指向同一目录时，也不能重复启动。
+              </li>
+              <li>
+                锁文件存在不等于仍有持有者；PID 或端口也不等于实例身份。
+                崩溃后的锁应可由操作系统回收，残留元数据仍须核实，
+                取得锁不等于上次运行资源已释放；残留身份或工作资源无法核实时应明确失败。
+                不能靠删除锁文件绕过活跃锁，也不自动恢复旧任务或接管未知进程。
+              </li>
+              <li>
+                status/stop 通过目录及受管实例记录核实身份，不要求先取得运行中
+                Server 持有的独占锁才能查询或停止。stop
+                仍须确认实际运行实例及停止结果。
+                离线数据清理则必须取得同一实例锁，与服务运行互斥。
+              </li>
+              <li>
+                这些是本机受管实例约束，不新增跨机器注册或分布式实例管理。
+                默认目录已统一为 Home 产品目录，显式目录及用户配置仍可覆盖；
+                目录唯一性不引入跨目录的自动服务发现。
+              </li>
+            </ul>
+            <div class="notice" id="local-server-selection-review">
+              <strong>18:02 默认实例位置已明确：</strong>
+              server start/status/stop 与 data prune 按同一优先级解析目录： 显式
+              --data-dir &gt; 用户配置 server.dataDir &gt; Home 下的
+              ~/.silvermoon.work/task-engine。 无目录覆盖时，无参命令定位该 Home
+              目录，不选择最近启动的其他实例。
+              以临时目录启动的非默认实例，后续通过相同目录或用户配置管理，
+              不把启动参数自动写回配置，不引入隐式“当前实例”指针。
+              该规则替代此前跟随启动记录的关联方案，实例身份检查仍保留。
+            </div>
             <p>
               server start/status/stop 使用同一 --data-dir 和 server.dataDir
               选择本地受管实例， 不读取 client.engine，不接受 --engine
@@ -695,46 +1097,97 @@
               不接管由其他工具启动的服务。元数据为服务资源的配套记录，不新增实例注册管理系统。
             </p>
             <p>
-              status 可明确返回 not-started、ready、stopping、stopped；
+              status 已于 19:29 批准明确返回
+              not-started、starting、ready、stopping、stopped；
               只有归属和存活证据足够时才能判定。目录不存在表示尚未启动，不创建目录；
-              无法确认时报告 unknown 并退出 3，不能把不可达当作停止。 stop
+              无法确认时返回 LOCAL_SERVER_UNKNOWN 标准错误并退出 1，
+              不以成功状态 unknown 或 stopped 代替无法核实的事实。stop
               对尚未启动或已确认停止的实例可幂等返回
               0，但必须区分“本次确认完成释放”和
-              “未执行停止、仅已知服务不在运行”；后者不得补造 reclaimed:true。
-              共享退出码 3
-              在这些命令中表示无法确认本地服务状态，而非远程连接失败。
+              “未执行停止、仅已知服务不在运行”；后者不得补造本次资源释放完成的证据。
+              无法确认本地状态时，由 error.code/message 表达具体原因，
+              不为本地状态未知和远程连接失败另分退出码。
             </p>
 
-            <h3 id="shared-io">stdout、stderr 与数据结构</h3>
+            <h3 id="shared-io">stdout 结果、stderr 日志与数据结构</h3>
+            <div class="notice" id="default-json-proposal">
+              <strong>本轮反馈已同步至命令及示例：</strong>
+              业务命令的结果默认输出 JSON，不设格式切换参数。
+              帮助、版本等元信息不属于业务结果。
+              原默认人类文本的描述、格式标志及对应调用已移除。
+              本次修订不等于批准结果字段、诊断、进度或确认交互；
+              共享契约及各章节仍待逐项讨论。
+            </div>
             <p>
-              默认 stdout 为简洁人类文本；非 TTY
-              禁用颜色、动画及表格装饰，不承诺默认文本适合脚本。<code
-                >NO_COLOR</code
-              >
-              禁用颜色。所有进度、警告、提示及错误只写 stderr；TTY
-              可显示进度，非 TTY 仅输出必要阶段信息。不提供
-              TUI、交互式业务输入向导、--plain 或 --verbose 草案接口。
+              示例上下排列，返回的 JSON 对象按字段展开，以便阅读；
+              示例缩进不单独批准实际输出的空白格式，也不把一个对象改成多个输出记录。
             </p>
             <p>
-              <code>--json</code> 成功时 stdout 仅一个 JSON 对象并换行，格式为
+              命令结果无论成功或失败均输出到 stdout，业务结果默认使用 JSON，
+              不使用颜色、动画或表格装饰，不因是否 TTY 切换格式。
+              帮助、版本及用法等命令行文本也输出到
+              stdout；不弹出确认提示。stderr 仅用于实现自身的
+              logging，不能独占承载错误原因或其他必须读取的命令结果； task logs
+              返回的任务日志是用户请求的数据，仍属于 stdout 结果。
+              不输出常规进度。不提供 TUI、交互式业务输入向导、--plain 或
+              --verbose 接口。
+            </p>
+            <p>
+              成功时 stdout 仅一个 JSON 对象并换行，格式为
               <code>{"ok":true,"data":…}</code>，data
-              由章节规定。失败且无可信结果时 stdout 为空，stderr 仅一个
-              <code
-                >{"ok":false,"error":{"code":"…","message":"…","hint":"…"}}</code
-              >
-              对象并换行，不再混入进度；hint 为恢复建议。run
-              的已知业务失败和已确认超时仍输出带
-              <code>ok:false</code> 的结果对象，另在 stderr
-              输出上述诊断对象。JSON 中时间为 UTC RFC
-              3339，任务标识是不可拆解字符串。示例标识 task-001 仅为说明。
+              由章节规定。失败且无可信操作结果时，stdout 仍输出一个
+              <code>{"ok":false,"error":{"code":"…","message":"…"}}</code>
+              对象并换行，不能仅写日志而省略失败结果。 run
+              的已知业务失败和已确认超时在同一个 stdout 对象中同时返回
+              <code>ok:false</code>、可信的 <code>data</code> 及
+              <code>error</code>，不拆成两个输出对象或两个流。 prune
+              等变更已部分完成时，同样在该对象中 用 data 报告已完成计数、error
+              说明失败，不声称未发生变更或已全部回滚。 业务命令无论是否 TTY
+              都只输出一个结果 JSON，不在结果前混入确认或输入提示。
+              帮助和版本是显式请求的元信息，不属于业务结果。stderr
+              日志不属于结果契约，
+              是否存在日志不影响结果完整性。退出码仍按成功与失败区分，不因统一输出流而全部返回
+              0。 JSON 中时间为 UTC RFC 3339，任务标识是不可拆解字符串。示例标识
+              task-001 仅为说明。
+            </p>
+            <p id="error-contract">
+              已批准的错误字段契约：每个 error 均包含必需的非空字符串
+              <code>code</code> 与 <code>message</code>， 不另设 hint 字段。code
+              标识错误类别；message 说明具体问题，
+              仅在确有可用建议时补充恢复提示，不要求每个错误都附带提示。
+              该契约已于 19:37 集中确认。
+            </p>
+            <p id="result-contract">
+              已批准的结果字段契约：<code>status</code> 表达任务生命周期，
+              <code>result</code> 仅承载实际业务结果，不另设结果状态字段。
+              只有确实取得结果时才包含 result；合法业务值
+              <code>null</code> 仍按原值返回，不能用它代替未知或未留存。 缺少
+              result
+              只表示本次响应未携带业务结果，不能据此推断任务尚未完成或执行失败。
+              查询任务元信息可以成功但不带 result；同步 run 或 task await
+              若需要取得执行结果却无法取得，应通过标准 error
+              明确说明，不能伪造结果。 该契约已于 19:37 集中确认。
+            </p>
+            <p id="release-contract">
+              <strong>第 2 项已批准：不对外返回释放布尔字段。</strong>
+              同步 run 和 task await
+              取得最终结果前，必须等待任务及其子任务的执行资源释放；
+              已取得的业务失败结论也不能跳过释放等待。
+              释放过程失败或无法确认时，在同一 stdout 对象中返回标准 error，
+              保留可信
+              data，不将其伪装成完整的最终结果，不增加替代布尔值或结果状态字段。
+              status 为 succeeded 仍只表示业务成功，不能据此提前结束等待。
+              server stop
+              实际停止成功（changed:true）也保证本次运行资源释放确认；
+              changed:false 仅表示已知无须停止，不补造本次释放证明。
+              异步受理成功、只读 query 成功均不提供完整释放保证。
+              执行资源释放不表示删除任务历史、日志或持久缓存；内部仍须保存可核实的释放依据。
             </p>
             <p>
-              无结果、尚未完成、结果未留存不可混用 null：详情用
-              <code>resultState</code> 区分
-              <code>available / pending / not-retained</code>，仅 available 时有
-              <code>result</code>（业务结果本身可以为 null）。日志字段
-              <code>logs</code> 为数组，<code>logsTruncated</code>
-              明确是否因原有留存边界而不完整，不假装拥有完整历史。
+              日志字段
+              <code>logs</code> 为任务日志数组。任务日志全量持久保存，直到显式
+              prune 清理； 不再设自动留存截断字段。分页只用 nextCursor
+              表示后续数据， 不能将读取失败伪装成完整的空日志或无更多日志。
             </p>
 
             <h3 id="shared-exits">退出码</h3>
@@ -746,7 +1199,7 @@
             >
               <table>
                 <caption>
-                  提议的可操作退出分类
+                  已批准的精简退出码；具体失败原因由 error 表达
                 </caption>
                 <thead>
                   <tr>
@@ -757,66 +1210,43 @@
                 <tbody>
                   <tr>
                     <th scope="row">0</th>
-                    <td>命令目标完成；任务查询查到失败任务本身仍为查询成功</td>
+                    <td>
+                      命令目标完成；查询到失败任务仍是查询成功；异步受理成功不代表任务执行成功
+                    </td>
                   </tr>
                   <tr>
                     <th scope="row">1</th>
-                    <td>其他操作失败、存储错误或服务内部错误</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">2</th>
                     <td>
-                      输入、配置无效或缺失；需要确认但未确认；安全前置条件不满足
+                      命令失败，包括输入、连接、业务、超时及释放不确定；通过
+                      error.code/message 区分，不冒充成功
                     </td>
-                  </tr>
-                  <tr>
-                    <th scope="row">3</th>
-                    <td>
-                      目标服务不可用或连接中断，无法确认操作结果；不得据此宣称服务停止
-                    </td>
-                  </tr>
-                  <tr>
-                    <th scope="row">4</th>
-                    <td>指定任务不存在</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">5</th>
-                    <td>本次执行业务失败或被拒绝</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">6</th>
-                    <td>引擎确认任务执行时限已到</td>
-                  </tr>
-                  <tr>
-                    <th scope="row">7</th>
-                    <td>无法确认归属资源的释放；优先于其他业务结果</td>
                   </tr>
                   <tr>
                     <th scope="row">130</th>
                     <td>
-                      用户中断；run
-                      的取消与释放已确认时方使用，否则按不确定结果返回 3 或 7
+                      用户中断；若有未能核实的变更、受理或资源释放结果， 应返回
+                      1 并说明不确定性，而不是用中断掩盖结果未知
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
 
-            <h3 id="shared-interaction">帮助、确认、中断与安全</h3>
+            <h3 id="shared-interaction">帮助、直接执行、中断与安全</h3>
             <p>
               帮助优先于执行，退出 0，不连接服务、不写数据。必需参数缺失时
-              stderr 给出简短用法和示例，退出 2，不挂起等待输入。只有明确
-              <code>--input -</code> 才消费 stdin。读取 stdin
-              和确认提示不得同时争用；有业务 stdin 的 run 不弹出确认。
+              stdout 的错误 message 给出简短用法和示例，退出
+              1，不挂起等待输入。只有明确
+              <code>--input -</code> 才消费 stdin，并读取至 EOF； 不因是否 TTY
+              添加输入向导、提示或确认。未显式请求 stdin 的命令不读取它。
             </p>
             <p>
-              危险操作先显示解析后的目标、影响范围及数量。只有 stdin、stderr
-              均为 TTY 时才可提示，提示写 stderr；非交互或 --json
-              模式必须通过相应确认选项授权，否则在变更前退出 2。<code
-                >--yes</code
-              >
-              只同意已显示/已选定的操作，不跳过锁检查、范围检查或释放确认。取消提示退出
-              130，不修改数据。
+              所有命令均不做交互确认。显式调用及其参数直接表达操作意图，
+              条件满足就执行并在最终 stdout 结果中报告实际目标与影响；
+              无效参数、目录锁冲突、归属不明或数据仍在使用时，在变更前返回标准错误。
+              这里不新增权限认证或确认授权机制，操作范围检查与资源释放确认不能被跳过。
+              server stop 的取消选项表达“取消在途任务再停止”的动作，
+              不是一套授权策略；未选择该动作时不静默终止在途任务。
             </p>
             <p>
               普通只读操作 Ctrl+C 停止客户端并退出
@@ -826,23 +1256,141 @@
 
             <h3 id="shared-records">任务记录契约</h3>
             <p>
+              任务记录在引擎侧持久化，不设历史记录条数上限，不按历史数量淘汰记录或拒绝新任务。
+              已取得的执行结论、业务结果及释放确认依据随任务持久保存，供之后取得最终结果。
+              任务日志也全部持久保存，不自动按容量、期限或级别删除已产生的日志；
+              显式 data prune 可清理所选历史任务及其关联日志，分页只是读取边界。
+              不记录秘密的既有约束不变。磁盘不足或持久化失败须明确返回错误，
+              不能将“不限制历史数量”解释为无限物理容量，也不能静默丢记录或日志。
+            </p>
+            <div class="notice" id="task-query-logs-proposal">
+              <strong>职责划分及局部批准状态：</strong>
+              query 保留列表查询，并支持按 ID 返回不含日志的任务详情； logs
+              专门查询指定任务的日志，不保留独立详情命令。
+              列表查询与日志查询可分页；按 ID 读取单个任务详情不使用分页参数。
+              原查询与详情分离的命令映射在此局部重开，N/N
+              查询条件及其他批准保留。 按 ID
+              查询的统一数组外层、空结果及不分页已于 19:11 批准；
+              独立日志、下方选项名、返回字段、互斥规则及分页契约已由后续逐项及
+              19:37 集中确认补齐。
+            </div>
+            <p>
               列表项为
               <code>{taskId,status,createdAt,resultSummary}</code>：status 为
               <code
                 >pending/running/succeeded/failed/timed_out/cancelled/rejected</code
-              >；摘要只描述可用性和结论，不默认复制业务输入输出。查询按
-              createdAt 升序、同时间按 taskId
+              >；resultSummary
+              为简短字符串，只描述可用性和结论，不默认复制业务输入输出，
+              其类型已于 19:37 集中确认。查询按 createdAt 升序、同时间按 taskId
               升序；空筛选不会暗加状态或时间过滤。
             </p>
             <p>
-              为避免无界响应，列表及详情日志均提议用
+              按 ID 查询返回同一 items 数组中的零或一个完整非日志任务对象，
+              包括状态及实际可取得的业务结果，不重复提供日志。 没有匹配任务时
+              items 为空、nextCursor 为 null，查询仍成功；
+              日志命令针对不存在的任务则按错误处理。
+              列表模式保留摘要，不因此默认批量复制完整业务输入输出。
+            </p>
+            <p>
+              为避免无界响应，列表查询及独立日志查询均使用
               <code>--limit</code>（1–1000，默认 100）及
               <code>--cursor</code>
               做纯展示分页；不支持用户级配置。这是交互层分页，不改变 N/N
               查询条件分类。nextCursor 为字符串或
               null，不宣称遍历的是事务快照；游标只用于相同服务、任务及筛选，不兼容游标退出
-              2。任务标识可由 run 的进度、结果及列表获得。
+              1。按 ID 查询不接受这两个分页选项；任务标识可由 run 结果、
+              已知失败对象及列表获得。分页数值于 19:23 批准，其余分页契约于
+              19:37 集中确认。
             </p>
+            <h3 id="shared-execution">同步执行、异步受理与最终结果</h3>
+            <p class="status">
+              完整释放、Worker 起算、重启失败、异步落盘回执、await
+              命名及中断边界均已确认；本节描述已批准契约，不是现有实现证明。
+            </p>
+            <ul>
+              <li>
+                run 默认等待任务及其子任务结束并确认工作资源释放； --async
+                只改变调用返回时机，不改变任务执行预算或自动启动服务。
+                执行时限从该任务 Worker 启动开始，拉包、准备和排队不计入；
+                它不是提交或等待结果的总墙钟时限。超时后的清理也必须等待释放确认，
+                不能仅因执行计时结束就把释放标为完成。
+              </li>
+              <li>
+                异步调用先由引擎持久化任务记录，再返回可用于后续查询的 taskId，
+                不等待拉包或任务包准备完成。记录写入失败时返回标准错误，
+                不能返回成功回执。复用已有任务标识，不另设 checking ID。回执的
+                ok:true 仅表示提交目标完成， 不表示业务成功，不补造结果或
+                释放完成证据。
+              </li>
+              <li>
+                拉包、校验和准备均是任务的一部分。受理后的拉包失败、 无 Gateway
+                且缓存缺块或准备失败，均持久化为同一任务的 failed， 即使尚未启动
+                Worker；query 可读状态，task await 可取失败原因。
+                不因这些阶段属于任务就把它们计入 Worker 执行时限。
+                缓存写入时实际磁盘空间不足是额外的 Server
+                致命故障，不能仅按普通任务准备失败继续服务。
+              </li>
+              <li>
+                异步返回后由引擎继续管理任务；关闭调用终端不取消已受理任务。
+                可以按 ID 查询状态，也可以用 task await 取得最终结果。
+                受理回执不是整个执行场景的完成证明。
+              </li>
+              <li>
+                如果提交后失联，无法确认是否受理，应返回失败并明确未知状态；
+                不能冒充已取消，也不能盲目自动重提。
+              </li>
+              <li>
+                task await
+                不创建新任务：已完成且整个任务释放确认时立即返回最终结果，
+                尚未完成则继续等待，不能仅轮询到 succeeded 就返回。
+                失败任务也应等待其子任务及执行资源释放后返回原失败结果；
+                若释放流程失败或无法确认释放，返回明确的不确定错误，不冒充已完整结束。
+                任务成功且释放已确认时返回 0；业务失败、超时或释放不确定时返回
+                1， 保留可信 data 与
+                error。中断本次等待只停止客户端，不取消后台任务。
+              </li>
+              <li>
+                查询失败任务的状态或日志仍可是成功查询。
+                取得结果、查询及日志均复用引擎持久化记录；不新增调用端结果副本，
+                不承诺恢复被显式清理的结果。查询只是读取状态，取得最终结果则包含完整释放等待；
+                查询失败原因可使用结果命令，不因此给 query
+                再增加一套失败诊断字段。
+                不新增可配置轮询间隔或第二套执行时限，具体等待协议不在本轮设计范围内。
+              </li>
+            </ul>
+            <h3 id="server-restart-boundary">重启后未完成任务失败</h3>
+            <p class="status">
+              依据用户 2026-11-10 17:40
+              明确结论：未完成任务标记失败，不自动重启任务；
+              该规则不再作为未决恢复策略。以下错误码作为对应失败类别的接口约定。
+            </p>
+            <ul>
+              <li>
+                任意承载引擎的设备或 Server
+                重启后，由再次启动的本机引擎处理所选数据目录。
+                对前一次运行已持久化但未完整结束的任务及子任务记录，将 status
+                持久化为 failed，
+                并保存因重启中断的失败原因。断电期间不要求实时回写，不新增跨设备管理。
+              </li>
+              <li>
+                范围包括已受理未开始、准备或排队、运行中的任务，
+                以及业务已结束但整个任务仍未完成释放的记录。
+                已完整结束且释放确认的历史任务保留原结果及 taskId；
+                重复启动不得反复改写这些已终结结果。
+              </li>
+              <li>
+                不重新启动旧任务的 Worker，不重新排队、不自动重提或续跑。 query
+                仍可读取失败状态，task await 返回该任务的最终失败结果；
+                查询失败任务本身仍为成功查询，不额外增加失败原因字段。
+              </li>
+              <li>
+                标记 failed
+                不代表资源已释放。旧运行身份及工作资源仍按本地实例契约核实，
+                释放未确认时不能冒充已取得完整最终结果；释放失败或未知时返回标准错误。
+                已确认释放后，可返回重启中断的原失败原因，不再等待不存在的旧
+                Worker 完成。
+              </li>
+            </ul>
           </section>
 
           <section
@@ -854,18 +1402,31 @@
             <h2 id="engine-start-title">
               <code>task-engine server start</code>
             </h2>
-            <p class="status">待确认 · S2 · 不等同于当前单次嵌入式 CLI。</p>
+            <p class="status">已批准 · S2 · 2026-11-10 19:37 定稿</p>
+            <div class="notice" id="server-start-mode-review">
+              <strong>第 11 项已批准：默认后台启动，就绪后命令返回。</strong>
+              start 创建本机受管后台服务；只有配置、目录归属与实例互斥检查通过，
+              且必要的重启记录处理完成、服务已经就绪，才输出成功并退出 0。
+              不把仅创建进程当成启动成功，也不通过自动换端口、换目录或复用/重启已有实例掩盖冲突。
+              命令成功返回后，终端关闭不停止服务；通过 server stop 显式管理。
+              命令返回前 Ctrl+C 撤销本次启动并确认自有资源释放，
+              无法核实则返回标准错误，不声称已撤销或已释放。
+              本轮不增加前台模式、操作系统服务注册或开机自启。 依据用户
+              2026-11-10 19:28 “确认”的直接批准，
+              本项仅确认启动方式、就绪返回及返回前后的生命周期边界，其他产品契约按后续已确认的集中清单执行，不扩大产品范围。
+            </div>
             <p>
               显式启动本机由本 CLI 管理的
-              Server。提议默认为后台服务：命令等到就绪后返回，服务继续运行；不新增前台模式或系统开机启动功能。
+              Server。默认后台服务：命令等到就绪后返回，服务继续运行；
+              不新增前台模式或系统开机启动功能，该方式已于 19:28 批准。
             </p>
             <pre><code>task-engine server start [--host &lt;host&gt;] [--port &lt;port&gt;]
   [--ipfs-gateway &lt;url&gt;] [--data-dir &lt;path&gt;]
-  [--max-concurrent &lt;n&gt;] [--max-preparing &lt;n&gt;] [--max-tasks &lt;n&gt;]
+  [--max-concurrent &lt;n&gt;] [--max-preparing &lt;n&gt;]
   [--max-child-depth &lt;n&gt;] [--max-child-concurrent &lt;n&gt;] [--max-child-total &lt;n&gt;]
   [--max-payload-bytes &lt;bytes&gt;] [--bundle-concurrency &lt;n&gt;]
-  [--bundle-max-bytes &lt;bytes&gt;] [--bundle-cache-bytes &lt;bytes&gt;]
-  [--max-connections &lt;n&gt;] [--json] [--quiet]</code></pre>
+  [--bundle-max-bytes &lt;bytes&gt;]
+  [--max-connections &lt;n&gt;]</code></pre>
             <p>
               适用<a href="#shared-options">配置契约</a>、<a href="#shared-io"
                 >输出</a
@@ -876,10 +1437,12 @@
               --engine，不自动更改调用地址。
             </p>
             <p>
-              已批准新增独立的持久 IPFS 磁盘缓存预算，不复用
-              <code>--bundle-cache-bytes</code> 的内存驻留预算。
-              <a href="#shared-ipfs-cache">候选选项与配置映射</a>尚待确认，
-              上述语法暂只列已有映射，不代表新增预算已被省略或并入原 11 项限制。
+              当前仅做持久 IPFS
+              内容缓存，不保留内存内容缓存或历史记录数量预算参数。
+              持久缓存不设应用容量配额，仅受实际磁盘空间限制。
+              <a href="#shared-ipfs-cache">持久缓存约束</a>及
+              <a href="#shared-cache-prune">按引用清理</a
+              >适用于已有缓存复用与维护。
             </p>
             <h3>参数</h3>
             <div
@@ -919,11 +1482,12 @@
                   <tr>
                     <th scope="row"><code>--ipfs-gateway</code></th>
                     <td>IPFS Gateway URL</td>
-                    <td>显式值或用户值必须存在</td>
+                    <td>可省略</td>
                     <td><code>server.ipfsGateway</code>；无产品默认</td>
                     <td>
-                      只连接外部 IPFS 内容读取服务，不是 Server 自身入口，不启动
-                      IPFS 服务
+                      未配置时按 CID
+                      读取只查本地缓存；缺块使任务失败，不阻止启动。
+                      已配置时才连接外部内容源，不启动 IPFS 服务
                     </td>
                   </tr>
                   <tr>
@@ -931,7 +1495,10 @@
                     <td>目录路径</td>
                     <td>可省略</td>
                     <td><code>server.dataDir</code></td>
-                    <td>独占引擎数据目录，包含持久内容缓存；锁冲突失败</td>
+                    <td>
+                      逻辑实例的数据目录，包含持久内容缓存；按实际目录持有实例独占锁，
+                      同目录不重复启动，锁冲突失败
+                    </td>
                   </tr>
                   <tr>
                     <th scope="row">独立限制选项</th>
@@ -939,42 +1506,62 @@
                     <td>可省略</td>
                     <td>分别映射共享表中的 server.* 限制键</td>
                     <td>
-                      原 11 项各自含义及提议默认见共享配置表；独立覆盖，不接受
-                      JSON limits 对象；新增磁盘缓存预算另议，不与内存预算合并
+                      本轮保留的 9
+                      项含义及已定默认见共享配置表；独立覆盖，不接受 JSON limits
+                      对象；不包含持久缓存容量配额
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
             <h3>预期输出与行为</h3>
+            <div class="notice" id="startup-warning-review">
+              <strong>第 6 项已批准：成功启动的警告放在同一结果对象中。</strong>
+              server start 成功且有面向用户的警告时，在 ok/data 之外增加可选的
+              <code>warnings:[{code,message}]</code>，无警告时省略。
+              非本机监听的可信环境警告通过该字段表达；不把警告当 error，
+              不因警告将成功退出码改为失败，不在 JSON 前后另写文本或只写
+              stderr。 依据用户 2026-11-10 19:19 “确认没有问题。”的直接回复，
+              本项仅确认启动警告的承载位置与结构，其他产品契约按后续已确认的集中清单执行，不扩大产品范围。
+            </div>
             <dl>
               <dt>stdout</dt>
               <dd>
-                人类模式显示就绪及连接地址；JSON data 为
+                JSON data 为
                 <code>{state:"ready",engineUrl,instanceId,dataDir}</code
                 >，地址是可连接地址，instanceId 标识实际实例，dataDir
-                为绝对路径。
+                为绝对路径。启动警告通过已批准的外层可选 warnings 数组提供，
+                元素仅含非空 code/message；普通成功示例无警告时不含此字段。
               </dd>
               <dt>stderr</dt>
               <dd>
-                启动阶段及可信网络警告；错误说明缺失配置、端口/目录冲突及恢复方法。
+                仅
+                logging。可信网络警告、缺失配置、端口或目录冲突及恢复建议属于面向使用方的信息，
+                必须在 stdout 结果中表达，不能只写入日志；不输出常规启动进度。
               </dd>
               <dt>退出码</dt>
               <dd>
-                0 已就绪；2 配置无效；1 启动失败；7
-                启动失败后的自有资源清理不确定；130 中断且清理已确认。
+                0 已就绪；1 启动失败、配置无效或自有资源清理不确定； 具体原因在
+                error 中说明。130 中断且清理已确认。
               </dd>
               <dt>资源影响</dt>
               <dd>
-                创建数据目录和服务实例，默认启用目录内的有界持久内容缓存；
+                创建数据目录和服务实例，默认启用目录内的持久内容缓存，不设应用容量配额；
                 重启保留并校验复用已有块，不清空缓存或已有记录。
                 不修改用户配置、不停止外部内容源，不启动 IPFS daemon。
-                同目录已有服务时明确报错，不悄悄复用或重启。
+                同目录已有服务时明确报错，不悄悄复用或重启。 实例锁随 Server
+                运行持续持有，不能因本启动命令返回而释放；
+                具体锁技术不在本轮设计范围内。 取得锁并核实旧实例归属后，按<a
+                  href="#server-restart-boundary"
+                  >重启处置规则</a
+                >
+                将前次未完整结束的记录标记为失败并持久保存，再报告 ready。
+                持久化或旧资源核实失败时返回启动错误，不报告已就绪，不恢复旧任务执行。
               </dd>
               <dt>交互</dt>
               <dd>
-                所有值可解析时无参数可启动；无输入提示，缺 IPFS Gateway 退出
-                2。Ctrl+C
+                无参数可按有效用户配置或产品默认启动；未配置 IPFS Gateway
+                时仍可启动， 仅使用本地缓存，不产生配置缺失错误。Ctrl+C
                 在命令返回前撤销本次启动并确认释放；成功返回后终端退出不停止服务。
               </dd>
             </dl>
@@ -982,28 +1569,147 @@
             <div class="examples">
               <div class="example">
                 <h3>成功</h3>
-                <pre><code>调用: task-engine server start --ipfs-gateway http://127.0.0.1:8080 --data-dir D:\TaskEngine\data --json
-stdin: 不使用
-stdout: {"ok":true,"data":{"state":"ready","engineUrl":"http://127.0.0.1:8787","instanceId":"engine-001","dataDir":"D:\\TaskEngine\\data"}}
-stderr: 空
-退出码: 0</code></pre>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine server start --ipfs-gateway http://127.0.0.1:8080 --data-dir D:\TaskEngine\data</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "state": "ready",
+    "engineUrl": "http://127.0.0.1:8787",
+    "instanceId": "engine-001",
+    "dataDir": "D:\\TaskEngine\\data"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
               </div>
               <div class="example">
-                <h3>缺少内容源</h3>
-                <pre><code>前提: 未配置 server.ipfsGateway
-调用: task-engine server start --json
-stdin: 不使用
-stdout: 空
-stderr: {"ok":false,"error":{"code":"CONFIG_REQUIRED","message":"缺少 IPFS Gateway。","hint":"提供 --ipfs-gateway 或设置 server.ipfsGateway。"}}
-退出码: 2</code></pre>
+                <h3>未配置 Gateway，使用 Home 默认目录启动</h3>
+                <p class="meta">
+                  前提：示例用户 Home 为 D:\Profile；未配置 server.dataDir 或
+                  server.ipfsGateway，
+                  其余配置使用示例产品值。仅查本地缓存不代表缓存中必然有任务内容。
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine server start</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "state": "ready",
+    "engineUrl": "http://127.0.0.1:8787",
+    "instanceId": "engine-002",
+    "dataDir": "D:\\Profile\\.silvermoon.work\\task-engine"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>启动参数无效</h3>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine server start --port 0</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "error": {
+    "code": "INVALID_CONFIG_VALUE",
+    "message": "服务端口必须为 1 至 65535 的整数；未启动 Server。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>启动成功，同时警告非本机监听</h3>
+                <p class="meta">
+                  前提：示例用户 Home 为 D:\Profile，无目录覆盖；
+                  此命令已成功监听，警告不代表提供了访问控制或适合暴露到不可信网络。
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine server start --host 0.0.0.0</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "state": "ready",
+    "engineUrl": "http://127.0.0.1:8787",
+    "instanceId": "engine-003",
+    "dataDir": "D:\\Profile\\.silvermoon.work\\task-engine"
+  },
+  "warnings": [
+    {
+      "code": "NON_LOOPBACK_LISTEN",
+      "message": "服务正在监听非本机接口，仅供可信环境使用；当前不提供跨信任边界的身份认证或隔离保证。"
+    }
+  ]
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
               </div>
             </div>
-            <h3>待讨论</h3>
+            <h3>契约范围</h3>
             <p>
-              Server 命名、IPFS Gateway 命名和限制项清单已批准；
-              后台启动方式、IPFS Gateway
-              是否启动时始终必需、默认端口/路径/限额仍为待讨论提案。
-              持久缓存需求已批准；新增磁盘预算的选项与配置映射、具体默认数值未批准。
+              后台启动、就绪返回、Home 目录、可选
+              Gateway、已定限制、启动警告及失败处理均按已批准契约执行。无应用缓存配额，不注册系统服务或开机自启；内部进程和锁技术留待实施设计。
             </p>
             <p><a href="#command-tree">返回命令树</a></p>
           </section>
@@ -1017,11 +1723,26 @@ stderr: {"ok":false,"error":{"code":"CONFIG_REQUIRED","message":"缺少 IPFS Gat
             <h2 id="engine-status-title">
               <code>task-engine server status</code>
             </h2>
-            <p class="status">待确认 · A2</p>
+            <p class="status">已批准 · A2 · 2026-11-10 19:37 定稿</p>
+            <div class="notice" id="server-status-review">
+              <strong>第 12 项已批准：只返回能核实的本地生命周期状态。</strong>
+              state 取 not-started（尚未启动）、starting（正在启动但未就绪）、
+              ready（已就绪）、stopping（停止中）或 stopped（已确认不在运行）。
+              stopped 不承诺上次运行资源已全部释放，更不代替 task await
+              的最终结果。 归属、存活或阶段证据不足时返回标准
+              error（LOCAL_SERVER_UNKNOWN），退出 1， 不能因端口不通就报告
+              stopped，也不以 ok:true 的 unknown 掩盖未能查询成功。 成功 data 为
+              {state,dataDir,engineUrl?,instanceId?,activeTasks?}，
+              可选字段只在有可信证据时返回；未知任务数量不填
+              0，地址与标识不能冒充当前可用。
+              查询只读，不创建缺失目录、不自动启动服务、不做远程健康查询。
+              依据用户 2026-11-10 19:29 “确认”的直接批准，
+              本项仅确认状态集合、不确定错误及这些输出字段的有证据返回规则，不选择具体身份核实技术。
+            </div>
             <p>
               查看本 CLI 管理的本地 Server 状态和连接信息，不承担远程健康查询。
             </p>
-            <pre><code>task-engine server status [--data-dir &lt;path&gt;] [--json] [--quiet]</code></pre>
+            <pre><code>task-engine server status [--data-dir &lt;path&gt;]</code></pre>
             <p>
               适用<a href="#shared-options">配置</a>、<a href="#shared-io"
                 >输出</a
@@ -1047,11 +1768,11 @@ stderr: {"ok":false,"error":{"code":"CONFIG_REQUIRED","message":"缺少 IPFS Gat
                 和实例标识仅在有可信本地记录时提供， activeTasks
                 仅在实际取得该状态时提供，不能以 0 冒充未知。
               </dd>
-              <dt>stderr / 退出码</dt>
+              <dt>退出码</dt>
               <dd>
-                0 已明确本地状态（包括尚未启动或已停止）；3 状态无法确认；2
-                参数无效或本地元数据损坏；1 本地读取错误；130
-                查询中断。失败输出为空，诊断指出本地目标与恢复建议。
+                0 已明确本地状态（包括尚未启动或已停止）；1 状态无法确认、
+                参数无效、本地元数据损坏或读取错误；130 查询中断。失败在 stdout
+                返回 error，说明本地目标与可用恢复建议。
               </dd>
               <dt>资源与交互</dt>
               <dd>
@@ -1063,25 +1784,72 @@ stderr: {"ok":false,"error":{"code":"CONFIG_REQUIRED","message":"缺少 IPFS Gat
             <div class="examples">
               <div class="example">
                 <h3>成功</h3>
-                <pre><code>调用: task-engine server status --data-dir D:\TaskEngine\data --json
-stdin: 不使用
-stdout: {"ok":true,"data":{"state":"ready","dataDir":"D:\\TaskEngine\\data","engineUrl":"http://127.0.0.1:8787","instanceId":"engine-001","activeTasks":2}}
-stderr: 空
-退出码: 0</code></pre>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine server status --data-dir D:\TaskEngine\data</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "state": "ready",
+    "dataDir": "D:\\TaskEngine\\data",
+    "engineUrl": "http://127.0.0.1:8787",
+    "instanceId": "engine-001",
+    "activeTasks": 2
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
               </div>
               <div class="example">
                 <h3>本地实例身份无法确认</h3>
-                <pre><code>调用: task-engine server status --json
-stdin: 不使用
-stdout: 空
-stderr: {"ok":false,"error":{"code":"LOCAL_SERVER_UNKNOWN","message":"无法核实所选本地 Server 的当前身份或状态。","hint":"检查 --data-dir 和本地启动记录；不要仅凭端口不可达认定服务停止。"}}
-退出码: 3</code></pre>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine server status</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "error": {
+    "code": "LOCAL_SERVER_UNKNOWN",
+    "message": "无法核实所选本地 Server 的当前身份或状态。检查 --data-dir 和本地启动记录；不要仅凭端口不可达认定服务停止。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
               </div>
             </div>
-            <h3>待讨论</h3>
+            <h3>契约范围</h3>
             <p>
-              本地实例定位及本地管理边界已确认，状态字段仍待讨论；远程 health
-              是不同需求，本轮不自动新增该命令。
+              仅查询本地受管实例的可核实生命周期状态，不创建目录、不启动服务。未知归属或状态是标准错误；本命令不是远程
+              health，也不证明旧任务资源已经全部释放。
             </p>
             <p><a href="#command-tree">返回命令树</a></p>
           </section>
@@ -1093,19 +1861,42 @@ stderr: {"ok":false,"error":{"code":"LOCAL_SERVER_UNKNOWN","message":"无法核�
             tabindex="-1"
           >
             <h2 id="engine-stop-title"><code>task-engine server stop</code></h2>
-            <p class="status">待确认 · A3</p>
+            <p class="status">已批准 · A3 · 2026-11-10 19:37 定稿</p>
+            <div class="notice" id="server-stop-result-review">
+              <strong
+                >第 13 项已批准：区分实际停止与无需停止的幂等成功。</strong
+              >
+              本次实际停止且运行资源释放确认时，返回
+              <code
+                >{state:"stopped",dataDir,instanceId,changed:true,cancelledTasks}</code
+              >。 已确认尚未启动或不在运行时，返回
+              <code>{state:"not-started"|"stopped",dataDir,changed:false}</code
+              >， 仍退出 0，不补造本次取消数量或资源释放证据。
+              身份、状态或本次释放无法核实时返回标准 error，不能当作幂等成功。
+              依据用户 2026-11-10 19:30 “同意”的直接批准，本项仅确认 stop
+              的返回结构及幂等行为，不重开已批准的在途任务取消策略。
+            </div>
+            <p class="notice">
+              18:02 已明确默认 Home 数据目录及在途任务停止策略：
+              无目录覆盖时定位 ~/.silvermoon.work/task-engine；
+              有在途任务默认拒绝停止，--cancel-running
+              取消任务并等待释放后停止。 目录覆盖见<a
+                href="#local-server-selection-review"
+                >统一实例定位</a
+              >，不做交互确认。
+            </p>
             <p>
               停止本 CLI 管理的本地 Server
               并等待资源释放确认；不提供远程停止能力，默认不终止在途任务。
             </p>
-            <pre><code>task-engine server stop [--data-dir &lt;path&gt;] [--cancel-running] [--yes] [--json] [--quiet]</code></pre>
+            <pre><code>task-engine server stop [--data-dir &lt;path&gt;] [--cancel-running]</code></pre>
             <p>
               适用<a href="#shared-options">数据目录配置</a>、<a
                 href="#shared-io"
                 >输出</a
               >、<a href="#shared-exits">退出码</a>及<a
                 href="#shared-interaction"
-                >确认</a
+                >直接执行与中断</a
               >及<a href="#shared-local-server">本地实例身份</a
               >。停止过程端口关闭或进程消失本身不是本次资源释放完成的证据。
             </p>
@@ -1118,12 +1909,8 @@ stderr: {"ok":false,"error":{"code":"LOCAL_SERVER_UNKNOWN","message":"无法核�
               </li>
               <li>
                 <code>--cancel-running</code>：布尔，默认
-                false，无用户配置；显式授权取消在途任务。未给且存在在途任务时拒绝停止，退出
-                2。
-              </li>
-              <li>
-                <code>--yes</code>：布尔，默认
-                false，无用户配置；跳过确认提示但不跳过影响说明和实例身份检查。
+                false，无用户配置；选择“取消在途任务并停止”的动作，不是权限或确认开关。
+                未给且存在在途任务时拒绝停止，退出 1。
               </li>
             </ul>
             <h3>预期输出与行为</h3>
@@ -1132,7 +1919,7 @@ stderr: {"ok":false,"error":{"code":"LOCAL_SERVER_UNKNOWN","message":"无法核�
               <dd>
                 确认停止及取消任务数；JSON data 为
                 <code
-                  >{state:"stopped",dataDir,instanceId,changed:true,cancelledTasks,reclaimed:true}</code
+                  >{state:"stopped",dataDir,instanceId,changed:true,cancelledTasks}</code
                 >。 尚未启动或已确认停止时返回
                 <code
                   >{state:"not-started"|"stopped",dataDir,changed:false}</code
@@ -1140,23 +1927,22 @@ stderr: {"ok":false,"error":{"code":"LOCAL_SERVER_UNKNOWN","message":"无法核�
               </dd>
               <dt>stderr</dt>
               <dd>
-                停止前显示本地目录、实例与在途任务数；--json 成功时此信息包含于
-                data 的 stopped
-                结果，执行前通过显式选项授权；失败按共享诊断。人类模式给出影响说明和确认。
+                仅 logging。目录、实例及已取消任务数量在 stdout
+                的最终结果中说明； 不输出执行前确认提示，失败也在 stdout 返回
+                error。
               </dd>
               <dt>退出码</dt>
               <dd>
-                0 本次停止及释放确认，或已明确无需停止；2
-                有在途任务且未授权、元数据无效或缺少必要确认；3
-                本地实例状态/身份未知；7 本次释放不确定；1 其他失败；130
-                仅适用于请求发送前取消。
+                0 本次停止及释放确认，或已明确无需停止；1
+                停止失败、存在未选择取消的在途任务、身份未知或释放不确定，具体原因由
+                error 表达；130 仅适用于请求发送前取消。
               </dd>
               <dt>资源与交互</dt>
               <dd>
                 保留应用数据及持久 IPFS
-                内容缓存；释放运行资源不表示删除缓存内容， 不影响外部内容源。TTY
-                确认精确实例；非 TTY 或 --json 要求
-                --yes（尚未启动或已确认停止的无变更操作不需确认）。
+                内容缓存；释放运行资源不表示删除缓存内容，不影响外部内容源。
+                不论是否 TTY
+                都不提示确认；检查目标及在途任务后直接执行明确选择的动作。
                 仅操作已核实归属的本机实例，不接管外部进程。
                 请求绑定已识别实例，目标实例变化须失败。请求发送后中断不能撤销已发生的停机，应报告已知状态或未知结果。
               </dd>
@@ -1165,25 +1951,144 @@ stderr: {"ok":false,"error":{"code":"LOCAL_SERVER_UNKNOWN","message":"无法核�
             <div class="examples">
               <div class="example">
                 <h3>空闲引擎停止</h3>
-                <pre><code>调用: task-engine server stop --data-dir D:\TaskEngine\data --yes --json
-stdin: 不使用
-stdout: {"ok":true,"data":{"state":"stopped","dataDir":"D:\\TaskEngine\\data","instanceId":"engine-001","changed":true,"cancelledTasks":0,"reclaimed":true}}
-stderr: 空
-退出码: 0</code></pre>
+                <p class="meta">
+                  前提：示例用户 Home 为 D:\Profile，无 server.dataDir 覆盖；
+                  默认目录的本机受管实例已空闲。
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine server stop</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "state": "stopped",
+    "dataDir": "D:\\Profile\\.silvermoon.work\\task-engine",
+    "instanceId": "engine-001",
+    "changed": true,
+    "cancelledTasks": 0
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
               </div>
               <div class="example">
-                <h3>在途任务未授权取消</h3>
-                <pre><code>调用: task-engine server stop --yes --json
-stdin: 不使用
-stdout: 空
-stderr: {"ok":false,"error":{"code":"ACTIVE_TASKS","message":"engine-001 仍有 2 个在途任务，未停止。","hint":"等待任务完成；如需取消，显式使用 --cancel-running --yes。"}}
-退出码: 2</code></pre>
+                <h3>存在在途任务，未选择取消</h3>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine server stop</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "error": {
+    "code": "ACTIVE_TASKS",
+    "message": "engine-001 仍有 2 个在途任务，未停止。等待任务完成；如需取消并停止，使用 --cancel-running。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>显式取消在途任务并停止</h3>
+                <p class="meta">
+                  前提：示例用户 Home 为 D:\Profile，无目录覆盖；
+                  默认实例有两个在途任务，本次已取消并确认任务及服务运行资源释放。
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine server stop --cancel-running</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "state": "stopped",
+    "dataDir": "D:\\Profile\\.silvermoon.work\\task-engine",
+    "instanceId": "engine-001",
+    "changed": true,
+    "cancelledTasks": 2
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>重复停止：已核实服务不在运行</h3>
+                <p class="meta">
+                  前提：本地实例记录和当前证据已核实，不是仅凭端口不可达作判断。
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine server stop --data-dir D:\TaskEngine\data</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "state": "stopped",
+    "dataDir": "D:\\TaskEngine\\data",
+    "changed": false
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
               </div>
             </div>
-            <h3>待讨论</h3>
+            <h3>契约范围</h3>
             <p>
-              本地身份核实边界已确认；“有在途任务时拒绝”及显式取消方式仍待批准；
-              不会默认强杀、绕过释放确认或新增远程关闭接口。
+              默认拒绝在途任务，显式 --cancel-running
+              取消并停止；实际停止须确认释放，重复停止可以幂等成功。磁盘耗尽导致的服务故障退出另按致命故障规则处理，不受用户停止选项约束。
             </p>
             <p><a href="#command-tree">返回命令树</a></p>
           </section>
@@ -1195,18 +2100,52 @@ stderr: {"ok":false,"error":{"code":"ACTIVE_TASKS","message":"engine-001 仍有 
             tabindex="-1"
           >
             <h2 id="run-title"><code>task-engine run</code></h2>
-            <p class="status">待确认 · S1</p>
+            <p class="status">已批准 · S1 · 2026-11-10 19:37 定稿</p>
+            <div class="notice" id="run-input-review">
+              <strong>第 14 项已批准：任务包二选一，业务输入显式提供。</strong>
+              --cid 指定任务包根 CID，--car 指定调用端的本地普通 CAR
+              文件，恰选一项； CAR 由调用端读取并传给引擎，不将该路径解释为远程
+              Server 文件路径，不用 - 读取 CAR。 --input 必需，取 JSON
+              文件路径或 -；仅 --input - 消费 stdin， 读取至
+              EOF，不提示输入、不做交互确认。 输入必须是单个完整 JSON
+              对象，允许空对象 {}； 空字节、多个对象、数组、标量及无效 JSON
+              都明确报错，不静默用 {} 替代缺失输入。
+              任务包与输入不从用户配置补入，不输入源码目录，不增加构建、发布或独立校验模式。
+              依据用户 2026-11-10 19:31 “确认”的直接批准，
+              本项仅确认输入形式、必需性、互斥及 JSON 对象约束，
+              其余产品契约已于 19:37 集中确认；内部技术实现不由此指定。
+            </div>
+            <div class="notice" id="run-return-review">
+              <strong
+                >第 15 项已批准：默认同步等待，--async
+                提前回执；中断按命令职责处理。</strong
+              >
+              run 不加 --async
+              时，等待任务及子任务执行结束、全部执行资源释放后返回最终结果；
+              --async 为本次显式布尔选项，默认 false，无用户配置。
+              加上它时，在引擎持久化任务记录后即返回 taskId 与已知
+              status，不等拉包准备，
+              不将受理成功当作业务成功；成功回执后退出终端不取消任务。 同步 run
+              等待时 Ctrl+C 请求取消本次任务及相关工作，仍要确认释放； task
+              await 的 Ctrl+C 只停止等待，不取消任务，也不停止服务。
+              提交、取消或释放结果无法核实时返回标准不确定错误，不推断已取消，不自动重提。
+              依据用户 2026-11-10 19:33 “同意”的直接批准， 本项仅确认 --async
+              名称、默认返回方式及这两类中断的作用范围，
+              其他产品契约按后续已确认的集中清单执行，不扩大产品范围。
+            </div>
             <p>
-              将任务提交给已启动的引擎，等待本次任务及其子任务结果与工作资源释放确认后返回。
+              将任务提交给已启动的引擎。默认等待本次任务及其子任务结果与工作资源释放确认后返回；
+              也支持已明确的持久化受理后异步回执，具体选项按章节讨论。
             </p>
             <pre><code>task-engine run (--cid &lt;bundle-cid&gt; | --car &lt;file&gt;)
-  --input &lt;file|-&gt; [--engine &lt;url&gt;] [--timeout-ms &lt;ms&gt;] [--json] [--quiet]</code></pre>
+  --input &lt;file|-&gt; [--engine &lt;url&gt;] [--timeout-ms &lt;ms&gt;] [--async]</code></pre>
             <p>
               适用<a href="#shared-options">配置</a>、<a href="#shared-io"
                 >输出</a
               >、<a href="#shared-exits">退出码</a>及<a
                 href="#shared-interaction"
                 >中断</a
+              >及<a href="#shared-execution">异步与最终结果契约</a
               >。例外：业务失败仍输出可信任务结果；永不自动启动引擎。
             </p>
             <h3>参数</h3>
@@ -1268,7 +2207,18 @@ stderr: {"ok":false,"error":{"code":"ACTIVE_TASKS","message":"engine-001 仍有 
                     <td>可省略</td>
                     <td><code>task.timeoutMs</code></td>
                     <td>
-                      服务端确认创建根任务后起算；不覆盖服务容量，不是提前断连预算
+                      从该任务 Worker 启动开始计时；拉包、准备和排队不计入。
+                      不覆盖服务容量，不是提前断连或等待最终释放的预算
+                    </td>
+                  </tr>
+                  <tr>
+                    <th scope="row"><code>--async</code></th>
+                    <td>布尔</td>
+                    <td>可省略</td>
+                    <td>false / 无用户配置</td>
+                    <td>
+                      引擎持久化任务记录后即返回 taskId，不等待拉包或准备；
+                      回执不代表业务完成，不改变 Worker 执行时限
                     </td>
                   </tr>
                 </tbody>
@@ -1280,20 +2230,28 @@ stderr: {"ok":false,"error":{"code":"ACTIVE_TASKS","message":"engine-001 仍有 
               <dd>
                 显示任务结论与业务结果；JSON 为
                 <code
-                  >{ok,data:{taskId,status,resultState,result?,reclaimed}}</code
-                >。ok 仅在成功且清理确认时为 true；reclaimed 为 false
-                表示不能确认释放，不得成功。
+                  >{ok,data?:{taskId,status,result?},error?:{code,message}}</code
+                >，这是同步等待的结果结构。同步 ok 仅在成功且清理确认时为
+                true；无法确认释放时返回标准 error，不得成功。失败必有
+                error；已知任务结果时保留同对象内的 data。
+                必须等待整个任务及其子任务释放，不能将 succeeded
+                状态当作释放证明。 业务失败时同样等待释放；释放异常则通过 error
+                如实报告。 已知任务标识及可用恢复建议须在该结果中表达，不依赖
+                stderr。 异步受理成功只返回
+                <code>{ok:true,data:{taskId,status}}</code>； status
+                为已知任务状态，不伪造终态、结果或释放证据。 pending
+                包含已持久化、尚未启动 Worker 的拉包、准备和排队阶段；
+                拉包或准备失败直接转为 failed，即使从未进入 running。
               </dd>
               <dt>stderr</dt>
               <dd>
-                人类模式显示受理后的任务标识和执行阶段；--json
-                无混杂进度。失败或不确定时提供任务标识（已知时）和 task detail
-                恢复建议，不默认打印输入或秘密。
+                仅 logging，不输出独立的命令失败结果，不默认记录输入或秘密。
               </dd>
               <dt>退出码</dt>
               <dd>
-                0 成功；2 无效输入；3 无法连接或结果未知；5 业务失败/拒绝；6
-                已确认执行超时；7 清理不确定；1 内部错误；130 取消及释放确认。
+                0 命令目标完成；1 输入、连接、业务、超时或释放确认失败； 130
+                同步调用取消及释放已确认。错误细分只通过 error.code/message
+                表达。
               </dd>
               <dt>资源影响</dt>
               <dd>
@@ -1301,12 +2259,18 @@ stderr: {"ok":false,"error":{"code":"ACTIVE_TASKS","message":"engine-001 仍有 
                 的传递不新增内容发布场景。执行复用引擎侧持久内容缓存，
                 缓存不能替代任务包完整校验；本次工作资源释放不要求删除可复用内容块。
                 执行数据由引擎记录；不写调用端结果副本，不停止引擎。
+                异步回执之后任务继续由引擎管理，不随命令返回或终端关闭取消。 无
+                Gateway 且缓存缺块时失败的是该任务的准备阶段，不是启动配置。
+                缓存写入时实际磁盘空间不足则按 Server
+                致命退出处理，不继续承诺其他任务执行。
               </dd>
               <dt>交互</dt>
               <dd>
-                缺必需参数显示用法并退出 2。--input - 在非 TTY 读至 EOF；TTY
-                先说明输入 JSON 后结束输入，不静默等待。Ctrl+C
-                请求取消本次任务及相关工作，等待确认；通信丢失不盲目重提或宣称取消成功，不取消其他任务。
+                缺必需参数在标准错误 message 中给出用法并退出 1。 --input -
+                始终读取至 EOF，不输出输入或确认提示。Ctrl+C
+                在同步等待模式请求取消本次任务及相关工作，等待取消及资源释放结果；
+                异步提交若受理结果未知则返回失败，不据客户端中断推断取消成功。
+                通信丢失不盲目重提，不取消其他任务。
               </dd>
             </dl>
             <h3>预期示例（未执行）</h3>
@@ -1317,25 +2281,143 @@ stderr: {"ok":false,"error":{"code":"ACTIVE_TASKS","message":"engine-001 仍有 
             <div class="examples">
               <div class="example">
                 <h3>成功</h3>
-                <pre><code>调用: task-engine run --car .\bundle.car --input - --json
-stdin: {"text":"world"}
-stdout: {"ok":true,"data":{"taskId":"task-001","status":"succeeded","resultState":"available","result":{"greeting":"Hello world"},"reclaimed":true}}
-stderr: 空
-退出码: 0</code></pre>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine run --car .\bundle.car --input -</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>{"text":"world"}</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "taskId": "task-001",
+    "status": "succeeded",
+    "result": {
+      "greeting": "Hello world"
+    }
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
               </div>
               <div class="example">
                 <h3>业务失败</h3>
-                <pre><code>调用: task-engine run --car .\bundle.car --input .\invalid-business-input.json --json
-stdin: 不使用
-stdout: {"ok":false,"data":{"taskId":"task-002","status":"failed","resultState":"not-retained","reclaimed":true}}
-stderr: {"ok":false,"error":{"code":"TASK_FAILED","message":"task-002 执行失败。","hint":"运行 task-engine task detail task-002 查看详情。"}}
-退出码: 5</code></pre>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine run --car .\bundle.car --input .\invalid-business-input.json</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "data": {
+    "taskId": "task-002",
+    "status": "failed"
+  },
+  "error": {
+    "code": "TASK_FAILED",
+    "message": "task-002 执行失败。运行 task-engine task logs task-002 查看日志。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>先持久化任务记录，不等待拉包</h3>
+                <p class="meta">
+                  前提：引擎已持久化 task-003，任务包尚未准备完成，Worker
+                  未启动； 下列回执不保证随后的拉包或准备会成功。
+                </p>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine run --car .\bundle.car --input .\input.json --async</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "taskId": "task-003",
+    "status": "pending"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>无法确认是否已受理</h3>
+                <p class="meta">
+                  前提：提交后连接中断，尚未取得可核实的受理回执
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine run --car .\bundle.car --input .\input.json --async</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "error": {
+    "code": "SUBMISSION_UNKNOWN",
+    "message": "未能确认引擎是否已受理任务；不能认定已取消，也不要自动重提。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
               </div>
             </div>
-            <h3>待讨论</h3>
+            <h3>契约范围</h3>
             <p>
-              两种任务包输入形式、JSON 对象限制、显式 --input、传递 CAR
-              及取消语义均为接口提案。具体传输协议不在此设计。日志留存与业务结果保存不混同。
+              CID/CAR 输入、单 JSON 对象、--async 回执、Worker
+              起算、完整释放结果及同步取消边界均已批准。拉包准备属于任务；具体传输协议及内部实现不由本
+              CLI Spec 指定。
             </p>
             <p><a href="#command-tree">返回命令树</a></p>
           </section>
@@ -1347,12 +2429,38 @@ stderr: {"ok":false,"error":{"code":"TASK_FAILED","message":"task-002 执行失�
             tabindex="-1"
           >
             <h2 id="task-query-title"><code>task-engine task query</code></h2>
-            <p class="status">待确认 · A4Q</p>
+            <p class="status">已批准 · A4Q、A4D · 2026-11-10 19:37 定稿</p>
+            <div class="notice" id="query-by-id-review">
+              <strong>第 3 项已批准：按 ID 查询保持统一列表外层。</strong>
+              <code>task-engine task query --id &lt;task-id&gt;</code>
+              仍返回 <code>{ok:true,data:{items:[…],nextCursor:null}}</code>；
+              匹配时 items 只有一项，未找到时为
+              []，不切换成单对象或任务不存在错误。 按 ID 不接受 --limit /
+              --cursor，不等待任务结束，不返回日志；
+              查询失败任务的状态仍是查询成功。最终执行结果及失败原因由 task
+              await 获取。依据用户 2026-11-10 19:11 “确认没问题”的直接回复，
+              本项仅确认按 ID 查询的外层形状、空结果和不分页语义，
+              其余产品契约已于 19:37 集中确认；内部技术实现不由此指定。
+            </div>
+            <div class="notice" id="query-filter-review">
+              <strong>第 16 项已批准：筛选组合与固定排序。</strong>
+              --status 可重复，同类状态取并集；不同筛选项取交集。 --since /
+              --until 按 createdAt 筛选，使用带时区的 RFC 3339 时间， 包含 since
+              下界、不包含 until 上界；同时给定要求 since 早于 until。
+              列表固定按 createdAt 升序，同时间按 taskId 升序，不新增排序选项。
+              --id
+              为精确查询模式，与状态及时间筛选互斥；不接受分页的规则已批准。
+              未输入筛选就是空筛选，仍为 N/N，不读取保存的过滤条件。
+              本项只确认筛选组合、时间边界及排序，其余产品契约已于 19:37
+              集中确认；内部技术实现不由此指定。
+            </div>
             <p>
-              按本次条件查询任务列表；不输入筛选选项即空筛选条件，不自动套用用户默认。
+              按本次条件查询任务列表，或按 ID 查看单次任务的不含日志详情。
+              不输入筛选选项即空筛选条件，不自动套用用户默认。
             </p>
             <pre><code>task-engine task query [--status &lt;state&gt;] [--since &lt;time&gt;] [--until &lt;time&gt;]
-  [--engine &lt;url&gt;] [--limit &lt;n&gt;] [--cursor &lt;token&gt;] [--json] [--quiet]</code></pre>
+  [--engine &lt;url&gt;] [--limit &lt;n&gt;] [--cursor &lt;token&gt;]
+task-engine task query --id &lt;task-id&gt; [--engine &lt;url&gt;]</code></pre>
             <p>
               适用<a href="#shared-options">连接配置</a>、<a href="#shared-io"
                 >输出</a
@@ -1364,6 +2472,12 @@ stderr: {"ok":false,"error":{"code":"TASK_FAILED","message":"task-002 执行失�
             <h3>参数</h3>
             <ul>
               <li>
+                <code>--id</code
+                >：非空任务标识，精确查询单个任务；无默认、无用户配置。
+                提议与状态/时间筛选及 --limit / --cursor
+                互斥，避免在单任务详情上引入分页。
+              </li>
+              <li>
                 <code>--status</code
                 >：可重复的状态枚举，同类取并集；不同筛选项取交集。枚举见共享记录契约。
               </li>
@@ -1373,27 +2487,30 @@ stderr: {"ok":false,"error":{"code":"TASK_FAILED","message":"task-002 执行失�
                 早于 until。
               </li>
               <li>
-                上述三项均无默认、无用户配置；没有输入对应空筛选，不增加隐藏时间窗口。
+                上述查询条件均无默认、无用户配置；没有输入对应空筛选，不增加隐藏时间窗口。
               </li>
               <li>
                 <code>--engine</code> 复用 client.engine；<code
                   >--limit / --cursor</code
                 >
-                见共享分页，纯展示控制，不是业务筛选条件。
+                仅适用于列表查询，见共享分页，纯展示控制，不是业务筛选条件。
               </li>
             </ul>
             <h3>预期输出与行为</h3>
             <dl>
               <dt>stdout</dt>
               <dd>
-                人类模式列表及下一页提示；JSON data 为
+                JSON data 为
                 <code>{items:[列表项],nextCursor}</code>；无匹配返回 items
-                空数组和 null 游标，不视为错误。
+                空数组和 null 游标，不视为错误。 按 ID
+                查询仍返回相同外层结构，items 最多一项、nextCursor 固定为 null；
+                该项为 <code>{taskId,status,createdAt,result?}</code>， result
+                仅在确实取得业务结果时提供。两种查询均不返回日志。
               </dd>
-              <dt>stderr / 退出码</dt>
+              <dt>退出码</dt>
               <dd>
-                0 查询成功（包括无匹配）；2 条件或游标无效；3 服务不可达；1
-                读取失败；130 中断。
+                0 查询成功（包括无匹配）；1 查询失败，具体原因由 error 表达；
+                130 中断。
               </dd>
               <dt>资源与交互</dt>
               <dd>
@@ -1404,99 +2521,614 @@ stderr: {"ok":false,"error":{"code":"TASK_FAILED","message":"task-002 执行失�
             <div class="examples">
               <div class="example">
                 <h3>空条件查询，无记录</h3>
-                <pre><code>调用: task-engine task query --json
-stdin: 不使用
-stdout: {"ok":true,"data":{"items":[],"nextCursor":null}}
-stderr: 空
-退出码: 0</code></pre>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine task query</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "items": [],
+    "nextCursor": null
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
               </div>
               <div class="example">
                 <h3>无效状态</h3>
-                <pre><code>调用: task-engine task query --status unknown --json
-stdin: 不使用
-stdout: 空
-stderr: {"ok":false,"error":{"code":"INVALID_FILTER","message":"不支持任务状态 unknown。","hint":"使用 --help 查看有效状态。"}}
-退出码: 2</code></pre>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine task query --status unknown</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "error": {
+    "code": "INVALID_FILTER",
+    "message": "不支持任务状态 unknown。使用 --help 查看有效状态。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>按 ID 查询无日志详情</h3>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine task query --id task-001</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "items": [
+      {
+        "taskId": "task-001",
+        "status": "succeeded",
+        "createdAt": "2026-11-10T07:00:00Z",
+        "result": {
+          "greeting": "Hello world"
+        }
+      }
+    ],
+    "nextCursor": null
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>单任务详情不接受分页</h3>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine task query --id task-001 --limit 10</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "error": {
+    "code": "INVALID_QUERY_OPTIONS",
+    "message": "按 ID 查询不接受 --limit 或 --cursor；未执行查询。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
               </div>
             </div>
-            <h3>待讨论</h3>
+            <h3>契约范围</h3>
             <p>
-              状态/时间筛选范围、排序、分页均待批准；不把分页默认当成已批准的业务筛选默认。
+              筛选组合、固定排序、按 ID
+              的统一数组外层及无分页规则已确认；列表分页不改变 N/N
+              查询条件，也不隐式增加过滤窗口。
             </p>
             <p><a href="#command-tree">返回命令树</a></p>
           </section>
 
           <section
-            id="task-detail"
+            id="task-logs"
             class="chapter"
-            aria-labelledby="task-detail-title"
+            aria-labelledby="task-logs-title"
             tabindex="-1"
           >
-            <h2 id="task-detail-title"><code>task-engine task detail</code></h2>
-            <p class="status">待确认 · A4D</p>
+            <h2 id="task-logs-title"><code>task-engine task logs</code></h2>
+            <p class="status">已批准 · A4L · 2026-11-10 19:37 定稿</p>
             <p>
-              查看指定任务状态、结果及关联日志。查询本身成功与被查询任务是否成功相互独立。
+              分页查看指定任务的日志，不重复返回任务详情或业务结果。
+              获取日志本身成功与被查询任务是否成功相互独立。
             </p>
-            <pre><code>task-engine task detail &lt;task-id&gt; [--engine &lt;url&gt;]
-  [--limit &lt;n&gt;] [--cursor &lt;token&gt;] [--json] [--quiet]</code></pre>
+            <pre><code>task-engine task logs &lt;task-id&gt; [--engine &lt;url&gt;]
+  [--limit &lt;n&gt;] [--cursor &lt;token&gt;]</code></pre>
             <p>
               适用<a href="#shared-options">配置</a>、<a href="#shared-io"
-                >结果可用性</a
+                >统一输出</a
               >、<a href="#shared-records">日志分页</a>及<a
                 href="#shared-interaction"
                 >交互</a
-              >。例外：任务失败并不使详情查询退出 5。
+              >。例外：任务本身失败不代表日志查询失败。
             </p>
             <h3>参数</h3>
             <p>
               <code>&lt;task-id&gt;</code
               >：必需的非空任务标识，无默认、无用户配置。<code>--engine</code>：复用
               client.engine。<code>--limit / --cursor</code
-              >：只对本任务日志分页，任务元信息和结果在每页仍提供。无 stdin。
+              >：只对本任务日志分页。无 stdin，不混入任务结果或元信息详情。
             </p>
             <h3>预期输出与行为</h3>
             <dl>
               <dt>stdout</dt>
               <dd>
-                人类模式显示任务详情和日志；JSON data 为
-                <code
-                  >{taskId,status,createdAt,resultState,result?,logs:[{time,level,message}],logsTruncated,nextCursor}</code
-                >；level 为 debug/info/warn/error。未完成结果为
-                pending；已无保存结果为 not-retained。
+                JSON data 为
+                <code>{taskId,logs:[{time,level,message}],nextCursor}</code
+                >；level 为 debug/info/warn/error。任务日志全量保存到显式
+                prune， 不按自动保留期限或容量截断。nextCursor
+                只表示读取是否还有下一页；按持久化追加顺序分页，读取顺序与游标规则已确认。
+                读取失败应返回标准错误，不能假装日志完整或返回成功的空页。
               </dd>
-              <dt>stderr / 退出码</dt>
+              <dt>退出码</dt>
               <dd>
-                0 成功获取（即使任务失败）；4 任务不存在；2 标识/游标无效；3
-                不可连接；1 读取失败；130 中断。日志是用户请求的数据，写
-                stdout，不作为 CLI 自身诊断写 stderr。
+                0 成功获取（即使任务失败）；1 日志查询失败，包括任务不存在； 130
+                中断。日志是用户请求的数据，写 stdout，不作为 CLI 自身诊断写
+                stderr。
               </dd>
               <dt>资源与交互</dt>
               <dd>
-                只读、一次性快照，不提供 --follow 或独立日志命令。缺 task-id
-                显示用法退出 2；不提示，不创建记录或隐藏查不到的情况。
+                只读、一次性快照，不提供 --follow。缺 task-id 显示用法退出
+                1；不提示，不创建记录或隐藏查不到的情况。
               </dd>
             </dl>
             <h3>预期示例（未执行）</h3>
             <div class="examples">
               <div class="example">
-                <h3>查到失败任务</h3>
-                <pre><code>调用: task-engine task detail task-002 --json
-stdin: 不使用
-stdout: {"ok":true,"data":{"taskId":"task-002","status":"failed","createdAt":"2026-11-10T07:00:00Z","resultState":"not-retained","logs":[{"time":"2026-11-10T07:00:01Z","level":"error","message":"业务处理失败"}],"logsTruncated":false,"nextCursor":null}}
-stderr: 空
-退出码: 0</code></pre>
+                <h3>查询失败任务的日志</h3>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine task logs task-002</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "taskId": "task-002",
+    "logs": [
+      {
+        "time": "2026-11-10T07:00:01Z",
+        "level": "error",
+        "message": "业务处理失败"
+      }
+    ],
+    "nextCursor": null
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
               </div>
               <div class="example">
                 <h3>任务不存在</h3>
-                <pre><code>调用: task-engine task detail task-missing --json
-stdin: 不使用
-stdout: 空
-stderr: {"ok":false,"error":{"code":"TASK_NOT_FOUND","message":"找不到任务 task-missing。","hint":"检查 --engine，或通过 task query 查找任务标识。"}}
-退出码: 4</code></pre>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine task logs task-missing</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "error": {
+    "code": "TASK_NOT_FOUND",
+    "message": "找不到任务 task-missing。检查 --engine，或通过 task query 查找任务标识。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
               </div>
             </div>
-            <h3>待讨论</h3>
-            <p>结果/日志字段及分页方式待批准，不承诺未被记录的数据能够恢复。</p>
+            <h3>契约范围</h3>
+            <p>
+              日志全量保存到显式 prune；按持久化追加顺序分页，不提供 --follow
+              或自动留存截断。读取错误不能伪装成完整的空日志，不恢复已被显式清理的数据。
+            </p>
+            <p><a href="#command-tree">返回命令树</a></p>
+          </section>
+
+          <section
+            id="task-await"
+            class="chapter"
+            aria-labelledby="task-await-title"
+            tabindex="-1"
+          >
+            <h2 id="task-await-title"><code>task-engine task await</code></h2>
+            <p class="status">已批准 · A6 · 2026-11-10 19:37 定稿</p>
+            <div class="notice" id="completion-command-name-review">
+              <strong>第 1 项命名已批准：await。</strong>
+              <code>task-engine task await &lt;task-id&gt;</code>
+              表达“等待完整结束并取得最终结果”；
+              已完整结束且释放确认时立即返回，尚未完整结束时继续等待。 依据用户
+              2026-11-10 19:03 的直接批准统一命令树及示例，
+              不新增等待开关、result 别名或同义命令，不改变任务释放及结果规则。
+            </div>
+            <p>
+              取得已有任务的最终执行结果；任务与子任务尚未完全释放则等待，
+              已完成且释放确认则直接返回持久化的最终结果及失败原因。不创建或重新提交任务。
+            </p>
+            <pre><code>task-engine task await &lt;task-id&gt; [--engine &lt;url&gt;]</code></pre>
+            <p>
+              适用<a href="#shared-options">连接配置</a>、<a href="#shared-io"
+                >统一结果</a
+              >、 <a href="#shared-exits">退出码</a>及<a
+                href="#shared-execution"
+                >异步与最终结果契约</a
+              >。 与只读 query 的区别：本命令取得执行结论且等待整个任务释放，
+              业务失败会使最终结果返回失败；查询状态成功不等于任务执行成功。
+            </p>
+            <h3>参数</h3>
+            <p>
+              <code>&lt;task-id&gt;</code>
+              为必需非空任务标识，无默认、无用户配置。
+              <code>--engine</code> 复用 client.engine。无 stdin、分页选项、
+              可配置轮询间隔或新的执行时限参数。
+            </p>
+            <h3>预期输出与行为</h3>
+            <dl>
+              <dt>stdout</dt>
+              <dd>
+                终结结果与同步 run 使用相同结构：
+                <code
+                  >{ok,data?:{taskId,status,result?},error?:{code,message}}</code
+                >。 成功必须确认任务成功及整个任务资源释放；即使已经观察到
+                succeeded，
+                只要释放仍在进行就继续等待。业务失败或超时也不能跳过释放等待。
+                业务失败、超时或释放不确定时保留可信 data 并返回
+                error。只有确实取得业务结果时才包含 result， 合法 null
+                与字段缺失不同；需要取得结果却不可得时通过 error 说明，
+                不恢复或编造缺失的业务结果，不另设结果状态字段。
+              </dd>
+              <dt>stderr</dt>
+              <dd>
+                仅 logging。最终结果、失败或中断的信息均在 stdout 中表达。
+              </dd>
+              <dt>退出码</dt>
+              <dd>
+                0 已取得成功执行结论及释放确认；1
+                等待或任务执行失败，含任务不存在和结果无法确认； 130
+                用户停止等待且明确未取消任务。
+              </dd>
+              <dt>资源与交互</dt>
+              <dd>
+                已终结且释放确认的任务可立即返回；
+                业务已结束但仍在清理时继续等待，不能只轮询业务状态。
+                释放过程失败或证据不足时返回标准错误，不伪造完整完成。Ctrl+C
+                只停止本次等待，不取消任务、不停止引擎、不宣称任务资源已释放。
+                连接中断时如实返回未知状态，不盲目重提任务；
+                复用引擎持久化任务记录，不写调用端结果副本，不能恢复被显式清理的数据。
+                对重启后标记失败的任务，释放确认后直接返回已保存的重启中断原因，
+                不重新提交或启动任务，也不把失败记录当作仍在执行。
+              </dd>
+            </dl>
+            <h3>预期示例（未执行）</h3>
+            <div class="examples">
+              <div class="example">
+                <h3>取得异步提交任务的最终结果</h3>
+                <p class="meta">
+                  前提：业务状态已是 succeeded，但子任务及执行资源仍在释放。
+                  命令继续等待，直到全部释放确认后才返回下列结果；不是首次查询到
+                  succeeded 就返回。
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine task await task-003</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "taskId": "task-003",
+    "status": "succeeded",
+    "result": {
+      "greeting": "Hello world"
+    }
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>取得失败执行结论</h3>
+                <p class="meta">
+                  前提：任务此前已失败且整个任务的释放确认已持久保存，本次直接返回原最终失败结果。
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine task await task-002</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "data": {
+    "taskId": "task-002",
+    "status": "failed"
+  },
+  "error": {
+    "code": "TASK_FAILED",
+    "message": "task-002 执行失败。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>业务已成功，但资源释放无法确认</h3>
+                <p class="meta">
+                  前提：正常释放过程发生错误，不能继续确认整个任务已释放；
+                  此响应是结果获取失败，不表示已取得完整完成的任务结果。
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine task await task-004</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "data": {
+    "taskId": "task-004",
+    "status": "succeeded",
+    "result": {
+      "greeting": "Hello world"
+    }
+  },
+  "error": {
+    "code": "RESOURCE_RELEASE_UNCONFIRMED",
+    "message": "业务执行已成功，但无法确认任务及其子任务的执行资源已全部释放。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>取得重启中断的任务结果</h3>
+                <p class="meta">
+                  前提：设备重启前 task-005
+                  尚未完整结束；本机引擎再次启动时已将其持久化为失败，
+                  并核实相关执行资源已释放。未重跑任务；以下错误码表示重启中断。
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine task await task-005</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "data": {
+    "taskId": "task-005",
+    "status": "failed"
+  },
+  "error": {
+    "code": "TASK_INTERRUPTED_BY_RESTART",
+    "message": "任务因设备或 Server 重启而失败；未自动重跑。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>无 Gateway 且缓存缺块，任务准备失败</h3>
+                <p class="meta">
+                  前提：Server 未配置 Gateway；异步受理已持久化并返回 task-006。
+                  随后准备发现缓存缺块，未访问网络、未启动
+                  Worker；已确认准备资源释放。
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine task await task-006</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "data": {
+    "taskId": "task-006",
+    "status": "failed"
+  },
+  "error": {
+    "code": "CONTENT_NOT_CACHED",
+    "message": "任务包所需内容不在本地缓存中，且未配置 IPFS Gateway；未尝试网络读取，任务准备失败。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>异步回执成功后，拉包失败</h3>
+                <p class="meta">
+                  前提：task-007 已落盘并返回回执；随后通过配置的 Gateway
+                  拉包失败， 已保存任务失败原因并确认准备资源释放。Worker
+                  未启动，未消耗执行时限。
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine task await task-007</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "data": {
+    "taskId": "task-007",
+    "status": "failed"
+  },
+  "error": {
+    "code": "BUNDLE_FETCH_FAILED",
+    "message": "无法从已配置的 IPFS Gateway 取得任务包内容，任务准备失败。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>Server 因实际磁盘空间不足退出，客户端只观察到断连</h3>
+                <p class="meta">
+                  前提：后台 Server 因缓存写入时实际磁盘空间不足而失败退出；
+                  此客户端未取得可信任务终结或释放记录，不能把故障原因或任务结果当作已核实信息。
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine task await task-008</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "error": {
+    "code": "ENGINE_UNAVAILABLE",
+    "message": "与引擎的连接已中断，无法确认 task-008 的最终执行结果或资源释放状态；不要自动重提任务。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
+              </div>
+            </div>
+            <h3>契约范围</h3>
+            <p>
+              等待任务及其子任务完整释放后取得最终结果；已完整终结则立即返回。中断只停止等待；资源释放不确定时返回标准错误，不增加释放布尔字段或结果状态字段。
+            </p>
             <p><a href="#command-tree">返回命令树</a></p>
           </section>
 
@@ -1507,95 +3139,344 @@ stderr: {"ok":false,"error":{"code":"TASK_NOT_FOUND","message":"找不到任务 
             tabindex="-1"
           >
             <h2 id="data-prune-title"><code>task-engine data prune</code></h2>
-            <p class="status">待确认 · A5</p>
+            <p class="status">已批准 · A5 · 2026-11-10 19:37 定稿</p>
+            <div class="notice" id="cache-prune-interface-review">
+              <strong>第 4 项已批准：以 --cache 选择缓存清理范围。</strong>
+              单独 --cache 不删除历史或日志；--task 或 --before 可额外加
+              --cache，
+              先清理所选历史及其日志，再按剩余历史的传递可达引用清理缓存。 不加
+              --cache 时不删除缓存；--task 与 --before 互斥，
+              未显式选择任何范围时返回错误，不默认全删。 依据用户 2026-11-10
+              19:15 “确认没有问题”的直接回复，
+              本项仅确认选项名、独立/组合范围及执行顺序，计数字段及其余产品契约已通过后续确认，不新增其他功能。
+            </div>
+            <div class="notice" id="prune-counts-review">
+              <strong>第 5 项已批准：报告实际删除计数，不承诺回滚。</strong>
+              结果保留 dataDir 与 selection 说明实际目标； deletedTasks
+              为已删除任务记录数，deletedLogs 为已删除日志条数，两者始终提供。
+              只有选择 --cache 时提供 deletedCacheBlocks 与 deletedCacheBytes，
+              表示已成功删除的去重内容块数及其载荷字节，不是文件系统物理回收空间保证。
+              选定范围无匹配时对应计数为 0。 若发生部分失败，单个 stdout 对象以
+              ok:false 同时返回已完成计数的 data 和标准 error，
+              不把整个操作说成成功，也不声称已回滚。 依据用户 2026-11-10 19:18
+              “同意，没有问题。”的直接批准，
+              本项仅确认这些计数字段、可选性及部分失败的返回方式，其余产品契约已于
+              19:37 集中确认；内部技术实现不由此指定。
+            </div>
             <p>
-              离线清理所选引擎数据目录中的历史任务记录及其所属日志，保留目录、配置和未选数据。
-              不按任务历史关联连带删除它用过的全部内容块，不把本命令扩展为缓存管理命令。
+              离线清理所选历史任务及关联日志，或显式清理没有保留历史引用的缓存内容。
+              两种范围可单独使用或组合；保留目录、配置、未选数据及剩余历史可达的共享块。
             </p>
-            <pre><code>task-engine data prune (--task &lt;task-id&gt;… | --before &lt;time&gt;)
-  [--data-dir &lt;path&gt;] [--yes] [--json] [--quiet]</code></pre>
+            <pre><code>task-engine data prune [--task &lt;task-id&gt;… | --before &lt;time&gt;]
+  [--cache] [--data-dir &lt;path&gt;]</code></pre>
             <p>
               适用<a href="#shared-options">数据位置</a>、<a href="#shared-io"
                 >输出</a
-              >、<a href="#shared-interaction">安全确认</a>及<a
+              >、<a href="#shared-interaction">直接执行与安全检查</a>及<a
                 href="#shared-exits"
                 >退出码</a
-              >。例外：是本地离线数据操作，不接受 --engine。
+              >及<a href="#shared-cache-prune">缓存标记清除</a>。
+              例外：是本地离线数据操作，不接受 --engine。
             </p>
             <h3>参数</h3>
             <ul>
               <li>
                 <code>--task</code>：可重复任务标识，精确选择；与 --before
-                互斥。任一标识不存在则变更前退出 4，不部分删成功冒充全成功。
+                互斥。任一标识不存在、未终结或整个任务资源尚未释放，则变更前退出
+                1， 不部分删成功冒充全成功。
               </li>
               <li>
                 <code>--before</code>：带时区 RFC 3339
-                时间，选择此时间前完成的终态任务；不含在途任务，不使用创建时间代替完成时间。
+                时间，选择此时间前完成且整个任务已释放的终态记录；
+                不含在途或释放未确认的任务，不使用创建时间代替完成时间。
               </li>
               <li>
-                两类范围必须显式选一种，均无默认或用户配置；不提供默认全删或
-                --all。
+                <code>--cache</code>：布尔，省略表示不清理缓存，无用户配置。
+                可单独使用或与一类历史范围组合；按全部剩余历史引用标记清除，
+                不是只删除选定任务曾用过的块。
+              </li>
+              <li>
+                --task / --before / --cache 至少显式选择一种； --task 与
+                --before 仍互斥，历史范围均无默认或用户配置。
+                无范围时在变更前返回错误，不默认全删，不提供 --all。
               </li>
               <li>
                 <code>--data-dir</code>：目录路径，可省略，映射 server.dataDir。
-              </li>
-              <li>
-                <code>--yes</code>：布尔，默认
-                false，无用户配置，显式授权所选范围内删除。
               </li>
             </ul>
             <h3>预期输出与行为</h3>
             <dl>
               <dt>stdout</dt>
               <dd>
-                所选范围及删除计数；JSON data 为
-                <code>{dataDir,selection,deletedTasks,deletedLogs}</code
-                >，selection 为 taskIds 数组或 before 时间。无匹配时两计数为
-                0，退出 0。
+                所选范围及删除计数（任务记录条数、日志条数）；JSON data 为
+                <code
+                  >{dataDir,selection,deletedTasks,deletedLogs,deletedCacheBlocks?,deletedCacheBytes?}</code
+                >。 selection 为对象，仅包含本次选择的 taskIds 数组、before
+                时间或 cache:true； taskIds 与 before 互斥，cache
+                可与其中一项组合。 未选择历史时 deletedTasks/deletedLogs 为
+                0；未选择缓存时省略缓存计数。 选择缓存时，deletedCacheBlocks 和
+                deletedCacheBytes 只统计本次成功删除的去重内容块及其载荷字节，
+                不宣称等于文件系统实际回收空间。无匹配为 0，完整完成时退出 0。
               </dd>
               <dt>stderr</dt>
               <dd>
-                人类模式显示绝对目录、范围、匹配数量及确认；--json 必须
-                --yes，完整范围回显于结果。不暴露秘密或复制业务输入。
+                仅 logging。绝对目录、范围及删除计数包含在 stdout 的最终结果中，
+                不输出前置确认提示。不暴露秘密或复制业务输入。
               </dd>
               <dt>退出码</dt>
               <dd>
-                0 完成；2 范围无效、目录非引擎目录、引擎仍在使用目录或未授权；4
-                指定任务不存在；1 存储错误；130
+                0 完成；1 清理失败，包含范围、归属、在用及存储问题；130
                 变更前取消。发生部分操作失败时明确已完成范围，不声称已回滚。
               </dd>
               <dt>资源与交互</dt>
               <dd>
-                要求引擎已停止，独占目录并验证引擎身份及任务归属；锁无法获取就拒绝。不自动停止引擎、不递归删除目录、不删除原始任务包或外部内容、不清理其他实例。
-                保留持久 IPFS 内容缓存，不因删除历史记录删除共享块；
-                缓存自动淘汰另受预算及活跃任务保护约束。TTY 可确认；非
-                TTY/--json 要求 --yes。删除开始后不得将中断解释为全部撤销。
+                要求引擎已停止，取得与服务运行共用的实例独占锁，并验证引擎身份及任务归属；
+                锁无法获取就拒绝，不另设一把无法与 Server 互斥的清理锁。
+                不自动停止引擎、不递归删除目录、不删除原始任务包或外部内容、不清理其他实例。
+                缓存清理遵循完整标记后再清除；未选 --cache 时保留全部缓存。
+                组合清理先删历史再按剩余引用标记；任何保留历史可达的块以及在用块均不删除。
+                显式指定范围并通过前置检查后直接删除，不论是否 TTY
+                都不提示确认。 删除开始后不得将中断解释为全部撤销。
               </dd>
             </dl>
             <h3>预期示例（未执行）</h3>
+            <p>
+              下列两个缓存成功示例各自从同一初态开始：任务 task-010 引用根
+              A（1024 字节）， task-011 引用根 B（2048 字节），A/B 均链接共享块
+              S（512 字节）， 另有无人引用的块 C（256 字节）。A/B/S/C
+              仅为节点说明，不是实际 CID。
+              两个任务均已完整结束，服务已停止且资源及引用图已核实。
+            </p>
             <div class="examples">
               <div class="example">
                 <h3>清理指定任务</h3>
-                <pre><code>前提: 引擎已停止，task-002 为终态且属于此目录
-调用: task-engine data prune --task task-002 --data-dir D:\TaskEngine\data --yes --json
-stdin: 不使用
-stdout: {"ok":true,"data":{"dataDir":"D:\\TaskEngine\\data","selection":{"taskIds":["task-002"]},"deletedTasks":1,"deletedLogs":1}}
-stderr: 空
-退出码: 0</code></pre>
+                <p class="meta">
+                  前提：引擎已停止，task-002 为终态且属于此目录
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine data prune --task task-002 --data-dir D:\TaskEngine\data</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "dataDir": "D:\\TaskEngine\\data",
+    "selection": {
+      "taskIds": [
+        "task-002"
+      ]
+    },
+    "deletedTasks": 1,
+    "deletedLogs": 1
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
               </div>
               <div class="example">
                 <h3>目录正在使用</h3>
-                <pre><code>调用: task-engine data prune --task task-002 --yes --json
-stdin: 不使用
-stdout: 空
-stderr: {"ok":false,"error":{"code":"DATA_IN_USE","message":"引擎仍在使用所选数据目录；未清理。","hint":"显式停止该引擎，再重试相同范围。"}}
-退出码: 2</code></pre>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine data prune --task task-002</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "error": {
+    "code": "DATA_IN_USE",
+    "message": "引擎仍在使用所选数据目录；未清理。显式停止该引擎，再重试相同范围。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>只清理无人引用的缓存</h3>
+                <p class="meta">
+                  保留两个任务及其日志，只删除块 C；两个根和传递可达的共享块 S
+                  均保留。
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine data prune --cache --data-dir D:\TaskEngine\data</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "dataDir": "D:\\TaskEngine\\data",
+    "selection": {
+      "cache": true
+    },
+    "deletedTasks": 0,
+    "deletedLogs": 0,
+    "deletedCacheBlocks": 1,
+    "deletedCacheBytes": 256
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>先删选定历史，再按剩余引用清理缓存</h3>
+                <p class="meta">
+                  删除 task-010 及其一条日志；按剩余 task-011 的引用保留 B 和
+                  S， 删除不再被引用的 A 及原本无人引用的 C，不删除共享块 S。
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine data prune --task task-010 --cache --data-dir D:\TaskEngine\data</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "dataDir": "D:\\TaskEngine\\data",
+    "selection": {
+      "taskIds": [
+        "task-010"
+      ],
+      "cache": true
+    },
+    "deletedTasks": 1,
+    "deletedLogs": 1,
+    "deletedCacheBlocks": 2,
+    "deletedCacheBytes": 1280
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>历史已清理，但无法完成缓存标记</h3>
+                <p class="meta">
+                  本例剩余 task-011 的引用图无法完整读取；历史阶段已完成，
+                  缓存删除尚未开始。不能把无法确认的节点当作无人引用，更不能声称历史已回滚。
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine data prune --task task-010 --cache --data-dir D:\TaskEngine\data</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "data": {
+    "dataDir": "D:\\TaskEngine\\data",
+    "selection": {
+      "taskIds": [
+        "task-010"
+      ],
+      "cache": true
+    },
+    "deletedTasks": 1,
+    "deletedLogs": 1,
+    "deletedCacheBlocks": 0,
+    "deletedCacheBytes": 0
+  },
+  "error": {
+    "code": "CACHE_MARK_FAILED",
+    "message": "所选历史已清理，但剩余历史的引用图无法完整标记；未删除缓存，历史变更未回滚。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
+              </div>
+              <div class="example">
+                <h3>未选择清理范围</h3>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine data prune</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "error": {
+    "code": "CLEANUP_SCOPE_REQUIRED",
+    "message": "必须显式选择 --task、--before 或 --cache；未修改任何数据。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
               </div>
             </div>
-            <h3>待讨论</h3>
+            <h3>契约范围</h3>
             <p>
-              离线清理、终态范围及精确任务/完成时间选择是具体接口提案；未引入独立
-              dry-run，确认前的影响说明不构成另一个场景。
+              历史范围与缓存范围、离线实例锁、传递可达标记、共享块保护、删除计数和部分失败输出均已确认。无范围不执行，不新增
+              dry-run、独立缓存命令组或交互确认。
             </p>
             <p><a href="#command-tree">返回命令树</a></p>
           </section>
@@ -1607,11 +3488,11 @@ stderr: {"ok":false,"error":{"code":"DATA_IN_USE","message":"引擎仍在使用�
             tabindex="-1"
           >
             <h2 id="config-list-title"><code>task-engine config list</code></h2>
-            <p class="status">待确认 · A1</p>
+            <p class="status">已批准 · A1 · 2026-11-10 19:37 定稿</p>
             <p>
               查看所有已知配置的用户值、产品默认、有效值及来源；不连接引擎。
             </p>
-            <pre><code>task-engine config list [--json] [--quiet]</code></pre>
+            <pre><code>task-engine config list</code></pre>
             <p>
               适用<a href="#shared-options">配置键</a>、<a href="#shared-io"
                 >输出</a
@@ -1629,15 +3510,16 @@ stderr: {"ok":false,"error":{"code":"DATA_IN_USE","message":"引擎仍在使用�
             <dl>
               <dt>stdout</dt>
               <dd>
-                按键名升序显示配置表；JSON data 为
+                JSON data 中配置项按键名升序排列，结构为
                 <code
                   >{items:[{key,userValue,productDefault,effectiveValue,source}]}</code
                 >。source 为 user/product/unset；未设置无默认时各值为 null 且
                 source=unset。未设置的 IPFS Gateway 不妨碍查看配置。
               </dd>
-              <dt>stderr / 退出码</dt>
+              <dt>退出码</dt>
               <dd>
-                0 已读取；2 配置损坏/未知键；1 读取失败；130 中断。无额外进度。
+                0 已读取；1 读取失败，具体原因由 error 表达；130
+                中断。无额外进度。
               </dd>
               <dt>资源与交互</dt>
               <dd>
@@ -1648,41 +3530,180 @@ stderr: {"ok":false,"error":{"code":"DATA_IN_USE","message":"引擎仍在使用�
             <h3>预期示例（未执行）</h3>
             <div class="examples">
               <div class="example">
-                <h3>查看（人类文本）</h3>
-                <pre><code>调用: task-engine config list
-stdin: 不使用
-stdout:
-  client.engine              http://127.0.0.1:8787  product
-  server.bundleCacheBytes     268435456              product
-  server.bundleConcurrency    4                      product
-  server.bundleMaxBytes       67108864               product
-  server.dataDir              D:\TaskEngine\data     user
-  server.host                 127.0.0.1              product
-  server.ipfsGateway          未设置                 unset
-  server.maxChildConcurrent   4                      product
-  server.maxChildDepth        4                      product
-  server.maxChildTotal        64                     product
-  server.maxConcurrent        64                     product
-  server.maxConnections       256                    product
-  server.maxPayloadBytes      65536                  product
-  server.maxPreparing         1000                   product
-  server.maxTasks             10000                  product
-  server.port                 8787                   product
-  task.timeoutMs              60000                  product
-stderr: 空
-退出码: 0</code></pre>
+                <h3>查看配置</h3>
+                <p class="meta">
+                  前提：示例用户 Home 为 D:\Profile，产品数据目录为
+                  D:\Profile\.silvermoon.work\task-engine，用户覆盖为
+                  D:\TaskEngine\data
+                </p>
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine config list</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "items": [
+      {
+        "key": "client.engine",
+        "userValue": null,
+        "productDefault": "http://127.0.0.1:8787",
+        "effectiveValue": "http://127.0.0.1:8787",
+        "source": "product"
+      },
+      {
+        "key": "server.bundleConcurrency",
+        "userValue": null,
+        "productDefault": 4,
+        "effectiveValue": 4,
+        "source": "product"
+      },
+      {
+        "key": "server.bundleMaxBytes",
+        "userValue": null,
+        "productDefault": 67108864,
+        "effectiveValue": 67108864,
+        "source": "product"
+      },
+      {
+        "key": "server.dataDir",
+        "userValue": "D:\\TaskEngine\\data",
+        "productDefault": "D:\\Profile\\.silvermoon.work\\task-engine",
+        "effectiveValue": "D:\\TaskEngine\\data",
+        "source": "user"
+      },
+      {
+        "key": "server.host",
+        "userValue": null,
+        "productDefault": "127.0.0.1",
+        "effectiveValue": "127.0.0.1",
+        "source": "product"
+      },
+      {
+        "key": "server.ipfsGateway",
+        "userValue": null,
+        "productDefault": null,
+        "effectiveValue": null,
+        "source": "unset"
+      },
+      {
+        "key": "server.maxChildConcurrent",
+        "userValue": null,
+        "productDefault": 4,
+        "effectiveValue": 4,
+        "source": "product"
+      },
+      {
+        "key": "server.maxChildDepth",
+        "userValue": null,
+        "productDefault": 4,
+        "effectiveValue": 4,
+        "source": "product"
+      },
+      {
+        "key": "server.maxChildTotal",
+        "userValue": null,
+        "productDefault": 64,
+        "effectiveValue": 64,
+        "source": "product"
+      },
+      {
+        "key": "server.maxConcurrent",
+        "userValue": null,
+        "productDefault": 64,
+        "effectiveValue": 64,
+        "source": "product"
+      },
+      {
+        "key": "server.maxConnections",
+        "userValue": null,
+        "productDefault": 256,
+        "effectiveValue": 256,
+        "source": "product"
+      },
+      {
+        "key": "server.maxPayloadBytes",
+        "userValue": null,
+        "productDefault": 65536,
+        "effectiveValue": 65536,
+        "source": "product"
+      },
+      {
+        "key": "server.maxPreparing",
+        "userValue": null,
+        "productDefault": 1000,
+        "effectiveValue": 1000,
+        "source": "product"
+      },
+      {
+        "key": "server.port",
+        "userValue": null,
+        "productDefault": 8787,
+        "effectiveValue": 8787,
+        "source": "product"
+      },
+      {
+        "key": "task.timeoutMs",
+        "userValue": null,
+        "productDefault": 60000,
+        "effectiveValue": 60000,
+        "source": "product"
+      }
+    ]
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
               </div>
               <div class="example">
                 <h3>配置损坏</h3>
-                <pre><code>调用: task-engine config list --json
-stdin: 不使用
-stdout: 空
-stderr: {"ok":false,"error":{"code":"CONFIG_INVALID","message":"用户配置不是有效 JSON；未使用默认值掩盖问题。","hint":"修复诊断中指出的配置文件后重试。"}}
-退出码: 2</code></pre>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine config list</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "error": {
+    "code": "CONFIG_INVALID",
+    "message": "用户配置不是有效 JSON；未使用默认值掩盖问题。修复诊断中指出的配置文件后重试。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
               </div>
             </div>
-            <h3>待讨论</h3>
-            <p>显示来源和缺省表示待批准；不增加认证或秘密配置项。</p>
+            <h3>契约范围</h3>
+            <p>
+              只读返回全部已知键，按键名升序；区分用户值、产品默认、有效值及来源。未设置的可选
+              Gateway 不妨碍读取配置，不新增认证或秘密配置项。
+            </p>
             <p><a href="#command-tree">返回命令树</a></p>
           </section>
 
@@ -1693,9 +3714,9 @@ stderr: {"ok":false,"error":{"code":"CONFIG_INVALID","message":"用户配置不�
             tabindex="-1"
           >
             <h2 id="config-get-title"><code>task-engine config get</code></h2>
-            <p class="status">待确认 · A1</p>
+            <p class="status">已批准 · A1 · 2026-11-10 19:37 定稿</p>
             <p>查看单个已知配置及其来源。</p>
-            <pre><code>task-engine config get &lt;key&gt; [--json] [--quiet]</code></pre>
+            <pre><code>task-engine config get &lt;key&gt;</code></pre>
             <p>
               适用<a href="#shared-options">配置</a>、<a href="#shared-io"
                 >输出</a
@@ -1713,38 +3734,85 @@ stderr: {"ok":false,"error":{"code":"CONFIG_INVALID","message":"用户配置不�
             <dl>
               <dt>stdout</dt>
               <dd>
-                人类模式显示键、有效值及来源；JSON data 为与 config list
-                同形的单个配置对象。已知但未设置的 IPFS Gateway 返回
-                source=unset，退出 0。
+                JSON data 为与 config list 同形的单个配置对象。已知但未设置的
+                IPFS Gateway 返回 source=unset，退出 0。
               </dd>
-              <dt>stderr / 退出码</dt>
-              <dd>
-                0 读取成功；2 缺 key、未知键或配置无效；1 读取失败；130 中断。
-              </dd>
+              <dt>退出码</dt>
+              <dd>0 读取成功；1 读取失败，具体原因由 error 表达；130 中断。</dd>
               <dt>资源与交互</dt>
-              <dd>只读，不连接服务，不提示。无参数显示用法退出 2。</dd>
+              <dd>只读，不连接服务，不提示。无参数显示用法退出 1。</dd>
             </dl>
             <h3>预期示例（未执行）</h3>
             <div class="examples">
               <div class="example">
                 <h3>成功</h3>
-                <pre><code>调用: task-engine config get task.timeoutMs --json
-stdin: 不使用
-stdout: {"ok":true,"data":{"key":"task.timeoutMs","userValue":null,"productDefault":60000,"effectiveValue":60000,"source":"product"}}
-stderr: 空
-退出码: 0</code></pre>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine config get task.timeoutMs</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "key": "task.timeoutMs",
+    "userValue": null,
+    "productDefault": 60000,
+    "effectiveValue": 60000,
+    "source": "product"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
               </div>
               <div class="example">
                 <h3>未知键</h3>
-                <pre><code>调用: task-engine config get query.status --json
-stdin: 不使用
-stdout: 空
-stderr: {"ok":false,"error":{"code":"UNKNOWN_CONFIG_KEY","message":"不支持配置键 query.status。","hint":"运行 config list 查看可配置项；查询筛选不保存为默认。"}}
-退出码: 2</code></pre>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine config get query.status</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "error": {
+    "code": "UNKNOWN_CONFIG_KEY",
+    "message": "不支持配置键 query.status。运行 config list 查看可配置项；查询筛选不保存为默认。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
               </div>
             </div>
-            <h3>待讨论</h3>
-            <p>无额外未展开选项；整体契约仍待批准。</p>
+            <h3>契约范围</h3>
+            <p>
+              只读返回已知单键及来源；未知键或配置无效返回标准错误。未设置无默认时返回
+              unset 与 null，不创建配置文件。
+            </p>
             <p><a href="#command-tree">返回命令树</a></p>
           </section>
 
@@ -1755,9 +3823,18 @@ stderr: {"ok":false,"error":{"code":"UNKNOWN_CONFIG_KEY","message":"不支持配
             tabindex="-1"
           >
             <h2 id="config-set-title"><code>task-engine config set</code></h2>
-            <p class="status">待确认 · A1</p>
+            <p class="status">已批准 · A1 · 2026-11-10 19:37 定稿</p>
             <p>校验并保存单项用户值；设置与修改使用同一命令。</p>
-            <pre><code>task-engine config set &lt;key&gt; &lt;value&gt; [--json] [--quiet]</code></pre>
+            <pre><code>task-engine config set &lt;key&gt; &lt;value&gt;</code></pre>
+            <div class="notice" id="config-set-output-review">
+              <strong>第 7 项已批准：保持单键配置写入结果简洁。</strong>
+              成功 data 仅返回 <code>{key,value,changed,appliesTo}</code>，
+              表达已保存什么、是否改变及何时生效。不再承诺成功结果输出配置文件位置，
+              也不为此新增字段；定位错误确有帮助时，可在标准 error.message
+              中给出相关路径。依据用户 2026-11-10 19:21 “确认同意”的直接批准，
+              本项仅对齐 config set
+              的成功输出范围，不改配置文件存储位置、配置层级或其他命令。
+            </div>
             <p>
               适用<a href="#shared-options">配置类型与优先级</a>、<a
                 href="#shared-io"
@@ -1782,15 +3859,15 @@ stderr: {"ok":false,"error":{"code":"UNKNOWN_CONFIG_KEY","message":"不支持配
             <dl>
               <dt>stdout</dt>
               <dd>
-                显示已保存值、配置文件位置及生效范围；JSON data 为
+                返回所选键、已保存值、是否改变及生效范围；JSON data 为
                 <code>{key,value,changed,appliesTo}</code>。服务键
                 appliesTo=next-engine-start，client.engine/task.timeoutMs 为
                 future-client-invocations。
               </dd>
-              <dt>stderr / 退出码</dt>
+              <dt>退出码</dt>
               <dd>
-                0 保存成功（同值 changed=false）；2 值、键或已有配置无效；1
-                写入失败。中断在持久变更前为 130；变更后须如实说明保存状态。
+                0 保存成功（同值 changed=false）；1 保存失败，具体原因由 error
+                表达。 中断在持久变更前为 130；变更后须如实说明保存状态。
               </dd>
               <dt>资源与交互</dt>
               <dd>
@@ -1802,23 +3879,71 @@ stderr: {"ok":false,"error":{"code":"UNKNOWN_CONFIG_KEY","message":"不支持配
             <div class="examples">
               <div class="example">
                 <h3>设置执行时限</h3>
-                <pre><code>调用: task-engine config set task.timeoutMs 120000 --json
-stdin: 不使用
-stdout: {"ok":true,"data":{"key":"task.timeoutMs","value":120000,"changed":true,"appliesTo":"future-client-invocations"}}
-stderr: 空
-退出码: 0</code></pre>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine config set task.timeoutMs 120000</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "key": "task.timeoutMs",
+    "value": 120000,
+    "changed": true,
+    "appliesTo": "future-client-invocations"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
               </div>
               <div class="example">
                 <h3>值无效</h3>
-                <pre><code>调用: task-engine config set server.port 0 --json
-stdin: 不使用
-stdout: 空
-stderr: {"ok":false,"error":{"code":"INVALID_CONFIG_VALUE","message":"server.port 必须为 1 至 65535 的整数；未修改配置。","hint":"提供有效端口，再显式启动引擎。"}}
-退出码: 2</code></pre>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine config set server.port 0</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "error": {
+    "code": "INVALID_CONFIG_VALUE",
+    "message": "server.port 必须为 1 至 65535 的整数；未修改配置。提供有效端口，再显式启动引擎。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
               </div>
             </div>
-            <h3>待讨论</h3>
-            <p>配置类型解析及生效时点待批准，不支持热更新或批量写入。</p>
+            <h3>契约范围</h3>
+            <p>
+              单键校验后持久保存，保留其他键；不热更新、不批量覆盖、不输出额外配置文件路径字段。当前没有持久缓存容量配置项。
+            </p>
             <p><a href="#command-tree">返回命令树</a></p>
           </section>
 
@@ -1831,14 +3956,14 @@ stderr: {"ok":false,"error":{"code":"INVALID_CONFIG_VALUE","message":"server.por
             <h2 id="config-reset-title">
               <code>task-engine config reset</code>
             </h2>
-            <p class="status">待确认 · A1</p>
+            <p class="status">已批准 · A1 · 2026-11-10 19:37 定稿</p>
             <p>移除单项用户覆盖，恢复产品默认；没有产品默认的项回到未设置。</p>
-            <pre><code>task-engine config reset &lt;key&gt; [--json] [--quiet]</code></pre>
+            <pre><code>task-engine config reset &lt;key&gt;</code></pre>
             <p>
               适用<a href="#shared-options">配置</a>、<a href="#shared-io"
                 >输出</a
               >及<a href="#shared-interaction">交互</a
-              >。例外：仅单键、可重设配置的显式操作，无额外确认提示。
+              >；仅处理显式选定的单键，与其他命令一样不做交互确认。
             </p>
             <h3>参数</h3>
             <p>
@@ -1854,42 +3979,225 @@ stderr: {"ok":false,"error":{"code":"INVALID_CONFIG_VALUE","message":"server.por
                 >；source 为 product 或 unset，appliesTo 与 set
                 一致。已无用户值时 changed=false，仍退出 0。
               </dd>
-              <dt>stderr / 退出码</dt>
+              <dt>退出码</dt>
               <dd>
-                0 重置完成；2 键/配置无效；1 写入失败；变更前中断为
+                0 重置完成；1 重置失败，具体原因由 error 表达；变更前中断为
                 130，变更后明确实际状态。
               </dd>
               <dt>资源与交互</dt>
               <dd>
                 只移除选定键的用户值，保留其他配置和全部引擎数据，不重启已有服务。无参数显示用法退出
-                2；TTY/非 TTY 均不提示。
+                1；TTY/非 TTY 均不提示。
               </dd>
             </dl>
             <h3>预期示例（未执行）</h3>
             <div class="examples">
               <div class="example">
                 <h3>移除内容源配置</h3>
-                <pre><code>调用: task-engine config reset server.ipfsGateway --json
-stdin: 不使用
-stdout: {"ok":true,"data":{"key":"server.ipfsGateway","changed":true,"effectiveValue":null,"source":"unset","appliesTo":"next-engine-start"}}
-stderr: 空
-退出码: 0</code></pre>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine config reset server.ipfsGateway</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": true,
+  "data": {
+    "key": "server.ipfsGateway",
+    "changed": true,
+    "effectiveValue": null,
+    "source": "unset",
+    "appliesTo": "next-engine-start"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>0</dd>
+                </dl>
               </div>
               <div class="example">
                 <h3>缺少配置键</h3>
-                <pre><code>调用: task-engine config reset --json
-stdin: 不使用
-stdout: 空
-stderr: {"ok":false,"error":{"code":"ARGUMENT_REQUIRED","message":"缺少要重置的配置键。","hint":"用法：task-engine config reset &lt;key&gt;；config list 可查看已知键。"}}
-退出码: 2</code></pre>
+
+                <dl>
+                  <dt>调用</dt>
+                  <dd>
+                    <pre><code>task-engine config reset</code></pre>
+                  </dd>
+                  <dt>stdin</dt>
+                  <dd>
+                    <pre><code>不使用</code></pre>
+                  </dd>
+                  <dt>stdout</dt>
+                  <dd>
+                    <pre><code>{
+  "ok": false,
+  "error": {
+    "code": "ARGUMENT_REQUIRED",
+    "message": "缺少要重置的配置键。用法：task-engine config reset &lt;key&gt;；config list 可查看已知键。"
+  }
+}</code></pre>
+                  </dd>
+                  <dt>stderr</dt>
+                  <dd>
+                    <pre><code>空</code></pre>
+                  </dd>
+                  <dt>退出码</dt>
+                  <dd>1</dd>
+                </dl>
               </div>
             </div>
-            <h3>待讨论</h3>
-            <p>重置无默认项之后启动需要重新提供该值；此行为须在帮助中明确。</p>
+            <h3>契约范围</h3>
+            <p>
+              只移除单键用户覆盖，恢复产品默认或 unset，不重启已有服务。重置
+              Gateway 后，下次启动未显式提供时仅使用本地缓存，仍允许启动。
+            </p>
             <p><a href="#command-tree">返回命令树</a></p>
           </section>
         </div>
       </div>
     </main>
+    <script>
+      (() => {
+        const layout = document.querySelector(".spec-layout");
+        const navigation = document.querySelector(".tree");
+        const splitter = document.querySelector(".splitter");
+        const toggle = document.querySelector(".nav-toggle");
+        const narrow = window.matchMedia("(max-width: 48rem)");
+        let pointerId = null;
+        let pointerOffset = 0;
+        let savedWidth = navigation.getBoundingClientRect().width;
+
+        function bounds() {
+          const rem = Number.parseFloat(
+            getComputedStyle(document.documentElement).fontSize,
+          );
+          return { min: 16 * rem, max: layout.clientWidth - 21 * rem };
+        }
+
+        function setWidth(width) {
+          const { min, max } = bounds();
+          const value = Math.round(Math.max(min, Math.min(max, width)));
+          layout.style.setProperty("--nav-width", `${value}px`);
+          splitter.setAttribute("aria-valuemin", String(Math.round(min)));
+          splitter.setAttribute("aria-valuemax", String(Math.round(max)));
+          splitter.setAttribute("aria-valuenow", String(value));
+          splitter.setAttribute(
+            "aria-valuetext",
+            `${Math.round((value / layout.clientWidth) * 100)}%`,
+          );
+        }
+
+        function finishResize() {
+          const capturedPointer = pointerId;
+          pointerId = null;
+          layout.classList.remove("is-resizing");
+          if (
+            capturedPointer !== null &&
+            splitter.hasPointerCapture(capturedPointer)
+          ) {
+            splitter.releasePointerCapture(capturedPointer);
+          }
+        }
+
+        function syncWidth() {
+          const collapsed = layout.classList.contains("is-nav-collapsed");
+          splitter.tabIndex = narrow.matches || collapsed ? -1 : 0;
+          if (narrow.matches || collapsed) {
+            finishResize();
+          } else {
+            setWidth(savedWidth);
+          }
+        }
+
+        toggle.addEventListener("click", () => {
+          const collapsed = layout.classList.toggle("is-nav-collapsed");
+          toggle.setAttribute("aria-expanded", String(!collapsed));
+          syncWidth();
+        });
+        window.addEventListener("hashchange", () => {
+          if (
+            window.location.hash === "#command-tree" &&
+            layout.classList.contains("is-nav-collapsed")
+          ) {
+            layout.classList.remove("is-nav-collapsed");
+            toggle.setAttribute("aria-expanded", "true");
+            syncWidth();
+            navigation.scrollIntoView();
+          }
+        });
+
+        splitter.addEventListener("pointerdown", (event) => {
+          if (
+            narrow.matches ||
+            layout.classList.contains("is-nav-collapsed") ||
+            !event.isPrimary ||
+            event.button !== 0
+          )
+            return;
+          pointerId = event.pointerId;
+          pointerOffset =
+            event.clientX - navigation.getBoundingClientRect().right;
+          splitter.setPointerCapture(pointerId);
+          splitter.focus();
+          layout.classList.add("is-resizing");
+          event.preventDefault();
+        });
+        splitter.addEventListener("pointermove", (event) => {
+          if (event.pointerId === pointerId) {
+            setWidth(
+              event.clientX -
+                layout.getBoundingClientRect().left -
+                pointerOffset,
+            );
+            savedWidth = navigation.getBoundingClientRect().width;
+          }
+        });
+        splitter.addEventListener("pointerup", finishResize);
+        splitter.addEventListener("pointercancel", finishResize);
+        splitter.addEventListener("lostpointercapture", finishResize);
+        splitter.addEventListener("keydown", (event) => {
+          if (narrow.matches || layout.classList.contains("is-nav-collapsed"))
+            return;
+          const step = event.shiftKey ? 40 : 10;
+          const width = navigation.getBoundingClientRect().width;
+          const { min, max } = bounds();
+          let next;
+          switch (event.key) {
+            case "ArrowLeft":
+              next = width - step;
+              break;
+            case "ArrowRight":
+              next = width + step;
+              break;
+            case "Home":
+              next = min;
+              break;
+            case "End":
+              next = max;
+              break;
+            default:
+              return;
+          }
+          event.preventDefault();
+          setWidth(next);
+          savedWidth = navigation.getBoundingClientRect().width;
+        });
+        layout.classList.add("is-resizable");
+        splitter.hidden = false;
+        toggle.hidden = false;
+        window.addEventListener("resize", syncWidth);
+        syncWidth();
+      })();
+    </script>
   </body>
 </html>

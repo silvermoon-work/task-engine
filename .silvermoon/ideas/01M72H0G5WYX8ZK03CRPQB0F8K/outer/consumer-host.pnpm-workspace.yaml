@@ -1,0 +1,11 @@
+packages: []
+linkWorkspacePackages: false
+preferWorkspacePackages: false
+allowBuilds:
+  esbuild: false
+minimumReleaseAgeExclude:
+  - "@silvermoon-work/task-builder-cli@0.1.0-canary-261110-1"
+  - "@silvermoon-work/task-builder@0.1.0-canary-261110-1"
+  - "@silvermoon-work/task-engine@0.1.0-canary-261109-3"
+  - "@silvermoon-work/task-sdk@0.1.0-canary-261109-2"
+  - "@silvermoon-work/task-protocol@0.1.0-canary-261109-2"

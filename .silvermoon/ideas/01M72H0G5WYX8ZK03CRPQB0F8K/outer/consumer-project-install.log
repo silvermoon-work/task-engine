@@ -1,0 +1,17 @@
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Progress: resolved 2, reused 2, downloaded 0, added 0
+Packages: +92
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Packages are hard linked from the content-addressable store to the virtual store.
+  Content-addressable store is at: D:\.pnpm-store\v11
+  Virtual store is at:             node_modules/.pnpm
+Progress: resolved 117, reused 91, downloaded 1, added 92, done
+
+dependencies:
++ @silvermoon-work/task-sdk 0.1.0-canary-261109-2
+
+devDependencies:
++ @silvermoon-work/task-builder 0.1.0-canary-261110-1
++ @silvermoon-work/task-builder-cli 0.1.0-canary-261110-1
+
+Done in 2.3s using pnpm v11.22.0

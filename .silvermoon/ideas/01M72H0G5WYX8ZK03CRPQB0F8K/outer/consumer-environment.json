@@ -1,0 +1,22 @@
+[
+  {
+    "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer",
+    "node": "v24.12.0",
+    "pnpm": "11.22.0",
+    "npmRegistry": "https://mirrors.cloud.tencent.com/npm/",
+    "pnpmRegistry": "https://mirrors.cloud.tencent.com/npm/",
+    "strictSsl": "true",
+    "linkWorkspacePackages": "false",
+    "minimumReleaseAge": "undefined"
+  },
+  {
+    "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo",
+    "node": "v24.12.0",
+    "pnpm": "11.22.0",
+    "npmRegistry": "https://mirrors.cloud.tencent.com/npm/",
+    "pnpmRegistry": "https://mirrors.cloud.tencent.com/npm/",
+    "strictSsl": "true",
+    "linkWorkspacePackages": "undefined",
+    "minimumReleaseAge": "undefined"
+  }
+]

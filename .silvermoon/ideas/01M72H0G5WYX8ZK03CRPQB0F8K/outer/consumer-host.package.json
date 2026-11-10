@@ -1,0 +1,12 @@
+{
+  "name": "task-builder-canary-consumer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.22.0",
+  "dependencies": {
+    "@silvermoon-work/task-builder-cli": "0.1.0-canary-261110-1",
+    "@silvermoon-work/task-builder": "0.1.0-canary-261110-1",
+    "@silvermoon-work/task-engine": "0.1.0-canary-261109-3"
+  }
+}

@@ -1,0 +1,7 @@
+allowBuilds:
+  esbuild: false
+minimumReleaseAgeExclude:
+  - "@silvermoon-work/task-builder-cli"
+  - "@silvermoon-work/task-builder"
+  - "@silvermoon-work/task-sdk"
+  - "@silvermoon-work/task-protocol"

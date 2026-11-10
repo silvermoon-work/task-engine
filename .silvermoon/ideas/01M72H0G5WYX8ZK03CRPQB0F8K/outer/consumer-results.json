@@ -1,0 +1,1119 @@
+{
+  "observedAt": "2026-11-10T14:51:26.355Z",
+  "node": "v24.12.0",
+  "platform": "win32",
+  "registry": "https://mirrors.cloud.tencent.com/npm/",
+  "host": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer",
+  "project": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo",
+  "installedBin": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.pnpm\\@silvermoon-work+task-build_15819b8363533c1e5d95b8579f5be219\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+  "installedBinSha256": "7ae4763e353f189b53365f516db440aa9e2759f51bca03af2e588eeb5fe1f924",
+  "checks": [
+    {
+      "name": "default build delivers module and CAR",
+      "command": [
+        "C:\\Users\\Wei\\AppData\\Roaming\\nvm\\v24.12.0\\node.exe",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.pnpm\\@silvermoon-work+task-build_15819b8363533c1e5d95b8579f5be219\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "build"
+      ],
+      "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo",
+      "exitCode": 0,
+      "signal": null,
+      "elapsedMs": 702,
+      "stdout": "{\"ok\":true,\"data\":{\"module\":{\"directory\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\demo\\\\dist\",\"declaration\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\demo\\\\dist\\\\task.yaml\",\"files\":[\"resources/greeting.txt\",\"schemas/input.json\",\"schemas/message.json\",\"schemas/result.json\",\"schemas/shared/text.json\",\"task.yaml\",\"worker.cjs\"]},\"cid\":\"bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm\",\"car\":{\"path\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\demo\\\\dist.car\"}}}\n",
+      "stderr": "",
+      "result": {
+        "ok": true,
+        "data": {
+          "module": {
+            "directory": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\dist",
+            "declaration": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\dist\\task.yaml",
+            "files": [
+              "resources/greeting.txt",
+              "schemas/input.json",
+              "schemas/message.json",
+              "schemas/result.json",
+              "schemas/shared/text.json",
+              "task.yaml",
+              "worker.cjs"
+            ]
+          },
+          "cid": "bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm",
+          "car": {
+            "path": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\dist.car"
+          }
+        }
+      }
+    },
+    {
+      "name": "standalone car does not read build description",
+      "command": [
+        "C:\\Users\\Wei\\AppData\\Roaming\\nvm\\v24.12.0\\node.exe",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.pnpm\\@silvermoon-work+task-build_15819b8363533c1e5d95b8579f5be219\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "car",
+        "dist/task.yaml",
+        "--output",
+        "standalone.car"
+      ],
+      "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo",
+      "exitCode": 0,
+      "signal": null,
+      "elapsedMs": 374,
+      "stdout": "{\"ok\":true,\"data\":{\"car\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\demo\\\\standalone.car\",\"cid\":\"bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm\",\"declaration\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\demo\\\\dist\\\\task.yaml\",\"files\":[\"resources/greeting.txt\",\"schemas/input.json\",\"schemas/message.json\",\"schemas/result.json\",\"schemas/shared/text.json\",\"task.yaml\",\"worker.cjs\"]}}\n",
+      "stderr": "",
+      "result": {
+        "ok": true,
+        "data": {
+          "car": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\standalone.car",
+          "cid": "bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm",
+          "declaration": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\dist\\task.yaml",
+          "files": [
+            "resources/greeting.txt",
+            "schemas/input.json",
+            "schemas/message.json",
+            "schemas/result.json",
+            "schemas/shared/text.json",
+            "task.yaml",
+            "worker.cjs"
+          ]
+        }
+      }
+    },
+    {
+      "name": "repeat build preserves unselected old files",
+      "command": [
+        "C:\\Users\\Wei\\AppData\\Roaming\\nvm\\v24.12.0\\node.exe",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.pnpm\\@silvermoon-work+task-build_15819b8363533c1e5d95b8579f5be219\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "build"
+      ],
+      "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo",
+      "exitCode": 0,
+      "signal": null,
+      "elapsedMs": 685,
+      "stdout": "{\"ok\":true,\"data\":{\"module\":{\"directory\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\demo\\\\dist\",\"declaration\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\demo\\\\dist\\\\task.yaml\",\"files\":[\"resources/greeting.txt\",\"schemas/input.json\",\"schemas/message.json\",\"schemas/result.json\",\"schemas/shared/text.json\",\"task.yaml\",\"worker.cjs\"]},\"cid\":\"bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm\",\"car\":{\"path\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\demo\\\\dist.car\"}}}\n",
+      "stderr": "",
+      "result": {
+        "ok": true,
+        "data": {
+          "module": {
+            "directory": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\dist",
+            "declaration": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\dist\\task.yaml",
+            "files": [
+              "resources/greeting.txt",
+              "schemas/input.json",
+              "schemas/message.json",
+              "schemas/result.json",
+              "schemas/shared/text.json",
+              "task.yaml",
+              "worker.cjs"
+            ]
+          },
+          "cid": "bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm",
+          "car": {
+            "path": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\dist.car"
+          }
+        }
+      }
+    },
+    {
+      "name": "no-car updates module but preserves prior archive bytes",
+      "command": [
+        "C:\\Users\\Wei\\AppData\\Roaming\\nvm\\v24.12.0\\node.exe",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.pnpm\\@silvermoon-work+task-build_15819b8363533c1e5d95b8579f5be219\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "build",
+        "--no-car"
+      ],
+      "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo",
+      "exitCode": 0,
+      "signal": null,
+      "elapsedMs": 591,
+      "stdout": "{\"ok\":true,\"data\":{\"module\":{\"directory\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\demo\\\\dist\",\"declaration\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\demo\\\\dist\\\\task.yaml\",\"files\":[\"resources/greeting.txt\",\"schemas/input.json\",\"schemas/message.json\",\"schemas/result.json\",\"schemas/shared/text.json\",\"task.yaml\",\"worker.cjs\"]},\"cid\":\"bafybeifcjdxg4sg47j5hu3g6uxvgyilkyeo5xrg7f7vmnkzzg53rxssu4y\",\"car\":null}}\n",
+      "stderr": "",
+      "result": {
+        "ok": true,
+        "data": {
+          "module": {
+            "directory": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\dist",
+            "declaration": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\dist\\task.yaml",
+            "files": [
+              "resources/greeting.txt",
+              "schemas/input.json",
+              "schemas/message.json",
+              "schemas/result.json",
+              "schemas/shared/text.json",
+              "task.yaml",
+              "worker.cjs"
+            ]
+          },
+          "cid": "bafybeifcjdxg4sg47j5hu3g6uxvgyilkyeo5xrg7f7vmnkzzg53rxssu4y",
+          "car": null
+        }
+      }
+    },
+    {
+      "name": "standalone car delivers updated declared module",
+      "command": [
+        "C:\\Users\\Wei\\AppData\\Roaming\\nvm\\v24.12.0\\node.exe",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.pnpm\\@silvermoon-work+task-build_15819b8363533c1e5d95b8579f5be219\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "car",
+        "dist/task.yaml",
+        "--output",
+        "changed.car"
+      ],
+      "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo",
+      "exitCode": 0,
+      "signal": null,
+      "elapsedMs": 369,
+      "stdout": "{\"ok\":true,\"data\":{\"car\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\demo\\\\changed.car\",\"cid\":\"bafybeifcjdxg4sg47j5hu3g6uxvgyilkyeo5xrg7f7vmnkzzg53rxssu4y\",\"declaration\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\demo\\\\dist\\\\task.yaml\",\"files\":[\"resources/greeting.txt\",\"schemas/input.json\",\"schemas/message.json\",\"schemas/result.json\",\"schemas/shared/text.json\",\"task.yaml\",\"worker.cjs\"]}}\n",
+      "stderr": "",
+      "result": {
+        "ok": true,
+        "data": {
+          "car": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\changed.car",
+          "cid": "bafybeifcjdxg4sg47j5hu3g6uxvgyilkyeo5xrg7f7vmnkzzg53rxssu4y",
+          "declaration": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\dist\\task.yaml",
+          "files": [
+            "resources/greeting.txt",
+            "schemas/input.json",
+            "schemas/message.json",
+            "schemas/result.json",
+            "schemas/shared/text.json",
+            "task.yaml",
+            "worker.cjs"
+          ]
+        }
+      }
+    },
+    {
+      "name": "standalone car refuses overwrite",
+      "command": [
+        "C:\\Users\\Wei\\AppData\\Roaming\\nvm\\v24.12.0\\node.exe",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.pnpm\\@silvermoon-work+task-build_15819b8363533c1e5d95b8579f5be219\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "car",
+        "dist/task.yaml",
+        "--output",
+        "standalone.car"
+      ],
+      "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo",
+      "exitCode": 1,
+      "signal": null,
+      "elapsedMs": 265,
+      "stdout": "{\"ok\":false,\"error\":{\"code\":\"OUTPUT_EXISTS\",\"message\":\"CAR target already exists. Nothing was overwritten.\"}}\n",
+      "stderr": "",
+      "result": {
+        "ok": false,
+        "error": {
+          "code": "OUTPUT_EXISTS",
+          "message": "CAR target already exists. Nothing was overwritten."
+        }
+      }
+    },
+    {
+      "name": "build cannot overwrite its inputs",
+      "command": [
+        "C:\\Users\\Wei\\AppData\\Roaming\\nvm\\v24.12.0\\node.exe",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.pnpm\\@silvermoon-work+task-build_15819b8363533c1e5d95b8579f5be219\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "build",
+        "--out-dir",
+        "."
+      ],
+      "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo",
+      "exitCode": 1,
+      "signal": null,
+      "elapsedMs": 351,
+      "stdout": "{\"ok\":false,\"error\":{\"code\":\"UNSAFE_PATH\",\"message\":\"Output must not contain or replace a build input.\"}}\n",
+      "stderr": "",
+      "result": {
+        "ok": false,
+        "error": {
+          "code": "UNSAFE_PATH",
+          "message": "Output must not contain or replace a build input."
+        }
+      }
+    },
+    {
+      "name": "car cannot write inside input module",
+      "command": [
+        "C:\\Users\\Wei\\AppData\\Roaming\\nvm\\v24.12.0\\node.exe",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.pnpm\\@silvermoon-work+task-build_15819b8363533c1e5d95b8579f5be219\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "car",
+        "dist/task.yaml",
+        "--output",
+        "dist/inside.car"
+      ],
+      "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo",
+      "exitCode": 1,
+      "signal": null,
+      "elapsedMs": 267,
+      "stdout": "{\"ok\":false,\"error\":{\"code\":\"UNSAFE_PATH\",\"message\":\"CAR output must not be inside the input module directory.\"}}\n",
+      "stderr": "",
+      "result": {
+        "ok": false,
+        "error": {
+          "code": "UNSAFE_PATH",
+          "message": "CAR output must not be inside the input module directory."
+        }
+      }
+    },
+    {
+      "name": "missing source preserves existing outputs",
+      "command": [
+        "C:\\Users\\Wei\\AppData\\Roaming\\nvm\\v24.12.0\\node.exe",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.pnpm\\@silvermoon-work+task-build_15819b8363533c1e5d95b8579f5be219\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "build"
+      ],
+      "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo",
+      "exitCode": 1,
+      "signal": null,
+      "elapsedMs": 341,
+      "stdout": "{\"ok\":false,\"error\":{\"code\":\"SOURCE_NOT_FOUND\",\"message\":\"The declared source entry is missing. Existing outputs are unchanged.\"}}\n",
+      "stderr": "",
+      "result": {
+        "ok": false,
+        "error": {
+          "code": "SOURCE_NOT_FOUND",
+          "message": "The declared source entry is missing. Existing outputs are unchanged."
+        }
+      }
+    },
+    {
+      "name": "car rejects alias input link",
+      "command": [
+        "C:\\Users\\Wei\\AppData\\Roaming\\nvm\\v24.12.0\\node.exe",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.pnpm\\@silvermoon-work+task-build_15819b8363533c1e5d95b8579f5be219\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "car",
+        "alias/task.yaml",
+        "--output",
+        "dist/inside-alias.car"
+      ],
+      "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo",
+      "exitCode": 1,
+      "signal": null,
+      "elapsedMs": 263,
+      "stdout": "{\"ok\":false,\"error\":{\"code\":\"UNSAFE_PATH\",\"message\":\"Paths must not contain symbolic links.\"}}\n",
+      "stderr": "",
+      "result": {
+        "ok": false,
+        "error": {
+          "code": "UNSAFE_PATH",
+          "message": "Paths must not contain symbolic links."
+        }
+      }
+    },
+    {
+      "name": "car rejects ancestor input link",
+      "command": [
+        "C:\\Users\\Wei\\AppData\\Roaming\\nvm\\v24.12.0\\node.exe",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.pnpm\\@silvermoon-work+task-build_15819b8363533c1e5d95b8579f5be219\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+        "car",
+        "ancestor/dist/task.yaml",
+        "--output",
+        "dist/inside-ancestor.car"
+      ],
+      "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo",
+      "exitCode": 1,
+      "signal": null,
+      "elapsedMs": 272,
+      "stdout": "{\"ok\":false,\"error\":{\"code\":\"UNSAFE_PATH\",\"message\":\"Paths must not contain symbolic links.\"}}\n",
+      "stderr": "",
+      "result": {
+        "ok": false,
+        "error": {
+          "code": "UNSAFE_PATH",
+          "message": "Paths must not contain symbolic links."
+        }
+      }
+    }
+  ],
+  "engineRuns": [
+    {
+      "command": [
+        "C:\\Users\\Wei\\AppData\\Roaming\\nvm\\v24.12.0\\node.exe",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.silvermoon\\ideas\\01M72H0G5WYX8ZK03CRPQB0F8K\\outer\\consumer-check.mjs",
+        "engine",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\dist.car",
+        "Hello world",
+        "6"
+      ],
+      "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer",
+      "exitCode": 0,
+      "signal": null,
+      "elapsedMs": 971,
+      "stdout": "{\"cid\":\"bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm\",\"engine\":{\"name\":\"@silvermoon-work/task-engine\",\"version\":\"0.1.0-canary-261109-3\",\"root\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\node_modules\\\\.pnpm\\\\@silvermoon-work+task-engin_21b6649ae3e17af3b34a52d546223d5e\\\\node_modules\\\\@silvermoon-work\\\\task-engine\"},\"execution\":{\"dataDomain\":\"01M72Z2MGFWWY9FVY8H470748M\",\"tasks\":[{\"requestId\":\"01M72Z2MGHTZ9MGKRCQS0PAXC8\",\"taskId\":\"01M72Z2MM1D6T55E1R46ZD6KRC\",\"seriesId\":\"01M72Z2MM1D6T55E1R46ZD6KRC\",\"stage\":\"completed\",\"receivedAt\":\"2026-11-10T14:51:29.281Z\",\"eligibleAt\":\"2026-11-10T14:51:29.281Z\",\"deadlineAt\":\"2026-11-10T14:51:59.281Z\",\"timestamp\":\"2026-11-10T14:51:29.353Z\",\"updatedAt\":\"2026-11-10T14:51:29.353Z\",\"revision\":\"01M72Z2MGFWWY9FVY8H470748M:10\",\"dataDomain\":\"01M72Z2MGFWWY9FVY8H470748M\",\"canceled\":false,\"bundle\":\"bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm\",\"name\":\"demo\",\"run\":{\"runId\":\"01M72Z2MM8PSWX6H274XPJYR0H\",\"startedAt\":\"2026-11-10T14:51:29.333Z\",\"matchedAt\":\"2026-11-10T14:51:29.333Z\",\"completedAt\":\"2026-11-10T14:51:29.353Z\"},\"termination\":{\"terminatedAt\":\"2026-11-10T14:51:29.353Z\"},\"result\":{\"text\":\"Hello world\",\"bytes\":6,\"chunks\":1}}],\"runs\":[{\"runId\":\"01M72Z2MM8PSWX6H274XPJYR0H\",\"bundle\":\"bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm\",\"name\":\"demo\",\"dataDomain\":\"01M72Z2MGFWWY9FVY8H470748M\",\"revision\":\"01M72Z2MGFWWY9FVY8H470748M:10\",\"timestamp\":\"2026-11-10T14:51:29.353Z\",\"type\":\"bundle\",\"version\":\"bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm\",\"environment\":\"node\",\"scope\":\"01M72Z2MGFWWY9FVY8H470748M\",\"startedAt\":\"2026-11-10T14:51:29.333Z\",\"startedSequence\":6,\"updatedAt\":\"2026-11-10T14:51:29.353Z\",\"stage\":\"completed\",\"exit\":{\"basis\":\"worker\",\"code\":0,\"forced\":false,\"sequence\":9,\"occurredAt\":\"2026-11-10T14:51:29.353Z\"},\"completedAt\":\"2026-11-10T14:51:29.353Z\",\"result\":{\"text\":\"Hello world\",\"bytes\":6,\"chunks\":1},\"reclaimedAt\":\"2026-11-10T14:51:29.353Z\"}],\"rejections\":[],\"errors\":[]},\"archiveClosed\":true}\n",
+      "stderr": "",
+      "result": {
+        "cid": "bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm",
+        "engine": {
+          "name": "@silvermoon-work/task-engine",
+          "version": "0.1.0-canary-261109-3",
+          "root": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.pnpm\\@silvermoon-work+task-engin_21b6649ae3e17af3b34a52d546223d5e\\node_modules\\@silvermoon-work\\task-engine"
+        },
+        "execution": {
+          "dataDomain": "01M72Z2MGFWWY9FVY8H470748M",
+          "tasks": [
+            {
+              "requestId": "01M72Z2MGHTZ9MGKRCQS0PAXC8",
+              "taskId": "01M72Z2MM1D6T55E1R46ZD6KRC",
+              "seriesId": "01M72Z2MM1D6T55E1R46ZD6KRC",
+              "stage": "completed",
+              "receivedAt": "2026-11-10T14:51:29.281Z",
+              "eligibleAt": "2026-11-10T14:51:29.281Z",
+              "deadlineAt": "2026-11-10T14:51:59.281Z",
+              "timestamp": "2026-11-10T14:51:29.353Z",
+              "updatedAt": "2026-11-10T14:51:29.353Z",
+              "revision": "01M72Z2MGFWWY9FVY8H470748M:10",
+              "dataDomain": "01M72Z2MGFWWY9FVY8H470748M",
+              "canceled": false,
+              "bundle": "bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm",
+              "name": "demo",
+              "run": {
+                "runId": "01M72Z2MM8PSWX6H274XPJYR0H",
+                "startedAt": "2026-11-10T14:51:29.333Z",
+                "matchedAt": "2026-11-10T14:51:29.333Z",
+                "completedAt": "2026-11-10T14:51:29.353Z"
+              },
+              "termination": {
+                "terminatedAt": "2026-11-10T14:51:29.353Z"
+              },
+              "result": {
+                "text": "Hello world",
+                "bytes": 6,
+                "chunks": 1
+              }
+            }
+          ],
+          "runs": [
+            {
+              "runId": "01M72Z2MM8PSWX6H274XPJYR0H",
+              "bundle": "bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm",
+              "name": "demo",
+              "dataDomain": "01M72Z2MGFWWY9FVY8H470748M",
+              "revision": "01M72Z2MGFWWY9FVY8H470748M:10",
+              "timestamp": "2026-11-10T14:51:29.353Z",
+              "type": "bundle",
+              "version": "bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm",
+              "environment": "node",
+              "scope": "01M72Z2MGFWWY9FVY8H470748M",
+              "startedAt": "2026-11-10T14:51:29.333Z",
+              "startedSequence": 6,
+              "updatedAt": "2026-11-10T14:51:29.353Z",
+              "stage": "completed",
+              "exit": {
+                "basis": "worker",
+                "code": 0,
+                "forced": false,
+                "sequence": 9,
+                "occurredAt": "2026-11-10T14:51:29.353Z"
+              },
+              "completedAt": "2026-11-10T14:51:29.353Z",
+              "result": {
+                "text": "Hello world",
+                "bytes": 6,
+                "chunks": 1
+              },
+              "reclaimedAt": "2026-11-10T14:51:29.353Z"
+            }
+          ],
+          "rejections": [],
+          "errors": []
+        },
+        "archiveClosed": true
+      },
+      "naturalExit": true
+    },
+    {
+      "command": [
+        "C:\\Users\\Wei\\AppData\\Roaming\\nvm\\v24.12.0\\node.exe",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.silvermoon\\ideas\\01M72H0G5WYX8ZK03CRPQB0F8K\\outer\\consumer-check.mjs",
+        "engine",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\standalone.car",
+        "Hello world",
+        "6"
+      ],
+      "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer",
+      "exitCode": 0,
+      "signal": null,
+      "elapsedMs": 975,
+      "stdout": "{\"cid\":\"bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm\",\"engine\":{\"name\":\"@silvermoon-work/task-engine\",\"version\":\"0.1.0-canary-261109-3\",\"root\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\node_modules\\\\.pnpm\\\\@silvermoon-work+task-engin_21b6649ae3e17af3b34a52d546223d5e\\\\node_modules\\\\@silvermoon-work\\\\task-engine\"},\"execution\":{\"dataDomain\":\"01M72Z2NEWJ5VE1KT18F1K72Q2\",\"tasks\":[{\"requestId\":\"01M72Z2NEYPNJA453QWH49WEV0\",\"taskId\":\"01M72Z2NJHCAR5ZAW53CP0388P\",\"seriesId\":\"01M72Z2NJHCAR5ZAW53CP0388P\",\"stage\":\"completed\",\"receivedAt\":\"2026-11-10T14:51:30.257Z\",\"eligibleAt\":\"2026-11-10T14:51:30.257Z\",\"deadlineAt\":\"2026-11-10T14:52:00.257Z\",\"timestamp\":\"2026-11-10T14:51:30.328Z\",\"updatedAt\":\"2026-11-10T14:51:30.327Z\",\"revision\":\"01M72Z2NEWJ5VE1KT18F1K72Q2:10\",\"dataDomain\":\"01M72Z2NEWJ5VE1KT18F1K72Q2\",\"canceled\":false,\"bundle\":\"bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm\",\"name\":\"demo\",\"run\":{\"runId\":\"01M72Z2NJRSMCDHAJG1CGY8B55\",\"startedAt\":\"2026-11-10T14:51:30.307Z\",\"matchedAt\":\"2026-11-10T14:51:30.307Z\",\"completedAt\":\"2026-11-10T14:51:30.327Z\"},\"termination\":{\"terminatedAt\":\"2026-11-10T14:51:30.327Z\"},\"result\":{\"text\":\"Hello world\",\"bytes\":6,\"chunks\":1}}],\"runs\":[{\"runId\":\"01M72Z2NJRSMCDHAJG1CGY8B55\",\"bundle\":\"bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm\",\"name\":\"demo\",\"dataDomain\":\"01M72Z2NEWJ5VE1KT18F1K72Q2\",\"revision\":\"01M72Z2NEWJ5VE1KT18F1K72Q2:10\",\"timestamp\":\"2026-11-10T14:51:30.328Z\",\"type\":\"bundle\",\"version\":\"bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm\",\"environment\":\"node\",\"scope\":\"01M72Z2NEWJ5VE1KT18F1K72Q2\",\"startedAt\":\"2026-11-10T14:51:30.307Z\",\"startedSequence\":6,\"updatedAt\":\"2026-11-10T14:51:30.328Z\",\"stage\":\"completed\",\"exit\":{\"basis\":\"worker\",\"code\":0,\"forced\":false,\"sequence\":9,\"occurredAt\":\"2026-11-10T14:51:30.327Z\"},\"completedAt\":\"2026-11-10T14:51:30.327Z\",\"result\":{\"text\":\"Hello world\",\"bytes\":6,\"chunks\":1},\"reclaimedAt\":\"2026-11-10T14:51:30.328Z\"}],\"rejections\":[],\"errors\":[]},\"archiveClosed\":true}\n",
+      "stderr": "",
+      "result": {
+        "cid": "bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm",
+        "engine": {
+          "name": "@silvermoon-work/task-engine",
+          "version": "0.1.0-canary-261109-3",
+          "root": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.pnpm\\@silvermoon-work+task-engin_21b6649ae3e17af3b34a52d546223d5e\\node_modules\\@silvermoon-work\\task-engine"
+        },
+        "execution": {
+          "dataDomain": "01M72Z2NEWJ5VE1KT18F1K72Q2",
+          "tasks": [
+            {
+              "requestId": "01M72Z2NEYPNJA453QWH49WEV0",
+              "taskId": "01M72Z2NJHCAR5ZAW53CP0388P",
+              "seriesId": "01M72Z2NJHCAR5ZAW53CP0388P",
+              "stage": "completed",
+              "receivedAt": "2026-11-10T14:51:30.257Z",
+              "eligibleAt": "2026-11-10T14:51:30.257Z",
+              "deadlineAt": "2026-11-10T14:52:00.257Z",
+              "timestamp": "2026-11-10T14:51:30.328Z",
+              "updatedAt": "2026-11-10T14:51:30.327Z",
+              "revision": "01M72Z2NEWJ5VE1KT18F1K72Q2:10",
+              "dataDomain": "01M72Z2NEWJ5VE1KT18F1K72Q2",
+              "canceled": false,
+              "bundle": "bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm",
+              "name": "demo",
+              "run": {
+                "runId": "01M72Z2NJRSMCDHAJG1CGY8B55",
+                "startedAt": "2026-11-10T14:51:30.307Z",
+                "matchedAt": "2026-11-10T14:51:30.307Z",
+                "completedAt": "2026-11-10T14:51:30.327Z"
+              },
+              "termination": {
+                "terminatedAt": "2026-11-10T14:51:30.327Z"
+              },
+              "result": {
+                "text": "Hello world",
+                "bytes": 6,
+                "chunks": 1
+              }
+            }
+          ],
+          "runs": [
+            {
+              "runId": "01M72Z2NJRSMCDHAJG1CGY8B55",
+              "bundle": "bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm",
+              "name": "demo",
+              "dataDomain": "01M72Z2NEWJ5VE1KT18F1K72Q2",
+              "revision": "01M72Z2NEWJ5VE1KT18F1K72Q2:10",
+              "timestamp": "2026-11-10T14:51:30.328Z",
+              "type": "bundle",
+              "version": "bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm",
+              "environment": "node",
+              "scope": "01M72Z2NEWJ5VE1KT18F1K72Q2",
+              "startedAt": "2026-11-10T14:51:30.307Z",
+              "startedSequence": 6,
+              "updatedAt": "2026-11-10T14:51:30.328Z",
+              "stage": "completed",
+              "exit": {
+                "basis": "worker",
+                "code": 0,
+                "forced": false,
+                "sequence": 9,
+                "occurredAt": "2026-11-10T14:51:30.327Z"
+              },
+              "completedAt": "2026-11-10T14:51:30.327Z",
+              "result": {
+                "text": "Hello world",
+                "bytes": 6,
+                "chunks": 1
+              },
+              "reclaimedAt": "2026-11-10T14:51:30.328Z"
+            }
+          ],
+          "rejections": [],
+          "errors": []
+        },
+        "archiveClosed": true
+      },
+      "naturalExit": true
+    },
+    {
+      "command": [
+        "C:\\Users\\Wei\\AppData\\Roaming\\nvm\\v24.12.0\\node.exe",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.silvermoon\\ideas\\01M72H0G5WYX8ZK03CRPQB0F8K\\outer\\consumer-check.mjs",
+        "engine",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer",
+        "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\changed.car",
+        "Hello again world",
+        "12"
+      ],
+      "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer",
+      "exitCode": 0,
+      "signal": null,
+      "elapsedMs": 999,
+      "stdout": "{\"cid\":\"bafybeifcjdxg4sg47j5hu3g6uxvgyilkyeo5xrg7f7vmnkzzg53rxssu4y\",\"engine\":{\"name\":\"@silvermoon-work/task-engine\",\"version\":\"0.1.0-canary-261109-3\",\"root\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\node_modules\\\\.pnpm\\\\@silvermoon-work+task-engin_21b6649ae3e17af3b34a52d546223d5e\\\\node_modules\\\\@silvermoon-work\\\\task-engine\"},\"execution\":{\"dataDomain\":\"01M72Z2R2FMD70WHHCPCCX34BW\",\"tasks\":[{\"requestId\":\"01M72Z2R2HH6H0W4GF11TJA62B\",\"taskId\":\"01M72Z2R6651V895GTPEHX07K1\",\"seriesId\":\"01M72Z2R6651V895GTPEHX07K1\",\"stage\":\"completed\",\"receivedAt\":\"2026-11-10T14:51:32.935Z\",\"eligibleAt\":\"2026-11-10T14:51:32.935Z\",\"deadlineAt\":\"2026-11-10T14:52:02.935Z\",\"timestamp\":\"2026-11-10T14:51:33.008Z\",\"updatedAt\":\"2026-11-10T14:51:33.007Z\",\"revision\":\"01M72Z2R2FMD70WHHCPCCX34BW:10\",\"dataDomain\":\"01M72Z2R2FMD70WHHCPCCX34BW\",\"canceled\":false,\"bundle\":\"bafybeifcjdxg4sg47j5hu3g6uxvgyilkyeo5xrg7f7vmnkzzg53rxssu4y\",\"name\":\"demo\",\"run\":{\"runId\":\"01M72Z2R6E4NWJZMZ6NFTV66H8\",\"startedAt\":\"2026-11-10T14:51:32.987Z\",\"matchedAt\":\"2026-11-10T14:51:32.987Z\",\"completedAt\":\"2026-11-10T14:51:33.007Z\"},\"termination\":{\"terminatedAt\":\"2026-11-10T14:51:33.007Z\"},\"result\":{\"text\":\"Hello again world\",\"bytes\":12,\"chunks\":1}}],\"runs\":[{\"runId\":\"01M72Z2R6E4NWJZMZ6NFTV66H8\",\"bundle\":\"bafybeifcjdxg4sg47j5hu3g6uxvgyilkyeo5xrg7f7vmnkzzg53rxssu4y\",\"name\":\"demo\",\"dataDomain\":\"01M72Z2R2FMD70WHHCPCCX34BW\",\"revision\":\"01M72Z2R2FMD70WHHCPCCX34BW:10\",\"timestamp\":\"2026-11-10T14:51:33.008Z\",\"type\":\"bundle\",\"version\":\"bafybeifcjdxg4sg47j5hu3g6uxvgyilkyeo5xrg7f7vmnkzzg53rxssu4y\",\"environment\":\"node\",\"scope\":\"01M72Z2R2FMD70WHHCPCCX34BW\",\"startedAt\":\"2026-11-10T14:51:32.987Z\",\"startedSequence\":6,\"updatedAt\":\"2026-11-10T14:51:33.007Z\",\"stage\":\"completed\",\"exit\":{\"basis\":\"worker\",\"code\":0,\"forced\":false,\"sequence\":9,\"occurredAt\":\"2026-11-10T14:51:33.007Z\"},\"completedAt\":\"2026-11-10T14:51:33.007Z\",\"result\":{\"text\":\"Hello again world\",\"bytes\":12,\"chunks\":1},\"reclaimedAt\":\"2026-11-10T14:51:33.007Z\"}],\"rejections\":[],\"errors\":[]},\"archiveClosed\":true}\n",
+      "stderr": "",
+      "result": {
+        "cid": "bafybeifcjdxg4sg47j5hu3g6uxvgyilkyeo5xrg7f7vmnkzzg53rxssu4y",
+        "engine": {
+          "name": "@silvermoon-work/task-engine",
+          "version": "0.1.0-canary-261109-3",
+          "root": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.pnpm\\@silvermoon-work+task-engin_21b6649ae3e17af3b34a52d546223d5e\\node_modules\\@silvermoon-work\\task-engine"
+        },
+        "execution": {
+          "dataDomain": "01M72Z2R2FMD70WHHCPCCX34BW",
+          "tasks": [
+            {
+              "requestId": "01M72Z2R2HH6H0W4GF11TJA62B",
+              "taskId": "01M72Z2R6651V895GTPEHX07K1",
+              "seriesId": "01M72Z2R6651V895GTPEHX07K1",
+              "stage": "completed",
+              "receivedAt": "2026-11-10T14:51:32.935Z",
+              "eligibleAt": "2026-11-10T14:51:32.935Z",
+              "deadlineAt": "2026-11-10T14:52:02.935Z",
+              "timestamp": "2026-11-10T14:51:33.008Z",
+              "updatedAt": "2026-11-10T14:51:33.007Z",
+              "revision": "01M72Z2R2FMD70WHHCPCCX34BW:10",
+              "dataDomain": "01M72Z2R2FMD70WHHCPCCX34BW",
+              "canceled": false,
+              "bundle": "bafybeifcjdxg4sg47j5hu3g6uxvgyilkyeo5xrg7f7vmnkzzg53rxssu4y",
+              "name": "demo",
+              "run": {
+                "runId": "01M72Z2R6E4NWJZMZ6NFTV66H8",
+                "startedAt": "2026-11-10T14:51:32.987Z",
+                "matchedAt": "2026-11-10T14:51:32.987Z",
+                "completedAt": "2026-11-10T14:51:33.007Z"
+              },
+              "termination": {
+                "terminatedAt": "2026-11-10T14:51:33.007Z"
+              },
+              "result": {
+                "text": "Hello again world",
+                "bytes": 12,
+                "chunks": 1
+              }
+            }
+          ],
+          "runs": [
+            {
+              "runId": "01M72Z2R6E4NWJZMZ6NFTV66H8",
+              "bundle": "bafybeifcjdxg4sg47j5hu3g6uxvgyilkyeo5xrg7f7vmnkzzg53rxssu4y",
+              "name": "demo",
+              "dataDomain": "01M72Z2R2FMD70WHHCPCCX34BW",
+              "revision": "01M72Z2R2FMD70WHHCPCCX34BW:10",
+              "timestamp": "2026-11-10T14:51:33.008Z",
+              "type": "bundle",
+              "version": "bafybeifcjdxg4sg47j5hu3g6uxvgyilkyeo5xrg7f7vmnkzzg53rxssu4y",
+              "environment": "node",
+              "scope": "01M72Z2R2FMD70WHHCPCCX34BW",
+              "startedAt": "2026-11-10T14:51:32.987Z",
+              "startedSequence": 6,
+              "updatedAt": "2026-11-10T14:51:33.007Z",
+              "stage": "completed",
+              "exit": {
+                "basis": "worker",
+                "code": 0,
+                "forced": false,
+                "sequence": 9,
+                "occurredAt": "2026-11-10T14:51:33.007Z"
+              },
+              "completedAt": "2026-11-10T14:51:33.007Z",
+              "result": {
+                "text": "Hello again world",
+                "bytes": 12,
+                "chunks": 1
+              },
+              "reclaimedAt": "2026-11-10T14:51:33.007Z"
+            }
+          ],
+          "rejections": [],
+          "errors": []
+        },
+        "archiveClosed": true
+      },
+      "naturalExit": true
+    }
+  ],
+  "version": {
+    "command": [
+      "C:\\Users\\Wei\\AppData\\Roaming\\nvm\\v24.12.0\\node.exe",
+      "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.pnpm\\@silvermoon-work+task-build_15819b8363533c1e5d95b8579f5be219\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+      "--version"
+    ],
+    "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer",
+    "exitCode": 0,
+    "signal": null,
+    "elapsedMs": 270,
+    "stdout": "0.1.0-canary-261110-1\n",
+    "stderr": ""
+  },
+  "projectManifest": {
+    "name": "demo",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "engines": {
+      "node": ">=22.13.0"
+    },
+    "dependencies": {
+      "@silvermoon-work/task-sdk": "0.1.0-canary-261109-2"
+    },
+    "packageManager": "pnpm@11.22.0",
+    "scripts": {
+      "build": "task-builder build task.build.yaml",
+      "car": "task-builder car dist/task.yaml --output bundle.car"
+    },
+    "devDependencies": {
+      "@silvermoon-work/task-builder-cli": "0.1.0-canary-261110-1",
+      "@silvermoon-work/task-builder": "0.1.0-canary-261110-1"
+    }
+  },
+  "projectBin": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\node_modules\\.pnpm\\@silvermoon-work+task-build_15819b8363533c1e5d95b8579f5be219\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+  "projectVersion": {
+    "command": [
+      "C:\\Users\\Wei\\AppData\\Roaming\\nvm\\v24.12.0\\node.exe",
+      "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\node_modules\\.pnpm\\@silvermoon-work+task-build_15819b8363533c1e5d95b8579f5be219\\node_modules\\@silvermoon-work\\task-builder-cli\\dist\\bin.js",
+      "--version"
+    ],
+    "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo",
+    "exitCode": 0,
+    "signal": null,
+    "elapsedMs": 273,
+    "stdout": "0.1.0-canary-261110-1\n",
+    "stderr": ""
+  },
+  "hostManifest": {
+    "name": "task-builder-canary-consumer",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "packageManager": "pnpm@11.22.0",
+    "dependencies": {
+      "@silvermoon-work/task-builder-cli": "0.1.0-canary-261110-1",
+      "@silvermoon-work/task-builder": "0.1.0-canary-261110-1",
+      "@silvermoon-work/task-engine": "0.1.0-canary-261109-3"
+    }
+  },
+  "lockfiles": {
+    "host": {
+      "path": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\pnpm-lock.yaml",
+      "sha256": "b3a90dcc09445d2a3906c4496a146f0c43b0d252377eadfb4c914f06d1a21c68",
+      "importer": {
+        "dependencies": {
+          "@silvermoon-work/task-builder": {
+            "specifier": "0.1.0-canary-261110-1",
+            "version": "0.1.0-canary-261110-1(supports-color@10.2.2)"
+          },
+          "@silvermoon-work/task-builder-cli": {
+            "specifier": "0.1.0-canary-261110-1",
+            "version": "0.1.0-canary-261110-1(supports-color@10.2.2)"
+          },
+          "@silvermoon-work/task-engine": {
+            "specifier": "0.1.0-canary-261109-3",
+            "version": "0.1.0-canary-261109-3(supports-color@10.2.2)"
+          }
+        }
+      },
+      "cliIntegrity": "sha512-5zu7KvdHQ0lptizpRoU3fIAF5plIb5/uPsn03lJpkjR+eCXyGO9Y4anuqEdt7sCVufsR20rhu1p3Zw9rKc+1GA=="
+    },
+    "project": {
+      "path": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\demo\\pnpm-lock.yaml",
+      "sha256": "79606df1cba29e3057f35e751d3d7fef79ea0fd001018ce899ae5817d717226d",
+      "importer": {
+        "dependencies": {
+          "@silvermoon-work/task-sdk": {
+            "specifier": "0.1.0-canary-261109-2",
+            "version": "0.1.0-canary-261109-2"
+          }
+        },
+        "devDependencies": {
+          "@silvermoon-work/task-builder": {
+            "specifier": "0.1.0-canary-261110-1",
+            "version": "0.1.0-canary-261110-1(supports-color@10.2.2)"
+          },
+          "@silvermoon-work/task-builder-cli": {
+            "specifier": "0.1.0-canary-261110-1",
+            "version": "0.1.0-canary-261110-1(supports-color@10.2.2)"
+          }
+        }
+      },
+      "cliIntegrity": "sha512-5zu7KvdHQ0lptizpRoU3fIAF5plIb5/uPsn03lJpkjR+eCXyGO9Y4anuqEdt7sCVufsR20rhu1p3Zw9rKc+1GA=="
+    }
+  },
+  "productionClosure": {
+    "manifests": 198,
+    "packages": [
+      "@assemblyscript/loader",
+      "@chainsafe/is-ip",
+      "@chainsafe/netmask",
+      "@dnsquery/dns-packet",
+      "@esbuild/win32-x64",
+      "@helia/bitswap",
+      "@helia/block-brokers",
+      "@helia/delegated-routing-v1-http-api-client",
+      "@helia/http",
+      "@helia/interface",
+      "@helia/routers",
+      "@helia/unixfs",
+      "@helia/utils",
+      "@ipld/car",
+      "@ipld/dag-cbor",
+      "@ipld/dag-json",
+      "@ipld/dag-pb",
+      "@ipshipyard/crypto",
+      "@ipshipyard/keychain",
+      "@leichtgewicht/ip-codec",
+      "@libp2p/config",
+      "@libp2p/crypto",
+      "@libp2p/interface",
+      "@libp2p/interface-internal",
+      "@libp2p/keychain",
+      "@libp2p/logger",
+      "@libp2p/multistream-select",
+      "@libp2p/peer-collections",
+      "@libp2p/peer-id",
+      "@libp2p/peer-record",
+      "@libp2p/peer-store",
+      "@libp2p/utils",
+      "@multiformats/dns",
+      "@multiformats/multiaddr",
+      "@multiformats/multiaddr-matcher",
+      "@multiformats/multiaddr-to-uri",
+      "@multiformats/murmur3",
+      "@multiformats/uri-to-multiaddr",
+      "@noble/curves",
+      "@noble/hashes",
+      "@nodelib/fs.scandir",
+      "@nodelib/fs.stat",
+      "@nodelib/fs.walk",
+      "@silvermoon-work/task-builder",
+      "@silvermoon-work/task-builder-cli",
+      "@silvermoon-work/task-engine",
+      "@silvermoon-work/task-protocol",
+      "@sinclair/typebox",
+      "@sindresorhus/fnv1a",
+      "abort-error",
+      "ajv",
+      "any-signal",
+      "asn1js",
+      "base64-js",
+      "birnam",
+      "bl",
+      "blockstore-core",
+      "braces",
+      "browser-readablestream-to-it",
+      "buffer",
+      "cborg",
+      "clone-regexp",
+      "commander",
+      "convert-hrtime",
+      "datastore-core",
+      "debug",
+      "delay",
+      "enhanced-resolve",
+      "esbuild",
+      "eventemitter3",
+      "fast-deep-equal",
+      "fast-glob",
+      "fast-uri",
+      "fastq",
+      "fill-range",
+      "function-timeout",
+      "glob-parent",
+      "graceful-fs",
+      "hamt-sharding",
+      "hashlru",
+      "ieee754",
+      "inherits",
+      "interface-blockstore",
+      "interface-datastore",
+      "interface-store",
+      "ip-regex",
+      "ipfs-unixfs",
+      "ipfs-unixfs-exporter",
+      "ipfs-unixfs-importer",
+      "ipns",
+      "is-extglob",
+      "is-glob",
+      "is-ip",
+      "is-loopback-addr",
+      "is-network-error",
+      "is-number",
+      "is-regexp",
+      "it-all",
+      "it-batch",
+      "it-drain",
+      "it-filter",
+      "it-first",
+      "it-foreach",
+      "it-glob",
+      "it-last",
+      "it-length-prefixed",
+      "it-map",
+      "it-merge",
+      "it-ndjson",
+      "it-parallel",
+      "it-parallel-batch",
+      "it-peekable",
+      "it-pipe",
+      "it-pushable",
+      "it-queue",
+      "it-queueless-pushable",
+      "it-reader",
+      "it-sort",
+      "it-stream-types",
+      "it-take",
+      "it-to-buffer",
+      "json-schema-traverse",
+      "libp2p",
+      "main-event",
+      "merge2",
+      "micromatch",
+      "minimist",
+      "mortice",
+      "ms",
+      "multiformats",
+      "netmask",
+      "node-fetch",
+      "p-defer",
+      "p-event",
+      "p-queue",
+      "p-retry",
+      "p-timeout",
+      "picomatch",
+      "progress-events",
+      "protons-runtime",
+      "pvtsutils",
+      "pvutils",
+      "queue-microtask",
+      "rabin-wasm",
+      "race-event",
+      "race-signal",
+      "random-int",
+      "readable-stream",
+      "require-from-string",
+      "reusify",
+      "run-parallel",
+      "safe-buffer",
+      "sanitize-filename",
+      "semver",
+      "sparse-array",
+      "string_decoder",
+      "super-regex",
+      "supports-color",
+      "tapable",
+      "task-builder-canary-consumer",
+      "time-span",
+      "timestamp-nano",
+      "to-regex-range",
+      "tr46",
+      "truncate-utf8-bytes",
+      "tslib",
+      "uint8-varint",
+      "uint8arraylist",
+      "uint8arrays",
+      "unlimited-timeout",
+      "utf8-byte-length",
+      "utf8-codec",
+      "util-deprecate",
+      "varint",
+      "weald",
+      "webidl-conversions",
+      "whatwg-url",
+      "yaml"
+    ]
+  },
+  "engineClosure": {
+    "manifests": 186,
+    "packages": [
+      "@assemblyscript/loader",
+      "@chainsafe/is-ip",
+      "@chainsafe/netmask",
+      "@dnsquery/dns-packet",
+      "@helia/bitswap",
+      "@helia/block-brokers",
+      "@helia/delegated-routing-v1-http-api-client",
+      "@helia/http",
+      "@helia/interface",
+      "@helia/routers",
+      "@helia/unixfs",
+      "@helia/utils",
+      "@ipld/dag-cbor",
+      "@ipld/dag-json",
+      "@ipld/dag-pb",
+      "@ipshipyard/crypto",
+      "@ipshipyard/keychain",
+      "@leichtgewicht/ip-codec",
+      "@libp2p/config",
+      "@libp2p/crypto",
+      "@libp2p/interface",
+      "@libp2p/interface-internal",
+      "@libp2p/keychain",
+      "@libp2p/logger",
+      "@libp2p/multistream-select",
+      "@libp2p/peer-collections",
+      "@libp2p/peer-id",
+      "@libp2p/peer-record",
+      "@libp2p/peer-store",
+      "@libp2p/utils",
+      "@multiformats/dns",
+      "@multiformats/multiaddr",
+      "@multiformats/multiaddr-matcher",
+      "@multiformats/multiaddr-to-uri",
+      "@multiformats/murmur3",
+      "@multiformats/uri-to-multiaddr",
+      "@noble/curves",
+      "@noble/hashes",
+      "@nodelib/fs.scandir",
+      "@nodelib/fs.stat",
+      "@nodelib/fs.walk",
+      "@silvermoon-work/task-engine",
+      "@silvermoon-work/task-protocol",
+      "@sindresorhus/fnv1a",
+      "abort-error",
+      "ajv",
+      "any-signal",
+      "asn1js",
+      "base64-js",
+      "birnam",
+      "bl",
+      "blockstore-core",
+      "braces",
+      "browser-readablestream-to-it",
+      "buffer",
+      "cborg",
+      "clone-regexp",
+      "convert-hrtime",
+      "datastore-core",
+      "debug",
+      "delay",
+      "eventemitter3",
+      "fast-deep-equal",
+      "fast-glob",
+      "fast-uri",
+      "fastq",
+      "fill-range",
+      "function-timeout",
+      "glob-parent",
+      "hamt-sharding",
+      "hashlru",
+      "ieee754",
+      "inherits",
+      "interface-blockstore",
+      "interface-datastore",
+      "interface-store",
+      "ip-regex",
+      "ipfs-unixfs",
+      "ipfs-unixfs-exporter",
+      "ipfs-unixfs-importer",
+      "ipns",
+      "is-extglob",
+      "is-glob",
+      "is-ip",
+      "is-loopback-addr",
+      "is-network-error",
+      "is-number",
+      "is-regexp",
+      "it-all",
+      "it-batch",
+      "it-drain",
+      "it-filter",
+      "it-first",
+      "it-foreach",
+      "it-glob",
+      "it-last",
+      "it-length-prefixed",
+      "it-map",
+      "it-merge",
+      "it-ndjson",
+      "it-parallel",
+      "it-parallel-batch",
+      "it-peekable",
+      "it-pipe",
+      "it-pushable",
+      "it-queue",
+      "it-queueless-pushable",
+      "it-reader",
+      "it-sort",
+      "it-stream-types",
+      "it-take",
+      "it-to-buffer",
+      "json-schema-traverse",
+      "libp2p",
+      "main-event",
+      "merge2",
+      "micromatch",
+      "minimist",
+      "mortice",
+      "ms",
+      "multiformats",
+      "netmask",
+      "node-fetch",
+      "p-defer",
+      "p-event",
+      "p-queue",
+      "p-retry",
+      "p-timeout",
+      "picomatch",
+      "progress-events",
+      "protons-runtime",
+      "pvtsutils",
+      "pvutils",
+      "queue-microtask",
+      "rabin-wasm",
+      "race-event",
+      "race-signal",
+      "random-int",
+      "readable-stream",
+      "require-from-string",
+      "reusify",
+      "run-parallel",
+      "safe-buffer",
+      "sanitize-filename",
+      "semver",
+      "sparse-array",
+      "string_decoder",
+      "super-regex",
+      "supports-color",
+      "time-span",
+      "timestamp-nano",
+      "to-regex-range",
+      "tr46",
+      "truncate-utf8-bytes",
+      "tslib",
+      "uint8-varint",
+      "uint8arraylist",
+      "uint8arrays",
+      "unlimited-timeout",
+      "utf8-byte-length",
+      "utf8-codec",
+      "util-deprecate",
+      "weald",
+      "webidl-conversions",
+      "whatwg-url",
+      "yaml"
+    ]
+  },
+  "initialCid": "bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm",
+  "selectedFiles": [
+    "resources/greeting.txt",
+    "schemas/input.json",
+    "schemas/message.json",
+    "schemas/result.json",
+    "schemas/shared/text.json",
+    "task.yaml",
+    "worker.cjs"
+  ],
+  "updatedCid": "bafybeifcjdxg4sg47j5hu3g6uxvgyilkyeo5xrg7f7vmnkzzg53rxssu4y",
+  "inputsUnchangedByCommands": true,
+  "authoredChange": {
+    "path": "assets/greeting.txt",
+    "before": "66a045b452102c59d840ec097d59d9467e13a3f34f6494e539ffd32c1bb35f18",
+    "after": "07305a3200629a7b8a04f77008fa1b1f719fec3b60d4fdf2683ba60cf2956381"
+  },
+  "initialCarSha256": "31eb4fa7093bc5960c5adc7edb382e14547bdfbcacb3a04d388b5d379515fcf2",
+  "standaloneCarSha256": "31eb4fa7093bc5960c5adc7edb382e14547bdfbcacb3a04d388b5d379515fcf2",
+  "inputHashes": {
+    "package.json": "4e2c0716f2885fd5412240123d0f0d289472d04528a21624c7e04010be716b46",
+    "pnpm-workspace.yaml": "7b67fec48c6b16b5fb040aa186b1b7ac395d41a547fafd6d3d3551febf85bfa5",
+    "pnpm-lock.yaml": "79606df1cba29e3057f35e751d3d7fef79ea0fd001018ce899ae5817d717226d",
+    "task.build.yaml": "f6cfd156b9bf3c8f2e01f5c18598f5196d345727a0562572bfb4bb86a01954b5",
+    "src/main.ts": "6df9e1c72c9678850788b42962fcc56081d3f38f065f250a08a253fec62e4445",
+    "src/helper.ts": "7c52a6b72133c91f942ee1d365ce83b8ec296e253c3495fbc3f02ff963fac004",
+    "src/contract.json": "9b8277a79ef5ef4e69ea7a7fb9afb8386d595eafdc312827260bbdcd4e330b69",
+    "assets/greeting.txt": "07305a3200629a7b8a04f77008fa1b1f719fec3b60d4fdf2683ba60cf2956381"
+  },
+  "outputHashes": {
+    "dist.car": "31eb4fa7093bc5960c5adc7edb382e14547bdfbcacb3a04d388b5d379515fcf2",
+    "standalone.car": "31eb4fa7093bc5960c5adc7edb382e14547bdfbcacb3a04d388b5d379515fcf2",
+    "changed.car": "42fee6cbc7536f81c72d7aac466141a026eab00a153bae9aef32f69903588dc2",
+    "dist\\resources\\greeting.txt": "07305a3200629a7b8a04f77008fa1b1f719fec3b60d4fdf2683ba60cf2956381",
+    "dist\\schemas\\input.json": "4aba3c55d2d4fb4af294c3c65e35214f01d98cdcb31ff88d1ff21164939cca23",
+    "dist\\schemas\\message.json": "802452fb2f5756b8f8d5f2ac85d00de0f1b96316f668fa14f0d9b959e9f1e710",
+    "dist\\schemas\\result.json": "94bd242c649a36ca0a2d8ac89c41a3bd4f28ef9d24da4d6e875a4c98d133dddd",
+    "dist\\schemas\\shared\\text.json": "3d9484f732c1935fbdc231de21c7a359586193220831bedbb6c3335cc189dab5",
+    "dist\\task.yaml": "e01c6ce799edf139475bb5a777f6d7f5d9d60847f01c6171ece41c90ff421257",
+    "dist\\worker.cjs": "da788a76ca9ba65fb9bb8a1ecf168da906cc554524b4db1c752bc650dcb92591"
+  },
+  "success": true
+}

@@ -1,6 +1,8 @@
 # Deployment
 
 外部验证以 [CLI Spec r14](./inner/ideal/task-builder-cli-spec.html) 为准。
+当前发布与真实消费者证明见 [CLI 发布](./cli-release.md) 和
+[registry 独立消费者验证](./consumer-verification.md)；历史失败另保留，不替代本轮结果。
 用户已授权取消独立 task-bundle-car 包，回到实现阶段重构；新 Inner 必须重新验收后才恢复发布。
 历史 [CAR 发布失败](./car-release.md) 保留，但其发布方案与 D-S03 已撤销，不复用该稳定 ID，
 不重试其 workflow、不移动/删除已存在的 `task-bundle-car-v0.1.0-canary-261110-1` tag。
@@ -16,7 +18,8 @@
 | Engine 消费者 | `@silvermoon-work/task-engine` | `0.1.0-canary-261109-3` | 从 registry 安装，通过公开 API 消费；不自动发布 Engine/Engine CLI |
 
 真实 registry 安装及 init→外部依赖安装→build（默认 CAR）→独立 car 完整闭环仍是硬要求；
-本地 tarball、workspace/dist 执行或仅 pack 不能替代。所有 D 项保持未完成。
+本地 tarball、workspace/dist 执行或仅 pack 不能替代。D 项仅依据上述实际证据完成，
+尚未记录部署验收决定。
 
 ## Steps
 

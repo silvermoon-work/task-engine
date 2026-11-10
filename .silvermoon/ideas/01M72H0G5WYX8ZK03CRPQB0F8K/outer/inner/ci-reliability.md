@@ -73,9 +73,44 @@ pnpm --filter @silvermoon-work/task-engine exec tsx --test --test-concurrency=1 
 - 本地 `pnpm check` 已实际成功：Turborepo **40/40**，16 项有效缓存；
   Engine **234/234**、Storage **49/49**（新增延迟恢复一例），以及所有格式/lint/
   测试类型/build/publint 均通过。串行受控调度耗时 **6m19.679s**，不是裁剪测试换取绿灯。
-- 新准确提交的 CI 结果仍待实际完成；I-AC05 保持未勾选，不预填 hosted runner 成功。
+- 新准确代码候选的 hosted CI 已完成，见下节；I-AC05 在取得真实结果后才勾选。
 
 验证过程中的边界：一次从 root 合并运行两个 fixture 的尝试因其 workspace-relative
 SDK 解析路径失败，后续使用上列各 workspace 的真实标准命令，没有给 root 添加依赖
 掩盖问题。初版统一等待成功 idle 正确拒绝 after-crash 的 unknown 回收，因此最终明确
 区分成功回收与不确定恢复，并增加对应事实断言，未修改 Engine 来伪造其成功。
+
+## 新准确提交的真实 CI
+
+代码候选：`64ba0de593c91d40926345a80f25bb8786639501`，已同步且可从 main 到达。
+[CI 42827001474 / attempt 1](https://github.com/silvermoon-work/task-engine/actions/runs/42827001474/attempts/1)
+是该 exact SHA 的 `ci.yaml` / `push` / `main` 运行，**第一次运行即全部成功**，
+没有重跑这个新候选。
+
+| 检查 | 结果 | 实测 |
+| --- | --- | --- |
+| Node.js 22.13.0 | success | 7m57s；40/40 workspace checks |
+| Node.js 24.11.1 | success | 7m01s；40/40 workspace checks |
+| Release verification (v1) | success | 3s |
+| Confirm required checks succeeded | success | 未修改门禁条件或名称 |
+
+资源步骤实际输出：两个 runner 的 availableParallelism=4、logicalCpus=4；
+Node22 memoryBytes=16759431168，Node24 memoryBytes=16759439360。
+这与本地32逻辑CPU不同，原嵌套 workspace/test-file 并行会在较小CPU预算上竞争。
+受限调度后的真实时序：
+
+| 场景 | Node22 | Node24 |
+| --- | --- | --- |
+| before 恢复、无注入延迟 | 463ms，completed，starts=1 | 423ms，completed，starts=1 |
+| after 恢复 | 214ms，stopped，starts=0 | 188ms，stopped，starts=0 |
+| before 恢复、5000ms effect | 5477ms，completed，starts=1 | 5407ms，completed，starts=1 |
+| capacity-one 三层 Task（原2000ms子期限） | 1083.001353ms，通过 | 921.811769ms，通过 |
+
+全部恢复诊断仍为 virtualNow=1800000000010、
+deadlineAt=2027-01-15T08:00:01.000Z；对比旧 fixed-poll red，业务时钟/期限没有增加。
+证明实际等待/资源隔离消除了观察假设和饥饿，而非延长业务期限或放松结果断言。
+原有超时、取消、配额、身份、不可确认回收分支继续实际执行。
+没有增加 CI job 的15分钟期限，也没有改变 Node matrix 或发布校验规则。
+
+本文件与 ledger 的后续证据提交仅记录已发生的结果，不改变上述已验证代码。
+证据候选同步后也须取得该准确 SHA 的完整 CI 才重新 submitInner；不发布任何包或 tag。

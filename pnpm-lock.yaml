@@ -161,12 +161,9 @@ importers:
 
   packages/task-builder:
     dependencies:
-      '@ipld/car':
-        specifier: 'catalog:'
-        version: 5.4.6
-      '@ipld/dag-pb':
-        specifier: 'catalog:'
-        version: 4.2.0
+      '@silvermoon-work/task-bundle-car':
+        specifier: workspace:*
+        version: link:../task-bundle-car
       '@silvermoon-work/task-protocol':
         specifier: workspace:*
         version: link:../task-protocol
@@ -179,15 +176,6 @@ importers:
       esbuild:
         specifier: 'catalog:'
         version: 0.25.12
-      ipfs-unixfs-exporter:
-        specifier: 'catalog:'
-        version: 16.2.3
-      ipfs-unixfs-importer:
-        specifier: 'catalog:'
-        version: 17.1.1(supports-color@10.2.2)
-      multiformats:
-        specifier: 'catalog:'
-        version: 14.0.5
       yaml:
         specifier: 'catalog:'
         version: 2.9.1
@@ -201,6 +189,9 @@ importers:
       '@silvermoon-work/task-builder':
         specifier: workspace:*
         version: link:../task-builder
+      '@silvermoon-work/task-bundle-car':
+        specifier: workspace:*
+        version: link:../task-bundle-car
       commander:
         specifier: 'catalog:'
         version: 14.0.3
@@ -214,6 +205,27 @@ importers:
       '@silvermoon-work/task-sdk':
         specifier: workspace:*
         version: link:../task-sdk
+
+  packages/task-bundle-car:
+    dependencies:
+      '@ipld/car':
+        specifier: 'catalog:'
+        version: 5.4.6
+      '@ipld/dag-pb':
+        specifier: 'catalog:'
+        version: 4.2.0
+      '@silvermoon-work/task-protocol':
+        specifier: workspace:*
+        version: link:../task-protocol
+      ipfs-unixfs-exporter:
+        specifier: 'catalog:'
+        version: 16.2.3
+      ipfs-unixfs-importer:
+        specifier: 'catalog:'
+        version: 17.1.1(supports-color@10.2.2)
+      multiformats:
+        specifier: 'catalog:'
+        version: 14.0.5
 
   packages/task-engine:
     dependencies:
@@ -263,9 +275,9 @@ importers:
 
   packages/task-engine-cli:
     dependencies:
-      '@silvermoon-work/task-builder':
+      '@silvermoon-work/task-bundle-car':
         specifier: workspace:*
-        version: link:../task-builder
+        version: link:../task-bundle-car
       '@silvermoon-work/task-engine':
         specifier: workspace:*
         version: link:../task-engine

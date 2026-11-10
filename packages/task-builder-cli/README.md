@@ -23,7 +23,8 @@ task-builder --help
 ```
 
 The package's bin points to `dist/bin.js`; it has no consumer-side compilation
-hook. esbuild's own installation script configures its precompiled native tool.
+hook. Build uses esbuild's platform binary installed by optional dependencies;
+its postinstall may remain blocked. Do not omit optional dependencies.
 Building a generated project compiles the author's Task, not this CLI.
 
 ```text
@@ -74,7 +75,13 @@ The CLI adds:
 
 - build/CAR/check npm scripts referencing the `task-builder` binary;
 - direct dev dependencies on **both** CLI and core;
-- the pnpm version, scoped esbuild approval and release-age exceptions.
+- the pnpm version and scoped release-age exceptions, including the CAR package.
+
+The current source template explicitly blocks esbuild's installation script
+with `allowBuilds: { esbuild: false }`; this avoids an unreviewed-build error
+under pnpm without executing the script.
+esbuild's installation warning does not require adding an allowlist: the
+matching optional platform binary is sufficient for ordinary builds.
 
 The current template uses SDK `0.1.0-canary-261109-2`.
 The preceding CLI/core releases still generate the old SDK template; use

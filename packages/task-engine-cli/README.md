@@ -44,7 +44,7 @@ CLI 创建的 Gateway client 最终封闭读取、取消在途获取并等待其
 共享 IPFS 节点、调用者提供的 client 和 pin 不归 `runBundle()` 所有，不会关闭或删除。
 文件系统持久化、恢复与独立内容节点管理不在单次命令的范围内。
 
-`--car <file>` 复用 `task-builder/car` 的完整校验器，流式读取并验证 CAR v1 唯一根、
+`--car <file>` 复用 `task-bundle-car` 的完整校验器，流式读取并验证 CAR v1 唯一根、
 块哈希、精确 DAG、canonical Bundle、Schema 和全部资源；通过后以只读块源复用
 `runBundle`/`drain`。默认有界 CAR/块/文件容量，不另起 Gateway 或网络 fallback。
 `--expected-cid` 可选且仅用于 CAR，根不符在 Worker 启动前拒绝。
@@ -138,5 +138,10 @@ manifest 的精确版本，不能让 CLI 依赖已经发布但没有这些 API �
 候选版本不是已发布事实；需要按仓库发布守卫单包检查、Trusted Publisher 设置和
 真实 registry 全局安装后 smoke 验证。
 
-CLI 的本地 CAR 能力依赖已发布 builder `0.1.0-canary-261109-3` 的 `./car` 入口，
-不是 builder CLI；不增加另一套 CAR 格式或校验实现。发布时核对该精确 runtime 依赖。
+当前源码的本地 CAR 能力直接依赖独立 `@silvermoon-work/task-bundle-car`，
+不依赖 builder 或 builder CLI；生产依赖闭包不包含 esbuild、`@esbuild/*`
+或模块编译解析器。开发测试使用 builder 不等于用户安装运行时依赖它。
+原 `task-builder/car` 子入口保留转发，CAR 格式和校验实现只有一份。
+
+此依赖拆分尚未发布，已发布的 `0.1.0-canary-261110-1` 仍会间接安装 builder/esbuild。
+后续须先单独发布 CAR 包，再用新版本发布消费者，不能覆盖既有版本或移动 tag。

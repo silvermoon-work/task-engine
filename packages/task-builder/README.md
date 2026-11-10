@@ -7,6 +7,18 @@ Separate `./init` and `./car` exports provide project templates and offline CAR
 streams without turning build into a multi-output operation. The root entry
 does not re-export or load these modules; init/CAR do not load esbuild.
 Subpaths isolate module loading, not npm dependency installation.
+The current source moves CAR and shared tree primitives to the compiler-free
+[@silvermoon-work/task-bundle-car](../task-bundle-car/README.md).
+`./car` and `./tree` re-export that package unchanged; Engine CLI depends on
+it directly, never on this compiler-bearing package. This extraction is not yet
+published and needs separately authorized package releases.
+
+Builder keeps esbuild as a runtime dependency because building author source
+needs a compiler. Its OS/CPU-specific optional package supplies the required
+precompiled binary. Skipping dependency installation scripts is supported;
+do not omit optional dependencies. Build calls the binary, not `install.js`.
+esbuild's postinstall checks/optimizes installation and can recover a missing
+platform package; it is not a prerequisite for normal builds.
 This package has no CLI binary, process signal handlers or host filesystem
 adapter. The independent
 [@silvermoon-work/task-builder-cli](../task-builder-cli/README.md) library owns
@@ -213,7 +225,7 @@ available for development.
 `sdkVersion`, `minRuntimeVersion`, `taskName` and npm `name` can be supplied.
 It has no CLI dependency, npm scripts, package-manager selection or pnpm
 installation policy. The CLI composes this tree with its own scripts,
-dependency versions and esbuild approvals before writing it to disk.
+dependency versions and scoped release-age exceptions before writing it to disk.
 
 ### CAR: file-tree streams to a bounded offline archive
 
@@ -221,7 +233,7 @@ dependency versions and esbuild approvals before writing it to disk.
 import {
   encodeTaskBundleCar,
   readTaskBundleCar,
-} from "@silvermoon-work/task-builder/car";
+} from "@silvermoon-work/task-bundle-car";
 const encoded = await encodeTaskBundleCar(bundleTree, { signal });
 try {
   await consumeCarStream(encoded.stream);

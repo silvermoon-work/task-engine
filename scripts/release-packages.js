@@ -10,6 +10,11 @@ export const releasePackages = [
     name: "@silvermoon-work/task-builder",
   },
   {
+    id: "task-bundle-car",
+    directory: "packages/task-bundle-car",
+    name: "@silvermoon-work/task-bundle-car",
+  },
+  {
     id: "task-protocol",
     directory: "packages/task-protocol",
     name: "@silvermoon-work/task-protocol",

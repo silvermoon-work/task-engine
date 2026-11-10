@@ -32,14 +32,15 @@ override 和已有 lockfile 下载 URL，确保与环境策略一致。包或版
 已发布版本可直接初始化一个不存在、且父目录已存在的新项目：
 
 ```text
-pnpm dlx --allow-build=esbuild @silvermoon-work/task-builder-cli@<builder-cli-version> init "<absolute-new-project-directory>" --name task-engine-e2e
+pnpm dlx @silvermoon-work/task-builder-cli@<builder-cli-version> init "<absolute-new-project-directory>" --name task-engine-e2e
 cd "<absolute-new-project-directory>"
 pnpm install
 ```
 
-默认模板从已安装 CLI 的 metadata 选择兼容 builder 依赖，无本地 override。
-`--allow-build=esbuild` 是 pnpm dlx 的安装审批，不是 builder
-CLI 配置。另行安装包含所选运行入口的已发布 engine CLI：
+默认模板从已安装 CLI 的 metadata 选择兼容 builder 依赖，无本地 override。esbuild 的 postinstall 可以保持禁用；对应平台的 optional
+dependency 提供预编译二进制。不要同时省略 optional
+dependencies，也不需要在首次 build 时补跑安装脚本。另行安装包含所选运行入口的已发布 engine
+CLI：
 
 ```text
 pnpm add --save-dev @silvermoon-work/task-engine-cli@<engine-cli-version>
@@ -47,7 +48,7 @@ pnpm add --save-dev @silvermoon-work/task-engine-cli@<engine-cli-version>
 
 模板生成 private 项目、pnpm scripts、SDK 作者入口、相对 TS import、JSON
 contract、具名 `schemas.text`/`$ref`
-和 greeting 资源。只批准模板指定的 esbuild 安装脚本；发布年龄例外仅限明确选定的包，不全局关闭供应链检查。项目不要执行
+和 greeting 资源。当前源码模板不自动批准安装脚本；发布年龄例外仅限明确选定的包，不全局关闭供应链检查。项目不要执行
 `npm publish`。
 
 ## 2. Build → CAR → Check

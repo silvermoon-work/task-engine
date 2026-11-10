@@ -26,12 +26,19 @@ npm run check
 
 无需克隆本仓库、安装 TypeScript 或编译 CLI。发布时先编译再打包
 `dist`，全局命令直接执行该产物。`npm run build`
-只构建用户的任务源码。Builder 的 esbuild 安装脚本配置当前平台的预编译可执行文件，不编译这些 CLI。本地 CAR 运行无需 Gateway、Kubo 或 HTTP 服务；结果应为
+只构建用户的任务源码。Builder 在执行 build 时调用 esbuild；npm 通过 optional
+dependency 安装当前 OS/CPU 对应的预编译二进制，跳过 esbuild
+postinstall 仍可构建，不要同时使用
+`--omit=optional`。build 不会补跑安装脚本。本地 CAR 运行无需 Gateway、Kubo 或 HTTP 服务；结果应为
 `Hello world`，
-`status: "succeeded"`、退出码 0，且 Run 回收已确认。只执行可信任务代码。全局 npm 的 bin 目录须在 PATH 中。pnpm 用户也可按端到端指南执行项目命令；其 esbuild 安装脚本需要显式批准。`latest`
+`status: "succeeded"`、退出码 0，且 Run 回收已确认。只执行可信任务代码。全局 npm 的 bin 目录须在 PATH 中。pnpm 用户也可按端到端指南执行项目命令，无需批准 esbuild 安装脚本。`latest`
 仍为占位版本，请选择 `canary`。
 
 ## 本次提取范围
+
+当前源码已将 CAR 和文件树工具拆为独立 `task-bundle-car` 包；Engine
+CLI 的生产安装不再依赖 builder/esbuild。builder 的 `/car`、`/tree`
+保留同一实现的转发。该拆分尚未发布，上面的既有 canary 仍是拆分前版本；需要独立发布新 CAR 包及消费者后才会改变 npm 安装图。不能把源码验证当作新版已发布的证明。
 
 | 包                                                                               | 职责                                       |
 | -------------------------------------------------------------------------------- | ------------------------------------------ |
@@ -42,6 +49,7 @@ npm run check
 | [@silvermoon-work/task-engine-http](./packages/task-engine-http/README.md)       | 可挂载 HTTP API 与 SSE                     |
 | [@silvermoon-work/task-engine-server](./packages/task-engine-server/README.md)   | Node HTTP/SSE 服务组装                     |
 | [@silvermoon-work/task-builder](./packages/task-builder/README.md)               | 只读文件树转换、esbuild 构建与流式资源     |
+| [@silvermoon-work/task-bundle-car](./packages/task-bundle-car/README.md)         | 无编译器的 CAR 编解码、校验与只读文件树    |
 | [@silvermoon-work/task-builder-cli](./packages/task-builder-cli/README.md)       | Commander 命令交互、本地文件适配与模板组装 |
 | [@silvermoon-work/task-engine-cli](./packages/task-engine-cli/README.md)         | 隔离域内嵌运行、全体耗尽与自动退出         |
 
@@ -98,6 +106,7 @@ packages/
   task-engine-http/
   task-engine-server/
   task-builder/
+  task-bundle-car/
   task-builder-cli/
   task-engine-cli/
 pnpm-workspace.yaml
@@ -357,7 +366,7 @@ evidence. The standalone audit host initially selected the exact published CLI3
 URL as its direct dependency; the generated init project's normal SemVer
 installation subsequently succeeded.
 
-The nine libraries are mapped in `scripts/release-packages.js`; the root and
+The ten libraries are mapped in `scripts/release-packages.js`; the root and
 executable app remain private. No package is published by extraction, and there
 is no automatic batch release or automatic version bumping. Artifact dependency
 discovery always reads `packages/` and includes `apps/` only when present;

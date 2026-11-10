@@ -7,7 +7,7 @@
     "tsBuildInfoFile": "./.cache/tsconfig.tsbuildinfo"
   },
   "references": [
-    { "path": "../task-builder" },
+    { "path": "../task-bundle-car" },
     { "path": "../task-engine" },
     { "path": "../task-protocol" }
   ],

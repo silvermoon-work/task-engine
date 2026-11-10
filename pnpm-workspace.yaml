@@ -37,7 +37,7 @@ catalog:
   ipfs-unixfs-importer: 17.1.1
 
 allowBuilds:
-  esbuild: true
+  esbuild: false
 
 minimumReleaseAgeExclude:
   - "@turbo/darwin-64@2.11.8"

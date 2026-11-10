@@ -1,7 +1,7 @@
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { unlink } from "node:fs/promises";
 import { Command, CommanderError, InvalidArgumentError, Option } from "commander";
-import { memoryFile, type ReadOptions } from "@silvermoon-work/task-builder/tree";
+import { memoryFile, type ReadOptions } from "@silvermoon-work/task-bundle-car/tree";
 import { directoryTree, writeDirectory, writeStreamFile } from "./node.js";
 import { cliVersion, createCliTaskProject } from "./project.js";
 
@@ -178,7 +178,7 @@ export async function runTaskBuilderCli(
         )
           throw new Error("CAR outputs must not be inside the input Bundle directory.");
       }
-      const { encodeTaskBundleCar } = await import("@silvermoon-work/task-builder/car");
+      const { encodeTaskBundleCar } = await import("@silvermoon-work/task-bundle-car");
       const archive = await encodeTaskBundleCar(await directoryTree(input), readOptions);
       let installed = false;
       try {
@@ -214,7 +214,7 @@ export async function runTaskBuilderCli(
       const flags = command.optsWithGlobals<GlobalFlags & { expectedCid?: string }>();
       const path = resolve(cwd, carFile);
       const input = await directoryTree(dirname(path));
-      const { readTaskBundleCar } = await import("@silvermoon-work/task-builder/car");
+      const { readTaskBundleCar } = await import("@silvermoon-work/task-bundle-car");
       const archive = await readTaskBundleCar(await input.read(basename(path), readOptions), {
         ...readOptions,
         ...(flags.expectedCid !== undefined ? { expectedCid: flags.expectedCid } : {}),

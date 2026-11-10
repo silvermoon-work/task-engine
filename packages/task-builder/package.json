@@ -48,15 +48,11 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@ipld/car": "catalog:",
-    "@ipld/dag-pb": "catalog:",
+    "@silvermoon-work/task-bundle-car": "workspace:*",
     "@silvermoon-work/task-protocol": "workspace:*",
     "@sinclair/typebox": "catalog:",
     "enhanced-resolve": "catalog:",
     "esbuild": "catalog:",
-    "multiformats": "catalog:",
-    "ipfs-unixfs-importer": "catalog:",
-    "ipfs-unixfs-exporter": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {

@@ -123,6 +123,8 @@ test("CLI decorates the neutral template with exact dependency specs and optiona
     Buffer.from(await readBytes(tree, "pnpm-workspace.yaml", 65_536)).toString(),
   );
   assert.equal(config.overrides["@silvermoon-work/task-builder"], "file:core.tgz");
+  assert.deepEqual(config.allowBuilds, { esbuild: false });
+  assert.ok(config.minimumReleaseAgeExclude.includes("@silvermoon-work/task-bundle-car"));
   assert.ok(config.minimumReleaseAgeExclude.includes("@silvermoon-work/task-builder-cli"));
   assert.ok(config.minimumReleaseAgeExclude.includes("@silvermoon-work/task-sdk"));
   assert.ok(config.minimumReleaseAgeExclude.includes("@silvermoon-work/task-protocol"));
@@ -144,5 +146,6 @@ test("CLI decorates the neutral template with exact dependency specs and optiona
     Buffer.from(await readBytes(defaultTree, "pnpm-workspace.yaml", 65_536)).toString(),
   );
   assert.equal(defaultConfig.overrides, undefined);
+  assert.deepEqual(defaultConfig.allowBuilds, { esbuild: false });
   await assert.rejects(createCliTaskProject({ cliVersion: "\n" }), /Dependency specifiers/);
 });

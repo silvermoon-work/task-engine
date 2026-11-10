@@ -594,6 +594,7 @@ test("the release registry contains the core packages, builder CLI and finite ex
   const expected = [
     "task-builder-cli",
     "task-builder",
+    "task-bundle-car",
     "task-protocol",
     "task-sdk",
     "task-engine",
@@ -635,6 +636,58 @@ test("the release registry contains the core packages, builder CLI and finite ex
       undefined,
     );
   }
+});
+
+test("Engine and CAR production workspace closures exclude compilers and author tooling", () => {
+  const manifests = new Map(
+    releasePackages.map(({ name, directory }) => [
+      name,
+      JSON.parse(readFileSync(resolve(directory, "package.json"), "utf8")),
+    ]),
+  );
+  const forbidden = new Set([
+    "@silvermoon-work/task-builder",
+    "@silvermoon-work/task-builder-cli",
+    "esbuild",
+    "enhanced-resolve",
+    "typescript",
+  ]);
+  for (const root of [
+    "@silvermoon-work/task-engine-cli",
+    "@silvermoon-work/task-engine",
+    "@silvermoon-work/task-bundle-car",
+  ]) {
+    const visited = new Set();
+    const visit = (name) => {
+      assert.ok(
+        !forbidden.has(name) && !name.startsWith("@esbuild/"),
+        `${root} pulls in ${name}`,
+      );
+      if (visited.has(name)) return;
+      visited.add(name);
+      const manifest = manifests.get(name);
+      if (!manifest) return;
+      for (const section of [
+        "dependencies",
+        "optionalDependencies",
+        "peerDependencies",
+      ])
+        for (const [dependency, specifier] of Object.entries(
+          manifest[section] ?? {},
+        )) {
+          visit(dependency);
+          if (specifier.startsWith("npm:"))
+            visit(specifier.slice(4).replace(/@[^@/]*$/, ""));
+        }
+    };
+    visit(root);
+    if (root === "@silvermoon-work/task-engine-cli")
+      assert.ok(visited.has("@silvermoon-work/task-bundle-car"));
+  }
+  assert.equal(
+    manifests.get("@silvermoon-work/task-builder").dependencies.esbuild,
+    "catalog:",
+  );
 });
 
 test("public CLI packages install precompiled bins without consumer-side compilation hooks", () => {

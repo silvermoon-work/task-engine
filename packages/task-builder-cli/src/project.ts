@@ -7,7 +7,7 @@ import {
   readBytes,
   type FileReader,
   type ReadonlyFileTree,
-} from "@silvermoon-work/task-builder/tree";
+} from "@silvermoon-work/task-bundle-car/tree";
 
 export interface CliTaskProjectOptions extends TaskProjectOptions {
   readonly cliVersion?: string;
@@ -90,13 +90,14 @@ export async function createCliTaskProject(
     [
       "pnpm-workspace.yaml",
       stringify({
-        allowBuilds: { esbuild: true },
+        allowBuilds: { esbuild: false },
         ...(selectedBuilderVersion !== undefined
           ? { overrides: { "@silvermoon-work/task-builder": builder } }
           : {}),
         minimumReleaseAgeExclude: [
           "@silvermoon-work/task-builder-cli",
           "@silvermoon-work/task-builder",
+          "@silvermoon-work/task-bundle-car",
           "@silvermoon-work/task-sdk",
           "@silvermoon-work/task-protocol",
         ],

@@ -207,7 +207,8 @@
       <header>
         <h1>Task Engine CLI Spec</h1>
         <p class="meta">
-          v0.1 · 2026-11-10 · 需求已批准；命令树、共享契约及全部命令章节待讨论。
+          v0.2 · 2026-11-10 · 本轮四项修订已确认：Server 命名、IPFS Gateway、11
+          项独立限制及本地生命周期边界；具体默认数值和其余接口仍待讨论。
         </p>
         <p>
           面向任务使用方。依据<a href="task-engine-cli-requirements.md"
@@ -219,24 +220,27 @@
       <nav id="command-tree" class="tree" aria-labelledby="tree-title">
         <h2 id="tree-title">命令树</h2>
         <p class="status">
-          待确认：仅确认命令组织与职责，不批准后续参数、默认数值或输出细节。
+          Server 命名及本地管理边界已确认；完整命令树仍待确认，
+          不因本轮修订批准其他章节参数、默认数值或输出细节。
         </p>
         <ul>
           <li>
             <code>task-engine</code> — 分组入口
             <ul>
               <li>
-                <code>engine</code> — 引擎生命周期
+                <code>server</code> — 本地服务生命周期
                 <ul>
                   <li>
-                    <a href="#engine-start"><code>start</code></a> 启动引擎 · S2
+                    <a href="#engine-start"><code>start</code></a> 启动本地服务
+                    · S2
                   </li>
                   <li>
                     <a href="#engine-status"><code>status</code></a>
-                    查看引擎状态 · A2
+                    查看本地服务状态 · A2
                   </li>
                   <li>
-                    <a href="#engine-stop"><code>stop</code></a> 停止引擎 · A3
+                    <a href="#engine-stop"><code>stop</code></a> 停止本地服务 ·
+                    A3
                   </li>
                 </ul>
               </li>
@@ -289,7 +293,7 @@
           </li>
         </ul>
         <p>
-          根入口和 <code>engine / task / data / config</code> 仅分组；无子命令时
+          根入口和 <code>server / task / data / config</code> 仅分组；无子命令时
           stdout 显示该层简短帮助并退出 0，不隐式执行操作。所有层级支持
           <code>-h / --help</code>；根入口支持
           <code>--version</code>，这些元信息选项不单列业务章节。不新增独立
@@ -310,6 +314,13 @@
           以下数值、路径、标志名、JSON
           字段、生命周期方式均是接口提案，不是已批准需求或现有实现证明。示例是预期契约，未执行。这里只面向可信环境，不宣称具有多租户隔离或可安全公开暴露的能力。
         </div>
+        <p>
+          本轮将生命周期管理限定为本机由本 CLI 管理的
+          Server，不提供远程停止能力。 run 与 task
+          查询仍可使用明确指定的引擎服务地址。 远程 health
+          是不同于本地进程状态的只读能力，目前仅记录为候选，不新增命令或场景。
+          为保持已有文档链接有效，生命周期章节继续沿用原有锚点。
+        </p>
 
         <h3 id="shared-options">公共选项、配置与默认值</h3>
         <p>
@@ -347,56 +358,126 @@
             </thead>
             <tbody>
               <tr>
-                <th scope="row"><code>engine.host</code></th>
+                <th scope="row"><code>server.host</code></th>
                 <td>IP 地址或主机名；非空</td>
                 <td><code>127.0.0.1</code></td>
                 <td>S2 / <code>--host</code></td>
               </tr>
               <tr>
-                <th scope="row"><code>engine.port</code></th>
+                <th scope="row"><code>server.port</code></th>
                 <td>整数 1–65535，不使用随机端口</td>
                 <td><code>8787</code></td>
                 <td>S2 / <code>--port</code></td>
               </tr>
               <tr>
-                <th scope="row"><code>engine.limits</code></th>
+                <th scope="row"><code>server.maxConcurrent</code></th>
                 <td>
-                  完整 JSON
-                  对象：<code>concurrency</code>、<code>maxTasks</code>、<code
-                    >maxContentBytes</code
-                  >
-                  均为正安全整数；maxTasks 不小于 concurrency
+                  正安全整数；根层同时分配的执行组上限，不是根任务与全部子任务合计的进程数
                 </td>
-                <td>
-                  <code
-                    >{"concurrency":4,"maxTasks":64,"maxContentBytes":67108864}</code
-                  >
-                </td>
-                <td>
-                  S2 / <code>--limits</code>；为引擎整体上限，不逐任务改写
-                </td>
+                <td><code>64</code></td>
+                <td>S2 / <code>--max-concurrent</code></td>
               </tr>
               <tr>
-                <th scope="row"><code>engine.gateway</code></th>
-                <td>无用户名、口令、查询串和片段的 HTTP(S) 服务 URL</td>
+                <th scope="row"><code>server.maxPreparing</code></th>
+                <td>正安全整数；同时处于准备阶段的请求数上限</td>
+                <td><code>1000</code></td>
+                <td>S2 / <code>--max-preparing</code></td>
+              </tr>
+              <tr>
+                <th scope="row"><code>server.maxTasks</code></th>
+                <td>
+                  正安全整数；引擎保有的 Task
+                  记录容量，包含历史记录，不是并发数或仅排队数量
+                </td>
+                <td><code>10000</code></td>
+                <td>S2 / <code>--max-tasks</code></td>
+              </tr>
+              <tr>
+                <th scope="row"><code>server.maxChildDepth</code></th>
+                <td>正安全整数；子任务最大派生深度</td>
+                <td><code>4</code></td>
+                <td>S2 / <code>--max-child-depth</code></td>
+              </tr>
+              <tr>
+                <th scope="row"><code>server.maxChildConcurrent</code></th>
+                <td>
+                  正安全整数；每父 Run
+                  的在途子调用上限，并约束每派生深度的执行组分配
+                </td>
+                <td><code>4</code></td>
+                <td>S2 / <code>--max-child-concurrent</code></td>
+              </tr>
+              <tr>
+                <th scope="row"><code>server.maxChildTotal</code></th>
+                <td>正安全整数；每根 Run 累计派生子调用总量上限</td>
+                <td><code>64</code></td>
+                <td>S2 / <code>--max-child-total</code></td>
+              </tr>
+              <tr>
+                <th scope="row"><code>server.maxPayloadBytes</code></th>
+                <td>
+                  正安全整数；单个受限制 JSON 载荷的字节上限，不是 CAR 文件大小
+                </td>
+                <td><code>65536</code></td>
+                <td>S2 / <code>--max-payload-bytes</code></td>
+              </tr>
+              <tr>
+                <th scope="row"><code>server.bundleConcurrency</code></th>
+                <td>
+                  正安全整数；同时进行的任务包准备工作数，不是任务执行并发
+                </td>
+                <td><code>4</code></td>
+                <td>S2 / <code>--bundle-concurrency</code></td>
+              </tr>
+              <tr>
+                <th scope="row"><code>server.bundleMaxBytes</code></th>
+                <td>
+                  正安全整数；单个任务包文件内容的累计字节上限，不等于 CAR
+                  编码字节数
+                </td>
+                <td><code>67108864</code>（64 MiB）</td>
+                <td>S2 / <code>--bundle-max-bytes</code></td>
+              </tr>
+              <tr>
+                <th scope="row"><code>server.bundleCacheBytes</code></th>
+                <td>
+                  正安全整数；引擎保有的任务包块字节预算，不是全部进程内存硬上限
+                </td>
+                <td><code>268435456</code>（256 MiB）</td>
+                <td>S2 / <code>--bundle-cache-bytes</code></td>
+              </tr>
+              <tr>
+                <th scope="row"><code>server.maxConnections</code></th>
+                <td>正安全整数；HTTP 同时连接数上限，不是任务并发数</td>
+                <td><code>256</code></td>
+                <td>S2 / <code>--max-connections</code></td>
+              </tr>
+              <tr>
+                <th scope="row"><code>server.ipfsGateway</code></th>
+                <td>
+                  读取任务包内容的 IPFS Gateway
+                  URL；无用户名、口令、查询串和片段的 HTTP(S) URL
+                </td>
                 <td>无；启动时须提供或配置</td>
-                <td>S2 / <code>--gateway</code></td>
+                <td>S2 / <code>--ipfs-gateway</code></td>
               </tr>
               <tr>
-                <th scope="row"><code>engine.dataDir</code></th>
+                <th scope="row"><code>server.dataDir</code></th>
                 <td>目录路径，解析后以绝对路径显示</td>
                 <td>
                   Windows：<code>%LOCALAPPDATA%\TaskEngine\data</code>；其他平台：<code
                     >~/.task-engine/data</code
                   >
                 </td>
-                <td>S2、A5 / <code>--data-dir</code></td>
+                <td>S2、A2、A3、A5 / <code>--data-dir</code></td>
               </tr>
               <tr>
                 <th scope="row"><code>client.engine</code></th>
                 <td>无用户名、口令、查询串和片段的 HTTP(S) 服务 URL</td>
                 <td><code>http://127.0.0.1:8787</code></td>
-                <td>S1、A2、A3、A4Q、A4D / <code>--engine</code></td>
+                <td>
+                  S1、A4Q、A4D / <code>--engine</code>；不得选择本地生命周期目标
+                </td>
               </tr>
               <tr>
                 <th scope="row"><code>task.timeoutMs</code></th>
@@ -410,12 +491,36 @@
           </table>
         </div>
         <p>
-          对象值整体覆盖，不逐字段暗合并。配置相对路径按配置文件所在目录解析，命令行相对路径按调用工作目录解析。启动时解析并固定服务配置；更改配置不热更新已有服务。<code
-            >engine.host/port</code
+          限制项分别覆盖，不再接受 --limits 对象或 server.limits 配置。 上述 11
+          项限制的独立暴露清单已批准，具体默认数值仍为参考现有内核能力提出的草案；
+          不把所有内部调度、心跳、协议校验和日志参数直接公开。
+          这些预算不授予额外子任务权限，也不绕过固定协议边界。
+          配置相对路径按配置文件所在目录解析，命令行相对路径按调用工作目录解析。启动时解析并固定服务配置；更改配置不热更新已有服务。<code
+            >server.host/port</code
           >
           与
           <code>client.engine</code>
           不联动、不推导彼此；更换端口后调用方应明确选择对应地址。任务包、业务输入、查询条件、任务标识及清理范围不得保存为用户默认。
+        </p>
+        <h3 id="shared-local-server">本地 Server 的选择与身份</h3>
+        <p>
+          server start/status/stop 使用同一 --data-dir 和 server.dataDir
+          选择本地受管实例， 不读取 client.engine，不接受 --engine 或任何远程
+          URL 作为管理目标。
+          数据目录仅用于确定本地实例归属，不因目录路径可访问就允许管理其他机器。
+          start 将可辨认的本地生命周期元数据保存在所选目录；status/stop
+          必须核对当前本机实例身份，不能仅凭可复用
+          PID、端口、网络回应或残留文件认定目标。
+          不接管由其他工具启动的服务。元数据为服务资源的配套记录，不新增实例注册管理系统。
+        </p>
+        <p>
+          status 可明确返回 not-started、ready、stopping、stopped；
+          只有归属和存活证据足够时才能判定。目录不存在表示尚未启动，不创建目录；
+          无法确认时报告 unknown 并退出 3，不能把不可达当作停止。 stop
+          对尚未启动或已确认停止的实例可幂等返回
+          0，但必须区分“本次确认完成释放”和
+          “未执行停止、仅已知服务不在运行”；后者不得补造 reclaimed:true。
+          共享退出码 3 在这些命令中表示无法确认本地服务状态，而非远程连接失败。
         </p>
 
         <h3 id="shared-io">stdout、stderr 与数据结构</h3>
@@ -560,19 +665,26 @@
         class="chapter"
         aria-labelledby="engine-start-title"
       >
-        <h2 id="engine-start-title"><code>task-engine engine start</code></h2>
+        <h2 id="engine-start-title"><code>task-engine server start</code></h2>
         <p class="status">待确认 · S2 · 不等同于当前单次嵌入式 CLI。</p>
         <p>
-          显式启动由使用方管理的引擎。提议默认为后台服务：命令等到就绪后返回，服务继续运行；不新增前台模式或系统开机启动功能。
+          显式启动本机由本 CLI 管理的
+          Server。提议默认为后台服务：命令等到就绪后返回，服务继续运行；不新增前台模式或系统开机启动功能。
         </p>
-        <pre><code>task-engine engine start [--host &lt;host&gt;] [--port &lt;port&gt;]
-  [--gateway &lt;url&gt;] [--data-dir &lt;path&gt;] [--limits &lt;json&gt;] [--json] [--quiet]</code></pre>
+        <pre><code>task-engine server start [--host &lt;host&gt;] [--port &lt;port&gt;]
+  [--ipfs-gateway &lt;url&gt;] [--data-dir &lt;path&gt;]
+  [--max-concurrent &lt;n&gt;] [--max-preparing &lt;n&gt;] [--max-tasks &lt;n&gt;]
+  [--max-child-depth &lt;n&gt;] [--max-child-concurrent &lt;n&gt;] [--max-child-total &lt;n&gt;]
+  [--max-payload-bytes &lt;bytes&gt;] [--bundle-concurrency &lt;n&gt;]
+  [--bundle-max-bytes &lt;bytes&gt;] [--bundle-cache-bytes &lt;bytes&gt;]
+  [--max-connections &lt;n&gt;] [--json] [--quiet]</code></pre>
         <p>
           适用<a href="#shared-options">配置契约</a>、<a href="#shared-io"
             >输出</a
           >、<a href="#shared-exits">退出码</a>及<a href="#shared-interaction"
             >交互与安全</a
-          >。例外：不读取 --engine，不自动更改调用地址。
+          >及<a href="#shared-local-server">本地实例身份</a>。不读取
+          --engine，不自动更改调用地址。
         </p>
         <h3>参数</h3>
         <div
@@ -599,36 +711,42 @@
                 <th scope="row"><code>--host</code></th>
                 <td>字符串</td>
                 <td>可省略</td>
-                <td><code>engine.host</code></td>
+                <td><code>server.host</code></td>
                 <td>非本机地址警告；不声称有访问控制</td>
               </tr>
               <tr>
                 <th scope="row"><code>--port</code></th>
                 <td>整数</td>
                 <td>可省略</td>
-                <td><code>engine.port</code></td>
+                <td><code>server.port</code></td>
                 <td>端口占用明确失败，不另选端口</td>
               </tr>
               <tr>
-                <th scope="row"><code>--gateway</code></th>
-                <td>URL</td>
+                <th scope="row"><code>--ipfs-gateway</code></th>
+                <td>IPFS Gateway URL</td>
                 <td>显式值或用户值必须存在</td>
-                <td><code>engine.gateway</code>；无产品默认</td>
-                <td>只连接外部内容源，不启动源服务</td>
+                <td><code>server.ipfsGateway</code>；无产品默认</td>
+                <td>
+                  只连接外部 IPFS 内容读取服务，不是 Server 自身入口，不启动
+                  IPFS 服务
+                </td>
               </tr>
               <tr>
                 <th scope="row"><code>--data-dir</code></th>
                 <td>目录路径</td>
                 <td>可省略</td>
-                <td><code>engine.dataDir</code></td>
+                <td><code>server.dataDir</code></td>
                 <td>独占引擎数据目录；锁冲突失败</td>
               </tr>
               <tr>
-                <th scope="row"><code>--limits</code></th>
-                <td>JSON 对象字符串</td>
+                <th scope="row">独立限制选项</th>
+                <td>整数；数量或字节数</td>
                 <td>可省略</td>
-                <td><code>engine.limits</code></td>
-                <td>完整对象；字段、值及相互关系须有效</td>
+                <td>分别映射共享表中的 server.* 限制键</td>
+                <td>
+                  全部 11 项、各自含义及具体默认见共享配置表；独立覆盖，不接受
+                  JSON limits 对象
+                </td>
               </tr>
             </tbody>
           </table>
@@ -656,7 +774,8 @@
           </dd>
           <dt>交互</dt>
           <dd>
-            所有值可解析时无参数可启动；无输入提示，缺 gateway 退出 2。Ctrl+C
+            所有值可解析时无参数可启动；无输入提示，缺 IPFS Gateway 退出
+            2。Ctrl+C
             在命令返回前撤销本次启动并确认释放；成功返回后终端退出不停止服务。
           </dd>
         </dl>
@@ -664,7 +783,7 @@
         <div class="examples">
           <div class="example">
             <h3>成功</h3>
-            <pre><code>调用: task-engine engine start --gateway http://127.0.0.1:8080 --data-dir D:\TaskEngine\data --json
+            <pre><code>调用: task-engine server start --ipfs-gateway http://127.0.0.1:8080 --data-dir D:\TaskEngine\data --json
 stdin: 不使用
 stdout: {"ok":true,"data":{"state":"ready","engineUrl":"http://127.0.0.1:8787","instanceId":"engine-001","dataDir":"D:\\TaskEngine\\data"}}
 stderr: 空
@@ -672,18 +791,18 @@ stderr: 空
           </div>
           <div class="example">
             <h3>缺少内容源</h3>
-            <pre><code>前提: 未配置 engine.gateway
-调用: task-engine engine start --json
+            <pre><code>前提: 未配置 server.ipfsGateway
+调用: task-engine server start --json
 stdin: 不使用
 stdout: 空
-stderr: {"ok":false,"error":{"code":"CONFIG_REQUIRED","message":"缺少内容获取服务。","hint":"提供 --gateway 或设置 engine.gateway。"}}
+stderr: {"ok":false,"error":{"code":"CONFIG_REQUIRED","message":"缺少 IPFS Gateway。","hint":"提供 --ipfs-gateway 或设置 server.ipfsGateway。"}}
 退出码: 2</code></pre>
           </div>
         </div>
         <h3>待讨论</h3>
         <p>
-          后台启动方式、gateway
-          是否启动时始终必需、默认端口/路径/限额均为设计提案；尚未批准。引擎实例标识仅用于精确识别，不新增实例注册管理系统。
+          Server 命名、IPFS Gateway 命名和限制项清单已批准； 后台启动方式、IPFS
+          Gateway 是否启动时始终必需、默认端口/路径/限额仍为待讨论提案。
         </p>
         <p><a href="#command-tree">返回命令树</a></p>
       </section>
@@ -693,61 +812,68 @@ stderr: {"ok":false,"error":{"code":"CONFIG_REQUIRED","message":"缺少内容获
         class="chapter"
         aria-labelledby="engine-status-title"
       >
-        <h2 id="engine-status-title"><code>task-engine engine status</code></h2>
+        <h2 id="engine-status-title"><code>task-engine server status</code></h2>
         <p class="status">待确认 · A2</p>
-        <p>查询指定引擎的可用状态和连接信息，不把不可达当作已停止。</p>
-        <pre><code>task-engine engine status [--engine &lt;url&gt;] [--json] [--quiet]</code></pre>
+        <p>查看本 CLI 管理的本地 Server 状态和连接信息，不承担远程健康查询。</p>
+        <pre><code>task-engine server status [--data-dir &lt;path&gt;] [--json] [--quiet]</code></pre>
         <p>
           适用<a href="#shared-options">配置</a>、<a href="#shared-io">输出</a
           >、<a href="#shared-exits">退出码</a>及<a href="#shared-interaction"
             >交互</a
-          >；无额外例外。
+          >及<a href="#shared-local-server">本地实例身份</a>；不以网络 URL
+          选择目标。
         </p>
         <h3>参数</h3>
         <p>
-          <code>--engine</code>：可省略的 URL，映射
-          <code>client.engine</code>，默认见共享表。不消费 stdin，无位置参数。
+          <code>--data-dir</code>：可省略的本地目录路径，映射
+          <code>server.dataDir</code>，默认见共享表。 不接受 --engine，不读取
+          client.engine；不消费 stdin，无位置参数。
         </p>
         <h3>预期输出与行为</h3>
         <dl>
           <dt>stdout</dt>
           <dd>
-            显示状态和地址；JSON data 为
-            <code>{state,engineUrl,instanceId,activeTasks}</code>，state 为
-            ready 或 stopping，activeTasks 是在途任务数。
+            显示本地目录、实例状态和已知连接信息；JSON data 为
+            <code>{state,dataDir,engineUrl?,instanceId?,activeTasks?}</code>。
+            state 见本地实例契约；engineUrl 和实例标识仅在有可信本地记录时提供，
+            activeTasks 仅在实际取得该状态时提供，不能以 0 冒充未知。
           </dd>
           <dt>stderr / 退出码</dt>
           <dd>
-            0 成功查询；3 无法连接或确认；2 参数无效；1 服务内部错误；130
-            查询中断。错误含目标及恢复建议。
+            0 已明确本地状态（包括尚未启动或已停止）；3 状态无法确认；2
+            参数无效或本地元数据损坏；1 本地读取错误；130
+            查询中断。失败输出为空，诊断指出本地目标与恢复建议。
           </dd>
           <dt>资源与交互</dt>
           <dd>
-            只读；无参数查询默认地址。TTY/非 TTY 均不提示，不自动启动。Ctrl+C
-            仅停止查询。
+            只读；无参数查询默认本地数据目录，不创建目录、不探测远程服务。
+            TTY/非 TTY 均不提示，不自动启动。Ctrl+C 仅停止查询。
           </dd>
         </dl>
         <h3>预期示例（未执行）</h3>
         <div class="examples">
           <div class="example">
             <h3>成功</h3>
-            <pre><code>调用: task-engine engine status --json
+            <pre><code>调用: task-engine server status --data-dir D:\TaskEngine\data --json
 stdin: 不使用
-stdout: {"ok":true,"data":{"state":"ready","engineUrl":"http://127.0.0.1:8787","instanceId":"engine-001","activeTasks":2}}
+stdout: {"ok":true,"data":{"state":"ready","dataDir":"D:\\TaskEngine\\data","engineUrl":"http://127.0.0.1:8787","instanceId":"engine-001","activeTasks":2}}
 stderr: 空
 退出码: 0</code></pre>
           </div>
           <div class="example">
-            <h3>无法连接</h3>
-            <pre><code>调用: task-engine engine status --json
+            <h3>本地实例身份无法确认</h3>
+            <pre><code>调用: task-engine server status --json
 stdin: 不使用
 stdout: 空
-stderr: {"ok":false,"error":{"code":"ENGINE_UNAVAILABLE","message":"无法连接 http://127.0.0.1:8787；不能确认服务状态。","hint":"检查 --engine 地址，或由使用方显式启动引擎。"}}
+stderr: {"ok":false,"error":{"code":"LOCAL_SERVER_UNKNOWN","message":"无法核实所选本地 Server 的当前身份或状态。","hint":"检查 --data-dir 和本地启动记录；不要仅凭端口不可达认定服务停止。"}}
 退出码: 3</code></pre>
           </div>
         </div>
         <h3>待讨论</h3>
-        <p>状态字段命名待确认，不扩展为独立健康检查命令。</p>
+        <p>
+          本地实例定位及本地管理边界已确认，状态字段仍待讨论；远程 health
+          是不同需求，本轮不自动新增该命令。
+        </p>
         <p><a href="#command-tree">返回命令树</a></p>
       </section>
 
@@ -756,21 +882,27 @@ stderr: {"ok":false,"error":{"code":"ENGINE_UNAVAILABLE","message":"无法连接
         class="chapter"
         aria-labelledby="engine-stop-title"
       >
-        <h2 id="engine-stop-title"><code>task-engine engine stop</code></h2>
+        <h2 id="engine-stop-title"><code>task-engine server stop</code></h2>
         <p class="status">待确认 · A3</p>
-        <p>停止指定实例并等待资源释放确认；默认不终止在途任务。</p>
-        <pre><code>task-engine engine stop [--engine &lt;url&gt;] [--cancel-running] [--yes] [--json] [--quiet]</code></pre>
         <p>
-          适用<a href="#shared-options">连接配置</a>、<a href="#shared-io"
+          停止本 CLI 管理的本地 Server
+          并等待资源释放确认；不提供远程停止能力，默认不终止在途任务。
+        </p>
+        <pre><code>task-engine server stop [--data-dir &lt;path&gt;] [--cancel-running] [--yes] [--json] [--quiet]</code></pre>
+        <p>
+          适用<a href="#shared-options">数据目录配置</a>、<a href="#shared-io"
             >输出</a
           >、<a href="#shared-exits">退出码</a>及<a href="#shared-interaction"
             >确认</a
-          >。例外：停止过程连接断开本身不是成功证据，须有实际释放确认。
+          >及<a href="#shared-local-server">本地实例身份</a
+          >。停止过程端口关闭或进程消失本身不是本次资源释放完成的证据。
         </p>
         <h3>参数</h3>
         <ul>
           <li>
-            <code>--engine</code>：可省略 URL，<code>client.engine</code>。
+            <code>--data-dir</code>：可省略本地目录路径，映射
+            <code>server.dataDir</code>。 不接受 --engine，不读取
+            client.engine，不通过 URL 关闭其他服务。
           </li>
           <li>
             <code>--cancel-running</code>：布尔，默认
@@ -788,41 +920,45 @@ stderr: {"ok":false,"error":{"code":"ENGINE_UNAVAILABLE","message":"无法连接
           <dd>
             确认停止及取消任务数；JSON data 为
             <code
-              >{state:"stopped",engineUrl,instanceId,cancelledTasks,reclaimed:true}</code
-            >。
+              >{state:"stopped",dataDir,instanceId,changed:true,cancelledTasks,reclaimed:true}</code
+            >。 尚未启动或已确认停止时返回
+            <code>{state:"not-started"|"stopped",dataDir,changed:false}</code>，
+            不补造本次取消数量或释放证据。
           </dd>
           <dt>stderr</dt>
           <dd>
-            停止前显示地址、实例与在途任务数；--json 成功时此信息包含于 data 的
-            stopped
+            停止前显示本地目录、实例与在途任务数；--json 成功时此信息包含于 data
+            的 stopped
             结果，执行前通过显式选项授权；失败按共享诊断。人类模式给出影响说明和确认。
           </dd>
           <dt>退出码</dt>
           <dd>
-            0 停止及释放确认；2 有在途任务且未授权或缺少必要确认；3
-            目标不可达/结果未知；7 释放不确定；1 其他失败；130
+            0 本次停止及释放确认，或已明确无需停止；2
+            有在途任务且未授权、元数据无效或缺少必要确认；3
+            本地实例状态/身份未知；7 本次释放不确定；1 其他失败；130
             仅适用于请求发送前取消。
           </dd>
           <dt>资源与交互</dt>
           <dd>
             保留应用数据，不影响外部内容源。TTY 确认精确实例；非 TTY 或 --json
-            要求
-            --yes。请求绑定已识别实例，目标实例变化须失败。请求发送后中断不能撤销已发生的停机，应报告已知状态或未知结果。
+            要求 --yes（尚未启动或已确认停止的无变更操作不需确认）。
+            仅操作已核实归属的本机实例，不接管外部进程。
+            请求绑定已识别实例，目标实例变化须失败。请求发送后中断不能撤销已发生的停机，应报告已知状态或未知结果。
           </dd>
         </dl>
         <h3>预期示例（未执行）</h3>
         <div class="examples">
           <div class="example">
             <h3>空闲引擎停止</h3>
-            <pre><code>调用: task-engine engine stop --yes --json
+            <pre><code>调用: task-engine server stop --data-dir D:\TaskEngine\data --yes --json
 stdin: 不使用
-stdout: {"ok":true,"data":{"state":"stopped","engineUrl":"http://127.0.0.1:8787","instanceId":"engine-001","cancelledTasks":0,"reclaimed":true}}
+stdout: {"ok":true,"data":{"state":"stopped","dataDir":"D:\\TaskEngine\\data","instanceId":"engine-001","changed":true,"cancelledTasks":0,"reclaimed":true}}
 stderr: 空
 退出码: 0</code></pre>
           </div>
           <div class="example">
             <h3>在途任务未授权取消</h3>
-            <pre><code>调用: task-engine engine stop --yes --json
+            <pre><code>调用: task-engine server stop --yes --json
 stdin: 不使用
 stdout: 空
 stderr: {"ok":false,"error":{"code":"ACTIVE_TASKS","message":"engine-001 仍有 2 个在途任务，未停止。","hint":"等待任务完成；如需取消，显式使用 --cancel-running --yes。"}}
@@ -831,7 +967,8 @@ stderr: {"ok":false,"error":{"code":"ACTIVE_TASKS","message":"engine-001 仍有 
         </div>
         <h3>待讨论</h3>
         <p>
-          “有在途任务时拒绝”及显式取消方式待批准；不会默认强杀或绕过释放确认。
+          本地身份核实边界已确认；“有在途任务时拒绝”及显式取消方式仍待批准；
+          不会默认强杀、绕过释放确认或新增远程关闭接口。
         </p>
         <p><a href="#command-tree">返回命令树</a></p>
       </section>
@@ -1165,7 +1302,7 @@ stderr: {"ok":false,"error":{"code":"TASK_NOT_FOUND","message":"找不到任务 
             两类范围必须显式选一种，均无默认或用户配置；不提供默认全删或 --all。
           </li>
           <li>
-            <code>--data-dir</code>：目录路径，可省略，映射 engine.dataDir。
+            <code>--data-dir</code>：目录路径，可省略，映射 server.dataDir。
           </li>
           <li>
             <code>--yes</code>：布尔，默认
@@ -1254,7 +1391,7 @@ stderr: {"ok":false,"error":{"code":"DATA_IN_USE","message":"引擎仍在使用�
             <code
               >{items:[{key,userValue,productDefault,effectiveValue,source}]}</code
             >。source 为 user/product/unset；未设置无默认时各值为 null 且
-            source=unset。未设置的 gateway 不妨碍查看配置。
+            source=unset。未设置的 IPFS Gateway 不妨碍查看配置。
           </dd>
           <dt>stderr / 退出码</dt>
           <dd>
@@ -1273,13 +1410,23 @@ stderr: {"ok":false,"error":{"code":"DATA_IN_USE","message":"引擎仍在使用�
             <pre><code>调用: task-engine config list
 stdin: 不使用
 stdout:
-  client.engine    http://127.0.0.1:8787    product
-  engine.dataDir   D:\TaskEngine\data       user
-  engine.gateway  未设置                   unset
-  engine.host     127.0.0.1                product
-  engine.limits   {"concurrency":4,"maxTasks":64,"maxContentBytes":67108864} product
-  engine.port     8787                     product
-  task.timeoutMs  60000                    product
+  client.engine              http://127.0.0.1:8787  product
+  server.bundleCacheBytes     268435456              product
+  server.bundleConcurrency    4                      product
+  server.bundleMaxBytes       67108864               product
+  server.dataDir              D:\TaskEngine\data     user
+  server.host                 127.0.0.1              product
+  server.ipfsGateway          未设置                 unset
+  server.maxChildConcurrent   4                      product
+  server.maxChildDepth        4                      product
+  server.maxChildTotal        64                     product
+  server.maxConcurrent        64                     product
+  server.maxConnections       256                    product
+  server.maxPayloadBytes      65536                  product
+  server.maxPreparing         1000                   product
+  server.maxTasks             10000                  product
+  server.port                 8787                   product
+  task.timeoutMs              60000                  product
 stderr: 空
 退出码: 0</code></pre>
           </div>
@@ -1322,8 +1469,8 @@ stderr: {"ok":false,"error":{"code":"CONFIG_INVALID","message":"用户配置不�
           <dt>stdout</dt>
           <dd>
             人类模式显示键、有效值及来源；JSON data 为与 config list
-            同形的单个配置对象。已知但未设置的 gateway 返回 source=unset，退出
-            0。
+            同形的单个配置对象。已知但未设置的 IPFS Gateway 返回
+            source=unset，退出 0。
           </dd>
           <dt>stderr / 退出码</dt>
           <dd>
@@ -1377,8 +1524,8 @@ stderr: {"ok":false,"error":{"code":"UNKNOWN_CONFIG_KEY","message":"不支持配
           <li><code>&lt;key&gt;</code>：必需已知键。</li>
           <li>
             <code>&lt;value&gt;</code
-            >：必需的显式值。字符串直接解析为字符串，整数键只接受十进制整数，limits
-            接受完整 JSON 对象；不得用 JSON null 表示重置。
+            >：必需的显式值。字符串直接解析为字符串，端口和各限制项只接受十进制整数；
+            不再接受 limits JSON 对象，不得用 JSON null 表示重置。
           </li>
           <li>
             二者均无默认、无用户配置。无
@@ -1417,10 +1564,10 @@ stderr: 空
           </div>
           <div class="example">
             <h3>值无效</h3>
-            <pre><code>调用: task-engine config set engine.port 0 --json
+            <pre><code>调用: task-engine config set server.port 0 --json
 stdin: 不使用
 stdout: 空
-stderr: {"ok":false,"error":{"code":"INVALID_CONFIG_VALUE","message":"engine.port 必须为 1 至 65535 的整数；未修改配置。","hint":"提供有效端口，再显式启动引擎。"}}
+stderr: {"ok":false,"error":{"code":"INVALID_CONFIG_VALUE","message":"server.port 必须为 1 至 65535 的整数；未修改配置。","hint":"提供有效端口，再显式启动引擎。"}}
 退出码: 2</code></pre>
           </div>
         </div>
@@ -1472,9 +1619,9 @@ stderr: {"ok":false,"error":{"code":"INVALID_CONFIG_VALUE","message":"engine.por
         <div class="examples">
           <div class="example">
             <h3>移除内容源配置</h3>
-            <pre><code>调用: task-engine config reset engine.gateway --json
+            <pre><code>调用: task-engine config reset server.ipfsGateway --json
 stdin: 不使用
-stdout: {"ok":true,"data":{"key":"engine.gateway","changed":true,"effectiveValue":null,"source":"unset","appliesTo":"next-engine-start"}}
+stdout: {"ok":true,"data":{"key":"server.ipfsGateway","changed":true,"effectiveValue":null,"source":"unset","appliesTo":"next-engine-start"}}
 stderr: 空
 退出码: 0</code></pre>
           </div>

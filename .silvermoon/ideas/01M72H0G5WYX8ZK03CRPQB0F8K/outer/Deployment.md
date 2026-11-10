@@ -5,6 +5,8 @@
 源码工作区、仅 pack 或本地 tarball 安装均不能替代。
 实现已接受：`implementationRevision=2a707f415a36ca58fa95fa3b399bc3c7a0646cec`；
 部署不修改 Inner World、业务代码、版本或发布验证规则。
+CAR 前置发布的实际执行、认证阻塞与恢复条件见 [CAR 发布证据](./car-release.md)；
+失败尝试不等于已完成发布。
 
 候选版本固定如下；每个待发布包必须分别取得父级明确审批，不因依赖关系自动获准：
 

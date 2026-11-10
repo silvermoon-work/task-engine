@@ -27,14 +27,14 @@
   "packageManager": "pnpm@11.22.0",
   "scripts": {
     "build": "turbo run build",
-    "check": "pnpm format:check && pnpm lint:release && pnpm test:release && turbo run lint typecheck test build && pnpm typecheck:tests && pnpm lint:package",
+    "check": "pnpm format:check && pnpm lint:release && pnpm test:release && turbo run lint typecheck test build --concurrency=1 && pnpm typecheck:tests && pnpm lint:package",
     "clean": "turbo run clean && node -e \"require('node:fs').rmSync('.turbo', { recursive: true, force: true })\"",
     "format": "prettier --write . && biome format --write apps packages",
     "format:check": "prettier --check . && biome format apps packages",
     "lint": "pnpm lint:release && turbo run lint",
     "lint:release": "eslint scripts",
     "lint:package": "pnpm -r exec publint",
-    "test": "pnpm test:release && turbo run test",
+    "test": "pnpm test:release && turbo run test --concurrency=1",
     "test:release": "node --test scripts/*.test.js",
     "typecheck": "turbo run typecheck && pnpm typecheck:tests",
     "typecheck:tests": "tsc -p tsconfig.test.json --pretty false"

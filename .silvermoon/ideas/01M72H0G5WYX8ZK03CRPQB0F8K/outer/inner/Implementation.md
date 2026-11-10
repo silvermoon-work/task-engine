@@ -5,6 +5,8 @@
 实际命令和验收映射记录于 [实现验证](./verification.md)。
 用户已授权取消独立 task-bundle-car 发布单元并重新实施；此前已接受的证明不覆盖本次
 依赖拓扑变化。Ideal r14、事件历史及旧失败 tag 保持不变，重新完成全部 I 项后提交新修订。
+父级另授权修复阻挡发布的测试同步/资源调度：先定位重复 CI 失败，再以新实现候选重新验收；
+不改业务 deadline、生产 Engine 逻辑或发布必需门禁。
 
 ## Steps
 
@@ -37,6 +39,12 @@ Task 规则复用现有 Protocol/Engine 校验，不复制整套归档实现到�
 发布候选。迁移独立包的完整测试，移除发布 mapping、工作区/构建引用与过时模板配置，
 保留不可变历史证据，并为受影响已发布 Engine CLI 准备独立未发布候选而不发布。
 
+### I-S05: 修复回归门禁的同步与资源饥饿
+
+用明确延迟/时序和 runner 资源证据定位固定等待及嵌套测试并发。
+将恢复验证绑定到真实生命周期完成条件并保留失败期限；约束测试执行资源竞争，
+保留所有原测试和业务 deadline，不用放宽断言、跳过选择或反复重跑求绿。
+
 ## Acceptance criteria
 
 ### I-AC01: 命令与结果契约一致
@@ -62,3 +70,12 @@ Builder 的 API 执行许可保持兼容；CLI 自动执行 JS/TS，JSON 不执�
 容量、取消、close 及真实 Engine CAR 消费。Engine CLI 完整生产依赖闭包不得包含独立 CAR 包、
 Builder/Builder CLI、esbuild 或 enhanced-resolve；Builder 的懒资源/文件树行为保持，
 模板、manifest、lockfile、tsconfig、release tests 及文档一致，最终 Node24 `pnpm check` 通过。
+
+### I-AC05: 同步修复与准确提交的 CI 均有真实证据
+
+受控延迟复现旧固定等待失败，修复后成功恢复分支必须等待任务及 Run 实际完成/回收，
+uncertain 分支必须保留 cleanupUnknown 且不重启；原有身份、deadline、启动次数与终态
+断言保持。正常子任务 2000ms、显式 timeout 场景 100ms、
+恢复请求 1000ms 与 VirtualClock 语义不变。最小相关测试和完整 pnpm check 通过，
+新准确 main push SHA 的 Node22/24 及 Release verification (v1) /
+Confirm required checks succeeded 全部实际成功，才重新 submitInner。

@@ -45,6 +45,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Report validation resources
+        run: |
+          node -e "const os = require('node:os'); console.log(JSON.stringify({ node: process.version, platform: process.platform, arch: process.arch, availableParallelism: os.availableParallelism(), logicalCpus: os.cpus().length, memoryBytes: os.totalmem() }, null, 2))"
+
       - name: Run all checks
         run: pnpm check
 

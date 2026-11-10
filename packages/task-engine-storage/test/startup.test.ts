@@ -3,6 +3,7 @@ import { fork } from "node:child_process";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { newId } from "@silvermoon-work/task-engine";
 import { VirtualClock } from "@silvermoon-work/task-engine/testing";
@@ -11,8 +12,14 @@ import { project } from "@silvermoon-work/task-protocol";
 import { createFixtureEngine as createTaskEngine } from "../../task-engine/test/driver.js";
 import { openSqliteStore } from "../src/index.js";
 
-for (const boundary of ["before", "after"]) {
-  test(`crash ${boundary} startup commit distinguishes resumable queued from uncertain run`, async () => {
+for (const { boundary, effectDelayMs } of [
+  { boundary: "before", effectDelayMs: 0 },
+  { boundary: "after", effectDelayMs: 0 },
+  { boundary: "before", effectDelayMs: 5000 },
+]) {
+  test(`crash ${boundary} startup commit distinguishes resumable queued from uncertain run${effectDelayMs ? " with delayed effect" : ""}`, {
+    timeout: 60_000,
+  }, async (t) => {
     await mkdir(resolve(".cache"), { recursive: true });
     const root = await mkdtemp(join(resolve(".cache"), "task-startup-"));
     const filename = join(root, "tasks.sqlite");
@@ -59,7 +66,8 @@ for (const boundary of ["before", "after"]) {
       configuration: {},
       resourceLifetime: "request",
       resources: {
-        async effect() {
+        async effect(_input, context) {
+          if (effectDelayMs) await delay(effectDelayMs, undefined, { signal: context.signal });
           starts++;
           return { text: "crash" };
         },
@@ -75,21 +83,42 @@ for (const boundary of ["before", "after"]) {
       authorize: () => true,
     });
     try {
+      const observedAt = performance.now();
       await engine.start();
       engine.tick();
-      for (
-        let index = 0;
-        index < 200 &&
-        !engine.getTask(before.taskId, { scope: "a", subject: "tester" }).termination;
-        index++
-      )
-        await new Promise((resolve) => setTimeout(resolve, 5));
-      engine.tick();
+      // Observe committed completion/reclamation, not an assumed wall-time duration.
+      // The persisted request still has its original VirtualClock deadline.
+      const idle = engine.waitForIdle(
+        () => !!engine.getTask(before.taskId, { scope: "a", subject: "tester" }).termination,
+        AbortSignal.any([t.signal, AbortSignal.timeout(10_000)]),
+      );
+      if (boundary === "before") await idle;
+      else await assert.rejects(idle, { code: "reclamation_unknown" });
       const task = engine.getTask(before.taskId, { scope: "a", subject: "tester" });
+      t.diagnostic(
+        JSON.stringify({
+          boundary,
+          effectDelayMs,
+          recoveryWallMs: Math.round(performance.now() - observedAt),
+          stage: task.stage,
+          starts,
+          virtualNow: clock.now(),
+          deadlineAt: task.deadlineAt,
+        }),
+      );
       assert.equal(task.requestId, before.request.requestId);
       assert.equal(task.deadlineAt, before.deadlineAt);
       assert.equal(starts, boundary === "before" ? 1 : 0);
       assert.equal(task.stage, boundary === "before" ? "completed" : "stopped");
+      assert.ok(
+        Object.values(store.read().facts.runs).every(
+          (run) =>
+            run.exit &&
+            (boundary === "before"
+              ? run.reclaimedAt && !run.cleanupUnknown
+              : run.cleanupUnknown && !run.reclaimedAt),
+        ),
+      );
       if (boundary === "after") assert.equal(task.error, undefined);
     } finally {
       await engine.close();

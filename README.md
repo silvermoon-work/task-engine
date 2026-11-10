@@ -157,6 +157,14 @@ pnpm --filter @silvermoon-work/task-protocol test
 | `pnpm check`     | Run formatting, lint, types, tests, builds and publint |
 | `pnpm clean`     | Remove workspace outputs and Turborepo state           |
 
+`pnpm check` and `pnpm test` limit Turborepo to one workspace task at a time.
+Engine and SQLite storage also run one test file at a time: these integration
+suites launch real Workers/child processes, so multiplying workspace and
+test-file concurrency can starve the same short business deadlines under test.
+This changes execution scheduling, not test selection, Task concurrency,
+deadlines or assertions. CI reports its actual CPU/memory resources and still
+runs the complete check on both required Node versions.
+
 ## Adding a workspace
 
 Every direct child of `apps/` or `packages/` is discovered automatically. Give

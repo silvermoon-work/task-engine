@@ -44,7 +44,9 @@ function redact(text) {
 async function exists(path) { try { await access(path); return true; } catch (error) { if (error.code === "ENOENT") return false; throw error; } }
 async function invoke(label, file, args, { cwd = work, env = process.env, input, expected = 0, json = false, timeout = 120000 } = {}) {
   const startedAt = new Date().toISOString();
-  const child = spawn(file, args, { cwd, env, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
+  const child = spawn(file, args, { cwd, env, windowsHide: true,
+    windowsVerbatimArguments:process.platform==="win32" && file.toLowerCase()===(process.env.ComSpec??"").toLowerCase(),
+    stdio: ["pipe", "pipe", "pipe"] });
   let stdout = "", stderr = "", timedOut = false;
   child.stdout.on("data", (part) => { stdout += part; });
   child.stderr.on("data", (part) => { stderr += part; });
@@ -218,7 +220,7 @@ try {
   assert.equal(manifest.version,cliVersion);
   const v = await invoke("installed CLI --version",process.execPath,[cliBin,"--version"],{env:cliEnv});
   assert.equal(v.stdout.trim(),cliVersion);
-  await invoke("npm-generated executable shim --version",process.env.ComSpec,["/d","/s","/c",`"${report.cliShim}" --version`],{env:cliEnv});
+  await invoke("npm-generated executable shim --version",process.env.ComSpec,["/d","/s","/c",`call "${report.cliShim}" --version`],{env:cliEnv});
   const help = await invoke("installed CLI --help",process.execPath,[cliBin,"--help"],{env:cliEnv});
   assert.match(help.stdout,/Usage: task-engine/);
   const loader = `export function resolve(specifier,context,nextResolve){if(specifier==="node:sqlite")throw new Error("Metadata loaded SQLite.");return nextResolve(specifier,context);}`;

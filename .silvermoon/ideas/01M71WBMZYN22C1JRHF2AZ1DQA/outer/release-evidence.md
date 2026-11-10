@@ -91,6 +91,14 @@ Node 的默认 Windows 参数转义把脚本内引号转成了字面的反斜线
 不改已接受实现、不关闭 warnings、不跳过 shim 断言。失败发生在启动任何 Server 之前，
 没有遗留任务进程；自有 profile 目录已清理。重验前同步新脚本与契约修订。
 其余 smoke 尚未完成，不能因安装或发布成功预填运行验收成功。
+第二轮中 shim、元信息 SQLite 守卫、生产闭包 262 包、配置四动作、
+已发布 Builder 工具和显式新 SDK 的实际 npm 安装均通过。
+随后 harness 用 CommonJS require.resolve 解析 import-only 的 `@ipld/car/reader` 导出失败；
+这是测试工具的 ESM 条件解析上下文错误，不是 CAR 包缺失或安装失败。
+保留 [registry-smoke-attempt-2.json](./registry-smoke-attempt-2.json)，
+改为在实际 producer 安装 cwd 用原生 import.meta.resolve 解析 ESM 导出，
+并断言解析后的 realpath 属于仓库外安装，不转而加载 repo 或私有实现。
+仍未启动 Server；只精确重建本任务生成的 fixture project，安装 prefix 保留。
 验收脚本为 [registry-smoke.mjs](./registry-smoke.mjs)，执行前须与本计划同步。
 脚本只从实际 registry 安装的包运行，在仓库外 cwd/prefix 记录命令、输出、
 退出码、integrity、真实入口、生产依赖闭包、共享多块图、数据清理与自有 PID 停止。

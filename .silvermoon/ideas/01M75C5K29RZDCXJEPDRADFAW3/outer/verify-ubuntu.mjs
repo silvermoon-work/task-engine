@@ -67,7 +67,10 @@ async function stop(directory, home) {
 async function start(directory, home, value, gateway) {
   const result = await cli(["server", "start", "--data-dir", directory, "--port", String(value), "--ipfs-gateway", gateway], home);
   started.add(directory);
-  return result;
+  const instance = JSON.parse(await readFile(join(directory, "instance.json"), "utf8"));
+  assert.ok(Number.isSafeInteger(instance.pid) && instance.pid > 0);
+  process.kill(instance.pid, 0);
+  return { ...result, pid: instance.pid };
 }
 async function checkStatus(url, expected, options = {}) {
   const response = await fetch(url, { signal: AbortSignal.timeout(15000), ...options });
@@ -122,6 +125,7 @@ try {
     a: await start(a, homeA, portA, upstreamUrl),
     b: await start(b, homeB, portB, urlA),
   };
+  assert.notEqual(report.instances.a.pid, report.instances.b.pid);
   const primed = await cli(["run", "--engine", urlA, "--car", car, "--input", input]);
   assert.equal(primed.status, "succeeded");
   assert.deepEqual(primed.output.result, expected);

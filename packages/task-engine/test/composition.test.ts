@@ -452,13 +452,16 @@ test("generic host-mediated child Tasks", { timeout: 60_000 }, async (t) => {
         await readFile(join(directory, "crash-facts.json"), "utf8"),
       ) as StoreView;
       let owner: string | undefined;
+      const content = new MemoryStore();
       const store: Store = {
         claim(id) {
+          content.claim(id);
           owner = id;
         },
         release(id) {
           assert.equal(id, owner);
           owner = undefined;
+          content.release(id);
         },
         read: () => structuredClone(snapshot),
         append(id, watermark, events) {
@@ -478,7 +481,12 @@ test("generic host-mediated child Tasks", { timeout: 60_000 }, async (t) => {
         compact() {
           throw new Error("Not required.");
         },
-        close() {},
+        readContentBlock: content.readContentBlock.bind(content),
+        writeContentBlock: content.writeContentBlock.bind(content),
+        retainRunContent: content.retainRunContent.bind(content),
+        readRunContentRoots: content.readRunContentRoots.bind(content),
+        readRunContentAccess: content.readRunContentAccess.bind(content),
+        close: () => content.close(),
       };
       const errors: unknown[] = [];
       const engine = createTaskEngine({

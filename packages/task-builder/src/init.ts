@@ -29,7 +29,7 @@ export function createTaskProject(options: TaskProjectOptions = {}): ReadonlyFil
     );
   const taskName = options.taskName ?? name.split("/").at(-1)!;
   const minVersion = options.minRuntimeVersion ?? "22.13.0";
-  const sdkVersion = options.sdkVersion ?? "0.1.0-canary-261109-2";
+  const sdkVersion = options.sdkVersion ?? "0.1.0-canary-261111-2";
   if (!sdkVersion.trim() || [...sdkVersion].some((char) => char.charCodeAt(0) < 32))
     throw new Error("Dependency specifiers must be nonempty without control characters.");
   validateTaskBundle({
@@ -107,7 +107,9 @@ import type { Input, Result } from "./contract.js";
 import { greet } from "./helper.js";
 
 runTask<Input, Result>(async (input, context) => {
-  const reader = context.bundle.read("resources/greeting.txt").getReader();
+  const greeting = await context.bundle.root.resolve("resources/greeting.txt").read();
+  if (greeting.kind !== "file") throw new Error("Expected greeting file.");
+  const reader = greeting.content.getReader();
   const decoder = new TextDecoder("utf-8", { fatal: true });
   let prefix = "";
   let bytes = 0;

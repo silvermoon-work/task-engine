@@ -27,6 +27,29 @@ class DurableDomain extends MemoryStore {
     private readonly root: string,
   ) {
     super();
+    this.repository.db.exec(`
+      CREATE TABLE IF NOT EXISTS ipfs_blocks (cid TEXT PRIMARY KEY, bytes BLOB NOT NULL);
+      CREATE TABLE IF NOT EXISTS run_content_roots (
+        run_id TEXT NOT NULL, cid TEXT NOT NULL, PRIMARY KEY (run_id, cid)
+      );
+    `);
+  }
+  override readContentBlock(cid: string): Uint8Array | undefined {
+    return this.repository.readContentBlock(cid);
+  }
+  override writeContentBlock(owner: string, cid: string, bytes: Uint8Array): void {
+    super.writeContentBlock(owner, cid, bytes);
+    this.repository.write(() => {
+      this.repository.db.prepare("INSERT OR IGNORE INTO ipfs_blocks VALUES (?,?)").run(cid, bytes);
+    });
+  }
+  override retainRunContent(owner: string, runId: string, cid: string): void {
+    super.retainRunContent(owner, runId, cid);
+    this.repository.write(() => {
+      this.repository.db
+        .prepare("INSERT OR IGNORE INTO run_content_roots VALUES (?,?)")
+        .run(runId, cid);
+    });
   }
   override append(owner: string, watermark: number, events: NewEvent[]) {
     const view = super.append(owner, watermark, events);
@@ -55,6 +78,10 @@ class DurableDomain extends MemoryStore {
         record.roots = [cid];
         if (snapshot) {
           record.status = statusOf(snapshot, view.facts);
+          if (snapshot.outputCid) {
+            record.outputCid = snapshot.outputCid;
+            record.roots.push(snapshot.outputCid);
+          }
           if (Object.hasOwn(snapshot, "result")) record.result = snapshot.result!;
           if (snapshot.error) record.error = snapshot.error;
           const run = snapshot.run && view.facts.runs[snapshot.run.runId];

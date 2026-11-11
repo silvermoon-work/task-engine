@@ -2,5 +2,6 @@
 export * from "./json.js";
 export * from "./logs.js";
 export * from "./run.js";
+export * from "./spaces.js";
 export type { ResolvedTaskBundle } from "./bundle.js";
 export { taskSchemaUri } from "./task-schema-uri.js";

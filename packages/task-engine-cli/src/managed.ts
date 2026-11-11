@@ -475,6 +475,7 @@ export function taskResult(task: TaskRecord): ResponseValue {
   const data = {
     taskId: task.taskId,
     status: task.status,
+    ...(task.outputCid ? { outputCid: task.outputCid } : {}),
     ...(Object.hasOwn(task, "result") ? { result: task.result } : {}),
   };
   if (!task.released)
@@ -884,6 +885,7 @@ export async function serveManaged(
         const page = items.slice(offset, offset + limit).map((task) => ({
           taskId: task.taskId,
           status: task.status,
+          ...(task.outputCid ? { outputCid: task.outputCid } : {}),
           createdAt: task.createdAt,
           ...(body.id === undefined
             ? {

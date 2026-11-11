@@ -37,6 +37,11 @@ task-engine config reset task.timeoutMs
 {"ok":true,"data":{"taskId":"opaque-id","status":"succeeded","result":null}}
 ```
 
+成功完成的新版 Run 另带 `outputCid`，`run`、`task await` 和 `task query`
+均可取得；它不改写业务 `result`。输出文件块及保留根存入实例的 SQLite，
+重启后仍可被后续任务通过 `context.space(cid)` 读取。离线 `data prune --cache`
+同时标记文件缓存和 SQLite 输出块，只删除不再被保留任务引用的内容。
+
 失败为 `{"ok":false,"error":{"code":"…","message":"…"}}`。
 有可信任务结果或已完成的部分清理时，同一对象保留 `data`，不伪称回滚。
 `error` 只有 `code/message`；stderr 仅用于实现 logging。

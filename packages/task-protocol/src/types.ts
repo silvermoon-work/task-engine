@@ -77,6 +77,7 @@ export interface TaskSnapshot {
   run?: {
     runId: string;
     startedAt: string;
+    contentAccess?: string[];
     matchedAt?: string;
     completedAt?: string;
     failedAt?: string;
@@ -85,6 +86,7 @@ export interface TaskSnapshot {
   termination?: { terminatedAt: string };
   error?: ErrorFact;
   result?: Json;
+  outputCid?: string;
 }
 export interface Binding {
   /** Host-owned isolation identity; absent for ordinary non-composing Tasks. */
@@ -114,7 +116,7 @@ export interface TaskRecord {
   canceledSequence?: number;
 }
 export type RunOutcome =
-  | { kind: "completed"; result: Json; occurredAt: string }
+  | { kind: "completed"; result: Json; outputCid?: string; occurredAt: string }
   | { kind: "failed"; error: ErrorFact; result?: Json; occurredAt: string };
 export interface RunExit {
   basis: "worker" | "recovery";
@@ -125,6 +127,7 @@ export interface RunExit {
 }
 export interface RunRecord {
   runId: string;
+  contentAccess?: string[];
   generation: string;
   binding: Binding;
   input: Json;
@@ -140,6 +143,7 @@ export interface RunRecord {
   completedAt?: string;
   failedAt?: string;
   result?: Json;
+  outputCid?: string;
   error?: ErrorFact;
   reclaimedAt?: string;
   workerGeneration?: string;
@@ -188,6 +192,7 @@ export interface EventData {
   "run.dispatched": { workerGeneration: string };
   "run.evidence": { kind: "checkpoint" | "late-completed" | "late-failed"; value: Json };
   "run.progress": { progress: Json };
+  "run.content-access": { sid: string };
   "run.outcome": { outcome: RunOutcome };
   "run.stop.requested": { reason: string };
   "run.stopping": Record<string, never>;
@@ -236,6 +241,7 @@ export interface RunSnapshot {
   bundle?: BundleReference;
   name?: string;
   runId: string;
+  contentAccess?: string[];
   dataDomain: string;
   revision: Revision;
   timestamp: string;
@@ -255,6 +261,7 @@ export interface RunSnapshot {
   failedAt?: string;
   stoppedAt?: string;
   result?: Json;
+  outputCid?: string;
   error?: ErrorFact;
   progress?: Json;
   reclaimedAt?: string;
@@ -269,6 +276,13 @@ export interface StoreView {
   events: FactEvent[];
 }
 export interface Store {
+  readContentBlock?(cid: string): Uint8Array | undefined;
+  writeContentBlock?(owner: string, cid: string, bytes: Uint8Array): void;
+  retainRunContent?(owner: string, runId: string, cid: string): void;
+  readRunContentRoots?(runId: string): string[];
+  /** Diagnostic associations only; never grants content access authority. */
+  recordRunContentAccess?(owner: string, runId: string, sid: string): void;
+  readRunContentAccess?(runId: string): string[];
   markRunLogsUnavailable?: import("./logs.js").RunLogStorage["markRunLogsUnavailable"];
   readRunLogs?: import("./logs.js").RunLogStorage["readRunLogs"];
   writeRunLogs?: import("./logs.js").RunLogStorage["writeRunLogs"];
@@ -369,6 +383,7 @@ export interface TaskQuery {
 }
 export interface TaskSummary {
   bundle?: BundleReference;
+  outputCid?: string;
   name?: string;
   taskId: string;
   requestId: string;
@@ -415,6 +430,7 @@ export interface RunQuery {
 }
 export interface RunSummary {
   bundle?: BundleReference;
+  outputCid?: string;
   name?: string;
   runId: string;
   type: string;

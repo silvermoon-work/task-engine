@@ -310,6 +310,7 @@ export function project(
   };
   if (run && match) {
     snapshot.run = { runId: run.runId, startedAt: run.startedAt, matchedAt: match.observedAt };
+    if (run.contentAccess) snapshot.run.contentAccess = [...run.contentAccess];
     if (run.exit) {
       snapshot.termination = { terminatedAt: run.exit.occurredAt };
       if (stage === "completed") snapshot.run.completedAt = run.exit.occurredAt;
@@ -322,6 +323,7 @@ export function project(
       );
     if (includeResult && (stage === "completed" || stage === "failed") && run.result !== undefined)
       snapshot.result = structuredClone(run.result);
+    if (stage === "completed" && run.outputCid !== undefined) snapshot.outputCid = run.outputCid;
   }
   return snapshot;
 }
@@ -333,6 +335,7 @@ export function projectRun(facts: Facts, runId: string, now: number): RunSnapsho
   const snapshot: RunSnapshot = {
     ...parentAssociation(facts, run.binding.compositionId),
     runId,
+    ...(run.contentAccess ? { contentAccess: [...run.contentAccess] } : {}),
     ...(run.binding.bundle
       ? { bundle: structuredClone(run.binding.bundle), name: run.binding.declaration!.name }
       : {}),
@@ -355,6 +358,7 @@ export function projectRun(facts: Facts, runId: string, now: number): RunSnapsho
     ...(run.failedAt ? { failedAt: run.failedAt } : {}),
     ...(run.exit && runStage(run) === "stopped" ? { stoppedAt: run.exit.occurredAt } : {}),
     ...(run.result === undefined ? {} : { result: structuredClone(run.result) }),
+    ...(run.outputCid === undefined ? {} : { outputCid: run.outputCid }),
     ...(run.error ? { error: structuredClone(run.error) } : {}),
     ...(run.progress === undefined ? {} : { progress: structuredClone(run.progress) }),
     ...(run.reclaimedAt ? { reclaimedAt: run.reclaimedAt } : {}),
@@ -555,6 +559,8 @@ export function reduce(prefix: Facts, events: readonly FactEvent[]): Facts {
           created.completedAt ||
           created.failedAt ||
           created.result !== undefined ||
+          created.outputCid !== undefined ||
+          created.contentAccess !== undefined ||
           created.error ||
           created.reclaimedAt ||
           created.cleanupUnknown ||
@@ -585,12 +591,20 @@ export function reduce(prefix: Facts, events: readonly FactEvent[]): Facts {
         run.stoppingAt = event.occurredAt;
         run.stoppingSequence = event.sequence;
         break;
+      case "run.content-access":
+        if (!run || typeof event.data.sid !== "string" || !event.data.sid)
+          fail("invalid_fact", "Invalid Run content access.");
+        run.contentAccess ??= [];
+        if (!run.contentAccess.includes(event.data.sid)) run.contentAccess.push(event.data.sid);
+        break;
       case "run.outcome":
         if (!run || run.exit || run.outcome)
           fail("invalid_fact", "Run no longer accepts a result.");
         if (event.data.outcome.occurredAt !== event.occurredAt)
           fail("invalid_fact", "Outcome time mismatch.");
         run.outcome = structuredClone(event.data.outcome);
+        if (run.outcome.kind === "completed" && run.outcome.outputCid !== undefined)
+          run.outputCid = run.outcome.outputCid;
         break;
       case "run.exited":
         if (!run || run.exit) fail("invalid_fact", "Duplicate exit.");

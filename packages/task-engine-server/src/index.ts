@@ -18,6 +18,7 @@ export interface ServerOptions {
   bundlePrefetch?: EngineOptions["bundlePrefetch"];
   bundleLimits?: EngineOptions["bundleLimits"];
   bundleConcurrency?: number;
+  spaceLimits?: EngineOptions["spaceLimits"];
   authorize: EngineOptions["authorize"];
   resolveCaller: HandlerOptions["resolveCaller"];
   store?: Store;
@@ -139,6 +140,24 @@ export async function startTaskServer(options: ServerOptions): Promise<TaskServe
       read: () => underlying.read(),
       append: (...args) => underlying.append(...args),
       compact: (...args) => underlying.compact(...args),
+      ...(underlying.readContentBlock
+        ? { readContentBlock: underlying.readContentBlock.bind(underlying) }
+        : {}),
+      ...(underlying.writeContentBlock
+        ? { writeContentBlock: underlying.writeContentBlock.bind(underlying) }
+        : {}),
+      ...(underlying.retainRunContent
+        ? { retainRunContent: underlying.retainRunContent.bind(underlying) }
+        : {}),
+      ...(underlying.readRunContentRoots
+        ? { readRunContentRoots: underlying.readRunContentRoots.bind(underlying) }
+        : {}),
+      ...(underlying.recordRunContentAccess
+        ? { recordRunContentAccess: underlying.recordRunContentAccess.bind(underlying) }
+        : {}),
+      ...(underlying.readRunContentAccess
+        ? { readRunContentAccess: underlying.readRunContentAccess.bind(underlying) }
+        : {}),
       ...(underlying.markRunLogsUnavailable
         ? { markRunLogsUnavailable: underlying.markRunLogsUnavailable.bind(underlying) }
         : {}),
@@ -163,6 +182,7 @@ export async function startTaskServer(options: ServerOptions): Promise<TaskServe
         ? { bundleConcurrency: options.bundleConcurrency }
         : {}),
       ...(options.bundleLimits ? { bundleLimits: options.bundleLimits } : {}),
+      ...(options.spaceLimits ? { spaceLimits: options.spaceLimits } : {}),
       authorize: options.authorize,
       ...(options.logs ? { logs: options.logs } : {}),
       ...(options.limits ? { limits: options.limits } : {}),

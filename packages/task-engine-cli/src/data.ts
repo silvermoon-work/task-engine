@@ -30,6 +30,7 @@ export interface TaskRecord {
   timeoutMs: number;
   input?: Record<string, Json>;
   cid?: string;
+  outputCid?: string;
   cancelRequested?: boolean;
   releaseProof?: Json;
   logsError?: ErrorFact;
@@ -216,6 +217,19 @@ export class Repository {
       .all()
       .map((row) => this.decode(row));
   }
+  readContentBlock(cid: string): Uint8Array | undefined {
+    if (
+      !this.db
+        .prepare("SELECT 1 FROM sqlite_schema WHERE type='table' AND name='ipfs_blocks'")
+        .get()
+    )
+      return undefined;
+    const row = this.db.prepare("SELECT bytes FROM ipfs_blocks WHERE cid=?").get(cid);
+    if (!row) return undefined;
+    if (!(row.bytes instanceof Uint8Array))
+      throw new TaskError("storage_corrupt", "Invalid retained IPFS block.");
+    return new Uint8Array(row.bytes);
+  }
   private decode(row: Record<string, import("node:sqlite").SQLOutputValue>): TaskRecord {
     const task = JSON.parse(String(row.payload)) as TaskRecord;
     if (
@@ -296,6 +310,7 @@ export class DiskContent implements GatewayClient {
     gateway?: string,
     private readonly failed: (error: unknown) => void = () => {},
     private readonly beforeWrite?: () => void,
+    private readonly retainedBlock?: (cid: string) => Uint8Array | undefined,
   ) {
     this.checkDirectory();
     if (gateway) this.gateway = createIpfsGatewayClient(gateway, { allowPath: true });
@@ -332,7 +347,20 @@ export class DiskContent implements GatewayClient {
   async local(cid: CID): Promise<Uint8Array> {
     this.checkDirectory();
     const path = join(this.directory, "blocks", cid.toV1().toString());
-    const metadata = await lstat(path);
+    const metadata = await lstat(path).catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== "ENOENT") throw error;
+      return undefined;
+    });
+    if (!metadata) {
+      const retained = this.retainedBlock?.(cid.toV1().toString());
+      if (!retained) {
+        const error: NodeJS.ErrnoException = new Error(`Content block is not cached: ${cid}.`);
+        error.code = "ENOENT";
+        throw error;
+      }
+      await verifyBlock(cid, retained);
+      return retained;
+    }
     if (!metadata.isFile() || metadata.isSymbolicLink())
       throw new TaskError("CACHE_OWNERSHIP_UNKNOWN", "Cache block is not a regular file.");
     const bytes = await readFile(path);
@@ -431,7 +459,13 @@ export async function pruneData(
       await new Promise<void>((resolve) => setImmediate(resolve));
     }
     if (selection.cache) {
-      const content = new DiskContent(repository.directory);
+      const content = new DiskContent(
+        repository.directory,
+        undefined,
+        undefined,
+        undefined,
+        (cid) => repository.readContentBlock(cid),
+      );
       const marked = new Set<string>();
       const pending = repository.all().flatMap((task) => {
         if (!task.released)
@@ -481,6 +515,31 @@ export async function pruneData(
         counts.deletedCacheBlocks!++;
         counts.deletedCacheBytes! += metadata.size;
       }
+      if (
+        repository.db
+          .prepare("SELECT 1 FROM sqlite_schema WHERE type='table' AND name='ipfs_blocks'")
+          .get()
+      )
+        for (const row of repository.db
+          .prepare("SELECT cid, length(bytes) AS size FROM ipfs_blocks")
+          .all()) {
+          signal?.throwIfAborted();
+          const cid = String(row.cid);
+          if (marked.has(cid)) continue;
+          repository.write(() => {
+            repository.db.exec("BEGIN IMMEDIATE");
+            try {
+              repository.db.prepare("DELETE FROM run_content_roots WHERE cid=?").run(cid);
+              repository.db.prepare("DELETE FROM ipfs_blocks WHERE cid=?").run(cid);
+              repository.db.exec("COMMIT");
+            } catch (error) {
+              repository.db.exec("ROLLBACK");
+              throw error;
+            }
+          });
+          counts.deletedCacheBlocks!++;
+          counts.deletedCacheBytes! += Number(row.size);
+        }
     }
     return { ok: true as const, data: counts };
   } catch (error) {

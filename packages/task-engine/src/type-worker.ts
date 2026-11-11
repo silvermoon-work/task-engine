@@ -90,10 +90,16 @@ const modulePath = realpathSync(fileURLToPath(workerData.module));
 if (createHash("sha256").update(readFileSync(modulePath)).digest("hex") !== config.moduleDigest)
   throw new Error("宿主选定的类型模块内容已变化。");
 const module = await import(pathToFileURL(realpathSync(fileURLToPath(workerData.module))).href);
+type LegacyRunContext = Omit<RunContext<Json>, "bundle" | "output" | "space"> & {
+  checkpoint(value: Json): Promise<void>;
+};
+type LegacyTaskType = Omit<TaskType<Json, Json, Json>, "run"> & {
+  run(input: Json, context: LegacyRunContext): Promise<Json>;
+};
 const factory = module[config.exportName] as (
   configuration: Json,
   resources: { invoke(context: object, action: string, value: Json): Promise<Json> },
-) => TaskType<Json, Json, Json> | Promise<TaskType<Json, Json, Json>>;
+) => LegacyTaskType | Promise<LegacyTaskType>;
 const type = await factory(config.configuration, {
   invoke: async (context, action, value) => {
     const runId = capabilities.get(context);
@@ -272,7 +278,7 @@ port.on("message", (message) => {
     tasks: new Map<string, AbortController>(),
   };
   runs.set(message.runId, run);
-  const context: RunContext<Json> = Object.freeze({
+  const context: LegacyRunContext = Object.freeze({
     log: async () => ({ state: "unavailable" as const, reason: "unsupported" as const }),
     runId: message.runId,
     scope: message.scope,

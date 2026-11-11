@@ -25,3 +25,19 @@ events or Result. Its writes/status retention use the same exclusive Engine
 lease; lifecycle projection version remains 5. See
 [Run Logs](https://github.com/shazhou-ww/potential-guide/blob/3500086123d8b821b77958699ceeebfb2a518e0f/docs/task-run-logs.md) for logical budgets, expiry/missing states,
 SQLite high-water allocation, and the separate `logFault` test hook.
+
+IPFS blocks and logical recursive-retention roots are stored in additive
+`ipfs_blocks` and `run_content_roots` tables. Roots may be retained before the
+Run outcome is recorded, and multiple Runs may retain the same CID. Blocks are
+immutable; conflicting bytes are rejected. There is no content garbage
+collection: neither forgetting a Run nor compacting lifecycle history deletes
+retained blocks or roots. Mutations require the exclusive Engine lease.
+`run_content_access` stores diagnostic Run/space associations, not authorization
+grants. The additive `run.content-access` lifecycle event authoritatively
+projects de-duplicated SIDs onto Run snapshots and the Task snapshot's nested
+Run. Read methods do not create tables or require a lease.
+
+Completed outcomes optionally retain `outputCid` in the existing `run.outcome`
+event and its projection. Existing v5 events remain valid without it, so neither
+the projection nor SQLite format version changes; old v5 stores add the content
+tables on their first owner-authorized content mutation.

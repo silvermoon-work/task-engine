@@ -13,14 +13,15 @@ for (const mode of ["explicit", "callback"] as const)
     const root = resolve(".cache", `worker-${randomUUID()}`);
     await mkdir(root, { recursive: true });
     let worker: Worker | undefined;
-    let resource: ReadableStreamDefaultReader<Uint8Array> | undefined;
     try {
       const repository = resolve("..", "..");
       const logical = (path: string) => relative(repository, path).split(sep).join("/");
       await writeFile(
         join(root, "main.ts"),
         `${mode === "explicit" ? 'import {runTask} from "@silvermoon-work/task-sdk";\nrunTask(' : "export default "}async (input, context) => {
-  const reader = context.bundle.read("resources/text").getReader();
+  const node = await context.bundle.root.resolve("resources/text").read();
+  if (node.kind !== "file") throw Error("Expected file.");
+  const reader = node.content.getReader();
   let text = "";
   const decoder = new TextDecoder();
   for (;;) {
@@ -63,7 +64,10 @@ for (const mode of ["explicit", "callback"] as const)
           generation,
           maxInFlight: 4,
           maxPayloadBytes: 65_536,
-          bundle: { cid: "fixture-root", declaration: checked.resolved },
+          bundle: {
+            cid: "bafkreigh2akiscaildc6a3lqslx3wa6b73grwfyfxtv7xrlrghg5k3gz2e",
+            declaration: checked.resolved,
+          },
         },
       });
       const active = worker;
@@ -87,16 +91,18 @@ for (const mode of ["explicit", "callback"] as const)
                 scope: "scope",
                 input: { text: "hello " },
               });
-            else if (message.kind === "bundle-pull" && "readId" in message) {
-              resource ??= (await output.read("resources/text")).getReader();
-              const item = await resource.read();
-              active.postMessage({
-                generation,
-                kind: "bundle-data",
-                readId: message.readId,
-                done: item.done,
-                ...(item.done ? {} : { chunk: item.value }),
-              });
+            else if (message.kind === "space-request" && "spaceId" in message) {
+              const content = await output.read("resources/text");
+              active.postMessage(
+                {
+                  generation,
+                  runId: "run",
+                  kind: "space-result",
+                  spaceId: message.spaceId,
+                  value: { kind: "file", content },
+                },
+                [content],
+              );
             } else if ("id" in message) {
               if (message.kind === "failed") throw new Error(JSON.stringify(message));
               if (message.kind === "complete" && "value" in message) result = message.value;
@@ -111,10 +117,6 @@ for (const mode of ["explicit", "callback"] as const)
       assert.equal(result, "hello stream\nresource");
     } finally {
       await worker?.terminate();
-      if (resource) {
-        await resource.cancel();
-        resource.releaseLock();
-      }
       await rm(root, { recursive: true, force: true });
     }
   });

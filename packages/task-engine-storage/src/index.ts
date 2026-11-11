@@ -116,6 +116,65 @@ function preflight(filename: string): void {
 }
 
 export class SqliteStore implements Store {
+  private contentInitialized = false;
+  private initializeContent(): void {
+    if (this.contentInitialized) return;
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS ipfs_blocks (cid TEXT PRIMARY KEY, bytes BLOB NOT NULL);
+      CREATE TABLE IF NOT EXISTS run_content_roots (
+        run_id TEXT NOT NULL, cid TEXT NOT NULL, PRIMARY KEY (run_id, cid)
+      );
+      CREATE TABLE IF NOT EXISTS run_content_access (
+        run_id TEXT NOT NULL, sid TEXT NOT NULL, PRIMARY KEY (run_id, sid)
+      );
+    `);
+    this.contentInitialized = true;
+  }
+  private hasContentTable(name: string): boolean {
+    if (this.closed) fail("storage_failure", "Store closed.");
+    return !!this.db.prepare("SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?").get(name);
+  }
+  readContentBlock(cid: string): Uint8Array | undefined {
+    if (!this.hasContentTable("ipfs_blocks")) return undefined;
+    const row = this.db.prepare("SELECT bytes FROM ipfs_blocks WHERE cid=?").get(cid);
+    return row ? Uint8Array.from(row.bytes as Uint8Array) : undefined;
+  }
+  writeContentBlock(owner: string, cid: string, bytes: Uint8Array): void {
+    this.owned(owner);
+    this.initializeContent();
+    const existing = this.readContentBlock(cid);
+    if (existing && !Buffer.from(existing).equals(bytes))
+      fail("storage_conflict", "Content block bytes do not match the retained CID.");
+    this.db.prepare("INSERT OR IGNORE INTO ipfs_blocks (cid,bytes) VALUES (?,?)").run(cid, bytes);
+  }
+  retainRunContent(owner: string, runId: string, cid: string): void {
+    this.owned(owner);
+    this.initializeContent();
+    this.db
+      .prepare("INSERT OR IGNORE INTO run_content_roots (run_id,cid) VALUES (?,?)")
+      .run(runId, cid);
+  }
+  readRunContentRoots(runId: string): string[] {
+    if (!this.hasContentTable("run_content_roots")) return [];
+    return this.db
+      .prepare("SELECT cid FROM run_content_roots WHERE run_id=? ORDER BY cid")
+      .all(runId)
+      .map((row) => String(row.cid));
+  }
+  recordRunContentAccess(owner: string, runId: string, sid: string): void {
+    this.owned(owner);
+    this.initializeContent();
+    this.db
+      .prepare("INSERT OR IGNORE INTO run_content_access (run_id,sid) VALUES (?,?)")
+      .run(runId, sid);
+  }
+  readRunContentAccess(runId: string): string[] {
+    if (!this.hasContentTable("run_content_access")) return [];
+    return this.db
+      .prepare("SELECT sid FROM run_content_access WHERE run_id=? ORDER BY sid")
+      .all(runId)
+      .map((row) => String(row.sid));
+  }
   private logsInitialized = false;
   private logDepth = 0;
   private readonly busyTimeoutMs: number;

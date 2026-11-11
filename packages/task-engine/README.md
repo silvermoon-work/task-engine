@@ -36,7 +36,10 @@ accepted 与 Task 创建原子持久化，rejected 也保留幂等依据。
 `getRequest` 读取原始意图，`getRequestStatus` 独立读取处理结果。
 
 每 Run 以内存 CommonJS source 启动已验证 `worker.cjs`，不加载作者 factory，也不启动历史业务复验 Worker。
-`context.bundle.read(path, {signal?})` 返回背压/取消友好的 `ReadableStream<Uint8Array>`，
+`context.bundle` 是带固定 `cid` 的只读 Space；
+`context.bundle.root.resolve(path).read({signal?})` 返回文件／目录联合类型。
+文件的 `content` 是背压友好的字节流，目录的 `entries` 是按需消费的异步迭代。
+`signal` 覆盖节点解析和后续内容消费，所有 I/O 同时响应 Run 取消。
 不提供宿主路径或平行的整文件 API。需要完整字节时由调用方聚合。
 SDK 延迟到 Run 命令后才求值作者模块。宿主确认物理退出后裁决终态，回收是另一事实。
 历史查询使用持久事实，不要求缓存仍在，也不重演旧 Run。
@@ -61,7 +64,8 @@ Node runtime 版本比较直接使用 `semver`；
 `bundlePrefetch: true` 在准入时同时验证完整 binary 内容。旧声明和不规范文本不被改写或兼容。
 因此 Gateway 后续不可用可使已受理 Run 的首次资源读取失败；已缓存的块仍可复用。
 内部内存复用使用有界 verified blocks 及租约保护在途准备/运行，不提供公开缓存管理 API；
-Engine 不维护额外的 Bundle 文件缓存目录，持久内容、pin 与 GC 由独立 IPFS 节点管理。
+Engine 不维护额外的 Bundle 文件缓存目录；输入可从独立 IPFS 节点按需获取。
+输出内容由 Store 的内容块存储和 Run 保留引用管理，不修改外部节点的 pin。
 `bundleLimits.retainedBytes` 默认 256 MiB，是所有内存保留块的总量预算；超限明确拒绝。
 Helia 验证块，官方 UnixFS 解析路径及提供字节流；本地只保留 Task 准入、容量与租约边界。
 每次拉取使用至多 256 KiB 的 UnixFS 范围，避免官方 exporter 的整文件预读队列。
@@ -82,6 +86,32 @@ MemoryStore，并提供 VirtualClock；旧协调器资源 fixtures
 只是内部回归测试，不是生产注册 API。`pool` 保留业务资源协调工具。
 Worker 不是 OS 安全沙箱。
 关闭和退休共享同一个 Worker 终止 Promise，等待实际退出，不重复请求终止。
+
+## Run 文件空间（breaking change）
+
+`context.space(cid)` 同步创建静态只读视图，不承诺内容已经获取。
+静态 SID 为 `ipfs:<canonical-cid>`，唯一可写 output 的 SID 为
+`run:<run-id>:output`。SID 不是访问凭证；动态 SID 默认仅在所属 Run 有效。
+Ref 在运行时持有 Space 和路径，`resolve()` 只计算路径；`toJSON()` 输出
+`{sid,path}`，不提供任意 SID 的公开恢复接口或跨 Run 引用承诺。
+
+`context.output.write(path, stream, {signal?})` 完整导入后原子替换文件；
+`link(path, ref, {signal?})` 在完整获取并校验源子 DAG 后原子替换目标。
+缺失的父目录自动创建；已有文件不能充当父目录。目录替换不合并，
+`link("/", ref)` 要求源为目录并整体替换根，保留导入的空目录。
+同 output 的 link 固定修改前的源内容，而非建立可变对象或符号链接。
+操作有确定顺序，失败或提交前取消不改变目标。
+
+`getCid()` 按需获取当前已提交版本，不承诺该中间版本永久保存或外部可达。
+正常完成时宿主收束写入、固化并保留完整最终 DAG，再记录 outcome 的
+`outputCid`；Run 和 Task 查询均可取得该字段，业务 result 不被改写。
+读取及导入的静态 Space 入口另记录为 Run 的 `contentAccess`，不等同于永久 pin。
+失败／取消暂不发布部分产物 CID。第一版不自动回收内容块或 Run 保留根；
+`MemoryStore` 的内容只在该 Store 实例存活期间保留，SQLite Store 在重启后保留。
+自定义 Store 必须实现内容块写入和 Run 保留能力，不能默默退回非持久内存。
+
+公开 Context 移除 `generation` 和 `checkpoint`；内部代际隔离不变。
+旧 canary Bundle 需要重新构建，不具备新 Space 协议握手的 Worker 明确拒绝。
 
 ## 单次耗尽与关闭
 

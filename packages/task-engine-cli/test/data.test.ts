@@ -117,3 +117,55 @@ test("disk content validates hashes, never falls back to network, and propagates
   await missing.close();
   await disk.close();
 });
+
+test("offline cache cleanup preserves retained SQLite output graphs until their tasks are removed", async (t) => {
+  const directory = resolve(".cache", `output-prune-${randomUUID()}`);
+  await mkdir(directory, { recursive: true });
+  const repository = new Repository(directory);
+  const content = new DiskContent(directory);
+  t.after(async () => {
+    repository.close();
+    await content.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const bytes = Buffer.from("output");
+  const child = CID.createV1(0x55, await sha256.digest(bytes));
+  await content.put(child, bytes);
+  const rootBytes = dagPb.encode({ Links: [{ Name: "file", Hash: child, Tsize: bytes.length }] });
+  const root = CID.createV1(dagPb.code, await sha256.digest(rootBytes));
+  const orphanBytes = Buffer.from("orphan");
+  const orphan = CID.createV1(0x55, await sha256.digest(orphanBytes));
+  repository.db.exec(`
+    CREATE TABLE ipfs_blocks (cid TEXT PRIMARY KEY, bytes BLOB NOT NULL);
+    CREATE TABLE run_content_roots (run_id TEXT, cid TEXT, PRIMARY KEY (run_id,cid));
+  `);
+  const insert = repository.db.prepare("INSERT INTO ipfs_blocks VALUES (?,?)");
+  insert.run(root.toString(), rootBytes);
+  insert.run(orphan.toString(), orphanBytes);
+  repository.db.prepare("INSERT INTO run_content_roots VALUES (?,?)").run("run", root.toString());
+  repository.put({
+    taskId: "output",
+    rootId: "output",
+    status: "succeeded",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    completedAt: "2026-01-02T00:00:00.000Z",
+    released: true,
+    roots: [root.toString()],
+    outputCid: root.toString(),
+    releaseProof: { basis: "test" },
+    timeoutMs: 1000,
+  });
+  const retained = await pruneData(repository, { cache: true });
+  assert.equal(retained.ok, true, JSON.stringify(retained));
+  assert.equal(retained.data.deletedCacheBlocks, 1);
+  assert.ok(repository.readContentBlock(root.toString()));
+  assert.equal(repository.readContentBlock(orphan.toString()), undefined);
+  const removed = await pruneData(repository, { taskIds: ["output"], cache: true });
+  assert.equal(removed.ok, true, JSON.stringify(removed));
+  assert.equal(removed.data.deletedCacheBlocks, 2);
+  assert.equal(repository.readContentBlock(root.toString()), undefined);
+  assert.equal(
+    repository.db.prepare("SELECT count(*) AS count FROM run_content_roots").get()!.count,
+    0,
+  );
+});

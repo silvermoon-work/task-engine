@@ -255,7 +255,9 @@ test("a real self-contained Worker reads a nested resource through only the conf
     entry,
     `export default async (_input,context)=>{
     let length=0,sum=0;
-    for await(const chunk of context.bundle.read("resources/nested/data.bin")){
+    const node=await context.bundle.root.resolve("resources/nested/data.bin").read();
+    if(node.kind!=="file")throw Error("Expected resource file");
+    for await(const chunk of node.content){
       length+=chunk.length;for(const byte of chunk)sum+=byte;
     }
     return {length,sum};

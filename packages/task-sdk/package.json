@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-sdk",
-  "version": "0.1.0-canary-261110-1",
+  "version": "0.1.0-canary-261111-2",
   "description": "Generation-scoped Task Worker runtime and author callback types.",
   "type": "module",
   "sideEffects": false,
@@ -28,7 +28,8 @@
     "node": ">=22.13.0"
   },
   "dependencies": {
-    "@silvermoon-work/task-protocol": "workspace:*"
+    "@silvermoon-work/task-protocol": "workspace:*",
+    "multiformats": "catalog:"
   },
   "publishConfig": {
     "access": "public"

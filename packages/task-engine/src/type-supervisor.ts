@@ -11,8 +11,12 @@ import {
   type ErrorFact,
   type Json,
   json,
+  normalizeSpacePath,
   type RunLogInput,
   type RunLogReceipt,
+  type SpaceHost,
+  type SpaceHostNode,
+  type SpaceRefJSON,
   TaskError,
   type TypeWorkerRegistration,
   taskSchemaUri,
@@ -49,7 +53,7 @@ export interface TypeChannel {
   exited?(runId: string, fact: RunWorkerExit): Promise<void>;
 }
 export type RunOutcomeReport =
-  | { kind: "completed"; result: Json }
+  | { kind: "completed"; result: Json; outputCid?: string }
   | { kind: "failed"; error: ErrorFact; result?: Json };
 export interface RunWorkerExit {
   code: number;
@@ -78,6 +82,11 @@ export interface SupervisorLimits {
   forceExitWaitMs?: number;
 }
 interface ResourceContext {
+  space?: SpaceHost;
+  spaceClose?: Promise<void>;
+  spaceMutations: Set<Promise<void>>;
+  spaceError?: unknown;
+  spaceFinishing: boolean;
   runId: string;
   scope: string;
   controller: AbortController;
@@ -94,10 +103,8 @@ interface ChannelBudget {
 }
 /** 跨边界只传静态注册数据，不传宿主生命周期闭包。 */
 class RunWorker {
-  private readonly reads = new Map<
-    number,
-    { controller: AbortController; iterator: Promise<AsyncIterator<Uint8Array>>; busy: boolean }
-  >();
+  private readonly spaceRequests = new Map<number, AbortController>();
+  private lastSpaceId = 0;
   private worker: Worker | undefined;
   private generation: string | undefined;
   private heartbeat: NodeJS.Timeout | undefined;
@@ -155,11 +162,8 @@ class RunWorker {
     )
       throw new TaskError("invalid_type", "宿主资源必须声明请求级生命周期或提供独立清理证明。");
     if (registration.bundle) {
-      if (!registration.getBundleSource || !registration.readBundle)
-        throw new TaskError(
-          "invalid_bundle",
-          "Verified Bundle source and content access are required.",
-        );
+      if (!registration.getBundleSource)
+        throw new TaskError("invalid_bundle", "Verified Bundle source is required.");
       this.registration = { ...registration, moduleDigest: registration.bundle.cid };
       return;
     }
@@ -260,12 +264,18 @@ class RunWorker {
           if (ready) return startupFailure(new Error("重复类型握手。"));
           try {
             const expected = this.registration;
+            if (expected.bundle && message.value?.spaceProtocol !== 1)
+              throw new TaskError(
+                "unsupported_contract",
+                "Task SDK requires Space protocol 1; rebuild this Bundle.",
+              );
             if (
               canonical(json(message.value)) !==
               canonical(
                 expected.bundle
                   ? {
                       $schema: expected.bundle.declaration.$schema,
+                      spaceProtocol: 1,
                       cid: expected.bundle.cid,
                       inputSchema: expected.inputSchema,
                       resultSchema: expected.resultSchema,
@@ -297,102 +307,13 @@ class RunWorker {
           return;
         }
         if (!ready) return startupFailure(new Error("握手前收到类型运行消息。"));
-        if (message.kind === "bundle-pull" || message.kind === "bundle-cancel") {
-          const context = this.contexts.get(message.runId);
-          const id = message.readId;
-          if (
-            !context ||
-            context.releaseRequested ||
-            !this.runs.has(message.runId) ||
-            !Number.isSafeInteger(id) ||
-            id <= 0 ||
-            !this.registration.readBundle
-          ) {
-            worker.postMessage({
-              generation,
-              kind: "bundle-data",
-              readId: id,
-              error: { code: "forbidden", message: "Bundle read requires an active Run." },
-            });
-            return;
-          }
-          if (message.kind === "bundle-cancel") {
-            const read = this.reads.get(id);
-            this.reads.delete(id);
-            read?.controller.abort();
-            void read?.iterator.then((iterator) => iterator.return?.()).catch(() => {});
-            return;
-          }
-          let read = this.reads.get(id);
-          if (!read) {
-            if (this.reads.size >= this.limits.maxInFlight || typeof message.path !== "string") {
-              worker.postMessage({
-                generation,
-                kind: "bundle-data",
-                readId: id,
-                error: { code: "capacity_exceeded", message: "Bundle stream capacity exceeded." },
-              });
-              return;
-            }
-            const controller = new AbortController();
-            read = {
-              controller,
-              busy: false,
-              iterator: this.registration.readBundle(
-                message.path,
-                AbortSignal.any([controller.signal, context.controller.signal]),
-              ),
-            };
-            this.reads.set(id, read);
-          }
-          if (read.busy) {
-            read.controller.abort();
-            worker.postMessage({
-              generation,
-              kind: "bundle-data",
-              readId: id,
-              error: {
-                code: "invalid_bundle",
-                message: "Only one outstanding stream pull is allowed.",
-              },
-            });
-            return;
-          }
-          read.busy = true;
-          const operation = read;
-          void operation.iterator
-            .then((iterator) => iterator.next())
-            .then(
-              (item) => {
-                operation.busy = false;
-                if (this.reads.get(id) !== operation || this.worker !== worker) return;
-                if (item.done) this.reads.delete(id);
-                worker.postMessage({
-                  generation,
-                  kind: "bundle-data",
-                  readId: id,
-                  done: !!item.done,
-                  ...(item.done ? {} : { chunk: item.value }),
-                });
-              },
-              (error) => {
-                this.reads.delete(id);
-                operation.controller.abort();
-                worker.postMessage({
-                  generation,
-                  kind: "bundle-data",
-                  readId: id,
-                  error: {
-                    code: error instanceof TaskError ? error.code : "bundle_fetch_failed",
-                    message:
-                      error instanceof Error
-                        ? error.message.slice(0, 512)
-                        : "Bundle stream failed.",
-                  },
-                });
-              },
-            )
-            .catch(() => {});
+        if (message.kind === "space-request") {
+          void this.receiveSpace(worker, generation, message);
+          return;
+        }
+        if (message.kind === "space-cancel") {
+          if (typeof message.runId === "string" && this.runs.has(message.runId))
+            this.spaceRequests.get(message.spaceId)?.abort();
           return;
         }
         if (message.kind === "log" || message.kind === "log-drop") {
@@ -506,6 +427,233 @@ class RunWorker {
       this.starting = undefined;
     });
     return this.starting;
+  }
+  private async receiveSpace(
+    worker: Worker,
+    generation: string,
+    message: Record<string, unknown>,
+  ): Promise<void> {
+    const spaceId = message.spaceId;
+    const runId = message.runId;
+    const context = typeof runId === "string" ? this.contexts.get(runId) : undefined;
+    const reply = (value?: unknown, error?: unknown, stream?: ReadableStream<unknown>) => {
+      if (this.worker !== worker || this.generation !== generation) return;
+      worker.postMessage(
+        {
+          generation,
+          runId,
+          kind: "space-result",
+          spaceId,
+          ...(error === undefined
+            ? { value }
+            : {
+                error: {
+                  code: error instanceof TaskError ? error.code : "space_failed",
+                  message: error instanceof Error ? error.message : "Space operation failed.",
+                },
+              }),
+        },
+        stream ? [stream as unknown as import("node:worker_threads").Transferable] : [],
+      );
+    };
+    if (!Number.isSafeInteger(spaceId) || (spaceId as number) <= this.lastSpaceId) {
+      reply(undefined, new TaskError("invalid_payload", "Invalid Space request identity."));
+      return;
+    }
+    this.lastSpaceId = spaceId as number;
+    if (
+      !context?.space ||
+      context.releaseRequested ||
+      context.spaceFinishing ||
+      !this.runs.has(context.runId) ||
+      this.inFlight.size >= this.limits.maxInFlight
+    ) {
+      if (message.content instanceof ReadableStream) void message.content.cancel().catch(() => {});
+      reply(
+        undefined,
+        new TaskError(
+          "space_unavailable",
+          "Space requires an active Run and available request capacity.",
+        ),
+      );
+      return;
+    }
+    const operation = {};
+    const controller = new AbortController();
+    const signal = AbortSignal.any([controller.signal, context.controller.signal]);
+    this.spaceRequests.set(spaceId as number, controller);
+    this.inFlight.add(operation);
+    this.pendingOperations++;
+    context.resources.add(operation);
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      this.spaceRequests.delete(spaceId as number);
+      this.inFlight.delete(operation);
+      this.pendingOperations--;
+      context.resources.delete(operation);
+      this.finishRelease(context);
+    };
+    const ref = (input: unknown): SpaceRefJSON => {
+      const value = json(input, this.limits.maxPayloadBytes);
+      if (
+        !value ||
+        typeof value !== "object" ||
+        Array.isArray(value) ||
+        typeof value.sid !== "string" ||
+        typeof value.path !== "string" ||
+        value.sid.length > 512 ||
+        Object.keys(value).some((key) => !["sid", "path"].includes(key))
+      )
+        throw new TaskError("invalid_space", "Invalid Space reference.");
+      return { sid: value.sid, path: normalizeSpacePath(value.path) };
+    };
+    const path = () => {
+      if (typeof message.path !== "string" || message.path.length > this.limits.maxPayloadBytes)
+        throw new TaskError("invalid_space", "Invalid Space path.");
+      return normalizeSpacePath(message.path);
+    };
+    const execute = async () => {
+      signal.throwIfAborted();
+      switch (message.operation) {
+        case "read": {
+          const node: SpaceHostNode = await context.space!.read(ref(message.ref), signal);
+          const source = node.kind === "file" ? node.content : node.entries;
+          if (signal.aborted) {
+            await source.cancel(signal.reason).catch(() => {});
+            signal.throwIfAborted();
+          }
+          const stream = this.spaceStream(source, signal, node.kind === "file", finish);
+          const value =
+            node.kind === "file"
+              ? { kind: "file", content: stream }
+              : { kind: "directory", entries: stream };
+          try {
+            reply(value, undefined, stream);
+          } catch (error) {
+            await stream.cancel(error);
+            throw error;
+          }
+          return;
+        }
+        case "write": {
+          if (!(message.content instanceof ReadableStream))
+            throw new TaskError(
+              "invalid_space",
+              "Space write requires a transferable byte stream.",
+            );
+          const content = this.spaceStream(
+            message.content,
+            signal,
+            true,
+          ) as ReadableStream<Uint8Array>;
+          try {
+            await context.space!.write(path(), content, signal);
+          } finally {
+            if (!content.locked) await content.cancel().catch(() => {});
+          }
+          break;
+        }
+        case "link":
+          await context.space!.link(path(), ref(message.ref), signal);
+          break;
+        case "getCid":
+          reply(await context.space!.getCid(signal));
+          finish();
+          return;
+        default:
+          throw new TaskError("invalid_payload", "Unknown Space operation.");
+      }
+      signal.throwIfAborted();
+      reply();
+      finish();
+    };
+    const promise = execute().catch((error: unknown) => {
+      if (message.operation === "write" || message.operation === "link")
+        context.spaceError ??= error;
+      if (message.content instanceof ReadableStream && !message.content.locked)
+        void message.content.cancel(error).catch(() => {});
+      reply(undefined, error);
+      finish();
+    });
+    if (message.operation === "write" || message.operation === "link") {
+      context.spaceMutations.add(promise);
+      void promise.finally(() => context.spaceMutations.delete(promise));
+    }
+    await promise;
+  }
+  private spaceStream(
+    source: ReadableStream<unknown>,
+    signal: AbortSignal,
+    bytes: boolean,
+    done: () => void = () => {},
+  ): ReadableStream<unknown> {
+    const reader = source.getReader();
+    const maxChunk = Math.max(1, Math.min(this.limits.maxPayloadBytes, 65_536));
+    let chunk: Uint8Array | undefined;
+    let offset = 0;
+    let closed = false;
+    let abort: () => void;
+    const finish = () => {
+      if (closed) return;
+      closed = true;
+      signal.removeEventListener("abort", abort);
+      done();
+    };
+    return new ReadableStream(
+      {
+        start(controller) {
+          abort = () => {
+            void reader.cancel(signal.reason).catch(() => {});
+            finish();
+            controller.error(signal.reason);
+          };
+          if (signal.aborted) abort();
+          else signal.addEventListener("abort", abort, { once: true });
+        },
+        async pull(controller) {
+          try {
+            signal.throwIfAborted();
+            if (bytes) {
+              while (!chunk || offset === chunk.byteLength) {
+                const item = await reader.read();
+                if (item.done) {
+                  finish();
+                  controller.close();
+                  return;
+                }
+                if (!(item.value instanceof Uint8Array))
+                  throw new TaskError("invalid_space", "File stream must contain bytes.");
+                chunk = item.value;
+                offset = 0;
+              }
+              const end = Math.min(chunk.byteLength, offset + maxChunk);
+              controller.enqueue(chunk.slice(offset, end));
+              offset = end;
+            } else {
+              const item = await reader.read();
+              if (item.done) {
+                finish();
+                controller.close();
+              } else controller.enqueue(json(item.value, maxChunk));
+            }
+          } catch (error) {
+            void reader.cancel(error).catch(() => {});
+            finish();
+            controller.error(error);
+          }
+        },
+        async cancel(reason) {
+          try {
+            await reader.cancel(reason);
+          } finally {
+            finish();
+          }
+        },
+      },
+      { highWaterMark: 0 },
+    );
   }
   private async receive(
     worker: Worker,
@@ -631,7 +779,16 @@ class RunWorker {
             kind: "completed",
             value: validateResult(value),
           } as const;
-          await this.channel.outcome?.(runId, { kind: "completed", result: completed.value });
+          const context = this.contexts.get(runId)!;
+          context.spaceFinishing = true;
+          while (context.spaceMutations.size) await Promise.allSettled([...context.spaceMutations]);
+          if (context.spaceError !== undefined) throw context.spaceError;
+          const outputCid = await context.space?.finalize(context.controller.signal);
+          await this.channel.outcome?.(runId, {
+            kind: "completed",
+            result: completed.value,
+            ...(outputCid === undefined ? {} : { outputCid }),
+          });
           this.outcome = completed;
           break;
         }
@@ -744,16 +901,18 @@ class RunWorker {
       return;
     }
     const proof = this.registration.confirmResourceRelease;
-    if (proof && this.resourceProofs.size >= this.limits.maxInFlight) {
+    const needsProof = !!proof || !!context.space;
+    if (needsProof && this.resourceProofs.size >= this.limits.maxInFlight) {
       this.abandonRun(context, "宿主清理证明在途容量已满，物理回收未知。");
       return;
     }
     context.releaseStarted = true;
-    if (proof) {
+    if (needsProof) {
       this.resourceProofs.add(context);
       this.pendingProofs++;
     }
     void Promise.resolve()
+      .then(() => context.spaceClose)
       .then(() =>
         proof?.({
           runId: context.runId,
@@ -774,7 +933,7 @@ class RunWorker {
       )
       .finally(() => {
         this.resourceProofs.delete(context);
-        if (proof) this.pendingProofs--;
+        if (needsProof) this.pendingProofs--;
       });
   }
   async run(runId: string, input: Json, scope: string): Promise<void> {
@@ -799,8 +958,41 @@ class RunWorker {
       releaseRequested: false,
       releaseStarted: false,
       uncertain: false,
+      spaceMutations: new Set(),
+      spaceFinishing: false,
     });
     try {
+      const context = this.contexts.get(runId)!;
+      const space = this.registration.createSpace?.({
+        runId,
+        scope,
+        signal: context.controller.signal,
+        workerGeneration: context.workerGeneration,
+      });
+      if (space) {
+        context.space = space;
+        context.controller.signal.addEventListener(
+          "abort",
+          () => {
+            const closing = {};
+            context.resources.add(closing);
+            this.resourceProofs.add(context);
+            this.pendingProofs++;
+            context.spaceClose = Promise.resolve().then(() => space.close());
+            void context.spaceClose
+              .catch(() => {
+                context.uncertain = true;
+              })
+              .finally(() => {
+                context.resources.delete(closing);
+                this.resourceProofs.delete(context);
+                this.pendingProofs--;
+                this.finishRelease(context);
+              });
+          },
+          { once: true },
+        );
+      }
       const identity = await this.channel.dispatch?.(runId, this.generation!);
       if (this.limits.dispatchOnWorkerStart) await startup;
       if (
@@ -924,11 +1116,7 @@ class RunWorker {
   private async observeExit(worker: Worker, generation: string, code: number): Promise<void> {
     if (this.worker !== worker || this.generation !== generation || this.exitObserved) return;
     this.exitObserved = true;
-    for (const read of this.reads.values()) {
-      read.controller.abort();
-      void read.iterator.then((iterator) => iterator.return?.()).catch(() => {});
-    }
-    this.reads.clear();
+    for (const context of this.contexts.values()) context.controller.abort();
     this.exitFact = { code, requested: this.stopping, forced: this.forced };
     for (const resolve of this.exitWaiters) resolve(this.exitFact);
     this.exitWaiters.clear();

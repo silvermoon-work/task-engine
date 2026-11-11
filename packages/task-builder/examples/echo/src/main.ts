@@ -1,7 +1,9 @@
 import { runTask } from "@silvermoon-work/task-sdk";
 
 runTask<{ text: string }, { text: string }>(async (input, context) => {
-  const reader = context.bundle.read("resources/greeting.txt").getReader();
+  const node = await context.bundle.root.resolve("resources/greeting.txt").read();
+  if (node.kind !== "file") throw new Error("Expected greeting file.");
+  const reader = node.content.getReader();
   const decoder = new TextDecoder();
   let greeting = "";
   try {

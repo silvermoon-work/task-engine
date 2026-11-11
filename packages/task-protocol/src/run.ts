@@ -2,6 +2,7 @@ import type { ResolvedTaskBundle } from "./bundle.js";
 import { fail, type Json, type JsonObject, json, TaskError } from "./json.js";
 import type { RunLogInput, RunLogReceipt } from "./logs.js";
 import type { InputSchema, JsonSchema } from "./schema.js";
+import type { ReadonlySpace, ReadWriteSpace, SpaceHost } from "./spaces.js";
 import type { Caller } from "./types.js";
 
 export interface RunProgress {
@@ -37,17 +38,15 @@ export interface ChildTaskInvocation {
   timeoutMs: number;
 }
 export interface RunContext<Message extends Json = never> {
-  readonly generation?: string;
   readonly startedAt?: string;
   readonly runId: string;
   readonly scope: string;
   readonly signal: AbortSignal;
   readonly messages: AsyncIterable<RunMessage<Message>>;
-  readonly bundle?: {
-    read(path: string, options?: { signal?: AbortSignal }): ReadableStream<Uint8Array>;
-  };
+  readonly bundle: ReadonlySpace;
+  readonly output: ReadWriteSpace;
+  space(cid: string): ReadonlySpace;
   progress(value: RunProgress): Promise<void>;
-  checkpoint(value: Json): Promise<void>;
   log(value: RunLogInput): Promise<RunLogReceipt>;
   invokeTask?(request: ChildTaskInvocation): Promise<Json>;
 }
@@ -66,9 +65,9 @@ export interface RunResourceContext {
   workerGeneration: string;
 }
 export interface TypeWorkerRegistration {
+  createSpace?(context: RunResourceContext): SpaceHost;
   bundle?: { cid: string; declaration: ResolvedTaskBundle };
   getBundleSource?(): string;
-  readBundle?(path: string, signal: AbortSignal): Promise<AsyncIterator<Uint8Array>>;
   type: string;
   version: string;
   environment: string;

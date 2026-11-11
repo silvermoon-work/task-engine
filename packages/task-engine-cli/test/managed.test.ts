@@ -89,6 +89,9 @@ export default async (input,context)=>{
  if(input.mode==="echo") return input;
  if(input.mode==="null") return null;
  if(input.mode==="slow") await delay(60000,undefined,{signal:context.signal});
+ await context.output.write("/value.txt",new ReadableStream({
+   start(controller){controller.enqueue(new TextEncoder().encode(String(input.value??"")));controller.close();}
+ }));
  return {value:input.value??null};
 }`,
   );
@@ -158,6 +161,7 @@ export default async (input,context)=>{
   assert.equal(success.code, 0, success.stdout + success.stderr);
   const taskId = String(success.parse().data.taskId);
   assert.deepEqual(success.parse().data.result, { value: 7 });
+  assert.equal(typeof success.parse().data.outputCid, "string");
   assert.deepEqual(Object.keys(success.parse()), ["ok", "data"]);
   const business = {
     mode: "echo",
@@ -392,6 +396,7 @@ key:"child",cid:${JSON.stringify(built.cid)},path:"resources/child",input,timeou
   const retained = await run(["task", "await", taskId, "--engine", engine]);
   assert.equal(retained.code, 0, retained.stdout);
   assert.deepEqual(retained.parse().data.result, { value: 7 });
+  assert.equal(retained.parse().data.outputCid, success.parse().data.outputCid);
   const crashTask = await run([...args, "--async"], '{"mode":"slow"}');
   const crashIdentity = JSON.parse(await readFile(identityPath, "utf8")) as { pid: number };
   assert.notEqual(crashIdentity.pid, identity.pid);

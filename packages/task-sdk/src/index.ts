@@ -1,7 +1,7 @@
 import { parentPort, workerData } from "node:worker_threads";
 import {
-  canonical,
   type ChildTaskInvocation,
+  canonical,
   type Json,
   json,
   type ResolvedTaskBundle,
@@ -15,25 +15,30 @@ import {
   taskSchemaUri,
 } from "@silvermoon-work/task-protocol/worker";
 import { binding } from "./binding.js";
+import { createSpaces } from "./spaces.js";
 
 export interface TaskContext<Message extends Json = never> extends RunContext<Message> {
   invokeTask(request: ChildTaskInvocation): Promise<Json>;
-  readonly bundle: {
-    readonly cid: string;
-    read(path: string, options?: { signal?: AbortSignal }): ReadableStream<Uint8Array>;
-  };
 }
 export type TaskCallback<Input = Json, Result = Json, Message extends Json = never> = (
   input: Input,
   context: TaskContext<Message>,
 ) => Promise<Result>;
 export type {
+  BaseSpace,
   ChildTaskInvocation,
+  ReadonlySpace,
+  ReadWriteSpace,
   RunContext,
   RunLogInput,
   RunLogReceipt,
   RunMessage,
   RunProgress,
+  SpaceEntry,
+  SpaceNode,
+  SpaceOptions,
+  SpaceRef,
+  SpaceRefJSON,
 } from "@silvermoon-work/task-protocol/worker";
 export { RunFailure } from "@silvermoon-work/task-protocol/worker";
 
@@ -118,76 +123,7 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
   let cleanupUncertain = false;
   let output = Promise.resolve();
   let outputError: unknown;
-  let readSequence = 0;
-  const reads = new Map<
-    number,
-    { resolve(value: { done: boolean; chunk?: Uint8Array }): void; reject(error: Error): void }
-  >();
-  function readBundle(
-    path: string,
-    options: { signal?: AbortSignal } = {},
-  ): ReadableStream<Uint8Array> {
-    const id = ++readSequence;
-    const signal = options.signal
-      ? AbortSignal.any([controller.signal, options.signal])
-      : controller.signal;
-    let cleanup: () => void = () => {};
-    const cancel = () => {
-      cleanup();
-      reads.get(id)?.reject(new DOMException("Bundle read canceled.", "AbortError"));
-      reads.delete(id);
-      port!.postMessage({
-        generation: config.generation,
-        runId,
-        kind: "bundle-cancel",
-        readId: id,
-      });
-    };
-    return new ReadableStream<Uint8Array>(
-      {
-        start(stream) {
-          const abort = () => {
-            cancel();
-            stream.error(signal.reason);
-          };
-          cleanup = () => signal.removeEventListener("abort", abort);
-          if (signal.aborted) {
-            stream.error(signal.reason);
-            return;
-          }
-          signal.addEventListener("abort", abort, { once: true });
-        },
-        async pull(stream) {
-          try {
-            if (finishing) throw new TaskError("run_finished", "Bundle stream is closed.");
-            signal.throwIfAborted();
-            const item = await new Promise<{ done: boolean; chunk?: Uint8Array }>(
-              (resolve, reject) => {
-                reads.set(id, { resolve, reject });
-                port!.postMessage({
-                  generation: config.generation,
-                  runId,
-                  kind: "bundle-pull",
-                  readId: id,
-                  path,
-                });
-              },
-            );
-            if (item.done) {
-              cleanup();
-              stream.close();
-            } else if (item.chunk instanceof Uint8Array) stream.enqueue(item.chunk);
-            else throw new TaskError("invalid_bundle", "Invalid Bundle stream chunk.");
-          } catch (error) {
-            cancel();
-            stream.error(error);
-          }
-        },
-        cancel,
-      },
-      { highWaterMark: 0 },
-    );
-  }
+  let spaces: ReturnType<typeof createSpaces> | undefined;
   let logSequence = 0;
   const logPending = new Map<
     number,
@@ -376,6 +312,7 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
     kind: "ready",
     value: {
       $schema: declaration.$schema,
+      spaceProtocol: 1,
       cid: config.bundle.cid,
       inputSchema: declaration.inputSchema,
       resultSchema: declaration.resultSchema,
@@ -384,12 +321,13 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
   });
   port.on("message", (envelope) => {
     if (!envelope || envelope.generation !== config.generation) return;
-    if (envelope.kind === "bundle-data") {
-      const read = reads.get(envelope.readId);
-      if (!read) return;
-      reads.delete(envelope.readId);
-      if (envelope.error) read.reject(new TaskError(envelope.error.code, envelope.error.message));
-      else read.resolve(envelope);
+    if (envelope.kind === "space-result") {
+      if (envelope.runId !== runId) return;
+      spaces?.receive(
+        envelope.spaceId,
+        envelope.value,
+        envelope.error ? new TaskError(envelope.error.code, envelope.error.message) : undefined,
+      );
       return;
     }
     if (envelope.kind === "log-drop-ack") {
@@ -476,17 +414,42 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
     }
     if (envelope.kind !== "run" || runId !== undefined) return;
     runId = envelope.runId;
+    spaces = createSpaces({
+      runId: envelope.runId,
+      cid: config.bundle.cid,
+      signal: controller.signal,
+      maxInFlight: config.maxInFlight,
+      maxChunk: Math.max(1, Math.min(config.maxPayloadBytes, 65_536)),
+      send: (request) =>
+        port.postMessage(
+          {
+            generation: config.generation,
+            runId,
+            kind: "space-request",
+            ...request,
+          },
+          request.content
+            ? [request.content as unknown as import("node:worker_threads").Transferable]
+            : [],
+        ),
+      cancel: (spaceId) =>
+        port.postMessage({
+          generation: config.generation,
+          runId,
+          kind: "space-cancel",
+          spaceId,
+        }),
+    });
     const context: TaskContext<Json> = Object.freeze({
       runId: envelope.runId,
-      ...(envelope.identity
-        ? { generation: envelope.identity.generation, startedAt: envelope.identity.startedAt }
-        : {}),
+      ...(envelope.identity ? { startedAt: envelope.identity.startedAt } : {}),
       scope: envelope.scope,
       signal: controller.signal,
       messages: inbox,
-      bundle: Object.freeze({ cid: config.bundle.cid, read: readBundle }),
+      bundle: spaces.bundle,
+      output: spaces.output,
+      space: spaces.space,
       progress: (value: RunProgress) => enqueue("progress", value),
-      checkpoint: (value: Json) => enqueue("checkpoint", value),
       log,
       invokeTask: (value: ChildTaskInvocation) => {
         if (finishing) return Promise.reject(new TaskError("run_finished", "Task is finishing."));
@@ -516,6 +479,7 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
     void (async () => {
       try {
         const value = await callback(envelope.input as Input, context as TaskContext<Message>);
+        await spaces!.drain();
         if (config.durableLogs) await durableLogOutput;
         finishing = true;
         finishDroppedLogs();
@@ -523,6 +487,7 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
         if (outputError !== undefined) throw outputError;
         await request("complete", value);
       } catch (caught) {
+        await spaces!.drain().catch(() => {});
         if (config.durableLogs) await durableLogOutput.catch(() => {});
         finishing = true;
         finishDroppedLogs();

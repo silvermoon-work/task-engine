@@ -174,6 +174,11 @@ test("initialized scripts keep named outputs fixed, preserve builds and refuse C
       });
     }
     await cp(
+      new URL("../../task-sdk/node_modules/multiformats/", import.meta.url),
+      join(project, "node_modules", "multiformats"),
+      { recursive: true, dereference: true },
+    );
+    await cp(
       new URL("../../task-builder/node_modules/@sinclair/typebox/", import.meta.url),
       join(project, "node_modules", "@sinclair", "typebox"),
       { recursive: true, dereference: true },

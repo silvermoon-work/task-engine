@@ -164,6 +164,7 @@ export function taskSummary(task: TaskRecord, facts: Facts, now: number): TaskSu
     stage: snapshot.stage,
     canceled: snapshot.canceled,
     ...(snapshot.run ? { runId: snapshot.run.runId } : {}),
+    ...(snapshot.outputCid ? { outputCid: snapshot.outputCid } : {}),
     state: {
       stage: snapshot.stage,
       pending: isPending(snapshot),
@@ -178,6 +179,7 @@ export function runSummary(run: RunRecord, facts: Facts, now: number): RunSummar
   const snapshot = projectRun(facts, run.runId, now);
   return {
     runId: run.runId,
+    ...(snapshot.outputCid ? { outputCid: snapshot.outputCid } : {}),
     ...(run.binding.bundle
       ? { bundle: structuredClone(run.binding.bundle), name: run.binding.declaration!.name }
       : {}),

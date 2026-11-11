@@ -54,6 +54,7 @@ import {
   taskSchemaUri,
   timestamp,
   ulid,
+  validateBundleReference,
   validateRunProgress,
   wouldQualify,
 } from "@silvermoon-work/task-protocol";
@@ -273,6 +274,52 @@ export class TaskEngine implements TaskService {
   }
   reportError(error: unknown): void {
     this.diagnostic(error);
+  }
+  readContentBlock(cid: string): Uint8Array | undefined {
+    this.readable();
+    validateBundleReference(cid);
+    if (!this.options.store.readContentBlock)
+      throw new TaskError("invalid_config", "Store does not support persistent content blocks.");
+    return this.options.store.readContentBlock(cid);
+  }
+  writeContentBlock(cid: string, bytes: Uint8Array): void {
+    this.readable();
+    validateBundleReference(cid);
+    if (!this.options.store.writeContentBlock)
+      throw new TaskError("invalid_config", "Store does not support persistent content blocks.");
+    this.options.store.writeContentBlock(this.owner, cid, bytes);
+  }
+  retainRunContent(runId: string, cid: string): void {
+    this.readable();
+    validateBundleReference(cid);
+    if (!this.options.store.retainRunContent)
+      throw new TaskError("invalid_config", "Store does not support persistent content retention.");
+    this.options.store.retainRunContent(this.owner, runId, cid);
+  }
+  readRunContentRoots(runId: string): string[] {
+    this.readable();
+    if (!this.options.store.readRunContentRoots)
+      throw new TaskError("invalid_config", "Store does not support content retention queries.");
+    return this.options.store.readRunContentRoots(runId);
+  }
+  recordRunContentAccess(runId: string, sid: string): void {
+    this.readable();
+    const run = this.view.facts.runs[runId];
+    if (!run) throw new TaskError("not_found", "Run not found.");
+    if (typeof sid !== "string" || !sid || sid.length > 512)
+      throw new TaskError("invalid_request", "A content space SID is required.");
+    if (run.contentAccess?.includes(sid)) return;
+    if (!this.options.store.recordRunContentAccess)
+      throw new TaskError("invalid_config", "Store does not support content access diagnostics.");
+    this.budget(1);
+    this.options.store.recordRunContentAccess(this.owner, runId, sid);
+    this.commit([this.runEvent("run.content-access", run, { sid })]);
+  }
+  readRunContentAccess(runId: string): string[] {
+    this.readable();
+    const run = this.view.facts.runs[runId];
+    if (!run) throw new TaskError("not_found", "Run not found.");
+    return [...(run.contentAccess ?? [])];
   }
 
   constructor(private readonly options: EngineOptions) {
@@ -1378,7 +1425,13 @@ export class TaskEngine implements TaskService {
       type = this.historical(run.binding);
     const report: RunOutcomeReport =
       value.kind === "completed"
-        ? { kind: "completed", result: type.resultContract.validate(value.result) }
+        ? {
+            kind: "completed",
+            result: type.resultContract.validate(value.result),
+            ...(value.outputCid === undefined
+              ? {}
+              : { outputCid: validateBundleReference(value.outputCid) as string }),
+          }
         : {
             kind: "failed",
             error: {

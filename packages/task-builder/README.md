@@ -31,6 +31,9 @@ The library-only layout and init/CAR/tree APIs are published in
 previous CLI layout; use the separate CLI package for commands.
 Version `0.1.0-canary-261109-3` updates init to the migrated SDK with child
 invocation support and removes all old-project development dependencies.
+The `0.1.0-canary-261111-2` source candidate updates init and the Echo example
+to the breaking Space context API and selects the matching SDK. Rebuild old
+canary Bundles before running them with the new Space host protocol.
 
 ## Transformation
 

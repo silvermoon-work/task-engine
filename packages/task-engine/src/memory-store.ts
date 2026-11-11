@@ -13,6 +13,40 @@ import { newId } from "./identity.js";
 
 /** Explicitly non-durable; useful for tests and disposable hosts only. */
 export class MemoryStore implements Store {
+  private readonly contentBlocks = new Map<string, Uint8Array>();
+  private readonly contentRoots = new Map<string, Set<string>>();
+  private readonly contentAccess = new Map<string, Set<string>>();
+  readContentBlock(cid: string): Uint8Array | undefined {
+    if (this.closed) fail("storage_failure", "Store closed.");
+    return this.contentBlocks.get(cid)?.slice();
+  }
+  writeContentBlock(owner: string, cid: string, bytes: Uint8Array): void {
+    if (this.closed || this.owner !== owner) fail("store_owned", "Owner mismatch.");
+    const existing = this.contentBlocks.get(cid);
+    if (existing && !Buffer.from(existing).equals(bytes))
+      fail("storage_conflict", "Content block bytes do not match the retained CID.");
+    this.contentBlocks.set(cid, Uint8Array.from(bytes));
+  }
+  retainRunContent(owner: string, runId: string, cid: string): void {
+    if (this.closed || this.owner !== owner) fail("store_owned", "Owner mismatch.");
+    const roots = this.contentRoots.get(runId) ?? new Set<string>();
+    roots.add(cid);
+    this.contentRoots.set(runId, roots);
+  }
+  readRunContentRoots(runId: string): string[] {
+    if (this.closed) fail("storage_failure", "Store closed.");
+    return [...(this.contentRoots.get(runId) ?? [])].sort();
+  }
+  recordRunContentAccess(owner: string, runId: string, sid: string): void {
+    if (this.closed || this.owner !== owner) fail("store_owned", "Owner mismatch.");
+    const access = this.contentAccess.get(runId) ?? new Set<string>();
+    access.add(sid);
+    this.contentAccess.set(runId, access);
+  }
+  readRunContentAccess(runId: string): string[] {
+    if (this.closed) fail("storage_failure", "Store closed.");
+    return [...(this.contentAccess.get(runId) ?? [])].sort();
+  }
   private readonly logs = new MemoryRunLogStorage();
   beforeLogCommit?: () => void;
   markRunLogsUnavailable(owner: string, id: string, now: number): void {

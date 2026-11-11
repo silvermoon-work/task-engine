@@ -128,9 +128,6 @@ async function supervise(
       exportName: "",
       configuration: {},
       getBundleSource: () => built.contents.get("worker.cjs")!.toString(),
-      async readBundle() {
-        throw new Error("No resources in this fixture.");
-      },
     },
     channel,
     { heartbeatMs: 20, healthMs: 5000, maxInFlight: 8, maxPayloadBytes: 65536 },
@@ -221,8 +218,6 @@ for (const scenario of precompileCases)
 
 for (const mode of [
   "result",
-  "checkpoint",
-  "swallowed-checkpoint",
   "failure-evidence",
   "valid-evidence",
   "malformed-json",
@@ -233,15 +228,11 @@ for (const mode of [
   "deep-result",
   "uncloneable-result",
   "uncloneable-evidence",
-  "swallowed-uncloneable-checkpoint",
 ])
   test(`real Engine persists only validated output and reclaims the Worker: ${mode}`, async () => {
     await fixture(async (directory) => {
       const code = {
         result: "return {text: 1};",
-        checkpoint: 'await context.checkpoint({text: 1}); return {text: "valid"};',
-        "swallowed-checkpoint":
-          'try {await context.checkpoint({text: 1});} catch {} return {text: "valid"};',
         "failure-evidence": 'throw new RunFailure("business", "business failure", {text: 1});',
         "valid-evidence":
           'throw new RunFailure("business", "business failure", {text: "evidence"});',
@@ -255,8 +246,6 @@ for (const mode of [
         "uncloneable-result": "return {text:()=>{}};",
         "uncloneable-evidence":
           'throw new RunFailure("business", "business failure", {text:()=>{}});',
-        "swallowed-uncloneable-checkpoint":
-          'try {await context.checkpoint({text:()=>{}});} catch {} return {text:"valid"};',
       }[mode]!;
       const built = await compile(
         directory,
@@ -399,34 +388,22 @@ runTask(async(input,context)=>{
   });
 });
 
-for (const oversized of [false, true])
-  test(`host remembers a rejected ${oversized ? "oversized" : "schema-invalid"} checkpoint even if a custom Worker ignores its ACK`, async () => {
-    await fixture(async (directory) => {
-      const built = await compile(
-        directory,
-        `
+test("Bundle host explicitly rejects a Worker without the Space protocol handshake", async () => {
+  await fixture(async (directory) => {
+    const built = await compile(
+      directory,
+      `
 import {parentPort,workerData} from "node:worker_threads";
 const {generation,bundle}=workerData;
 parentPort.postMessage({generation,kind:"ready",value:{$schema:bundle.declaration.$schema,cid:bundle.cid,inputSchema:bundle.declaration.inputSchema,resultSchema:bundle.declaration.resultSchema,messageSchema:bundle.declaration.messageSchema}});
 parentPort.on("message",m=>{
- if(m.kind==="run")parentPort.postMessage({generation,runId:m.runId,id:1,kind:"checkpoint",value:{text:${oversized ? '"x".repeat(65536)' : "1"}}});
- if(m.kind==="ack"&&m.id===1)parentPort.postMessage({generation,runId:"run",id:2,kind:"complete",value:{text:"valid"}});
- if(m.kind==="ack"&&m.id===2){parentPort.postMessage({generation,runId:"run",kind:"released"});parentPort.close();}
+ if(m.kind==="run")throw Error("Legacy Worker must not be dispatched");
 });
 `,
-      );
-      const result = await supervise(built, {});
-      assert.deepEqual(result?.checkpoints, []);
-      assert.deepEqual(result?.outcomes, [
-        {
-          kind: "failed",
-          error: oversized
-            ? { code: "payload_too_large", message: "JSON payload exceeds byte limit." }
-            : { code: "invalid_input", message: "Input does not satisfy inputSchema." },
-        },
-      ]);
-    });
+    );
+    await assert.rejects(supervise(built, {}), { code: "unsupported_contract" });
   });
+});
 
 test("Engine rejects diagnostic and progress payloads through ACK without poisoning later log IDs", async () => {
   await fixture(async (directory) => {

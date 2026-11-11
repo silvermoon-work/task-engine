@@ -56,16 +56,21 @@ async function fixture(
 appendFileSync(${JSON.stringify(marker)},"loaded\\n");
 export default async (input, context) => {
   let bytes=0, chunks=0;
-  for await (const chunk of context.bundle.read("resources/data.bin")) { bytes+=chunk.length; chunks++; }
+  const file=await context.bundle.root.resolve("resources/data.bin").read();
+  if(file.kind!=="file")throw Error("Expected file");
+  for await (const chunk of file.content) { bytes+=chunk.length; chunks++; }
   for (const path of ["../worker.cjs","resources/missing"]) {
-    let failed=false;try {for await(const chunk of context.bundle.read(path)){} }catch{failed=true}
+    let failed=false;try {await context.bundle.root.resolve(path).read()}catch{failed=true}
     if(!failed)throw Error("Unsafe path accepted");
   }
   const canceled=new AbortController();
-  const reader=context.bundle.read("resources/data.bin",{signal:canceled.signal}).getReader();
+  const cancellable=await context.bundle.root.resolve("resources/data.bin").read({signal:canceled.signal});
+  if(cancellable.kind!=="file")throw Error("Expected file");
+  const reader=cancellable.content.getReader();
   await reader.read();canceled.abort();let aborted=false;try{await reader.read()}catch{aborted=true}
   if(!aborted)throw Error("Cancellation not observed");
-  appendFileSync(${JSON.stringify(marker)},JSON.stringify({generation:context.generation,startedAt:context.startedAt,scope:context.scope})+"\\n");
+  if("generation" in context || "checkpoint" in context)throw Error("Legacy context exposed");
+  appendFileSync(${JSON.stringify(marker)},JSON.stringify({startedAt:context.startedAt,scope:context.scope})+"\\n");
   return {value:input.value,bytes,chunks};
 };`,
     );
@@ -123,10 +128,14 @@ test("verified memory-source Worker streams resources independent of author/host
       assert.equal(snapshot.stage, "completed", JSON.stringify(snapshot));
       const run = snapshot.run!.runId;
       await until(() => !!engine.getRun(run, caller).reclaimedAt);
-      assert.deepEqual(snapshot.result, { value: 7, bytes: 600_000, chunks: 3 });
+      assert.ok(
+        snapshot.result && typeof snapshot.result === "object" && !Array.isArray(snapshot.result),
+      );
+      assert.equal(snapshot.result.value, 7);
+      assert.equal(snapshot.result.bytes, 600_000);
+      assert.ok(typeof snapshot.result.chunks === "number" && snapshot.result.chunks > 1);
       const evaluated = await readFile(marker, "utf8");
       assert.deepEqual(JSON.parse(evaluated.trim().split("\n")[1]!), {
-        generation: store.read().facts.runs[run]!.generation,
         startedAt: snapshot.run!.startedAt,
         scope: caller.scope,
       });

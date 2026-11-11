@@ -1,9 +1,9 @@
 # @silvermoon-work/task-sdk
 
 Generation-scoped Node Task Worker runtime (`runTask`, `RunFailure`) and
-callback/context types. Its only runtime dependency is
-[@silvermoon-work/task-protocol](../task-protocol/README.md), using the
-lightweight `/worker` entry without Ajv or a CID parser.
+callback/context types. It uses
+[@silvermoon-work/task-protocol](../task-protocol/README.md)'s lightweight
+`/worker` entry without Ajv, plus `multiformats/cid` for canonical Space identities.
 
 Migrated under the original MIT license from
 [potential-guide at 6614f46](https://github.com/shazhou-ww/potential-guide/tree/6614f46bf0f4152c61bd2c73d6c4b21ab4cf366f/packages/task-sdk).
@@ -61,14 +61,14 @@ configuration or `workerData`; calling the unbuilt SDK fails.
 
 ## Runtime contract
 
-The Engine validates business input/messages, checkpoints, completion and
+The Engine validates business input/messages, completion and
 failure evidence, plus JSON shape, byte limits, progress and logs. The SDK
 forwards payloads without automatic business-schema validation. Authors may
 bundle their own validators. Custom hosts must implement the same validation
 and negative-ACK lifecycle, not acknowledge every frame.
 
 The SDK owns bounded queues, generation/Run routing, declaration equality,
-cancellation and resource streams. A rejected checkpoint remains a failed
+cancellation and resource streams. A failed output write remains a failed
 output even if the callback catches it. Rejected completion is reported as
 failure; rejected `RunFailure` evidence is re-reported without that evidence.
 Release follows an acknowledged terminal fact; an unavailable terminal channel
@@ -80,7 +80,7 @@ within the parent Run; the host verifies the child's root against the parent
 DAG, enforces authorization and budgets, and owns admission and cleanup.
 Calls after finishing reject with `run_finished`; cancellation interrupts
 submission. Child invocations share the bounded request channel but do not
-occupy the sequential progress/checkpoint output queue.
+occupy the sequential progress output queue.
 
 Node structured clone transports IPC. Non-cloneable payloads reject locally
 with `invalid_payload`; sendable non-JSON values are rejected by the host.
@@ -88,7 +88,7 @@ Failed sends do not consume message IDs or pending credits. Getters/custom
 objects may be normalized during cloning, so authors should send plain JSON.
 Receiver byte limits govern acceptance, not transport allocation.
 
-`context` provides `signal`, `messages`, `progress`, `checkpoint` and typed
+`context` preserves `runId`, `startedAt`, `scope`, `signal`, `messages`, `progress`, and typed
 async `log` receipts. Diagnostics have a separately bounded channel and do not
 replace business outputs.
 
@@ -100,24 +100,58 @@ behavior. An already compiled Bundle does not acquire a new SDK automatically;
 producer-reported log loss remains explicit rather than becoming a successful
 complete log query. This source change is not evidence of an SDK release.
 
-`context.bundle.cid` is the readonly host-verified executing root. The host
-owns CID parsing, codec/hash and DAG checks; the SDK treats it as an opaque
-nonempty string of at most 256 characters and echoes it in the ready handshake.
-It is not task input or a self-referential compiled identity.
+### Spaces (breaking contract)
 
-`context.bundle.read(relativePath, { signal? })` returns a demand-driven
-`ReadableStream<Uint8Array>` with cancellation and explicit stream errors:
+`context.bundle` is the immutable executing `ReadonlySpace`; `context.output`
+is the Run's `ReadWriteSpace`. Both expose `sid` and `root`. Immutable Spaces
+also expose `cid`. `context.space(canonicalCid)` synchronously creates another
+immutable Space reference, not a network request. The SDK parses CIDs and
+canonicalizes them to CIDv1 base32, so CIDv0/v1 aliases share the same SID.
+The host validates canonical CID encoding, codecs, hashes, authorization and
+DAGs when used.
+There is no public constructor accepting arbitrary SIDs.
+
+Static SIDs are `ipfs:<canonical-cid>`; the output SID is
+`run:<runId>:output`. A `SpaceRef` exposes `space`, `path`,
+`resolve(relativePath)` and `toJSON()` (`{sid,path}`). Root paths are `/`.
+Resolution is synchronous and lexical: repeated separators and `.` normalize,
+`..` cannot escape root, backslashes and NUL are rejected. Absolute `/…`
+references resolve from the same Space root.
+
+`await ref.read({signal?})` returns a discriminated `SpaceNode`: either
+`{kind:"file",content:ReadableStream<Uint8Array>}` or
+`{kind:"directory",entries:AsyncIterable<SpaceEntry>}`. Each entry has `name`, `kind` (`file` or
+`directory`), and `ref`; follow that reference rather than rebuilding identity.
 
 ```ts
-const chunks: Uint8Array[] = [];
-for await (const chunk of context.bundle.read("resources/data.bin")) chunks.push(chunk);
-const bytes = Buffer.concat(chunks);
+const file = await context.bundle.root.resolve("resources/data.bin").read();
+if (file.kind !== "file") throw new Error("Expected a file");
+await context.output.write("data.bin", file.content);
+await context.output.link("original", context.bundle.root.resolve("resources"));
+const snapshotCid = await context.output.getCid();
 ```
 
-Resources belong to the current immutable Bundle root. Absolute paths,
-traversal and absent files fail. Do not locate resources through `__dirname`,
-`import.meta.url` or cwd: Workers can execute verified CommonJS source in memory.
-Workers are lifecycle/isolation boundaries, not security sandboxes.
+`write(path, content, {signal?})` accepts a byte stream; `link(path, ref,
+{signal?})` links a Space reference. `getCid({signal?})` captures the current
+immutable output snapshot without closing the writer. Completion waits for
+outstanding writes/links and host finalization; failures cannot silently
+become successful completion. The host attaches the final `outputCid` to the
+completed Run outcome, not the callback's business result.
+
+Native transferable streams provide backpressure, bounded transport chunks,
+explicit stream errors and cancellation. A read's optional abort signal spans
+both metadata lookup and the entire returned stream/iterator lifetime; cancel
+a stream or break directory iteration to release it early. Run cancellation
+aborts all operations. Request budgets are bounded.
+
+`context.generation`, `context.checkpoint` and `context.bundle.read` are
+removed. Rebuild existing Bundles: hosts explicitly require `spaceProtocol:1`
+in the ready handshake and reject previously compiled SDK wrappers. The schema
+identity itself is unchanged.
+
+Do not locate resources through `__dirname`, `import.meta.url` or cwd: Workers
+can execute verified CommonJS source in memory. Workers are lifecycle/isolation
+boundaries, not security sandboxes.
 
 The preserved wire contract is documented in the source's
 [Task Worker specification](https://github.com/shazhou-ww/potential-guide/blob/6614f46bf0f4152c61bd2c73d6c4b21ab4cf366f/docs/task-bundle-worker.md)

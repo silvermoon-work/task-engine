@@ -157,9 +157,6 @@ parentPort.postMessage({
   kind:"ready",
   value:{$schema,cid:workerData.bundle.cid,inputSchema,resultSchema,messageSchema,...${JSON.stringify(mismatch)}},
 });`,
-        readBundle: async () => {
-          throw new Error("No resources should be read before handshake.");
-        },
       },
       f.channel,
       { heartbeatMs: 20, healthMs: 5000, maxInFlight: 8, maxPayloadBytes: 65_536 },

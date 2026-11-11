@@ -11,6 +11,7 @@ import {
   projectRun,
   type RunResourceContext,
   type RunSnapshot,
+  type SpaceHost,
   requestTime,
   type SubmissionRecord,
   type SubmissionResult,
@@ -25,8 +26,13 @@ import { BundleCache, type BundleLimits, type BundleCacheOptions } from "./bundl
 import type { IpfsClient } from "./content.js";
 import { TaskEngine as Coordinator, type EngineOptions as CoordinatorOptions } from "./engine.js";
 import { newId } from "./identity.js";
+import { createRunSpaceHost, type RunSpaceHostOptions } from "./spaces.js";
 
 export { defaultEngineLimits, type EngineLimits } from "./engine.js";
+export type SpaceLimits = Omit<
+  RunSpaceHostOptions,
+  "runId" | "bundleCid" | "client" | "storage" | "signal"
+>;
 export interface EngineOptions
   extends Omit<
     CoordinatorOptions,
@@ -45,6 +51,7 @@ export interface EngineOptions
   bundleConcurrency?: number;
   bundlePreparation?: BundleCacheOptions["preparation"];
   bundlePrefetch?: boolean;
+  spaceLimits?: SpaceLimits;
   allowGateway?: (url: URL) => boolean;
   /** Deny by default. Caller identity is inherited, never supplied by the Worker. */
   authorizeChild?: (request: {
@@ -132,6 +139,14 @@ export class TaskEngine implements TaskService {
     ])
       if (Object.hasOwn(options, key))
         throw new TaskError("invalid_config", "Bundle Engine does not accept a type registry.");
+    for (const method of [
+      "readContentBlock",
+      "writeContentBlock",
+      "retainRunContent",
+      "readRunContentRoots",
+    ] as const)
+      if (typeof options.store[method] !== "function")
+        throw new TaskError("invalid_config", `Store must implement ${method} for Run content.`);
     this.cache = new BundleCache({
       ipfsClient: options.ipfsClient,
       ...(options.persistentContent ? { persistentContent: true } : {}),
@@ -212,7 +227,34 @@ export class TaskEngine implements TaskService {
       configuration: null,
       bundle: { cid: bundle.cid, declaration: bundle.resolved },
       getBundleSource: () => this.cache.source(cid),
-      readBundle: (path: string, signal: AbortSignal) => this.cache.read(cid, path, signal),
+      createSpace: (context: RunResourceContext): SpaceHost => {
+        const host = createRunSpaceHost({
+          ...this.options.spaceLimits,
+          runId: context.runId,
+          bundleCid: cid,
+          client: this.options.ipfsClient,
+          signal: context.signal,
+          storage: {
+            get: async (target) => this.core.readContentBlock(target),
+            put: async (target, bytes) => this.core.writeContentBlock(target, bytes),
+            retain: async (runId, target) => this.core.retainRunContent(runId, target),
+          },
+        });
+        return {
+          ...host,
+          read: async (ref, signal) => {
+            const node = await host.read(ref, signal);
+            if (ref.sid.startsWith("ipfs:"))
+              this.core.recordRunContentAccess(context.runId, ref.sid);
+            return node;
+          },
+          link: async (path, ref, signal) => {
+            await host.link(path, ref, signal);
+            if (ref.sid.startsWith("ipfs:"))
+              this.core.recordRunContentAccess(context.runId, ref.sid);
+          },
+        };
+      },
       ...(this.options.confirmBundleRelease
         ? { confirmResourceRelease: this.options.confirmBundleRelease }
         : {}),

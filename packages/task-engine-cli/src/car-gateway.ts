@@ -2,6 +2,9 @@ import { createHash } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { CarWriter } from "@ipld/car/writer";
 import { blockLength, headerLength } from "@ipld/car/buffer-writer";
+import * as dagCbor from "@ipld/dag-cbor";
+import * as dagPb from "@ipld/dag-pb";
+import { UnixFS, Node as UnixFSNode } from "ipfs-unixfs";
 import { exporter, walkPath } from "ipfs-unixfs-exporter";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
@@ -10,6 +13,82 @@ import type { LocalRead, RawGatewayOptions } from "./raw-gateway.js";
 const media = "application/vnd.ipld.car";
 const variant = { version: "1", order: "dfs", dups: "n" } as const;
 export const carContentType = `${media}; version=1; order=dfs; dups=n`;
+const maxDepth = 64;
+
+type WalkMode = "block" | "all" | "entity" | "file" | "hamt";
+function children(
+  cid: CID,
+  bytes: Uint8Array,
+  mode: WalkMode,
+  limit: number,
+): { cid: CID; mode: WalkMode }[] {
+  if (cid.code === 0x55) {
+    if (mode === "hamt") throw new CarRequestError(501);
+    return [];
+  }
+  if (cid.code === dagCbor.code) {
+    const value: unknown = dagCbor.decode(bytes);
+    if (mode !== "all") {
+      if (mode === "file" || mode === "hamt") throw new CarRequestError(501);
+      return [];
+    }
+    const links: CID[] = [];
+    const stack: Iterator<unknown>[] = [[value].values()];
+    while (stack.length) {
+      const item = stack.at(-1)!.next();
+      if (item.done) {
+        stack.pop();
+        continue;
+      }
+      const link = CID.asCID(item.value);
+      if (link) {
+        if (links.length >= limit) throw new CarRequestError(413);
+        links.push(link);
+      } else if (
+        item.value &&
+        typeof item.value === "object" &&
+        !(item.value instanceof Uint8Array)
+      ) {
+        const values = Array.isArray(item.value)
+          ? item.value
+          : Object.keys(item.value)
+              .sort((a, b) => Buffer.compare(dagCbor.encode(a), dagCbor.encode(b)))
+              .map((key) => (item.value as Record<string, unknown>)[key]);
+        if (stack.length > maxDepth) throw new CarRequestError(413);
+        stack.push(values.values());
+      }
+    }
+    return links.map((cid) => ({ cid, mode: "all" }));
+  }
+  const node = dagPb.decode(bytes);
+  if (mode === "block") return [];
+  if (mode === "all") return node.Links.map((link) => ({ cid: link.Hash, mode }));
+  let unixfs: UnixFS | undefined;
+  try {
+    if (node.Data) unixfs = UnixFS.unmarshal(node.Data);
+  } catch {
+    // DAG-PB is also a general IPLD codec; Data need not be UnixFS.
+  }
+  if (mode === "entity" && !unixfs) return [];
+  if (unixfs?.type === "file" || unixfs?.type === "raw") {
+    if (mode === "hamt") throw new CarRequestError(501);
+    return node.Links.map((link) => ({ cid: link.Hash, mode: "file" }));
+  }
+  if (unixfs?.type === "hamt-sharded-directory") {
+    if (
+      mode === "file" ||
+      unixfs.fanout !== 256n ||
+      UnixFSNode.decode(bytes).data?.hashType !== 0x22n
+    )
+      throw new CarRequestError(501);
+    return node.Links.filter((link) => link.Name?.length === 2).map((link) => ({
+      cid: link.Hash,
+      mode: "hamt",
+    }));
+  }
+  if (mode === "file" || mode === "hamt") throw new CarRequestError(501);
+  return [];
+}
 
 function hasControl(value: string) {
   return [...value].some(
@@ -159,9 +238,8 @@ export async function serveCar(
     if (url.searchParams.getAll(key).length > 1) throw new CarRequestError(400);
   if (url.searchParams.has("entity-bytes")) throw new CarRequestError(400);
   const { root, segments, path, encoded } = carPath(request);
-  const scope = url.searchParams.get("dag-scope");
-  const probe = root.toString() === "bafkqaaa" && segments.length === 0;
-  if (scope !== "block" && !(probe && scope === null)) throw new CarRequestError(400);
+  const scope = url.searchParams.get("dag-scope") ?? "all";
+  if (scope !== "block" && scope !== "entity" && scope !== "all") throw new CarRequestError(400);
   for (const [key, value] of Object.entries(variant))
     if (url.searchParams.has(`car-${key}`) && url.searchParams.get(`car-${key}`) !== value)
       throw new CarRequestError(406);
@@ -180,7 +258,10 @@ export async function serveCar(
   const read = async (cid: CID) => {
     signal.throwIfAborted();
     if (++reads > maxBlocks) throw new CarRequestError(413);
-    if (![0x55, 0x70].includes(cid.code) || ![0, sha256.code].includes(cid.multihash.code))
+    if (
+      ![0x55, dagPb.code, dagCbor.code].includes(cid.code) ||
+      ![0, sha256.code].includes(cid.multihash.code)
+    )
       throw new CarRequestError(501);
     if (cid.multihash.code === sha256.code && cid.multihash.size !== 32)
       throw new CarRequestError(400);
@@ -200,6 +281,7 @@ export async function serveCar(
     return bytes;
   };
   let cached = { cid: root, bytes: await read(root) };
+  children(root, cached.bytes, "block", maxBlocks);
   let emit: (cid: CID, bytes: Uint8Array) => Promise<void> = async () => {};
   const store = {
     async *get(cid: CID) {
@@ -210,10 +292,9 @@ export async function serveCar(
     },
   };
   const validate = async (cid: CID, descending: boolean) => {
+    if (!descending) return;
     const entry = await exporter(cid, store, { signal, offline: true });
-    if (entry.type === "file" && !["file", "raw"].includes(entry.unixfs.type))
-      throw new CarRequestError(501);
-    if (descending && entry.type !== "directory") throw new CarRequestError(404);
+    if (entry.type !== "directory") throw new CarRequestError(404);
   };
   await validate(root, segments.length > 0);
   let accountedBytes = headerLength({ roots: [root] });
@@ -229,8 +310,39 @@ export async function serveCar(
   };
   if (accountedBytes + (root.multihash.code === 0 ? 0 : blockLength(cached)) > maxBytes)
     throw new CarRequestError(413);
+  const traverse = async () => {
+    let target = root;
+    if (segments.length)
+      for await (const entry of walkPath(path, store, {
+        signal,
+        offline: true,
+        yieldSubShards: true,
+      })) {
+        await validate(entry.cid, entry.remainder.length > 0);
+        target = entry.cid;
+      }
+    const visited = new Set<string>();
+    const stack: { cid: CID; mode: WalkMode; depth: number }[] = [
+      { cid: target, mode: scope, depth: 0 },
+    ];
+    while (stack.length) {
+      signal.throwIfAborted();
+      const item = stack.pop()!;
+      const key = item.cid.toV1().toString();
+      if (visited.has(key)) continue;
+      if (item.depth > maxDepth || visited.size >= maxBlocks) throw new CarRequestError(413);
+      visited.add(key);
+      if (!cached.cid.equals(item.cid)) cached = { cid: item.cid, bytes: await read(item.cid) };
+      await emit(item.cid, cached.bytes);
+      const links = children(item.cid, cached.bytes, item.mode, maxBlocks - stack.length);
+      // Bound the pending frontier as well as reads, including identity links.
+      if (links.length + stack.length > maxBlocks) throw new CarRequestError(413);
+      for (let i = links.length - 1; i >= 0; i--)
+        stack.push({ ...links[i]!, depth: item.depth + 1 });
+    }
+  };
   const etag = `"${createHash("sha256")
-    .update(`${root.toV1()}/${segments.join("/")}\0block\0${carContentType}`)
+    .update(`${root.toV1()}/${segments.join("/")}\0${scope}\0${carContentType}`)
     .digest("hex")}.car"`;
   response.setHeader("etag", etag);
   response.setHeader("vary", "Accept");
@@ -249,7 +361,7 @@ export async function serveCar(
   );
   for (const [key, value] of Object.entries(variant)) url.searchParams.set(`car-${key}`, value);
   url.searchParams.set("format", "car");
-  if (!probe || scope !== null) url.searchParams.set("dag-scope", "block");
+  url.searchParams.set("dag-scope", scope);
   response.setHeader("content-location", `/ipfs/${encoded}${url.search}`);
   const matches = (header: string | undefined, weak: boolean) =>
     header?.split(",").some((part) => {
@@ -263,12 +375,7 @@ export async function serveCar(
     emit = async (cid, bytes) => {
       account(cid, bytes);
     };
-    for await (const entry of walkPath(path, store, {
-      signal,
-      offline: true,
-      yieldSubShards: true,
-    }))
-      await validate(entry.cid, entry.remainder.length > 0);
+    await traverse();
     response.writeHead(notModified ? 304 : 200).end();
     return;
   }
@@ -298,12 +405,7 @@ export async function serveCar(
   try {
     response.writeHead(200);
     await emit(root, cached.bytes);
-    for await (const entry of walkPath(path, store, {
-      signal,
-      offline: true,
-      yieldSubShards: true,
-    }))
-      await validate(entry.cid, entry.remainder.length > 0);
+    await traverse();
   } catch (error) {
     response.destroy();
     throw error;

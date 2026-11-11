@@ -186,29 +186,39 @@ HTTP listener、连接上限 `server.maxConnections` 和事件循环仍由宿主
 完整规范固定版本、适用矩阵及双节点命令见
 [本轮验证依据](../../.silvermoon/ideas/01M75C5K29RZDCXJEPDRADFAW3/outer/inner/verification.md)。
 
-### 本地 CAR 路径证明（迭代 2）
+### 本地 CAR 路径与 DAG 范围（迭代 3）
 
 ```powershell
 curl.exe --fail -o proof.car -H "Accept: application/vnd.ipld.car;version=1;order=dfs;dups=n" "http://127.0.0.1:8787/ipfs/<bundle-cid>/resources/nested/proof.txt?format=car&dag-scope=block"
 curl.exe -I "http://127.0.0.1:8787/ipfs/<bundle-cid>/resources/nested/proof.txt?format=car&dag-scope=block"
 ```
 
-仅支持显式 `dag-scope=block`：包含请求根、路径所需目录及 HAMT 子分片、
-终点 block；不读取兄弟节点或终点文件的内容子 DAG，也不递归列举终点目录。
-复用 UnixFS exporter 的普通目录、HAMT、file/raw 与 raw codec；
-支持 CIDv0/v1、SHA2-256/identity。identity 为虚拟 block，不写入 CAR 数据段。
-不支持其他 codec/hash、symlink 跟随、IPNS、entity/all、entity-bytes 或回源。
+三种 `dag-scope` 均包含请求根到终点的必要路径证明：
+
+| scope | 终点范围 |
+| --- | --- |
+| `block` | 仅终点 block，不读取载荷或列举目录 |
+| `entity` | UnixFS 多层文件的完整内容 DAG；普通目录仅目录块；HAMT 目录包含枚举所需的全部子分片，不读子文件/子目录内容；非 UnixFS 等同 block |
+| `all`（省略时默认） | 终点的完整连续子 DAG，按 DFS 首次访问顺序去重 |
+
+支持 raw `0x55`、DAG-PB `0x70`（不要求 Task bundle 或 UnixFS）、
+DAG-CBOR `0x71`；通用 DAG-PB 按 Links 顺序、DAG-CBOR 按规范编码的 map key
+顺序和 array 顺序遍历 links。UnixFS entity 支持 file/raw、普通目录和 fanout=256、
+murmur3-128 的 HAMT；symlink/metadata 只作为自身 entity，不跟随 symlink。
+复用维护中的 DAG-PB/DAG-CBOR/UnixFS codecs 与 exporter/walkPath，
+保留原始 bytes。支持 CIDv0/v1、SHA2-256/identity；identity 的 links 仍被校验与遍历，
+但虚拟 block 不写入 CAR 数据段。未知 codec/hash 明确 501，不跳过缺块。
+不支持 IPNS、entity-bytes、上传、pin 或回源。
 路径中间节点必须是目录，不把文件后的多余路径悄悄忽略。
-非法 UnixFS 数据或损坏 block 失败，不套用 Task bundle 的文件白名单。
+损坏 codec 数据或 hash 失败；非 UnixFS DAG-PB Data 可作为通用 IPLD 数据。
 
 只输出 `application/vnd.ipld.car; version=1; order=dfs; dups=n`。
 `format=car` 选择 CAR 表示；无 format 时按 Accept 权重选择 raw/CAR，
 相同权重优先显式 CAR，纯通配符保持既有 raw 默认。
 Accept 的 CAR 参数及 `car-version/car-order/car-dups` 必须能满足，
 查询参数优先；仅支持 `1/dfs/n`，其他变体 406，重复参数 400。
-省略 scope 或 entity/all、entity-bytes 返回 400，**不是默认 all 的子集**。
-唯一探测例外是 `/ipfs/bafkqaaa?format=car`：可省略 scope，返回根为
-`bafkqaaa` 的有效空 CAR；HEAD 无 body。其他 identity 仍要求显式 block scope。
+未知 scope、entity-bytes 返回 400；省略与显式 all 的 bytes、ETag 完全相同。
+`/ipfs/bafkqaaa?format=car` 返回根为 `bafkqaaa` 的有效空 CAR；HEAD 无 body。
 
 路径逐段 percent-decode 一次，`%2F` 是路径分隔符，然后合并重复斜线并处理
 `.`/`..`（不能越过请求根）；`%252F` 是文字 `%2F`，`+` 不是空格。
@@ -218,23 +228,30 @@ IPFS URI 使用规范 CID 和逐段编码，保留尾斜线，避免非 ASCII �
 GET 逐 block 校验 CID 后发送原始 bytes，不重新编码内容。
 含 attachment、nosniff、Vary、Content-Location（明确实际 CAR 参数）、
 IPFS 路径/URI、Accept-Ranges: none 和绑定根/规范路径/scope/表示的强 ETag。
-HEAD 与命中 If-None-Match 在发 headers 前验证整条证明；不发送 body 或虚构
+HEAD 与命中 If-None-Match 在发 headers 前验证所选 scope 的完整集合；不发送 body 或虚构
 Content-Length。If-Match 使用强比较，If-None-Match 可弱比较。
 根缺失普通 404、only-if-cached 412；损坏 500、预算超限 413。
-GET 发 headers 后遇到路径缺失、损坏、预算或超时，直接断开传输，
+GET 发 headers 后遇到路径/后代缺失、损坏、预算或超时，直接断开传输，
 不以正常 HTTP 结束符把部分 CAR 伪装成完整成功。
-**CAR 可解析不代表路径完整**：客户端必须从请求根验证所有命名路径边和终点；
+**CAR 可解析不代表范围完整**：客户端必须检查 HTTP 完整结束，并从请求根验证路径和
+所选范围内所有必要 links；UnixFS 文件还应验证恢复的全部 bytes。
 CAR roots 和服务端提供的终点都不是信任锚。
 
 raw/CAR 共用既有 access、并发、每 block 上限和总时限，不消耗任务执行配额。
-新增 `server.carGatewayMaxBlocks=128` 限制读取次数及输出去重集合，
+`server.carGatewayMaxBlocks=128` 限制读取次数、唯一访问（含 identity）、输出去重集合
+和待遍历 frontier（含重复 links）；很宽的 DAG 也可能需调高预算，
 `server.carGatewayMaxBytes=67108864` 分别限制累计读取 bytes 与完整 CAR 输出
 （含 framing）。超限不建立队列；修改后重启生效。
 发送等待 socket drain，取消/超时会打断等待并释放 slot。
-不缓存整份 CAR；只保留当前块、有限 CID 集和库的遍历状态。
-HAMT 递归的父分片/解码状态仍可能存活到遍历完成，受累计读取预算约束，
+终点子 DAG 非递归遍历，深度最多 64 条边；DAG-CBOR 嵌套容器最多 64 层。
+不缓存整份 CAR；只保留当前块、有界 frontier/CID 集和库的路径遍历状态。
+HAMT 路径证明的父分片/解码状态仍可能存活到路径解析完成，受累计读取预算约束，
 不是恒定一块内存或恶意租户隔离承诺。详见
-[迭代 2 实现证据及复核输入](../../.silvermoon/ideas/01M75C8GZ7M5PS1FFWQKW1HRJC/outer/inner/verification.md)。
+[迭代 3 实现证据及独立复核输入](../../.silvermoon/ideas/01M75CA7MBKSAQDFRRKN5PXQ39/outer/inner/verification.md)。
+
+读取一致性采用逐块、非快照语义：已校验的当前块可继续发出，后续必需块被并发
+prune 删除时检索失败，不重新回源、不静默省略。已读取块之后被删除不影响该响应；
+HEAD/304 仅证明本次检查时完整，不保证下一次 GET 或本地 pin。
 
 ### 后台故障诊断（当前源码新增）
 

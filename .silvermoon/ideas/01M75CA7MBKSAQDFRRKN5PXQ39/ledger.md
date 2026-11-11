@@ -4,15 +4,15 @@
 
 ### Implementation steps
 
-- [ ] **I-S01:** 补齐范围遍历语义
-- [ ] **I-S02:** 支持复杂 DAG 并限制资源
-- [ ] **I-S03:** 建立范围回归与支持矩阵
+- [x] **I-S01:** 补齐范围遍历语义
+- [x] **I-S02:** 支持复杂 DAG 并限制资源
+- [x] **I-S03:** 建立范围回归与支持矩阵
 
 ### Implementation acceptance criteria
 
-- [ ] **I-AC01:** 三种 scope 集合准确
-- [ ] **I-AC02:** 复杂结构和 codec 可验证
-- [ ] **I-AC03:** 缺块和预算不会隐瞒失败
+- [x] **I-AC01:** 三种 scope 集合准确
+- [x] **I-AC02:** 复杂结构和 codec 可验证
+- [x] **I-AC03:** 缺块和预算不会隐瞒失败
 
 ## Deployment
 

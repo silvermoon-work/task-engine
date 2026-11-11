@@ -27,6 +27,9 @@ catalogs:
     '@ipld/car':
       specifier: 5.4.6
       version: 5.4.6
+    '@ipld/dag-cbor':
+      specifier: 10.0.2
+      version: 10.0.2
     '@ipld/dag-pb':
       specifier: 4.2.0
       version: 4.2.0
@@ -66,6 +69,9 @@ catalogs:
     globals:
       specifier: ^17.13.0
       version: 17.13.0
+    ipfs-unixfs:
+      specifier: 13.1.2
+      version: 13.1.2
     ipfs-unixfs-exporter:
       specifier: 16.2.3
       version: 16.2.3
@@ -266,6 +272,9 @@ importers:
       '@ipld/car':
         specifier: 'catalog:'
         version: 5.4.6
+      '@ipld/dag-cbor':
+        specifier: 'catalog:'
+        version: 10.0.2
       '@ipld/dag-pb':
         specifier: 'catalog:'
         version: 4.2.0
@@ -278,6 +287,9 @@ importers:
       blockstore-core:
         specifier: 'catalog:'
         version: 7.0.1
+      ipfs-unixfs:
+        specifier: 'catalog:'
+        version: 13.1.2
       ipfs-unixfs-exporter:
         specifier: 'catalog:'
         version: 16.2.3

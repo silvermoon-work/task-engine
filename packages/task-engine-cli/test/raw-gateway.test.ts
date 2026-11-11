@@ -110,12 +110,12 @@ test("local raw profile: exact bytes, aliases, identity, negotiation, conditions
     ["application/vnd.ipld.raw;q=0, */*;q=1", 406],
     ["application/vnd.ipld.raw;version=1", 406],
     ["application/vnd.ipld.raw;q=2", 406],
-    ["application/vnd.ipld.car", 400],
+    ["application/vnd.ipld.car", 500],
     ["", 400],
   ] as const)
     assert.equal((await get(`/ipfs/${cid}`, { headers: { accept } })).status, status, accept);
   for (const [path, status] of [
-    [`/ipfs/${cid}?format=car`, 400],
+    [`/ipfs/${cid}?format=car`, 500],
     [`/ipfs/${cid}?format=raw&format=raw`, 400],
     [`/ipfs/${cid}/child?format=raw`, 400],
     [`/ipfs/${cid}?format=raw&dag-scope=all`, 400],

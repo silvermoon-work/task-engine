@@ -30,10 +30,12 @@
   "dependencies": {
     "@ipld/car": "catalog:",
     "@ipld/dag-pb": "catalog:",
+    "@ipld/dag-cbor": "catalog:",
     "blockstore-core": "catalog:",
     "multiformats": "catalog:",
     "ipfs-unixfs-exporter": "catalog:",
     "ipfs-unixfs-importer": "catalog:",
+    "ipfs-unixfs": "catalog:",
     "@silvermoon-work/task-engine": "workspace:*",
     "@silvermoon-work/task-protocol": "workspace:*"
   },

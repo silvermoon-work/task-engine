@@ -229,7 +229,7 @@ try {
   report.checks.hamtAllCompleteOfflineReexport = reexport.length;
   const genericAll = await importCar("generic-all", captures.generic.all.bytes);
   const leaf = await ipfs(genericAll, ["dag", "resolve", `${fixture.generic}/left/child`]);
-  assert.equal(leaf.bytes.toString().trim(), `/ipfs/${fixture.genericAll[1]}`);
+  assert.equal(leaf.bytes.toString().trim(), fixture.genericAll[1]);
   assert.equal((await ipfs(genericAll, ["block", "get", fixture.genericAll[1]])).bytes.toString(), "general IPLD payload\n");
   assert(!captures.generic.all.blocks.some((block) => key(block.cid) === fixture.genericVirtual));
   report.checks.sharedIdentityGenericDAGVerifiedOffline = true;

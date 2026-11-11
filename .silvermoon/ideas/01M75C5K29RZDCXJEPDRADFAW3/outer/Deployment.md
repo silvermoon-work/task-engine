@@ -2,6 +2,8 @@
 
 用户已授权本轮通过 GitHub Actions 发布新的 RC，并连接指定 Ubuntu 设备验证；实现与部署门禁由主 Agent 根据证据验收。本契约只覆盖本地 raw gateway，不推进后续 Idea。
 
+外部演练使用同步后的 [Ubuntu 验证脚本](verify-ubuntu.mjs)，安装依赖和执行结果记录在本世界的部署证据中。脚本只从当前独立 consumer 的 registry 安装解析包，不读取仓库源码。
+
 ## Steps
 
 ### D-S01: 发布 CLI RC

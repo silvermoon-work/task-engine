@@ -11,7 +11,7 @@ scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节�
 
 使用 Node.js 22.13 或更新版本（建议 Node.js 24），安装两个已编译的 CLI。以下是
 **0.1.0 / latest**
-的安装流程，须在对应版本发布完成后使用；源码版本号本身不证明 npm 已可用。命令失败时先排查，不继续使用旧产物：
+已发布并完成真实 registry 安装验证。命令失败时先排查，不继续使用旧产物：
 
 ```powershell
 npm install -g @silvermoon-work/task-builder-cli@0.1.0 @silvermoon-work/task-engine-cli@0.1.0
@@ -223,6 +223,42 @@ application packages private. Add publishable libraries to the package-specific
 tag release mapping below.
 
 ## Publish one package
+
+### Stable 0.1.0 (2026-11-11)
+
+The six selected packages were individually published from
+`bf64d0be1d470aef3a5d7870bfccee6a4da60a17`, after successful
+[exact-commit Node 22/24 CI](https://github.com/silvermoon-work/task-engine/actions/runs/43010547776).
+All six `latest` tags select `0.1.0`; Storage, HTTP and Server were not
+republished. The next breaking change is reserved for 0.2.0.
+
+| Package                             | Trusted publication                                                                |
+| ----------------------------------- | ---------------------------------------------------------------------------------- |
+| `@silvermoon-work/task-protocol`    | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43011623454) |
+| `@silvermoon-work/task-sdk`         | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43012003134) |
+| `@silvermoon-work/task-builder`     | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43012492771) |
+| `@silvermoon-work/task-builder-cli` | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43012883373) |
+| `@silvermoon-work/task-engine`      | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43013322963) |
+| `@silvermoon-work/task-engine-cli`  | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43013900253) |
+
+[Read-only registry verification](https://github.com/silvermoon-work/task-engine/actions/runs/43014356188)
+confirmed exact versions, dist-tags and internal dependencies. Its initial
+attempt saw the stale Engine CLI catalog; the retry passed after propagation. No
+release tag was moved and no successful publication was repeated.
+
+On office-ubuntu (Linux x64, Node 24.22.2), a fresh isolated npm installation of
+both 0.1.0 CLIs and an unmodified generated project's dependencies passed 48
+acceptance commands without workspace/tarball overrides. Checks covered
+typecheck (positive and negative), build, standalone CAR/overwrite refusal,
+clean, help/error behavior, local CAR, uncached CID through an isolated HTTP
+raw-block gateway, async/await, query pagination, durable logs, restart and
+offline prune. A second task read and compared every byte of a 2 MiB output
+after restart and cache-only pruning, with no gateway configured. This stable
+CID check used a local HTTP fixture, not the older public Pinboard Echo CID. Old
+pre-Space Bundles must still be rebuilt.
+
+Validation daemons and the fixture gateway were stopped. Existing global CLI
+installations and user projects were not changed.
 
 ### Space context canary (2026-11-11)
 

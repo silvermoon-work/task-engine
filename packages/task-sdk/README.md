@@ -11,9 +11,9 @@ The initial migration preserved the runtime and public API; package imports use 
 `@silvermoon-work` workspace. The initial `0.1.0-canary-261109-1` was published through
 [Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/42588331015)
 with an exact dependency on protocol `0.1.0-canary-261109-2`.
-The current release candidate is `0.1.0`, paired with protocol
-`0.1.0`, targeting `latest`. Publish these separately in dependency order only after
-the exact candidate receives approval; the manifest is not npm availability evidence.
+The current stable release is `0.1.0`, paired with protocol `0.1.0`, on `latest`.
+Publication and installed acceptance are recorded in the
+[release notes](../../README.md#stable-010-2026-11-11).
 
 The published `0.1.0-canary-261111-2` introduced the breaking Space context
 contract; see the [release notes](../../README.md#space-context-canary-2026-11-11).

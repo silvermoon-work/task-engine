@@ -14,6 +14,50 @@ const media = "application/vnd.ipld.car";
 const variant = { version: "1", order: "dfs", dups: "n" } as const;
 export const carContentType = `${media}; version=1; order=dfs; dups=n`;
 const maxDepth = 64;
+type Variant = { version: string; order: string; dups: string };
+type ByteRange = { from: bigint; to: bigint | undefined };
+
+function parseRange(value: string | null): ByteRange | undefined {
+  if (value === null) return;
+  if (value.length > 256 || !/^-?\d+:(?:-?\d+|\*)$/.test(value)) throw new CarRequestError(400);
+  const [from, to] = value.split(":");
+  return { from: BigInt(from!), to: to === "*" ? undefined : BigInt(to!) };
+}
+
+function interval(range: ByteRange, size: bigint) {
+  const from = range.from < 0n ? size + range.from : range.from;
+  const to = range.to === undefined ? size - 1n : range.to < 0n ? size + range.to : range.to;
+  return { from: from < 0n ? 0n : from, to: to >= size ? size - 1n : to };
+}
+
+function byteEntity(cid: CID, bytes: Uint8Array) {
+  if (cid.code === 0x55)
+    return { size: BigInt(bytes.length), dataSize: BigInt(bytes.length), links: [] };
+  if (cid.code !== dagPb.code) return;
+  const node = dagPb.decode(bytes);
+  let unixfs: UnixFS;
+  try {
+    if (!node.Data) return;
+    unixfs = UnixFS.unmarshal(node.Data);
+  } catch {
+    return;
+  }
+  if (unixfs.type !== "file" && unixfs.type !== "raw") return;
+  const size = unixfs.fileSize();
+  if (
+    node.Links.length !== unixfs.blockSizes.length ||
+    UnixFSNode.decode(bytes).data?.fileSize !== size
+  )
+    throw new CarRequestError(500);
+  return {
+    size,
+    dataSize: BigInt(unixfs.data?.length ?? 0),
+    links: node.Links.map((link, index) => ({
+      cid: link.Hash,
+      size: unixfs.blockSizes[index]!,
+    })),
+  };
+}
 
 type WalkMode = "block" | "all" | "entity" | "file" | "hamt";
 function children(
@@ -102,7 +146,7 @@ export class CarRequestError extends Error {
   }
 }
 
-function quality(accept: string, type: string, url: URL): number {
+function quality(accept: string, type: string, url: URL, candidate: Variant = variant): number {
   let specificity = -1;
   let parameterCount = -1;
   let result = 0;
@@ -123,6 +167,7 @@ function quality(accept: string, type: string, url: URL): number {
     for (const part of parts) {
       const match = /^\s*([\w-]+)\s*=\s*(?:"([^"]*)"|([^\s"]+))\s*$/.exec(part);
       if (!match || parameters.has(match[1]!)) {
+        if (type === media) throw new CarRequestError(406);
         supported = false;
         break;
       }
@@ -130,12 +175,14 @@ function quality(accept: string, type: string, url: URL): number {
     }
     for (const [key, value] of parameters) {
       if (key === "q") {
-        if (!/^(?:0(?:\.\d{0,3})?|1(?:\.0{0,3})?)$/.test(value)) supported = false;
-        else q = Number(value);
+        if (!/^(?:0(?:\.\d{0,3})?|1(?:\.0{0,3})?)$/.test(value)) {
+          if (type === media) throw new CarRequestError(406);
+          supported = false;
+        } else q = Number(value);
       } else if (
         type !== media ||
-        !Object.hasOwn(variant, key) ||
-        (url.searchParams.get(`car-${key}`) ?? value) !== variant[key as keyof typeof variant]
+        !Object.hasOwn(candidate, key) ||
+        (url.searchParams.get(`car-${key}`) ?? value) !== candidate[key as keyof Variant]
       )
         supported = false;
     }
@@ -155,7 +202,8 @@ export function wantsCar(url: URL, accept: string): boolean {
   if (formats.length) return formats[0] === "car";
   return (
     accept.toLowerCase().includes(media) &&
-    quality(accept, media, url) >= quality(accept, "application/vnd.ipld.raw", url)
+    Math.max(quality(accept, media, url), quality(accept, media, url, { ...variant, dups: "y" })) >=
+      quality(accept, "application/vnd.ipld.raw", url)
   );
 }
 
@@ -234,19 +282,37 @@ export async function serveCar(
   local: LocalRead,
   signal: AbortSignal,
 ) {
-  for (const key of ["format", "dag-scope", "filename", "car-version", "car-order", "car-dups"])
+  for (const key of [
+    "format",
+    "dag-scope",
+    "entity-bytes",
+    "filename",
+    "car-version",
+    "car-order",
+    "car-dups",
+  ])
     if (url.searchParams.getAll(key).length > 1) throw new CarRequestError(400);
-  if (url.searchParams.has("entity-bytes")) throw new CarRequestError(400);
+  const range = parseRange(url.searchParams.get("entity-bytes"));
   const { root, segments, path, encoded } = carPath(request);
-  const scope = url.searchParams.get("dag-scope") ?? "all";
-  if (scope !== "block" && scope !== "entity" && scope !== "all") throw new CarRequestError(400);
-  for (const [key, value] of Object.entries(variant))
-    if (url.searchParams.has(`car-${key}`) && url.searchParams.get(`car-${key}`) !== value)
+  const requestedScope = url.searchParams.get("dag-scope") ?? "all";
+  if (!["block", "entity", "all"].includes(requestedScope)) throw new CarRequestError(400);
+  const scope = range ? "entity" : (requestedScope as "block" | "entity" | "all");
+  for (const [key, values] of Object.entries({ version: ["1"], order: ["dfs"], dups: ["n", "y"] }))
+    if (url.searchParams.has(`car-${key}`) && !values.includes(url.searchParams.get(`car-${key}`)!))
       throw new CarRequestError(406);
   const accept = request.headers.accept ?? "";
-  if (!url.searchParams.has("format") || accept.toLowerCase().includes(media)) {
-    if (quality(accept, media, url) === 0) throw new CarRequestError(406);
-  }
+  const negotiate = !url.searchParams.has("format") || accept.toLowerCase().includes(media);
+  const candidates = ["n", "y"]
+    .map((dups) => ({ ...variant, dups }))
+    .filter(
+      (candidate) =>
+        !url.searchParams.has("car-dups") || url.searchParams.get("car-dups") === candidate.dups,
+    )
+    .map((candidate) => ({ candidate, q: negotiate ? quality(accept, media, url, candidate) : 1 }))
+    .sort((a, b) => b.q - a.q);
+  if (!candidates[0]?.q) throw new CarRequestError(406);
+  const selected = candidates[0].candidate;
+  const contentType = `${media}; version=1; order=dfs; dups=${selected.dups}`;
   const customFilename = url.searchParams.get("filename");
   if (customFilename && (customFilename.length > 256 || hasControl(customFilename)))
     throw new CarRequestError(400);
@@ -282,12 +348,27 @@ export async function serveCar(
   };
   let cached = { cid: root, bytes: await read(root) };
   children(root, cached.bytes, "block", maxBlocks);
+  if (range && segments.length === 0) {
+    const entity = byteEntity(root, cached.bytes);
+    if (entity && entity.size > 0n) {
+      const bounds = interval(range, entity.size);
+      if (bounds.from > bounds.to) throw new CarRequestError(400);
+    }
+  }
   let emit: (cid: CID, bytes: Uint8Array) => Promise<void> = async () => {};
+  let emittingPath = false;
+  const pathBlocks = new Set<string>();
+  const emitPath = async (cid: CID, bytes: Uint8Array) => {
+    const key = cid.toV1().toString();
+    if (pathBlocks.has(key)) return;
+    pathBlocks.add(key);
+    await emit(cid, bytes);
+  };
   const store = {
     async *get(cid: CID) {
       signal.throwIfAborted();
       if (!cached.cid.equals(cid)) cached = { cid, bytes: await read(cid) };
-      await emit(cid, cached.bytes);
+      if (emittingPath) await emitPath(cid, cached.bytes);
       yield cached.bytes;
     },
   };
@@ -297,12 +378,14 @@ export async function serveCar(
     if (entry.type !== "directory") throw new CarRequestError(404);
   };
   await validate(root, segments.length > 0);
+  emittingPath = true;
   let accountedBytes = headerLength({ roots: [root] });
   const sent = new Set<string>();
+  let occurrences = 0;
   const account = (cid: CID, bytes: Uint8Array) => {
     const key = cid.toV1().toString();
-    if (sent.has(key) || cid.multihash.code === 0) return false;
-    if (sent.size >= maxBlocks) throw new CarRequestError(413);
+    if ((selected.dups === "n" && sent.has(key)) || cid.multihash.code === 0) return false;
+    if (++occurrences > maxBlocks) throw new CarRequestError(413);
     accountedBytes += blockLength({ cid, bytes });
     if (accountedBytes > maxBytes) throw new CarRequestError(413);
     sent.add(key);
@@ -322,31 +405,67 @@ export async function serveCar(
         target = entry.cid;
       }
     const visited = new Set<string>();
-    const stack: { cid: CID; mode: WalkMode; depth: number }[] = [
-      { cid: target, mode: scope, depth: 0 },
-    ];
+    type Item = {
+      cid: CID;
+      mode: WalkMode;
+      depth: number;
+      bounds?: { from: bigint; to: bigint };
+      expectedSize?: bigint;
+    };
+    const stack: Item[] = [{ cid: target, mode: scope, depth: 0 }];
+    let walked = 0;
     while (stack.length) {
       signal.throwIfAborted();
       const item = stack.pop()!;
-      const key = item.cid.toV1().toString();
-      if (visited.has(key)) continue;
-      if (item.depth > maxDepth || visited.size >= maxBlocks) throw new CarRequestError(413);
+      const key = `${item.cid.toV1()}:${item.bounds?.from ?? ""}:${item.bounds?.to ?? ""}:${item.expectedSize ?? ""}`;
+      if (selected.dups === "n" && visited.has(key)) continue;
+      if (item.depth > maxDepth || ++walked > maxBlocks) throw new CarRequestError(413);
       visited.add(key);
       if (!cached.cid.equals(item.cid)) cached = { cid: item.cid, bytes: await read(item.cid) };
-      await emit(item.cid, cached.bytes);
-      const links = children(item.cid, cached.bytes, item.mode, maxBlocks - stack.length);
+      if (item.depth === 0) await emitPath(item.cid, cached.bytes);
+      else await emit(item.cid, cached.bytes);
+      const entity = range ? byteEntity(item.cid, cached.bytes) : undefined;
+      if (item.expectedSize !== undefined && entity?.size !== item.expectedSize)
+        throw new CarRequestError(500);
+      let links: Item[];
+      if (entity) {
+        const bounds = item.bounds ?? interval(range!, entity.size);
+        links = [];
+        let offset = entity.dataSize;
+        if (bounds.from <= bounds.to)
+          for (const link of entity.links) {
+            const end = offset + link.size;
+            if (bounds.from < end && bounds.to >= offset && link.size > 0n)
+              links.push({
+                cid: link.cid,
+                mode: "file",
+                depth: item.depth + 1,
+                expectedSize: link.size,
+                bounds: {
+                  from: bounds.from > offset ? bounds.from - offset : 0n,
+                  to: bounds.to < end ? bounds.to - offset : link.size - 1n,
+                },
+              });
+            offset = end;
+          }
+      } else {
+        links = children(item.cid, cached.bytes, item.mode, maxBlocks - stack.length).map(
+          (link) => ({ ...link, depth: item.depth + 1 }),
+        );
+      }
       // Bound the pending frontier as well as reads, including identity links.
       if (links.length + stack.length > maxBlocks) throw new CarRequestError(413);
-      for (let i = links.length - 1; i >= 0; i--)
-        stack.push({ ...links[i]!, depth: item.depth + 1 });
+      for (let i = links.length - 1; i >= 0; i--) stack.push(links[i]!);
     }
   };
   const etag = `"${createHash("sha256")
-    .update(`${root.toV1()}/${segments.join("/")}\0${scope}\0${carContentType}`)
+    .update(
+      `${root.toV1()}/${segments.join("/")}\0${scope}\0${range ? `${range.from}:${range.to ?? "*"}` : ""}\0${contentType}`,
+    )
     .digest("hex")}.car"`;
   response.setHeader("etag", etag);
   response.setHeader("vary", "Accept");
-  response.setHeader("content-type", carContentType);
+  response.setHeader("content-type", contentType);
   response.setHeader("x-content-type-options", "nosniff");
   response.setHeader("x-ipfs-path", `/ipfs/${encoded}`);
   response.setHeader("ipfs-uri", `ipfs://${encoded}`);
@@ -359,7 +478,7 @@ export async function serveCar(
     "content-disposition",
     `attachment; filename="${filename.replace(/[^\x20-\x7e]|["\\]/g, "_")}"; filename*=UTF-8''${encodeURIComponent(filename).replace(/['()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}`,
   );
-  for (const [key, value] of Object.entries(variant)) url.searchParams.set(`car-${key}`, value);
+  for (const [key, value] of Object.entries(selected)) url.searchParams.set(`car-${key}`, value);
   url.searchParams.set("format", "car");
   url.searchParams.set("dag-scope", scope);
   response.setHeader("content-location", `/ipfs/${encoded}${url.search}`);
@@ -404,7 +523,7 @@ export async function serveCar(
   };
   try {
     response.writeHead(200);
-    await emit(root, cached.bytes);
+    await emitPath(root, cached.bytes);
     await traverse();
   } catch (error) {
     response.destroy();

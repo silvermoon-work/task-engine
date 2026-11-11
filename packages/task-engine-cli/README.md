@@ -186,11 +186,12 @@ HTTP listener、连接上限 `server.maxConnections` 和事件循环仍由宿主
 完整规范固定版本、适用矩阵及双节点命令见
 [本轮验证依据](../../.silvermoon/ideas/01M75C5K29RZDCXJEPDRADFAW3/outer/inner/verification.md)。
 
-### 本地 CAR 路径与 DAG 范围（迭代 3）
+### 本地 CAR 路径、字节范围与表示协商（迭代 4）
 
 ```powershell
 curl.exe --fail -o proof.car -H "Accept: application/vnd.ipld.car;version=1;order=dfs;dups=n" "http://127.0.0.1:8787/ipfs/<bundle-cid>/resources/nested/proof.txt?format=car&dag-scope=block"
 curl.exe -I "http://127.0.0.1:8787/ipfs/<bundle-cid>/resources/nested/proof.txt?format=car&dag-scope=block"
+curl.exe --fail -o range.car "http://127.0.0.1:8787/ipfs/<file-cid>?format=car&entity-bytes=-1024:*"
 ```
 
 三种 `dag-scope` 均包含请求根到终点的必要路径证明：
@@ -199,7 +200,7 @@ curl.exe -I "http://127.0.0.1:8787/ipfs/<bundle-cid>/resources/nested/proof.txt?
 | --- | --- |
 | `block` | 仅终点 block，不读取载荷或列举目录 |
 | `entity` | UnixFS 多层文件的完整内容 DAG；普通目录仅目录块；HAMT 目录包含枚举所需的全部子分片，不读子文件/子目录内容；非 UnixFS 等同 block |
-| `all`（省略时默认） | 终点的完整连续子 DAG，按 DFS 首次访问顺序去重 |
+| `all`（省略时默认） | 终点的完整连续子 DAG，按 DFS 遍历；默认首次访问去重 |
 
 支持 raw `0x55`、DAG-PB `0x70`（不要求 Task bundle 或 UnixFS）、
 DAG-CBOR `0x71`；通用 DAG-PB 按 Links 顺序、DAG-CBOR 按规范编码的 map key
@@ -208,16 +209,27 @@ murmur3-128 的 HAMT；symlink/metadata 只作为自身 entity，不跟随 symli
 复用维护中的 DAG-PB/DAG-CBOR/UnixFS codecs 与 exporter/walkPath，
 保留原始 bytes。支持 CIDv0/v1、SHA2-256/identity；identity 的 links 仍被校验与遍历，
 但虚拟 block 不写入 CAR 数据段。未知 codec/hash 明确 501，不跳过缺块。
-不支持 IPNS、entity-bytes、上传、pin 或回源。
+不支持 IPNS、上传、pin 或回源。
 路径中间节点必须是目录，不把文件后的多余路径悄悄忽略。
 损坏 codec 数据或 hash 失败；非 UnixFS DAG-PB Data 可作为通用 IPLD 数据。
 
-只输出 `application/vnd.ipld.car; version=1; order=dfs; dups=n`。
+`entity-bytes=from:to` 是闭区间，负偏移从文件末尾计数，`to=*` 表示文件末尾。
+它优先隐含 `dag-scope=entity`，通过 BigInt UnixFS 元数据仅选择必要结构及载荷 blocks，
+不切割 CAR 序列化字节，也不下载无关叶子。目录、一般 DAG 等非字节实体忽略范围，
+按 entity 返回；语法错误、重复参数为 400。根文件可提前判断的完全越界或反向空区间为
+400；沿路径流式发现的完全越界/空区间及空文件返回等价 block 的结构证明。
+部分越界返回范围内 blocks。原始块中包含额外未请求 bytes 是块级证明的必然结果，
+客户端应验证后从完整原始 blocks 恢复切片，而非直接拼接 CAR bytes。
+
+只输出 `application/vnd.ipld.car; version=1; order=dfs; dups=n|y`。
 `format=car` 选择 CAR 表示；无 format 时按 Accept 权重选择 raw/CAR，
 相同权重优先显式 CAR，纯通配符保持既有 raw 默认。
 Accept 的 CAR 参数及 `car-version/car-order/car-dups` 必须能满足，
-查询参数优先；仅支持 `1/dfs/n`，其他变体 406，重复参数 400。
-未知 scope、entity-bytes 返回 400；省略与显式 all 的 bytes、ETag 完全相同。
+查询参数优先；支持 `1/dfs/n|y`，其他变体 406，重复参数 400。
+Accept 按媒体范围 specificity、参数及 q 值选择可满足的变体；省略 dups 默认 n。
+dups=y 按真实 DFS 每次图出现发送完整 block（包括重复子树），不是重复输出路径解析器
+的内部读取；identity 虚拟块在两种策略下均不写入 CAR。
+未知 scope 返回 400；无 entity-bytes 时省略与显式 all 的 bytes、ETag 完全相同。
 `/ipfs/bafkqaaa?format=car` 返回根为 `bafkqaaa` 的有效空 CAR；HEAD 无 body。
 
 路径逐段 percent-decode 一次，`%2F` 是路径分隔符，然后合并重复斜线并处理
@@ -227,8 +239,8 @@ IPFS URI 使用规范 CID 和逐段编码，保留尾斜线，避免非 ASCII �
 
 GET 逐 block 校验 CID 后发送原始 bytes，不重新编码内容。
 含 attachment、nosniff、Vary、Content-Location（明确实际 CAR 参数）、
-IPFS 路径/URI、Accept-Ranges: none 和绑定根/规范路径/scope/表示的强 ETag。
-HEAD 与命中 If-None-Match 在发 headers 前验证所选 scope 的完整集合；不发送 body 或虚构
+IPFS 路径/URI、Accept-Ranges: none 和绑定根/规范路径/有效 scope/请求范围/版本/顺序/dups 的强 ETag。
+HEAD 与命中 If-None-Match 在发 headers 前验证所选范围的必要集合，不要求文件完整 DAG；不发送 body 或虚构
 Content-Length。If-Match 使用强比较，If-None-Match 可弱比较。
 根缺失普通 404、only-if-cached 412；损坏 500、预算超限 413。
 GET 发 headers 后遇到路径/后代缺失、损坏、预算或超时，直接断开传输，
@@ -238,7 +250,7 @@ GET 发 headers 后遇到路径/后代缺失、损坏、预算或超时，直接
 CAR roots 和服务端提供的终点都不是信任锚。
 
 raw/CAR 共用既有 access、并发、每 block 上限和总时限，不消耗任务执行配额。
-`server.carGatewayMaxBlocks=128` 限制读取次数、唯一访问（含 identity）、输出去重集合
+`server.carGatewayMaxBlocks=128` 限制读取次数、访问次数（含 identity）、输出 block 次数
 和待遍历 frontier（含重复 links）；很宽的 DAG 也可能需调高预算，
 `server.carGatewayMaxBytes=67108864` 分别限制累计读取 bytes 与完整 CAR 输出
 （含 framing）。超限不建立队列；修改后重启生效。
@@ -247,7 +259,7 @@ raw/CAR 共用既有 access、并发、每 block 上限和总时限，不消耗�
 不缓存整份 CAR；只保留当前块、有界 frontier/CID 集和库的路径遍历状态。
 HAMT 路径证明的父分片/解码状态仍可能存活到路径解析完成，受累计读取预算约束，
 不是恒定一块内存或恶意租户隔离承诺。详见
-[迭代 3 实现证据及独立复核输入](../../.silvermoon/ideas/01M75CA7MBKSAQDFRRKN5PXQ39/outer/inner/verification.md)。
+[迭代 4 实现证据及独立范围复核输入](../../.silvermoon/ideas/01M75CBPP3TFRS1N6K71W1WRYJ/outer/inner/verification.md)。
 
 读取一致性采用逐块、非快照语义：已校验的当前块可继续发出，后续必需块被并发
 prune 删除时检索失败，不重新回源、不静默省略。已读取块之后被删除不影响该响应；

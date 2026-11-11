@@ -246,6 +246,15 @@ test("block CAR: exact root/path/terminal blocks, original bytes, independent ne
       404,
       "locally missing descendants never invoke the configured upstream",
     );
+  assert.equal(
+    (
+      await fetch(url + path + "?format=car&entity-bytes=0:1", {
+        method: "HEAD",
+      })
+    ).status,
+    404,
+    "range misses also remain strictly local",
+  );
   assert.equal(outbound, 0);
 });
 
@@ -318,17 +327,17 @@ test("CAR negotiation, explicit scope, identity probes, URL decoding and honest 
     ["?format=car&dag-scope=all", "", 200],
     ["?format=car&dag-scope=entity", "", 200],
     ["?format=car&dag-scope=invalid", "", 400],
-    ["?format=car&dag-scope=block&entity-bytes=0:1", "", 400],
+    ["?format=car&dag-scope=block&entity-bytes=0:1", "", 200],
     ["?format=car&dag-scope=block&car-version=2", "", 406],
     ["?format=car&dag-scope=block&car-order=unk", "", 406],
-    ["?format=car&dag-scope=block&car-dups=y", "", 406],
+    ["?format=car&dag-scope=block&car-dups=y", "", 200],
     ["?format=car&dag-scope=block&format=car", "", 400],
     ["?format=car&dag-scope=block&dag-scope=block", "", 400],
     ["?format=car&dag-scope=block", "text/html", 200],
     ["?format=car&dag-scope=block", media, 200],
     ["?format=car&dag-scope=block", "application/vnd.ipld.car;version=2", 406],
     ["?format=car&dag-scope=block&car-version=1", "application/vnd.ipld.car;version=2", 200],
-    ["?format=car&dag-scope=block", "application/vnd.ipld.car;dups=y", 406],
+    ["?format=car&dag-scope=block", "application/vnd.ipld.car;dups=y", 200],
     ["?format=car&dag-scope=block", "application/vnd.ipld.car;q=0,*/*;q=1", 406],
     ["?format=car&dag-scope=block", "application/vnd.ipld.car;q=2", 406],
     [
@@ -350,7 +359,13 @@ test("CAR negotiation, explicit scope, identity probes, URL decoding and honest 
   ] as const) {
     const response = await fetch(base + query, { headers: { accept } });
     assert.equal(response.status, status, `${query} ${accept}`);
-    if (status === 200) assert.equal(response.headers.get("content-type"), media);
+    if (status === 200)
+      assert.equal(
+        response.headers.get("content-type"),
+        query.includes("car-dups=y") || accept.includes("dups=y")
+          ? media.replace("dups=n", "dups=y")
+          : media,
+      );
     await response.arrayBuffer();
   }
   for (const method of ["GET", "HEAD"])
@@ -782,6 +797,445 @@ test("general DAG-CBOR and DAG-PB, shared and identity descendants: entity is bl
         });
       }
     }
+  }
+});
+
+async function rangeFixture() {
+  const f = await scopeFixture();
+  const chunks = Array.from({ length: 8 }, (_, i) =>
+    Buffer.from(Array.from({ length: 32768 }, (_, j) => (i * 31 + j * 7) % 251)),
+  );
+  const leaves = await Promise.all(chunks.map((bytes) => f.put(0x55, bytes)));
+  const file = (links: CID[], sizes: number[]) =>
+    f.put(
+      dagPb.code,
+      dagPb.encode({
+        Data: new UnixFS({ type: "file", blockSizes: sizes.map(BigInt) }).marshal(),
+        Links: links.map((Hash) => ({ Hash, Name: "" })),
+      }),
+    );
+  const branches = [
+    await file(leaves.slice(0, 4), Array<number>(4).fill(32768)),
+    await file(leaves.slice(4), Array<number>(4).fill(32768)),
+  ];
+  const target = await file(branches, [131072, 131072]);
+  const directory = (Name: string, Hash: CID) =>
+    f.put(
+      dagPb.code,
+      dagPb.encode({
+        Data: new UnixFS({ type: "directory" }).marshal(),
+        Links: [{ Name, Hash }],
+      }),
+    );
+  const deep = await directory("file", target);
+  const root = await directory("deep", deep);
+  return { ...f, root, deep, target, branches, leaves, whole: Buffer.concat(chunks) };
+}
+
+test("entity-bytes minimal multilevel proof: exact independent CID sets, ranges, byte recovery and bounded reads", async (t) => {
+  const f = await rangeFixture();
+  const reads: string[] = [];
+  const { url } = await listen(t, async (cid) => {
+    reads.push(key(cid));
+    const bytes = f.blocks.get(key(cid));
+    if (!bytes) throw missing();
+    return bytes;
+  });
+  const base = `${url}/ipfs/${f.root}/deep/file?format=car`;
+  // Expected indexes come from the original fixed chunk layout, not CAR roots or product traversal.
+  const cases: [string, number, number, number[]][] = [
+    ["32749:32805", 32749, 32805, [0, 1]],
+    ["131059:131095", 131059, 131095, [3, 4]],
+    ["-73:*", f.whole.length - 73, f.whole.length - 1, [7]],
+    ["0:0", 0, 0, [0]],
+    ["32768:65535", 32768, 65535, [1]],
+    ["0:-262140", 0, 4, [0]],
+    ["-262150:5", 0, 5, [0]],
+    ["262140:99999999999999999999999", 262140, 262143, [7]],
+    ["0:*", 0, 262143, [0, 1, 2, 3, 4, 5, 6, 7]],
+    ["262144:*", 262144, 262143, []],
+    ["99999999999999999999999:*", 262144, 262143, []],
+    ["0:-99999999999999999999999", 0, -1, []],
+    ["19:18", 19, 18, []],
+  ];
+  let fullCarBytes = 0;
+  let smallCarBytes = 0;
+  const tags = new Map<string, string>();
+  for (const [range, from, to, indexes] of cases) {
+    reads.length = 0;
+    const response = await fetch(`${base}&dag-scope=all&entity-bytes=${range}`);
+    assert.equal(response.status, 200, range);
+    assert.match(response.headers.get("content-location")!, /dag-scope=entity/);
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const { blocks } = await readArchive(bytes);
+    const expected = [f.root, f.deep, f.target];
+    for (let branch = 0; branch < 2; branch++) {
+      const selected = indexes.filter((i) => Math.floor(i / 4) === branch);
+      if (selected.length) expected.push(f.branches[branch]!, ...selected.map((i) => f.leaves[i]!));
+    }
+    assert.deepEqual(
+      blocks.map((b) => key(b.cid)),
+      expected.map(key),
+      range,
+    );
+    assert.deepEqual(reads, expected.map(key), "no unrelated blocks or repeated resolver reads");
+    const proof = await verify(bytes, f.root, "deep/file");
+    assert.equal(key(proof.cid), key(f.target));
+    const recovered =
+      indexes.length === 0
+        ? Buffer.alloc(0)
+        : Buffer.concat(
+            indexes.map((i) => {
+              const block = blocks.find((b) => b.cid.equals(f.leaves[i]!));
+              assert.ok(block);
+              return block.bytes;
+            }),
+          ).subarray(from - indexes[0]! * 32768, to - indexes[0]! * 32768 + 1);
+    assert.deepEqual(recovered, f.whole.subarray(from, to + 1), range);
+    tags.set(range, response.headers.get("etag")!);
+    if (range === "0:*") fullCarBytes = bytes.length;
+    if (range === "-73:*") smallCarBytes = bytes.length;
+    if (range === "32749:32805") {
+      const foreign = f.a;
+      const oracle = async (candidate: Uint8Array) => {
+        const received = await readArchive(candidate);
+        assert.deepEqual(
+          received.blocks.map((b) => key(b.cid)),
+          expected.map(key),
+        );
+        assert.equal(key((await verify(candidate, f.root, "deep/file")).cid), key(f.target));
+        const data = Buffer.concat(
+          indexes.map((i) => {
+            const block = received.blocks.find((b) => b.cid.equals(f.leaves[i]!));
+            assert.ok(block, "requested leaf required independently of the CAR header");
+            return block.bytes;
+          }),
+        ).subarray(from - indexes[0]! * 32768, to - indexes[0]! * 32768 + 1);
+        assert.deepEqual(data, f.whole.subarray(from, to + 1));
+      };
+      await oracle(await archive([foreign], blocks));
+      for (const index of [1, blocks.length - 1]) {
+        const incomplete = await archive(
+          [f.root],
+          blocks.filter((_b, i) => i !== index),
+        );
+        await assert.rejects(oracle(incomplete));
+      }
+      const tampered = blocks.map((block, i) =>
+        i === blocks.length - 1 ? { ...block, bytes: Uint8Array.of(1, 2, 3) } : block,
+      );
+      await assert.rejects(oracle(await archive([f.root], tampered)));
+    }
+  }
+  assert.ok(smallCarBytes < fullCarBytes / 4, `${smallCarBytes} vs ${fullCarBytes}`);
+  assert.equal(new Set(tags.values()).size, tags.size, "different requested ranges cannot alias");
+  const entity = await fetch(base + "&dag-scope=entity");
+  assert.notEqual(entity.headers.get("etag"), tags.get("0:*"));
+  await entity.arrayBuffer();
+  for (const range of ["262144:*", "1000000:*", "19:18", "0:-262145"]) {
+    const rootRequest = await fetch(`${url}/ipfs/${f.target}?format=car&entity-bytes=${range}`);
+    assert.equal(rootRequest.status, 400, "known unsatisfiable root range");
+    await rootRequest.arrayBuffer();
+  }
+});
+
+test("range syntax, non-byte entities, empty and raw files, exact BigInt offsets and required-set preflight", async (t) => {
+  const f = await rangeFixture();
+  let absent: string | undefined;
+  const reads: string[] = [];
+  const { url } = await listen(t, async (cid) => {
+    reads.push(key(cid));
+    if (key(cid) === absent) throw missing();
+    const bytes = f.blocks.get(key(cid));
+    if (!bytes) throw missing();
+    return bytes;
+  });
+  for (const range of [
+    "",
+    ":",
+    "1",
+    "*:2",
+    "+1:2",
+    "1:2:3",
+    "1.5:2",
+    "1:NaN",
+    "1:%202",
+    "1:2&entity-bytes=2:3",
+  ]) {
+    assert.equal(
+      (await fetch(`${url}/ipfs/${f.target}?format=car&entity-bytes=${range}`, { method: "HEAD" }))
+        .status,
+      400,
+    );
+  }
+  const generic = await f.put(dagCbor.code, dagCbor.encode({ link: f.a }));
+  const empty = await f.put(
+    dagPb.code,
+    dagPb.encode({ Data: new UnixFS({ type: "file" }).marshal(), Links: [] }),
+  );
+  for (const cid of [f.root, generic, empty]) {
+    const response = await fetch(
+      `${url}/ipfs/${cid}?format=car&dag-scope=all&entity-bytes=999:1000`,
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual(
+      (await readArchive(new Uint8Array(await response.arrayBuffer()))).blocks.map((b) =>
+        key(b.cid),
+      ),
+      [key(cid)],
+    );
+  }
+  const raw = await fetch(`${url}/ipfs/${f.a}?format=car&entity-bytes=-2:*`);
+  assert.equal(raw.status, 200);
+  assert.deepEqual(
+    (await readArchive(new Uint8Array(await raw.arrayBuffer()))).blocks.map((b) => key(b.cid)),
+    [key(f.a)],
+  );
+  const inline = CID.createV1(0x55, identity.digest(Buffer.from("inline")));
+  const virtual = await fetch(`${url}/ipfs/${inline}?format=car&entity-bytes=1:2&car-dups=y`);
+  assert.equal((await readArchive(new Uint8Array(await virtual.arrayBuffer()))).blocks.length, 0);
+  const huge = 9007199254740993n;
+  const hugeBranch = await f.put(
+    dagPb.code,
+    dagPb.encode({
+      Data: new UnixFS({ type: "file", blockSizes: [huge, 32768n] }).marshal(),
+      Links: [
+        { Name: "", Hash: f.leaves[0]! },
+        { Name: "", Hash: f.leaves[7]! },
+      ],
+    }),
+  );
+  reads.length = 0;
+  const exact = await fetch(
+    `${url}/ipfs/${hugeBranch}?format=car&entity-bytes=${huge}:${huge + 2n}`,
+  );
+  assert.equal(exact.status, 200);
+  assert.deepEqual(
+    (await readArchive(new Uint8Array(await exact.arrayBuffer()))).blocks.map((b) => key(b.cid)),
+    [key(hugeBranch), key(f.leaves[7]!)],
+  );
+  assert.deepEqual(reads, [key(hugeBranch), key(f.leaves[7]!)]);
+  const inconsistent = await f.put(
+    dagPb.code,
+    dagPb.encode({
+      Data: new UnixFS({ type: "file", blockSizes: [1n] }).marshal(),
+      Links: [{ Name: "", Hash: f.leaves[0]! }],
+    }),
+  );
+  const inconsistentUrl = `${url}/ipfs/${inconsistent}?format=car&entity-bytes=0:0`;
+  assert.equal((await fetch(inconsistentUrl, { method: "HEAD" })).status, 500);
+  await assert.rejects(async () => {
+    const response = await fetch(inconsistentUrl);
+    await response.arrayBuffer();
+  });
+  const rangeUrl = `${url}/ipfs/${f.root}/deep/file?format=car&entity-bytes=32749:32805`;
+  const first = await fetch(rangeUrl);
+  const etag = first.headers.get("etag")!;
+  await first.arrayBuffer();
+  absent = key(f.leaves[7]!);
+  for (const method of ["GET", "HEAD"]) {
+    const response = await fetch(rangeUrl, { method, headers: { "if-none-match": etag } });
+    assert.equal(response.status, 304, "unrequested missing leaf is irrelevant");
+  }
+  for (const missingCid of [f.deep, f.leaves[1]!]) {
+    absent = key(missingCid);
+    for (const method of ["HEAD", "GET"]) {
+      const response = await fetch(rangeUrl, { method, headers: { "if-none-match": etag } });
+      assert.equal(response.status, 404, "required path/leaf must preflight before 304");
+      await response.arrayBuffer();
+    }
+    await assert.rejects(async () => {
+      const response = await fetch(rangeUrl);
+      assert.equal(response.status, 200);
+      await response.arrayBuffer();
+    });
+  }
+  absent = undefined;
+  for (const budget of [{ maxTraversalBlocks: 5 }, { maxCarBytes: 500 }]) {
+    const limited = await listen(t, async (cid) => f.blocks.get(key(cid))!, {
+      ...profile,
+      ...budget,
+    });
+    assert.equal(
+      (
+        await fetch(`${limited.url}/ipfs/${f.root}/deep/file?format=car&entity-bytes=32749:32805`, {
+          method: "HEAD",
+        })
+      ).status,
+      413,
+    );
+  }
+});
+
+test("CAR actual DFS duplicate occurrences, weighted negotiation, query precedence and representation ETags", async (t) => {
+  const f = await scopeFixture();
+  const virtual = CID.createV1(dagCbor.code, identity.digest(dagCbor.encode([f.b, f.a])));
+  const branch = await f.put(dagCbor.code, dagCbor.encode([f.a, virtual]));
+  const root = await f.put(dagCbor.code, dagCbor.encode([branch, f.a, branch]));
+  const { url } = await listen(t, async (cid) => f.blocks.get(key(cid))!);
+  const tags = [];
+  for (const dups of ["n", "y"]) {
+    const response = await fetch(`${url}/ipfs/${root}?format=car&car-dups=${dups}`);
+    const { blocks } = await readArchive(new Uint8Array(await response.arrayBuffer()));
+    assert.deepEqual(
+      blocks.map((b) => key(b.cid)),
+      (dups === "n"
+        ? [root, branch, f.a, f.b]
+        : [root, branch, f.a, f.b, f.a, f.a, branch, f.a, f.b, f.a]
+      ).map(key),
+    );
+    tags.push(response.headers.get("etag"));
+  }
+  assert.notEqual(tags[0], tags[1]);
+  const branchSize = BigInt(Buffer.from("first chunk\nsecond chunk\n").length);
+  const sharedFile = await f.put(
+    dagPb.code,
+    dagPb.encode({
+      Data: new UnixFS({ type: "file", blockSizes: [branchSize, branchSize] }).marshal(),
+      Links: [
+        { Name: "", Hash: f.branch },
+        { Name: "", Hash: f.branch },
+      ],
+    }),
+  );
+  for (const dups of ["n", "y"]) {
+    const partial = await fetch(
+      `${url}/ipfs/${sharedFile}?format=car&car-dups=${dups}&entity-bytes=${branchSize - 1n}:${branchSize}`,
+    );
+    assert.deepEqual(
+      (await readArchive(new Uint8Array(await partial.arrayBuffer()))).blocks.map((b) =>
+        key(b.cid),
+      ),
+      (dups === "n"
+        ? [sharedFile, f.branch, f.b, f.a]
+        : [sharedFile, f.branch, f.b, f.branch, f.a]
+      ).map(key),
+      "shared subtree at different offsets must select both different leaves",
+    );
+  }
+  // Resolver re-reads of the final UnixFS file must not masquerade as graph occurrences.
+  const response = await fetch(`${url}/ipfs/${f.root}/file?format=car&dag-scope=entity&car-dups=y`);
+  assert.deepEqual(
+    (await readArchive(new Uint8Array(await response.arrayBuffer()))).blocks.map((b) => key(b.cid)),
+    [f.root, f.target, f.branch, f.a, f.b, f.a].map(key),
+  );
+  for (const [query, accept, status, dups] of [
+    ["", `${media};q=0.1,application/vnd.ipld.car;dups=y;q=0.9`, 200, "y"],
+    ["", "application/vnd.ipld.car;dups=y;q=0,application/vnd.ipld.car;q=0.8", 200, "n"],
+    ["&car-dups=n", "application/vnd.ipld.car;dups=y", 200, "n"],
+    ["&car-dups=y", media, 200, "y"],
+    [
+      "&car-version=1&car-order=dfs",
+      "application/vnd.ipld.car;version=2;order=nope;dups=y",
+      200,
+      "y",
+    ],
+    ["", "application/vnd.ipld.car;dups=y;dups=n", 406, ""],
+    ["", "application/vnd.ipld.car;dups=y;dups=n,application/vnd.ipld.car", 406, ""],
+    ["", "application/vnd.ipld.car;q=0.1234", 406, ""],
+    ["", "application/vnd.ipld.car;q=bad,*/*;q=1", 406, ""],
+    ["", "application/vnd.ipld.car;dups", 406, ""],
+    ["", "application/vnd.ipld.car;dups=unknown", 406, ""],
+    ["&car-dups=", media, 406, ""],
+    ["&car-dups=y&car-dups=n", media, 400, ""],
+    ["&car-version=1&car-version=1", media, 400, ""],
+  ] as const) {
+    const negotiated = await fetch(`${url}/ipfs/${root}?format=car${query}`, {
+      headers: { accept },
+    });
+    assert.equal(negotiated.status, status, query + accept);
+    if (status === 200)
+      assert.equal(negotiated.headers.get("content-type"), media.replace("dups=n", `dups=${dups}`));
+    await negotiated.arrayBuffer();
+  }
+});
+test("range reads preserve backpressure, timeout and client-abort cancellation", async (t) => {
+  const f = await scopeFixture();
+  const leaves: CID[] = [];
+  for (let i = 0; i < 32; i++) {
+    const bytes = Buffer.alloc(512 * 1024, i);
+    leaves.push(await f.put(0x55, bytes));
+  }
+  const root = await f.put(
+    dagPb.code,
+    dagPb.encode({
+      Data: new UnixFS({ type: "file", blockSizes: leaves.map(() => 524288n) }).marshal(),
+      Links: leaves.map((Hash) => ({ Name: "", Hash })),
+    }),
+  );
+  let reads = 0;
+  const slow = await listen(
+    t,
+    async (cid) => {
+      reads++;
+      return f.blocks.get(key(cid))!;
+    },
+    { ...profile, maxConcurrent: 1, timeoutMs: 300 },
+  );
+  const request = httpRequest(`${slow.url}/ipfs/${root}?format=car&entity-bytes=0:*`);
+  request.on("error", () => {});
+  const received = new Promise<void>((done) =>
+    request.once("response", (response) => {
+      response.pause();
+      done();
+    }),
+  );
+  request.end();
+  await received;
+  await new Promise<void>((done) => setTimeout(done, 100));
+  assert.ok(reads < leaves.length / 2, `range read-ahead ${reads}/${leaves.length}`);
+  assert.equal((await fetch(`${slow.url}/ipfs/bafkqaaa?format=car`)).status, 429);
+  request.destroy();
+  await new Promise<void>((done) => setTimeout(done, 30));
+  const recovered = await fetch(`${slow.url}/ipfs/bafkqaaa?format=car`);
+  assert.equal(recovered.status, 200);
+  await recovered.arrayBuffer();
+  for (const mode of ["abort", "timeout"]) {
+    let entered!: () => void;
+    let stopped!: () => void;
+    const began = new Promise<void>((done) => {
+      entered = done;
+    });
+    const ended = new Promise<void>((done) => {
+      stopped = done;
+    });
+    const blocked = await listen(
+      t,
+      async (cid, { signal }) => {
+        if (cid.equals(root)) return f.blocks.get(key(cid))!;
+        entered();
+        await new Promise<void>((done) => {
+          signal.addEventListener(
+            "abort",
+            () => {
+              stopped();
+              done();
+            },
+            { once: true },
+          );
+          if (signal.aborted) {
+            stopped();
+            done();
+          }
+        });
+        signal.throwIfAborted();
+        throw new Error("unreachable");
+      },
+      { ...profile, maxConcurrent: 1, timeoutMs: 150 },
+    );
+    const controller = new AbortController();
+    const pending = fetch(`${blocked.url}/ipfs/${root}?format=car&entity-bytes=0:1`, {
+      signal: controller.signal,
+    }).then((response) => response.arrayBuffer());
+    const failed = assert.rejects(pending);
+    await began;
+    if (mode === "abort") controller.abort();
+    await failed;
+    await ended;
+    await new Promise<void>((done) => setTimeout(done, 10));
+    const probe = await fetch(`${blocked.url}/ipfs/bafkqaaa?format=car`);
+    assert.equal(probe.status, 200);
+    await probe.arrayBuffer();
   }
 });
 

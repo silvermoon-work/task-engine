@@ -614,7 +614,8 @@ Check npm versions and existing immutable Git tags before choosing the next
 index; never reuse an existing published version or move a tag. All packages in
 a release round may share a version, but each still requires its own explicitly
 authorized package tag and publication. Publish internal dependencies first;
-`workspace:*` packs to their exact package versions.
+`workspace:*` packs to their exact package versions. Use matching
+package-specific Git tags, for example `task-protocol-v1.2.3-rc.0`.
 
 The pinned `github-ci-verify` CLI requires the latest `ci.yaml` main push run
 for the exact checked-out SHA and its successful versioned aggregate job and

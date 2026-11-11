@@ -15,6 +15,15 @@ const dependencyFields = [
   "devDependencies",
 ];
 
+function isReleaseVersion(version) {
+  return (
+    typeof version === "string" &&
+    semver.valid(version) === version &&
+    (semver.prerelease(version) === null ||
+      /^\d+\.\d+\.\d+-rc\.(?:0|[1-9]\d*)$/u.test(version))
+  );
+}
+
 export function selectRelease(packages, { tag, packageId }) {
   for (const field of ["id", "name", "directory"]) {
     if (
@@ -43,7 +52,7 @@ export function selectRelease(packages, { tag, packageId }) {
   }
   const version =
     tag === undefined ? undefined : tag.slice(selected.id.length + 2);
-  if (version !== undefined && semver.valid(version) !== version) {
+  if (version !== undefined && !isReleaseVersion(version)) {
     throw new Error(`Invalid release tag version: ${version}.`);
   }
   return { ...selected, taggedVersion: version };
@@ -76,10 +85,7 @@ export function validateManifest(selected, manifest) {
   if (manifest.name.startsWith("@workspace/")) {
     throw new Error("Replace the placeholder @workspace package name.");
   }
-  if (
-    typeof manifest.version !== "string" ||
-    semver.valid(manifest.version) !== manifest.version
-  ) {
+  if (!isReleaseVersion(manifest.version)) {
     throw new Error(`Invalid package version: ${manifest.version}.`);
   }
   if (

@@ -153,10 +153,14 @@ test("legacy project packages and npm aliases fail in every dependency section",
 });
 
 test("prerelease suffixes must match exactly and never publish as latest", () => {
-  const selected = selectRelease(packages, { tag: "core-v2.0.0-rc.2" });
+  const selected = selectRelease(packages, { tag: "core-v2.0.0-rc.0" });
   assert.equal(
-    validateManifest(selected, { ...manifest, version: "2.0.0-rc.2" }).distTag,
+    validateManifest(selected, { ...manifest, version: "2.0.0-rc.0" }).distTag,
     "rc",
+  );
+  validateArtifact(
+    validateManifest(selected, { ...manifest, version: "2.0.0-rc.0" }),
+    { ...manifest, version: "2.0.0-rc.0" },
   );
   assert.throws(() =>
     validateManifest(selected, { ...manifest, version: "2.0.0-rc.1" }),
@@ -181,6 +185,7 @@ test("release candidates publish only to rc and preserve exact identity", () => 
 });
 
 test("unsupported channels and noncanonical RC indices are rejected", () => {
+  const selected = selectRelease(packages, { packageId: "core" });
   for (const suffix of [
     "canary",
     "canary.261109.1",
@@ -188,11 +193,15 @@ test("unsupported channels and noncanonical RC indices are rejected", () => {
     "next.0",
     "alpha.0",
     "beta.2",
+    "beta-rc.0",
     "rc",
     "rc.01",
     "rc.-1",
     "rc.9007199254740992",
     "rc.1.extra",
+    "rc.1.0",
+    "rc.n",
+    "rc.0+build",
     "RC.0",
     "rc-0",
   ]) {
@@ -201,6 +210,8 @@ test("unsupported channels and noncanonical RC indices are rejected", () => {
       const selected = selectRelease(packages, { tag: `core-v${version}` });
       validateManifest(selected, { ...manifest, version });
     }, /Invalid release tag version|Prerelease versions/);
+    assert.throws(() => validateManifest(selected, { ...manifest, version }));
+    assert.throws(() => validateArtifact(release, { ...manifest, version }));
   }
 });
 

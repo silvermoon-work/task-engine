@@ -55,16 +55,30 @@ export async function createCliTaskProject(
   );
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error("Core template package.json must contain an object.");
+  const { parse, stringify } = await import("yaml");
+  const definition: unknown = parse(
+    Buffer.from(await readBytes(template, "task.build.yaml", 65_536)).toString(),
+  );
+  if (
+    !definition ||
+    typeof definition !== "object" ||
+    !("outDirectory" in definition) ||
+    typeof definition.outDirectory !== "string"
+  )
+    throw new Error("Core template task.build.yaml must contain an output directory.");
+  const { outDirectory } = definition;
   const manifest = {
     ...value,
     packageManager: "pnpm@11.22.0",
     scripts: {
       build: "task-builder build task.build.yaml",
-      car: "task-builder car dist/task.yaml --output bundle.car",
+      car: `task-builder car ${outDirectory}/task.yaml --output ${outDirectory}.car`,
+      clean: "rimraf dist",
     },
     devDependencies: {
       "@silvermoon-work/task-builder-cli": cli,
       "@silvermoon-work/task-builder": builder,
+      rimraf: "6.1.4",
     },
   };
   const readers = new Map<string, FileReader>();
@@ -76,13 +90,12 @@ export async function createCliTaskProject(
     }
   };
   await walk("");
-  const { stringify } = await import("yaml");
   const files = new Map([
     ["package.json", `${JSON.stringify(manifest, null, 2)}\n`],
     [
       "pnpm-workspace.yaml",
       stringify({
-        allowBuilds: { esbuild: false },
+        allowBuilds: { esbuild: true },
         minimumReleaseAgeExclude: [
           "@silvermoon-work/task-builder-cli",
           "@silvermoon-work/task-builder",

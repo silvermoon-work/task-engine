@@ -220,9 +220,16 @@ const source = await project.read("src/main.ts");
 ```
 
 The pure synchronous function returns an owned, repeatable file tree with a
-private npm package, a JSON
+private npm package, a TypeBox `src/contract.ts`
 contract with a named shared text Schema, typed SDK entry/helper and a streamed
 greeting resource. It performs no I/O, install or ancestor package modification.
+The generated package explicitly depends on `@sinclair/typebox@0.34.52`.
+The contract exports `Input` and `Result` using `Static<typeof ...>`; the Worker
+imports them with `import type` and calls `runTask<Input, Result>`. Its shared
+text reference preserves string inference, while runtime Schemas require
+nonempty text, integer bytes >=0 and chunks >=1, forbid extra input/result
+properties, and disable messages. The TS contract is trusted executable code;
+esbuild transpilation is not typechecking. JSON contracts remain supported.
 The default dependency and author import use
 `@silvermoon-work/task-sdk@0.1.0-canary-261109-2` in builder version
 `0.1.0-canary-261109-3`. Older builder versions still emit the old SDK template;
@@ -232,6 +239,12 @@ available for development.
 `sdkVersion`, `minRuntimeVersion`, `taskName` and npm `name` can be supplied.
 Without `taskName`, the package's unscoped name is used. The CLI does not expose
 SDK/runtime/version overrides; authors edit the generated project instead.
+Init fixes `outDirectory` to `dist/<derived-name>` from the npm package name,
+independently of `taskName`: `echo-task` becomes `dist/echo-task`, and
+`@acme/echo-task` becomes `dist/acme-echo-task`. Invalid npm names and unsafe
+derived paths (including reserved device names and trailing dots) are rejected,
+not sanitized. Renaming the package later does not change this generated value.
+This template convention does not change the general build output defaults.
 It has no CLI dependency, npm scripts, package-manager selection or pnpm
 installation policy. The CLI composes this tree with its own scripts,
 dependency versions and scoped release-age exceptions before writing it to disk.

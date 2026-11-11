@@ -132,22 +132,58 @@ test("template locks actual CLI/Builder versions and paired SDK without remote l
     );
     assert.equal(manifest.devDependencies[`@silvermoon-work/${name}`], installed.version);
   }
-  assert.deepEqual(manifest.dependencies, { "@silvermoon-work/task-sdk": "0.1.0-canary-261109-2" });
+  assert.deepEqual(manifest.dependencies, {
+    "@silvermoon-work/task-sdk": "0.1.0-canary-261109-2",
+    "@sinclair/typebox": "0.34.52",
+  });
   assert.equal(manifest.scripts.build, "task-builder build task.build.yaml");
-  assert.equal(manifest.scripts.car, "task-builder car dist/task.yaml --output bundle.car");
+  assert.equal(
+    manifest.scripts.car,
+    "task-builder car dist/example-cli-task/task.yaml --output dist/example-cli-task.car",
+  );
+  assert.equal(manifest.scripts.clean, "rimraf dist");
+  assert.equal(manifest.devDependencies.rimraf, "6.1.4");
   assert.equal(manifest.scripts.check, undefined);
   const config = parse(
     Buffer.from(await readBytes(tree, "pnpm-workspace.yaml", 65_536)).toString(),
   );
   assert.equal(config.overrides, undefined);
   assert.ok(!config.minimumReleaseAgeExclude.includes("@silvermoon-work/task-bundle-car"));
-  assert.deepEqual(config.allowBuilds, { esbuild: false });
+  assert.deepEqual(config.allowBuilds, { esbuild: true });
   assert.ok(config.minimumReleaseAgeExclude.includes("@silvermoon-work/task-sdk"));
   const definition = parse(
     Buffer.from(await readBytes(tree, "task.build.yaml", 65_536)).toString(),
   );
   assert.equal(definition.name, "cli-task");
   assert.equal(definition.source.mode, "explicit");
-  assert.equal(definition.outDirectory, "dist");
+  assert.equal(definition.source.contract, "src/contract.ts");
+  assert.equal(definition.outDirectory, "dist/example-cli-task");
   assert.deepEqual(definition.binary, []);
+});
+
+test("CLI template scripts follow the core output directory, not the Task name", async () => {
+  for (const [name, derived] of [
+    [undefined, "task-project"],
+    ["echo-task", "echo-task"],
+    ["@acme/echo-task", "acme-echo-task"],
+  ] as const) {
+    const tree = await createCliTaskProject({
+      ...(name !== undefined ? { name } : {}),
+      taskName: "Different Task",
+    });
+    const manifest = JSON.parse(
+      Buffer.from(await readBytes(tree, "package.json", 65_536)).toString(),
+    );
+    const definition = parse(
+      Buffer.from(await readBytes(tree, "task.build.yaml", 65_536)).toString(),
+    );
+    assert.equal(definition.outDirectory, `dist/${derived}`);
+    assert.equal(definition.name, "Different Task");
+    assert.deepEqual(manifest.scripts, {
+      build: "task-builder build task.build.yaml",
+      car: `task-builder car dist/${derived}/task.yaml --output dist/${derived}.car`,
+      clean: "rimraf dist",
+    });
+  }
+  await assert.rejects(createCliTaskProject({ name: "@acme/echo." }), /unsafe output path/);
 });

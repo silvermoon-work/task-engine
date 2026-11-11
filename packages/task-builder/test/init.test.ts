@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import ts from "typescript";
+import { parse } from "yaml";
 import { createTaskProject } from "../src/init.js";
 import { memoryTree, readBytes } from "../src/tree.js";
 
@@ -19,13 +23,17 @@ test("init returns a deterministic owned task template without CLI or package-ma
   const sdkManifest = JSON.parse(
     await readFile(new URL("../../task-sdk/package.json", import.meta.url), "utf8"),
   );
-  assert.deepEqual(manifest.dependencies, { "@silvermoon-work/task-sdk": "0.1.0-canary-261109-2" });
+  assert.deepEqual(manifest.dependencies, {
+    "@silvermoon-work/task-sdk": "0.1.0-canary-261109-2",
+    "@sinclair/typebox": "0.34.52",
+  });
   const candidate = createTaskProject({ name: "@example/echo", sdkVersion: sdkManifest.version });
   const candidateManifest = JSON.parse(
     Buffer.from(await readBytes(candidate, "package.json", 65_536)).toString(),
   );
   assert.deepEqual(candidateManifest.dependencies, {
     "@silvermoon-work/task-sdk": sdkManifest.version,
+    "@sinclair/typebox": "0.34.52",
   });
   assert.match(
     Buffer.from(await readBytes(tree, "src/main.ts", 65_536)).toString(),
@@ -43,6 +51,90 @@ test("init returns a deterministic owned task template without CLI or package-ma
   assert.deepEqual(await readBytes(tree, "assets/greeting.txt", 6), Buffer.from("Hello\n"));
 });
 
+test("generated TypeBox contract derives usable Input/Result types and typechecks the Worker", async () => {
+  const root = resolve(".cache", `init-types-${randomUUID()}`);
+  const tree = createTaskProject();
+  try {
+    for (const path of ["package.json", "src/contract.ts", "src/helper.ts", "src/main.ts"]) {
+      const target = join(root, path);
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, await readBytes(tree, path, 65_536));
+    }
+    await writeFile(
+      join(root, "types.test.ts"),
+      `import type { Input, Result } from "./src/contract.js";
+const input: Input = { text: "hello" };
+const result: Result = { text: input.text, bytes: 6, chunks: 1 };
+const text: string = result.text;
+const bytes: number = result.bytes;
+const chunks: number = result.chunks;
+// @ts-expect-error shared text must not infer as unknown or any
+const badInput: Input = { text: 123 };
+// @ts-expect-error shared result text must be a string
+const badText: Result = { text: 123, bytes: 6, chunks: 1 };
+// @ts-expect-error result byte count must be numeric
+const badBytes: Result = { text: "hello", bytes: "6", chunks: 1 };
+// @ts-expect-error result chunk count is required
+const missingChunks: Result = { text: "hello", bytes: 6 };
+// @ts-expect-error input properties are explicit
+const extraInput: Input = { text: "hello", extra: true };
+`,
+    );
+    const program = ts.createProgram([join(root, "types.test.ts"), join(root, "src/main.ts")], {
+      module: ts.ModuleKind.NodeNext,
+      moduleResolution: ts.ModuleResolutionKind.NodeNext,
+      target: ts.ScriptTarget.ES2022,
+      strict: true,
+      skipLibCheck: true,
+      noEmit: true,
+      types: ["node"],
+    });
+    const diagnostics = ts.getPreEmitDiagnostics(program);
+    assert.deepEqual(
+      diagnostics.map((diagnostic) =>
+        ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"),
+      ),
+      [],
+    );
+    await assert.rejects(tree.read("src/contract.json"), /File not found/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("init fixes the module directory from the package name, independently of Task identity", async () => {
+  for (const [name, derived] of [
+    [undefined, "task-project"],
+    ["echo-task", "echo-task"],
+    ["@acme/echo-task", "acme-echo-task"],
+    ["@con/echo-task", "con-echo-task"],
+    ["a".repeat(214), "a".repeat(214)],
+  ] as const) {
+    const tree = createTaskProject({
+      ...(name !== undefined ? { name } : {}),
+      taskName: "Different Task",
+    });
+    const definition = parse(
+      Buffer.from(await readBytes(tree, "task.build.yaml", 65_536)).toString(),
+    );
+    assert.equal(definition.outDirectory, `dist/${derived}`);
+    assert.equal(definition.name, "Different Task");
+  }
+});
+
+test("init rejects package names whose derived output paths are not portable", () => {
+  for (const name of [
+    "con",
+    "aux.txt",
+    "com1",
+    "lpt9.log",
+    "echo.",
+    "@acme/echo.",
+    "@con.txt/echo",
+  ])
+    assert.throws(() => createTaskProject({ name }), /unsafe output path.*Choose a package name/);
+});
+
 test("init accepts explicit dependency specs and rejects unsafe configuration", async () => {
   const tree = createTaskProject({
     sdkVersion: "file:task-sdk.tgz",
@@ -51,7 +143,10 @@ test("init accepts explicit dependency specs and rejects unsafe configuration", 
   const manifest = JSON.parse(
     Buffer.from(await readBytes(tree, "package.json", 65_536)).toString(),
   );
-  assert.deepEqual(manifest.dependencies, { "@silvermoon-work/task-sdk": "file:task-sdk.tgz" });
+  assert.deepEqual(manifest.dependencies, {
+    "@silvermoon-work/task-sdk": "file:task-sdk.tgz",
+    "@sinclair/typebox": "0.34.52",
+  });
   for (const name of [
     "",
     "Uppercase",
@@ -60,6 +155,10 @@ test("init accepts explicit dependency specs and rejects unsafe configuration", 
     "name with spaces",
     "node_modules",
     "favicon.ico",
+    "a".repeat(215),
+    "@scope/../escape",
+    "echo;clean",
+    "echo\\task",
   ])
     assert.throws(() => createTaskProject({ name }), /npm package name/);
   assert.throws(() => createTaskProject({ taskName: "" }), /declaration/);

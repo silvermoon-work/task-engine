@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { copyFile, cp, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
@@ -82,7 +82,7 @@ test("r14 examples 1–2: init complete project and refuse an existing destinati
       "assets/greeting.txt",
       "package.json",
       "pnpm-workspace.yaml",
-      "src/contract.json",
+      "src/contract.ts",
       "src/helper.ts",
       "src/main.ts",
       "task.build.yaml",
@@ -145,6 +145,100 @@ test("r14 examples 3–4: default CAR, repeat build, selected files and no-car r
       await readFile(join(root, "dist", "resources", "old.txt"), "utf8"),
       "not selected",
     );
+  });
+});
+
+test("initialized scripts keep named outputs fixed, preserve builds and refuse CAR overwrites", async () => {
+  await fixture(async (root) => {
+    await invoke(root, [
+      "init",
+      "project",
+      "--package-name",
+      "@acme/echo-task",
+      "--task-name",
+      "Different Task",
+    ]);
+    const project = join(root, "project");
+    const manifest = JSON.parse(await readFile(join(project, "package.json"), "utf8"));
+    manifest.name = "renamed-package";
+    await writeFile(join(project, "package.json"), JSON.stringify(manifest));
+    for (const name of ["task-sdk", "task-protocol"]) {
+      const target = join(project, "node_modules", "@silvermoon-work", name);
+      await mkdir(target, { recursive: true });
+      await copyFile(
+        new URL(`../../${name}/package.json`, import.meta.url),
+        join(target, "package.json"),
+      );
+      await cp(new URL(`../../${name}/dist/`, import.meta.url), join(target, "dist"), {
+        recursive: true,
+      });
+    }
+    await cp(
+      new URL("../../task-builder/node_modules/@sinclair/typebox/", import.meta.url),
+      join(project, "node_modules", "@sinclair", "typebox"),
+      { recursive: true, dereference: true },
+    );
+    const buildArgs = manifest.scripts.build.split(" ").slice(1);
+    const carArgs = manifest.scripts.car.split(" ").slice(1);
+    const built = await invoke(project, buildArgs);
+    assert.equal(built.data.module.directory, join(project, "dist", "acme-echo-task"));
+    assert.equal(built.data.car.path, join(project, "dist", "acme-echo-task.car"));
+    const schema = async (path: string) =>
+      JSON.parse(await readFile(join(built.data.module.directory, "schemas", path), "utf8"));
+    assert.deepEqual(await schema("input.json"), {
+      $id: "https://task.invalid/schema/0",
+      type: "object",
+      properties: { text: { $ref: "https://task.invalid/echo/text" } },
+      required: ["text"],
+      additionalProperties: false,
+    });
+    assert.deepEqual(await schema("result.json"), {
+      $id: "https://task.invalid/schema/1",
+      type: "object",
+      properties: {
+        text: { $ref: "https://task.invalid/echo/text" },
+        bytes: { type: "integer", minimum: 0 },
+        chunks: { type: "integer", minimum: 1 },
+      },
+      required: ["text", "bytes", "chunks"],
+      additionalProperties: false,
+    });
+    assert.deepEqual(await schema("shared/text.json"), {
+      $id: "https://task.invalid/echo/text",
+      type: "string",
+      minLength: 1,
+    });
+    assert.deepEqual(await schema("message.json"), {
+      $id: "https://task.invalid/schema/2",
+      not: {},
+    });
+    assert.doesNotMatch(
+      await readFile(join(built.data.module.directory, "worker.cjs"), "utf8"),
+      /@sinclair\/typebox|TypeBox\.Kind/,
+    );
+    const paths = [
+      "dist/acme-echo-task/task.yaml",
+      "dist/acme-echo-task/worker.cjs",
+      "dist/acme-echo-task.car",
+    ];
+    const before = await snapshot(project, paths);
+    await writeFile(join(built.data.module.directory, "stale.txt"), "keep until clean");
+    await invoke(project, buildArgs);
+    assert.equal(
+      await readFile(join(built.data.module.directory, "stale.txt"), "utf8"),
+      "keep until clean",
+    );
+    assert.equal((await invoke(project, carArgs, 1)).error.code, "OUTPUT_EXISTS");
+    assert.deepEqual(await snapshot(project, paths), before);
+    await rm(built.data.car.path);
+    const archived = await invoke(project, carArgs);
+    assert.equal(archived.data.car, built.data.car.path);
+    assert.equal(archived.data.cid, built.data.cid);
+    assert.deepEqual(await snapshot(project, paths), before);
+    await rm(join(project, "src", "main.ts"));
+    assert.equal((await invoke(project, buildArgs, 1)).error.code, "SOURCE_NOT_FOUND");
+    assert.deepEqual(await snapshot(project, paths), before);
+    assert.ok(!(await readdir(project)).includes("bundle.car"));
   });
 });
 

@@ -41,15 +41,41 @@ The editable template includes:
 
 - `package.json`, `.gitignore`, `pnpm-workspace.yaml`;
 - `task.build.yaml`, explicit `src/main.ts` and `src/helper.ts`;
-- a JSON contract with a shared Schema and `assets/greeting.txt`;
-- Node minimum 22.13.0, `assets/**` → `resources/`, no binary rules, `dist`;
-- build and standalone CAR scripts; no dependency installation.
+- a TypeBox `src/contract.ts` with a shared Schema and `assets/greeting.txt`;
+- Node minimum 22.13.0, `assets/**` → `resources/`, no binary rules;
+- build, standalone CAR and explicit `clean` scripts; no dependency installation.
+
+The contract exports `Input` and `Result` via `Static<typeof ...>`; the Worker
+imports those types with `import type` rather than repeating the data shapes.
+The shared nonempty text reference retains its string type, and the runtime
+Schemas still reject extra properties and enforce integer byte/chunk counts
+with minima 0/1. Messages remain disabled. The generated package explicitly
+depends on `@sinclair/typebox@0.34.52`, not Builder's transitive dependencies.
+Build evaluates this TS contract as trusted code; esbuild transpiles but does
+not typecheck it. JSON contracts remain supported when selected in the build
+description.
+
+Init fixes `outDirectory` to `dist/<derived-name>` using the final package name,
+not the Task name: `echo-task` → `dist/echo-task`, `@acme/echo-task` →
+`dist/acme-echo-task`. Only the leading `@` is removed and the scope separator
+`/` becomes `-`. Invalid npm names and unsafe derived paths (such as Windows
+device names or trailing dots) are rejected, never silently sanitized.
+Later package-name changes do not rewrite the build description or scripts.
+
+`pnpm build` writes that module and its sibling `dist/<derived-name>.car`.
+`pnpm car` reads `dist/<derived-name>/task.yaml` and targets the same CAR,
+refusing to overwrite an existing archive, including one produced by build.
+Use `pnpm build --no-car` before `pnpm car` when no archive already exists.
+`pnpm clean` runs `rimraf dist`, deleting all modules and CARs under `dist`;
+rimraf 6.1.4 is a generated devDependency compatible with Node >=22.13.0.
+Build never runs clean automatically: validation still precedes delivery,
+and stale unselected files remain until explicitly cleaned.
 
 CLI and Builder dependency versions come from their actual installed metadata;
 the SDK version comes from that Builder release's template. They need not
 match. No remote tag lookup or version override is performed.
-The pnpm template blocks esbuild's postinstall; its optional platform binary is
-sufficient. Do not omit optional dependencies.
+The pnpm template allows only esbuild's postinstall (`allowBuilds.esbuild: true`);
+no other dependency build scripts are approved. Do not omit optional dependencies.
 
 ## Build and delivery
 

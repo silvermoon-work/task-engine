@@ -86,6 +86,7 @@ interface ResourceContext {
   spaceClose?: Promise<void>;
   spaceMutations: Set<Promise<void>>;
   spaceError?: unknown;
+  spaceErrors?: Map<number, unknown>;
   spaceFinishing: boolean;
   runId: string;
   scope: string;
@@ -312,8 +313,11 @@ class RunWorker {
           return;
         }
         if (message.kind === "space-cancel") {
-          if (typeof message.runId === "string" && this.runs.has(message.runId))
+          if (typeof message.runId === "string" && this.runs.has(message.runId)) {
+            // A transferred stream error can arrive before its cancellation frame.
+            this.contexts.get(message.runId)?.spaceErrors?.delete(message.spaceId);
             this.spaceRequests.get(message.spaceId)?.abort();
+          }
           return;
         }
         if (message.kind === "log" || message.kind === "log-drop") {
@@ -573,8 +577,14 @@ class RunWorker {
       if (
         (message.operation === "write" || message.operation === "link") &&
         !controller.signal.aborted
-      )
-        context.spaceError ??= error;
+      ) {
+        if ((context.spaceErrors?.size ?? 0) >= this.limits.maxInFlight)
+          context.spaceError ??= new TaskError(
+            "space_capacity",
+            "Too many failed Space operations.",
+          );
+        else (context.spaceErrors ??= new Map()).set(spaceId as number, error);
+      }
       if (message.content instanceof ReadableStream && !message.content.locked)
         void message.content.cancel(error).catch(() => {});
       reply(undefined, error);
@@ -786,6 +796,7 @@ class RunWorker {
           context.spaceFinishing = true;
           while (context.spaceMutations.size) await Promise.allSettled([...context.spaceMutations]);
           if (context.spaceError !== undefined) throw context.spaceError;
+          if (context.spaceErrors?.size) throw context.spaceErrors.values().next().value;
           const outputCid = await context.space?.finalize(context.controller.signal);
           await this.channel.outcome?.(runId, {
             kind: "completed",

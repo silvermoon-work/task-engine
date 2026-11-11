@@ -133,7 +133,7 @@ test("template locks actual CLI/Builder versions and paired SDK without remote l
     assert.equal(manifest.devDependencies[`@silvermoon-work/${name}`], installed.version);
   }
   assert.deepEqual(manifest.dependencies, {
-    "@silvermoon-work/task-sdk": "0.1.0-canary-261111-2",
+    "@silvermoon-work/task-sdk": "0.1.0",
     "@sinclair/typebox": "0.34.52",
   });
   assert.equal(manifest.scripts.build, "task-builder build task.build.yaml");
@@ -142,6 +142,9 @@ test("template locks actual CLI/Builder versions and paired SDK without remote l
     "task-builder car dist/example-cli-task/task.yaml --output dist/example-cli-task.car",
   );
   assert.equal(manifest.scripts.clean, "rimraf dist");
+  assert.equal(manifest.scripts.typecheck, "tsc --project tsconfig.json");
+  assert.equal(manifest.devDependencies.typescript, "5.9.3");
+  assert.equal(manifest.devDependencies["@types/node"], "22.20.5");
   assert.equal(manifest.devDependencies.rimraf, "6.1.4");
   assert.equal(manifest.scripts.check, undefined);
   const config = parse(
@@ -180,6 +183,7 @@ test("CLI template scripts follow the core output directory, not the Task name",
     assert.equal(definition.outDirectory, `dist/${derived}`);
     assert.equal(definition.name, "Different Task");
     assert.deepEqual(manifest.scripts, {
+      typecheck: "tsc --project tsconfig.json",
       build: "task-builder build task.build.yaml",
       car: `task-builder car dist/${derived}/task.yaml --output dist/${derived}.car`,
       clean: "rimraf dist",

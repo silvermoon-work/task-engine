@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-engine-cli",
-  "version": "0.1.0-canary-261111-2",
+  "version": "0.1.0",
   "description": "Managed local Task Engine server and persistent task CLI.",
   "type": "module",
   "sideEffects": false,

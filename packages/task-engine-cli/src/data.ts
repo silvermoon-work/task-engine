@@ -7,7 +7,13 @@ import * as dagPb from "@ipld/dag-pb";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
 import { createIpfsGatewayClient, type GatewayClient } from "@silvermoon-work/task-engine";
-import { type ErrorFact, type Json, json, TaskError } from "@silvermoon-work/task-protocol";
+import {
+  type ErrorFact,
+  type Json,
+  type RunLogEntry,
+  json,
+  TaskError,
+} from "@silvermoon-work/task-protocol";
 
 export type Status =
   | "pending"
@@ -268,6 +274,37 @@ export class Repository {
   car(id: string): Uint8Array | undefined {
     const value = this.db.prepare("SELECT car FROM tasks WHERE id=?").get(id)?.car;
     return value instanceof Uint8Array ? value : undefined;
+  }
+  appendLogs(taskId: string, entries: readonly RunLogEntry[]): void {
+    this.write(() => {
+      this.db.exec("BEGIN IMMEDIATE");
+      try {
+        // A log snapshot includes previously acknowledged entries. INSERT OR
+        // IGNORE alone still advances AUTOINCREMENT for duplicates, causing a
+        // FULL-sync write per old entry on every subsequent acknowledgement.
+        const insert = this.db.prepare(
+          `INSERT INTO logs(task_id,run_id,sequence,time,level,message,payload)
+           SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS
+           (SELECT 1 FROM logs WHERE run_id=? AND sequence=?)`,
+        );
+        for (const entry of entries)
+          insert.run(
+            taskId,
+            entry.runId,
+            entry.sequence,
+            entry.receivedAt,
+            entry.level,
+            entry.message,
+            JSON.stringify(entry),
+            entry.runId,
+            entry.sequence,
+          );
+        this.db.exec("COMMIT");
+      } catch (error) {
+        this.db.exec("ROLLBACK");
+        throw error;
+      }
+    });
   }
   cursor(scope: string, offset: number): string {
     const body = Buffer.from(JSON.stringify({ scope, offset })).toString("base64url");

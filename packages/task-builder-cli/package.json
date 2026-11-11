@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-builder-cli",
-  "version": "0.1.0-canary-261111-2",
+  "version": "0.1.0",
   "description": "Commander-based Task Builder CLI and reusable command runner.",
   "type": "module",
   "sideEffects": false,

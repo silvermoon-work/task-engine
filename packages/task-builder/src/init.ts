@@ -29,7 +29,7 @@ export function createTaskProject(options: TaskProjectOptions = {}): ReadonlyFil
     );
   const taskName = options.taskName ?? name.split("/").at(-1)!;
   const minVersion = options.minRuntimeVersion ?? "22.13.0";
-  const sdkVersion = options.sdkVersion ?? "0.1.0-canary-261111-2";
+  const sdkVersion = options.sdkVersion ?? "0.1.0";
   if (!sdkVersion.trim() || [...sdkVersion].some((char) => char.charCodeAt(0) < 32))
     throw new Error("Dependency specifiers must be nonempty without control characters.");
   validateTaskBundle({
@@ -55,11 +55,32 @@ export function createTaskProject(options: TaskProjectOptions = {}): ReadonlyFil
           "@silvermoon-work/task-sdk": sdkVersion,
           "@sinclair/typebox": "0.34.52",
         },
+        devDependencies: {
+          "@types/node": "22.20.5",
+          typescript: "5.9.3",
+        },
       },
       null,
       2,
     )}\n`,
     ".gitignore": "node_modules/\ndist/\n*.car\n",
+    "tsconfig.json": `${JSON.stringify(
+      {
+        compilerOptions: {
+          target: "ES2023",
+          lib: ["ES2023"],
+          module: "NodeNext",
+          moduleResolution: "NodeNext",
+          strict: true,
+          verbatimModuleSyntax: true,
+          noEmit: true,
+          types: ["node"],
+        },
+        include: ["src/**/*.ts"],
+      },
+      null,
+      2,
+    )}\n`,
     "task.build.yaml": stringify({
       name: taskName,
       runtime: { minVersion },

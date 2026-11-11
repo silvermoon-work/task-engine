@@ -9,51 +9,88 @@ scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节�
 
 ## 安装试用
 
-使用 Node.js 22.13 或更新版本（建议 Node.js 24），全局安装两个已编译的 CLI：
+使用 Node.js 22.13 或更新版本（建议 Node.js 24），安装两个已编译的 CLI。以下是
+**0.1.0 / latest**
+的安装流程，须在对应版本发布完成后使用；源码版本号本身不证明 npm 已可用。命令失败时先排查，不继续使用旧产物：
 
 ```powershell
-npm install -g @silvermoon-work/task-builder-cli@canary @silvermoon-work/task-engine-cli@canary
+npm install -g @silvermoon-work/task-builder-cli@0.1.0 @silvermoon-work/task-engine-cli@0.1.0
 task-builder --help
 task-engine --help
 task-builder init my-task
 cd my-task
 npm install
+npm run typecheck
 npm run build
-npm run car
-'{"text":"world"}' | task-engine run --car .\bundle.car
+task-engine server start --data-dir .\engine-data
+'{"text":"world"}' | task-engine run --car .\dist\my-task.car --input -
+task-engine task query --status succeeded
+task-engine server stop --data-dir .\engine-data
 ```
 
 无需克隆本仓库、安装 TypeScript 或编译 CLI。发布时先编译再打包
-`dist`，全局命令直接执行该产物。`npm run build`
-只构建用户的任务源码。新三命令接口的 build 默认同时交付
-`dist.car`，`npm run car` 另按声明交付拒绝覆盖的 `bundle.car`；不再提供 Builder
-check 子命令。此新接口仍须独立 Canary 发布与 registry 安装验证，不能据此认定当前 canary 已升级。Builder 在执行 build 时调用 esbuild；npm 通过 optional
-dependency 安装当前 OS/CPU 对应的预编译二进制，跳过 esbuild
-postinstall 仍可构建，不要同时使用
-`--omit=optional`。build 不会补跑安装脚本。上述已发布旧 Engine
-CLI 的本地 CAR 运行无需 Gateway、Kubo 或 HTTP 服务；结果应为 `Hello world`，
-`status: "succeeded"`、退出码 0，且 Run 回收已确认。只执行可信任务代码。全局 npm 的 bin 目录须在 PATH 中。pnpm 用户也可按端到端指南执行项目命令，无需批准 esbuild 安装脚本。`latest`
-仍为占位版本，请选择 `canary`。
+`dist`，全局命令直接执行该产物。项目名从目标目录名派生；上例输出为
+`dist/my-task/task.yaml` 和 `dist/my-task.car`，不是 `dist/task.yaml` 或
+`bundle.car`。一般形式为 `dist/<derived-package-name>/task.yaml` 和
+`dist/<derived-package-name>.car`。
 
-当前源码的新版 Engine
-CLI 已改为显式后台 Server 与持久任务接口，尚未因此完成新版 canary 发布或安装验收。构建源码后使用：
+**build 已默认生成并校验 CAR，不要紧接着执行
+`npm run car`**：独立 car 拒绝覆盖已有文件。需要分别验证时，在新项目第一次构建中使用：
 
 ```powershell
-task-engine server start
-'{"text":"world"}' | task-engine run --car .\bundle.car --input -
-task-engine task query
-task-engine server stop
+npm run build -- --no-car
+npm run car
 ```
 
+已有默认 build 产物时可改为新输出：
+
+```powershell
+task-builder car .\dist\my-task\task.yaml --output .\dist\my-task-copy.car
+```
+
+build 只转译 TypeScript，不负责类型检查；0.1.0 模板提供独立
+`npm run typecheck`，最终脚本为
+`build/car/clean/typecheck`。构建和类型检查必须分别通过，没有 Builder `check`
+子命令。
+
+Builder 在执行 build 时调用 esbuild；npm 通过 optional
+dependency 安装当前 OS/CPU 对应的预编译二进制，跳过 esbuild
+postinstall 仍可构建，不要同时使用
+`--omit=optional`。build 不会补跑安装脚本。Engine 必须显式启动 Server，不会自动启动；仅
+`--input -`
+读取 stdin。本地 CAR 无需 Gateway 或 Kubo，但仍通过 Server 执行并持久保存任务。结果应为
+`Hello world`、
+`status: "succeeded"`、退出码 0。CID 的缺块获取仅由 Server 启动参数
+`--ipfs-gateway` 或 `server.ipfsGateway`
+配置；不读取旧 Kubo 环境变量。只执行可信任务代码，全局 npm 的 bin 目录须在 PATH 中。
+
 完整配置、持久化、离线清理与旧接口迁移见
-[Engine CLI README](packages/task-engine-cli/README.md)；不要用源码的新接口推断现有 npm
-canary 已升级。
+[Engine CLI README](packages/task-engine-cli/README.md)；重启后按 taskId 查询和离线清理的完整操作见[端到端验证指引](docs/end-to-end-verification.md)。源码打包制品已在 Linux
+x64 / Node
+24 验证安装、在线 CID、持久日志与重启；正式版本仍须通过发布后真实 registry 安装验证。
+
+### 0.1.0 发布范围与兼容边界
+
+本轮逐包发布 Protocol、SDK、Builder、Builder CLI、Engine、Engine
+CLI；Storage、HTTP、Server 保留其原有 canary 版本，不在本轮发布范围。模板的 SDK、Builder 和 Builder
+CLI 均固定为 0.1.0，内部 `workspace:*` 在打包时转换为精确版本，不隐式追踪
+`latest`。
+
+0.1.0 是可安装的非预发布版本，不代表 1.0 的长期兼容承诺。后续不兼容变更须明确说明；不把旧数据静默迁移、清空或当作新格式读取。升级前停服并备份实例目录，不支持的格式须使用新目录。Windows
+x64 和 Linux x64 已有验证；macOS、ARM 和生产多租户隔离未在本轮验证。
+
+本轮包含 Space context breaking change：旧的 `context.bundle.read()`、
+`context.generation` 和 `context.checkpoint` 已移除；改用
+`context.bundle.root.resolve(path).read()` 和
+`context.output`。旧 SDK 编译的 Bundle 必须用配套 SDK/Builder 重新构建，不能继续使用旧 CAR/CID 作为新版成功验收样例。最终结果新增
+`outputCid`，它不是业务 `result` 的字段。详见
+[SDK Space 契约](packages/task-sdk/README.md#spaces-breaking-contract)。
 
 ## 本次提取范围
 
 当前源码已取消独立 CAR 发布单元：Builder 自有 `/tree`
 构建 IO 端口与不加载编译器的 `/car` 生产/校验入口；Engine
-CLI 通过标准 CAR/UnixFS 库实现离线只读块源，生产安装不依赖 Builder/esbuild。Task 规则复用既有 Protocol/Engine 校验，CID 与 CAR 字节契约不变。此重构仍需 Builder/CLI 分别发布和真实 registry 安装验证；源码通过不代表候选已发布。旧 CAR 首次发布失败的不可变 tag 仅保留历史，不重试、不移动。
+CLI 通过标准 CAR/UnixFS 库实现离线只读块源，生产安装不依赖 Builder/esbuild。Task 规则复用既有 Protocol/Engine 校验，CID 与 CAR 字节契约不变。当前已发布基线见上方；后续源码变更仍须分别发布和真实 registry 安装验证。旧 CAR 首次发布失败的不可变 tag 仅保留历史，不重试、不移动。
 
 | 包                                                                               | 职责                                       |
 | -------------------------------------------------------------------------------- | ------------------------------------------ |
@@ -65,12 +102,11 @@ CLI 通过标准 CAR/UnixFS 库实现离线只读块源，生产安装不依赖 
 | [@silvermoon-work/task-engine-server](./packages/task-engine-server/README.md)   | Node HTTP/SSE 服务组装                     |
 | [@silvermoon-work/task-builder](./packages/task-builder/README.md)               | 只读文件树转换、esbuild 构建与流式资源     |
 | [@silvermoon-work/task-builder-cli](./packages/task-builder-cli/README.md)       | Commander 命令交互、本地文件适配与模板组装 |
-| [@silvermoon-work/task-engine-cli](./packages/task-engine-cli/README.md)         | 隔离域内嵌运行、全体耗尽与自动退出         |
+| [@silvermoon-work/task-engine-cli](./packages/task-engine-cli/README.md)         | 显式后台 Server、持久任务查询与离线清理    |
 
 Web UI、pguide CLI 和 Check/Probe 包不在本次提取范围。Task
 SDK 已迁入，保留原 Worker 运行时与 API，仅依赖本仓库 task-protocol；init 模板与作者入口使用
-`@silvermoon-work/task-sdk`。SDK canary 2、builder/CLI canary
-3 已发布，新 init 模板已部署；最终版本与验证边界见下方发布记录。新增 task-builder 不依赖 pguide 命令协议：模块通过抽象文件树解析，资源按需流式读取；提供独立
+`@silvermoon-work/task-sdk`。当前已发布基线见「安装试用」，下方发布记录只代表各自精确的历史版本与验证边界。新增 task-builder 不依赖 pguide 命令协议：模块通过抽象文件树解析，资源按需流式读取；提供独立
 `init` / `car` export 提供模板文件树及有界流式 CAR 编码/检查。核心不含 CLI
 binary 或宿主文件系统适配；独立 task-builder-cli 库提供 `task-builder`
 命令、Commander 交互及本地写入。构建输出资源依赖输入树生命周期，完整校验需消费全部流。详见
@@ -158,9 +194,9 @@ pnpm --filter @silvermoon-work/task-protocol test
 ## Commands
 
 从新建项目到 Task 构建、CAR 和真实运行的跨平台验证，见
-[端到端验证指引](./docs/end-to-end-verification.md)。builder 核心 canary
-2 与独立 builder CLI canary
-1 已发布并通过真实 npm 安装验证；SDK 仍使用明确的外部兼容包。新 Engine/执行 CLI 的代码已合入但不属于本轮发布，部署验证固定使用已发布 Engine。
+[端到端验证指引](./docs/end-to-end-verification.md)。当前已发布版本见「安装试用」；模板使用本仓库的
+`@silvermoon-work/task-sdk`，Engine
+CLI 使用受管 Server。下方各轮发布记录仅代表当时精确版本，不作为当前源码或未来正式版验收结论。
 
 | Command          | Purpose                                                |
 | ---------------- | ------------------------------------------------------ |
@@ -492,7 +528,7 @@ existing published version or move a tag. The verifier rejects malformed dates,
 zero/leading-zero indices and unsafe integer indices. All packages in a release
 round may share a version, but each still requires its own explicitly authorized
 package tag and publication. Publish internal dependencies first; `workspace:*`
-packs to their exact canary versions.
+packs to their exact package versions.
 
 The pinned `github-ci-verify` CLI requires the latest `ci.yaml` main push run
 for the exact checked-out SHA and its successful versioned aggregate job and

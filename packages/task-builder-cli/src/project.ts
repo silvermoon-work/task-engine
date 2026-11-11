@@ -55,6 +55,13 @@ export async function createCliTaskProject(
   );
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error("Core template package.json must contain an object.");
+  if (
+    !("devDependencies" in value) ||
+    !value.devDependencies ||
+    typeof value.devDependencies !== "object" ||
+    Array.isArray(value.devDependencies)
+  )
+    throw new Error("Core template package.json must contain development dependencies.");
   const { parse, stringify } = await import("yaml");
   const definition: unknown = parse(
     Buffer.from(await readBytes(template, "task.build.yaml", 65_536)).toString(),
@@ -71,11 +78,13 @@ export async function createCliTaskProject(
     ...value,
     packageManager: "pnpm@11.22.0",
     scripts: {
+      typecheck: "tsc --project tsconfig.json",
       build: "task-builder build task.build.yaml",
       car: `task-builder car ${outDirectory}/task.yaml --output ${outDirectory}.car`,
       clean: "rimraf dist",
     },
     devDependencies: {
+      ...value.devDependencies,
       "@silvermoon-work/task-builder-cli": cli,
       "@silvermoon-work/task-builder": builder,
       rimraf: "6.1.4",

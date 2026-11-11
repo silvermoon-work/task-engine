@@ -111,21 +111,7 @@ class DurableDomain extends MemoryStore {
       (candidate) => project(facts, candidate.taskId, Date.now()).run?.runId === value.runId,
     );
     if (!task) throw new TaskError("LOG_STORAGE_FAILED", "Log ownership cannot be resolved.");
-    this.repository.write(() => {
-      const insert = this.repository.db.prepare(
-        "INSERT OR IGNORE INTO logs(task_id,run_id,sequence,time,level,message,payload) VALUES (?,?,?,?,?,?,?)",
-      );
-      for (const entry of value.entries)
-        insert.run(
-          task.request.requestId,
-          entry.runId,
-          entry.sequence,
-          entry.receivedAt,
-          entry.level,
-          entry.message,
-          JSON.stringify(entry),
-        );
-    });
+    this.repository.appendLogs(task.request.requestId, value.entries);
     super.writeRunLogs(owner, value);
   }
   override pruneRunLogs() {

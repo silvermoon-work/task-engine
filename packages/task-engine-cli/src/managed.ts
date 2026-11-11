@@ -29,6 +29,7 @@ import {
   type TaskRecord,
 } from "./data.js";
 import { executeTask, PreparationPool, PreparingCapacity } from "./execution.js";
+import { managedDiagnostics } from "./diagnostics.js";
 
 const exec = promisify(execFile);
 export interface ResponseValue {
@@ -73,7 +74,11 @@ export async function processBirth(pid: number): Promise<string | undefined> {
         readFile(`/proc/${pid}/stat`, "utf8"),
         readFile("/proc/sys/kernel/random/boot_id", "utf8"),
       ]);
-      return `${boot.trim()}:${text.slice(text.lastIndexOf(")") + 2).split(" ")[19]}`;
+      const fields = text.slice(text.lastIndexOf(")") + 2).split(" ");
+      // kill(pid, 0) also succeeds for an exited child awaiting its parent's
+      // waitpid(). Such a zombie owns no execution resources or SQLite locks.
+      if (fields[0] === "Z" || fields[0] === "X") return undefined;
+      return `${boot.trim()}:${fields[19]}`;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
       throw error;
@@ -519,6 +524,8 @@ export async function serveManaged(
   let fatal: unknown;
   let fatalScheduled = false;
   let closeAttempt: Promise<void> | undefined;
+  let diagnostics: ReturnType<typeof managedDiagnostics> | undefined;
+  const uncaught = (error: Error) => diagnostics?.record("uncaught-exception", error);
   const jobs = new Map<string, { controller: AbortController; operation: Promise<void> }>();
   const queued: string[] = [];
   const preparation = new PreparationPool(Number(effective(config, "server.bundleConcurrency")));
@@ -626,20 +633,19 @@ export async function serveManaged(
           errors,
           "Server shutdown persistence/resource release is unconfirmed.",
         );
+      process.removeListener("uncaughtExceptionMonitor", uncaught);
+      diagnostics?.close();
     })());
   const failStorage = (error: unknown) => {
     fatal = error;
     process.exitCode = 1;
-    process.stderr.write(
-      `Fatal persistent storage failure: ${errorFact(error, "STORAGE_FAILED").message}\n`,
-    );
+    diagnostics?.record("storage-failed", error);
     if (!fatalScheduled) {
       fatalScheduled = true;
       setImmediate(() => {
         void shutdown(error).catch((failure: unknown) => {
-          process.stderr.write(
-            `Fatal storage error; cleanup/persistence unconfirmed: ${errorFact(failure).message}\n`,
-          );
+          diagnostics?.record("shutdown-failed", failure);
+          diagnostics?.close();
           process.exitCode = 1;
           server.closeAllConnections();
           server.close();
@@ -980,6 +986,8 @@ export async function serveManaged(
   startupSignal.addEventListener("abort", abort, { once: true });
   try {
     await persist();
+    diagnostics = managedDiagnostics(lock.directory, instance.instanceId);
+    process.on("uncaughtExceptionMonitor", uncaught);
     notify({ type: "identity", instance });
     repository = new Repository(lock.directory, failStorage);
     for (const task of repository.all())
@@ -1059,7 +1067,16 @@ export async function serveManaged(
       },
     });
   } catch (error) {
-    await shutdown(error);
+    diagnostics?.record("startup-failed", error);
+    try {
+      await shutdown(error);
+    } catch (failure) {
+      diagnostics?.record("shutdown-failed", failure);
+      throw failure;
+    } finally {
+      process.removeListener("uncaughtExceptionMonitor", uncaught);
+      diagnostics?.close();
+    }
     throw error;
   }
 }

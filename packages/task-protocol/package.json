@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-protocol",
-  "version": "0.1.0-canary-261111-2",
+  "version": "0.1.0",
   "description": "Pure generic task facts, projections and extension ports.",
   "type": "module",
   "sideEffects": false,

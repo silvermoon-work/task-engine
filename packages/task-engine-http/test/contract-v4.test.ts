@@ -222,7 +222,12 @@ test("HTTP controls, independent Task/Run snapshots and frozen histories expose 
     const run = await data<RunSnapshot>(f.get(`/runs/${snapshot.run.runId}`));
     assert.equal(run.stage, "completed");
     assert.equal(run.dataDomain, snapshot.dataDomain);
-    assert.deepEqual(run.result, snapshot.result);
+    assert.ok(run.output);
+    assert.deepEqual(run.output, snapshot.output);
+    for (const value of [run, snapshot]) {
+      assert.equal(Object.hasOwn(value, "result"), false);
+      assert.equal(Object.hasOwn(value, "outputCid"), false);
+    }
     const original = await data<TaskRequest>(f.get(`/requests/${task.requestId}`));
     assert.equal(original.requestId, task.requestId);
     const tasks = await data<TaskPage>(f.get("/tasks?canceled=false&stage=completed"));

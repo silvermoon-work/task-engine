@@ -30,6 +30,7 @@ import {
   type RunLogLimits,
   type RunLogQuery,
   type RunLogSubscription,
+  type RunOutcome,
   type RunPage,
   type RunQuery,
   type RunRecord,
@@ -614,11 +615,12 @@ export class TaskEngine implements TaskService {
     if (run.binding.bundle) {
       const contract = this.boundContracts(run.binding);
       contract.input.validate(run.input);
-      if (run.outcome?.result !== undefined) contract.result.validate(run.outcome.result);
+      if (run.outcome?.output !== undefined) contract.result.validate(run.outcome.output.result);
     } else {
       const type = this.historical(run.binding);
       type.validate(run.input);
-      if (run.outcome?.result !== undefined) type.resultContract.validate(run.outcome.result);
+      if (run.outcome?.output !== undefined)
+        type.resultContract.validate(run.outcome.output.result);
     }
     if (run.progress !== undefined) validateRunProgress(run.progress, this.limits.maxPayloadBytes);
   }
@@ -1202,7 +1204,7 @@ export class TaskEngine implements TaskService {
       for (const run of Object.values(this.view.facts.runs)) {
         if (run.binding.bundle) continue;
         const supervisor = this.supervisors.get(this.key(run.binding))!;
-        if (run.outcome?.result !== undefined) await supervisor.verify(run.outcome.result);
+        if (run.outcome?.output !== undefined) await supervisor.verify(run.outcome.output.result);
         for (const evidence of run.evidence ?? [])
           await supervisor.verify(
             evidence.value,
@@ -1423,14 +1425,18 @@ export class TaskEngine implements TaskService {
   private outcome(id: string, value: RunOutcomeReport): void {
     const run = this.currentRun(id),
       type = this.historical(run.binding);
-    const report: RunOutcomeReport =
+    const report:
+      | Omit<Extract<RunOutcome, { kind: "completed" }>, "occurredAt">
+      | Omit<Extract<RunOutcome, { kind: "failed" }>, "occurredAt"> =
       value.kind === "completed"
         ? {
             kind: "completed",
-            result: type.resultContract.validate(value.result),
-            ...(value.outputCid === undefined
-              ? {}
-              : { outputCid: validateBundleReference(value.outputCid) as string }),
+            output: {
+              result: type.resultContract.validate(value.result),
+              ...(value.outputCid === undefined
+                ? {}
+                : { cid: validateBundleReference(value.outputCid) as string }),
+            },
           }
         : {
             kind: "failed",
@@ -1440,7 +1446,7 @@ export class TaskEngine implements TaskService {
             },
             ...(value.result === undefined
               ? {}
-              : { result: type.resultContract.validate(value.result) }),
+              : { output: { result: type.resultContract.validate(value.result) } }),
           };
     if (run.outcome) {
       const { occurredAt: _at, ...existing } = run.outcome;

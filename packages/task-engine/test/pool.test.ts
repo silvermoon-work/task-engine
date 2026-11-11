@@ -398,7 +398,7 @@ test("non-artifact orchestration returns child identity as ordinary result data"
     h.engine.tick();
     await h.finish(0, {
       childTaskId: child.taskId,
-      result: h.engine.getTask(child.taskId, caller).result ?? null,
+      result: h.engine.getTask(child.taskId, caller).output?.result ?? null,
     });
     h.engine.tick();
     assert.equal(h.engine.getTask(parent.taskId, caller).stage, "completed");
@@ -463,7 +463,7 @@ test("two pressure replacements cannot double-count one resource; stale callback
     assert.throws(() => h.work[0]?.permit.progress({ stage: "execution", message: "迟到进度" }), {
       code: "run_finished",
     });
-    assert.equal(h.engine.getTask(b.taskId, caller).result, undefined);
+    assert.equal(h.engine.getTask(b.taskId, caller).output?.result, undefined);
     await h.finish(1, { text: "b" });
     await flush();
     assert.equal(h.work.length, 3);

@@ -2298,8 +2298,14 @@
   "data": {
     "taskId": "task-001",
     "status": "succeeded",
-    "result": {
-      "greeting": "Hello world"
+    "output": {
+      "cid": "bafy...",
+      "output": {
+        "cid": "bafy...",
+        "result": {
+          "greeting": "Hello world"
+        }
+      }
     }
   }
 }</code></pre>
@@ -2601,8 +2607,11 @@ task-engine task query --id &lt;task-id&gt; [--engine &lt;url&gt;]</code></pre>
         "taskId": "task-001",
         "status": "succeeded",
         "createdAt": "2026-11-10T07:00:00Z",
-        "result": {
-          "greeting": "Hello world"
+        "output": {
+          "cid": "bafy...",
+          "result": {
+            "greeting": "Hello world"
+          }
         }
       }
     ],
@@ -2887,8 +2896,11 @@ task-engine task query --id &lt;task-id&gt; [--engine &lt;url&gt;]</code></pre>
   "data": {
     "taskId": "task-003",
     "status": "succeeded",
-    "result": {
-      "greeting": "Hello world"
+    "output": {
+      "cid": "bafy...",
+      "result": {
+        "greeting": "Hello world"
+      }
     }
   }
 }</code></pre>

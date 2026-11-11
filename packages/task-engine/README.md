@@ -104,7 +104,9 @@ Ref 在运行时持有 Space 和路径，`resolve()` 只计算路径；`toJSON()
 
 `getCid()` 按需获取当前已提交版本，不承诺该中间版本永久保存或外部可达。
 正常完成时宿主收束写入、固化并保留完整最终 DAG，再记录 outcome 的
-`outputCid`；Run 和 Task 查询均可取得该字段，业务 result 不被改写。
+`output: {cid, result}`；Run 和 Task 查询均可取得该对象，业务 result 不被改写。
+Task/Run 列表摘要仅带 `output.cid`，不展开业务结果。
+该输出封装是 breaking change，旧开发数据不迁移；Worker 的业务返回值和 Bundle 无需改动。
 读取及导入的静态 Space 入口另记录为 Run 的 `contentAccess`，不等同于永久 pin。
 失败／取消暂不发布部分产物 CID。第一版不自动回收内容块或 Run 保留根；
 `MemoryStore` 的内容只在该 Store 实例存活期间保留，SQLite Store 在重启后保留。

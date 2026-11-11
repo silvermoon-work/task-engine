@@ -151,7 +151,7 @@ test("shared progress updates only the Run; canceled Tasks still observe later t
     assert.ok(runId);
     const run = broken.runs[runId];
     assert.ok(run);
-    delete run.result;
+    delete run.output;
     assert.throws(
       () => new TaskCatalog(h.engine.limits).read({}, {}, caller, broken, h.clock.now(), () => {}),
       code("history_gap"),

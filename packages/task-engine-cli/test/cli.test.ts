@@ -272,16 +272,18 @@ process.exitCode=await main(process.argv.slice(1));assert.ok(reads>0);`;
         assert.equal(implicit.exitCode, 0, implicit.stderr);
         const execution = JSON.parse(implicit.stdout);
         assert.equal(execution.status, "succeeded");
-        assert.deepEqual(execution.execution.tasks[0].result, { value: 9 });
+        assert.deepEqual(execution.execution.tasks[0].output.result, { value: 9 });
         const explicit = await execute([...source, "--input", "-"], '{"value":9}');
         assert.equal(explicit.exitCode, 0, explicit.stderr);
-        assert.deepEqual(JSON.parse(explicit.stdout).execution.tasks[0].result, { value: 9 });
+        assert.deepEqual(JSON.parse(explicit.stdout).execution.tasks[0].output.result, {
+          value: 9,
+        });
         const file = await execute(
           [...source, "--input", inputFile],
           "invalid stdin must not be consumed",
         );
         assert.equal(file.exitCode, 0, file.stderr);
-        assert.deepEqual(JSON.parse(file.stdout).execution.tasks[0].result, { value: 11 });
+        assert.deepEqual(JSON.parse(file.stdout).execution.tasks[0].output.result, { value: 11 });
       }
     },
   );

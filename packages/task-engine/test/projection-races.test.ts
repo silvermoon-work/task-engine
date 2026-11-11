@@ -32,7 +32,7 @@ for (const outcome of ["completed", "failed"] as const) {
           assert.equal(canceled.changed, true);
           assert.equal(canceled.stage, offset < 0 ? "initial" : outcome);
           assert.equal(canceled.canceled, true);
-          assert.deepEqual(canceled.result, current.result);
+          assert.deepEqual(canceled.output?.result, current.output?.result);
           h.clock.setTime(Date.parse(task.eligibleAt) - 1);
           const rollback = h.engine.getTask(task.taskId, caller);
           assert.equal(rollback.stage, offset < 0 ? "initial" : outcome);
@@ -157,8 +157,8 @@ for (const outcome of ["completed", "failed"] as const) {
         );
         assert.equal(before.stage, outcome);
         assert.ok(before.termination);
-        if (outcome === "completed") assert.deepEqual(before.result, { text: "hello" });
-        else assert.equal(before.result, undefined);
+        if (outcome === "completed") assert.deepEqual(before.output?.result, { text: "hello" });
+        else assert.equal(before.output?.result, undefined);
         assert.equal(h.engine.cancelTask(task.taskId, caller).stage, outcome);
         h.engine.tick();
         const after = h.engine.getTask(task.taskId, caller);
@@ -217,7 +217,7 @@ test("cancel-first Task keeps its canceled fact but observes later shared comple
     assert.equal(after.canceledAt, canceled.canceledAt);
     assert.equal(after.stage, "completed");
     assert.ok(after.run?.completedAt);
-    assert.deepEqual(after.result, { text: "hello" });
+    assert.deepEqual(after.output?.result, { text: "hello" });
     assert.ok(isTimedOut(after));
     assert.notEqual(after.revision, canceled.revision);
     assert.notEqual(after.updatedAt, canceled.updatedAt);

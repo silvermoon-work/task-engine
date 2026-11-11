@@ -676,7 +676,7 @@ export class TaskEngine implements TaskService {
             throw new TaskError("invalid_response", "Child result identity mismatch.");
           if (task.stage === "completed") {
             await bounded(() => this.waitForTaskRelease(task.taskId, parent.caller), signal);
-            return json(task.result, this.limits.maxPayloadBytes);
+            return json(task.output?.result, this.limits.maxPayloadBytes);
           }
           if (["failed", "stopped"].includes(task.stage))
             throw new TaskError(

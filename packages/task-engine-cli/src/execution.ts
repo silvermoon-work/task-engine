@@ -78,11 +78,10 @@ class DurableDomain extends MemoryStore {
         record.roots = [cid];
         if (snapshot) {
           record.status = statusOf(snapshot, view.facts);
-          if (snapshot.outputCid) {
-            record.outputCid = snapshot.outputCid;
-            record.roots.push(snapshot.outputCid);
+          if (snapshot.output) {
+            record.output = structuredClone(snapshot.output);
+            if (snapshot.output.cid) record.roots.push(snapshot.output.cid);
           }
-          if (Object.hasOwn(snapshot, "result")) record.result = snapshot.result!;
           if (snapshot.error) record.error = snapshot.error;
           const run = snapshot.run && view.facts.runs[snapshot.run.runId];
           if (id !== this.root && run && run.exit && run.reclaimedAt) {

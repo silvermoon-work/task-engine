@@ -43,7 +43,7 @@ test("offline mark-sweep preserves shared descendants, rejects unknown graphs an
     releaseProof: { basis: "test" },
     roots: [root],
     timeoutMs: 1000,
-    result: null,
+    output: { result: null },
   });
   repository.put(record("A", a.toString()));
   repository.put(record("B", b.toString()));
@@ -151,7 +151,7 @@ test("offline cache cleanup preserves retained SQLite output graphs until their 
     completedAt: "2026-01-02T00:00:00.000Z",
     released: true,
     roots: [root.toString()],
-    outputCid: root.toString(),
+    output: { cid: root.toString(), result: null },
     releaseProof: { basis: "test" },
     timeoutMs: 1000,
   });

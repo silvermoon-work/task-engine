@@ -6,6 +6,7 @@ import test from "node:test";
 import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { openContent } from "../src/content.js";
+import { taskSummary, runSummary } from "../src/catalog.js";
 import { createTaskEngine, newId } from "../src/index.js";
 import { MemoryIpfsClient, MemoryStore } from "../src/testing.js";
 
@@ -88,17 +89,29 @@ for (const fail of [false, true])
       assert.ok(run.reclaimedAt, JSON.stringify(run));
       assert.equal(run.stage, fail ? "failed" : "completed", JSON.stringify(run));
       if (fail) {
-        assert.equal(run.outputCid, undefined);
+        assert.equal(run.output?.cid, undefined);
         return;
       }
-      assert.ok(run.outputCid);
+      assert.ok(run.output?.cid);
       const task = drained.tasks.find((task) => task.requestId === requestId)!;
-      assert.equal(task.outputCid, run.outputCid);
-      assert.ok(store.readRunContentRoots(run.runId).includes(run.outputCid));
+      assert.equal(task.output?.cid, run.output?.cid);
+      assert.deepEqual(task.output, run.output);
+      for (const snapshot of [task, run]) {
+        assert.equal(Object.hasOwn(snapshot, "result"), false);
+        assert.equal(Object.hasOwn(snapshot, "outputCid"), false);
+      }
+      const facts = store.read().facts;
+      assert.deepEqual(taskSummary(facts.tasks[task.taskId]!, facts, Date.now()).output, {
+        cid: run.output.cid,
+      });
+      assert.deepEqual(runSummary(facts.runs[run.runId]!, facts, Date.now()).output, {
+        cid: run.output.cid,
+      });
+      assert.ok(store.readRunContentRoots(run.runId).includes(run.output?.cid));
       assert.ok(run.contentAccess?.includes(`ipfs:${built.cid}`));
-      const result = run.result as { bundleCid: string; before: string; ref: unknown };
+      const result = run.output?.result as { bundleCid: string; before: string; ref: unknown };
       assert.equal(result.bundleCid, built.cid);
-      assert.notEqual(result.before, run.outputCid);
+      assert.notEqual(result.before, run.output?.cid);
       assert.deepEqual(result.ref, {
         sid: `run:${run.runId}:output`,
         path: "/generated/result.txt",
@@ -125,7 +138,7 @@ for (const fail of [false, true])
         ["generated/result.txt", "generated"],
         ["copies/old/greeting.txt", "hello spaces\n"],
       ]) {
-        const node = await openContent(local, `${run.outputCid}/${path}`, access);
+        const node = await openContent(local, `${run.output?.cid}/${path}`, access);
         assert.ok(node.type === "file" || node.type === "raw");
         const chunks: Uint8Array[] = [];
         for await (const chunk of node.content()) chunks.push(chunk);
@@ -133,7 +146,7 @@ for (const fail of [false, true])
       }
       engine = createTaskEngine({ store, ipfsClient: client, authorize: () => true });
       await engine.start();
-      assert.equal(engine.getRun(run.runId, caller).outputCid, run.outputCid);
+      assert.equal(engine.getRun(run.runId, caller).output?.cid, run.output?.cid);
     } finally {
       await engine?.close();
       store.close();

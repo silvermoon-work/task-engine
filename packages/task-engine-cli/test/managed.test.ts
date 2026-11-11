@@ -160,8 +160,11 @@ export default async (input,context)=>{
   const success = await run(args, '{"value":7}');
   assert.equal(success.code, 0, success.stdout + success.stderr);
   const taskId = String(success.parse().data.taskId);
-  assert.deepEqual(success.parse().data.result, { value: 7 });
-  assert.equal(typeof success.parse().data.outputCid, "string");
+  const output = success.parse().data.output as { cid: string; result: unknown };
+  assert.deepEqual(output.result, { value: 7 });
+  assert.equal(typeof output.cid, "string");
+  assert.equal(Object.hasOwn(success.parse().data, "result"), false);
+  assert.equal(Object.hasOwn(success.parse().data, "outputCid"), false);
   assert.deepEqual(Object.keys(success.parse()), ["ok", "data"]);
   const business = {
     mode: "echo",
@@ -172,10 +175,10 @@ export default async (input,context)=>{
   };
   const echoed = await run(args, JSON.stringify(business));
   assert.equal(echoed.code, 0, echoed.stdout);
-  assert.deepEqual(echoed.parse().data.result, business);
+  assert.deepEqual((echoed.parse().data.output as { result: unknown }).result, business);
   const nullResult = await run(args, '{"mode":"null"}');
   assert.equal(nullResult.code, 0, nullResult.stdout);
-  assert.equal(nullResult.parse().data.result, null);
+  assert.equal((nullResult.parse().data.output as { result: unknown }).result, null);
   const parentEntry = join(directory, "parent.ts");
   await writeFile(
     parentEntry,
@@ -207,7 +210,7 @@ key:"child",cid:${JSON.stringify(built.cid)},path:"resources/child",input,timeou
     '{"value":9}',
   );
   assert.equal(childRun.code, 0, childRun.stdout);
-  assert.deepEqual(childRun.parse().data.result, { value: 9 });
+  assert.deepEqual((childRun.parse().data.output as { result: unknown }).result, { value: 9 });
   const query = await run(["task", "query", "--id", taskId, "--engine", engine]);
   assert.equal((query.parse().data.items as unknown[]).length, 1);
   const logs = await run(["task", "logs", taskId, "--limit", "17", "--engine", engine]);
@@ -392,11 +395,10 @@ key:"child",cid:${JSON.stringify(built.cid)},path:"resources/child",input,timeou
   const largeBusiness = { mode: "echo", text: "x".repeat(70000) };
   const large = await run(args, JSON.stringify(largeBusiness));
   assert.equal(large.code, 0, large.stdout.slice(0, 512));
-  assert.deepEqual(large.parse().data.result, largeBusiness);
+  assert.deepEqual((large.parse().data.output as { result: unknown }).result, largeBusiness);
   const retained = await run(["task", "await", taskId, "--engine", engine]);
   assert.equal(retained.code, 0, retained.stdout);
-  assert.deepEqual(retained.parse().data.result, { value: 7 });
-  assert.equal(retained.parse().data.outputCid, success.parse().data.outputCid);
+  assert.deepEqual(retained.parse().data.output, success.parse().data.output);
   const crashTask = await run([...args, "--async"], '{"mode":"slow"}');
   const crashIdentity = JSON.parse(await readFile(identityPath, "utf8")) as { pid: number };
   assert.notEqual(crashIdentity.pid, identity.pid);
@@ -752,7 +754,7 @@ test("CID async acceptance is durable before a blocked Gateway, prepare failure 
     performance.now() - began > 3000,
     "Preparation must exceed the execution budget without consuming it.",
   );
-  assert.deepEqual(success.parse().data.result, { value: 42 });
+  assert.deepEqual((success.parse().data.output as { result: unknown }).result, { value: 42 });
   assert.equal((await run(["server", "stop", "--data-dir", data])).code, 0);
   const before = requests;
   assert.equal(

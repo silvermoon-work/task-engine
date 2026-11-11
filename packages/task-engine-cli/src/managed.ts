@@ -269,7 +269,10 @@ export async function request(
         if (
           value.ok &&
           route !== "/cli/run" &&
-          (data.status !== "succeeded" || !Object.hasOwn(data, "result"))
+          (data.status !== "succeeded" ||
+            !data.output ||
+            typeof data.output !== "object" ||
+            !Object.hasOwn(data.output, "result"))
         )
           throw invalid();
       }
@@ -475,8 +478,7 @@ export function taskResult(task: TaskRecord): ResponseValue {
   const data = {
     taskId: task.taskId,
     status: task.status,
-    ...(task.outputCid ? { outputCid: task.outputCid } : {}),
-    ...(Object.hasOwn(task, "result") ? { result: task.result } : {}),
+    ...(task.output ? { output: task.output } : {}),
   };
   if (!task.released)
     return {
@@ -498,7 +500,7 @@ export function taskResult(task: TaskRecord): ResponseValue {
         message: `Task ended with ${task.status}.`,
       },
     };
-  if (!Object.hasOwn(task, "result"))
+  if (!task.output)
     return {
       ok: false,
       data,
@@ -885,7 +887,14 @@ export async function serveManaged(
         const page = items.slice(offset, offset + limit).map((task) => ({
           taskId: task.taskId,
           status: task.status,
-          ...(task.outputCid ? { outputCid: task.outputCid } : {}),
+          ...(task.output
+            ? {
+                output:
+                  body.id === undefined
+                    ? { ...(task.output.cid ? { cid: task.output.cid } : {}) }
+                    : task.output,
+              }
+            : {}),
           createdAt: task.createdAt,
           ...(body.id === undefined
             ? {
@@ -894,9 +903,7 @@ export async function serveManaged(
                     ? "Business execution succeeded."
                     : `Task is ${task.status}.`,
               }
-            : Object.hasOwn(task, "result")
-              ? { result: task.result }
-              : {}),
+            : {}),
         }));
         finish(outgoing, {
           ok: true,

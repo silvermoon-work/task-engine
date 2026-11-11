@@ -195,7 +195,7 @@ test("v1 real SDK -> SQLite -> authenticated HTTP history/realtime, concurrent i
             (entry) => entry.runId === id && entry.message.endsWith(index === 0 ? "A" : "B"),
           ),
         );
-        assert.deepEqual((await api.getRun(id)).result, { ok: true });
+        assert.deepEqual((await api.getRun(id)).output?.result, { ok: true });
         assert.equal(
           (await api.getRunHistory(id)).events.some((event) => event.type.includes("log")),
           false,
@@ -247,7 +247,7 @@ test("failure, cooperative cancel, forced stop, invalid inputs, output overflow 
         if (mode === "fail") assert.equal(run.stage, "failed");
         else if (mode === "cancel") {
           assert.equal(logs.state.completeness, "unknown");
-        } else assert.deepEqual(run.result, { ok: true });
+        } else assert.deepEqual(run.output?.result, { ok: true });
         if (mode === "generation")
           assert.deepEqual(
             logs.entries.map((entry) => entry.message),
@@ -325,7 +325,7 @@ test("write/storage fault gives unavailable receipts and durable missing status,
       const api = client(server.url);
       const task = await submit(api, bundle, "storage");
       const id = task.run!.runId;
-      assert.deepEqual((await ended(api, id)).result, { ok: true });
+      assert.deepEqual((await ended(api, id)).output?.result, { ok: true });
       assert.equal((await api.getRunLogs(id)).state.availability, "unavailable");
       assert.match(await readFile(receipts, "utf8"), /"reason":"storage"/);
       await server.close();

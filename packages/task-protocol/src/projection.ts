@@ -10,7 +10,23 @@ import type {
   StoreView,
   TaskRecord,
   TaskSnapshot,
+  TaskOutput,
 } from "./types.js";
+
+function assertOutputEnvelope(record: { output?: TaskOutput }, required = false): void {
+  if (
+    "result" in record ||
+    "outputCid" in record ||
+    (required && record.output === undefined) ||
+    (record.output !== undefined &&
+      (!record.output ||
+        typeof record.output !== "object" ||
+        Array.isArray(record.output) ||
+        record.output.result === undefined ||
+        (record.output.cid !== undefined && typeof record.output.cid !== "string")))
+  )
+    fail("unsupported_version", "Unsupported Run output. Stored data is not migrated.");
+}
 
 export function requestTime(id: string): number {
   const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
@@ -66,9 +82,12 @@ export function assertFactsVersion(facts: Facts): void {
       !["starts-after-eligible", "terminates-after-eligible"].includes(task.binding.matchPolicy)
     )
       fail("unsupported_version", "Unsupported stored Task representation or policy.");
-  for (const run of Object.values(facts.runs))
+  for (const run of Object.values(facts.runs)) {
+    assertOutputEnvelope(run, run.completedAt !== undefined);
+    if (run.outcome) assertOutputEnvelope(run.outcome, run.outcome.kind === "completed");
     if (!["starts-after-eligible", "terminates-after-eligible"].includes(run.binding.matchPolicy))
       fail("unsupported_version", "Unsupported stored Run policy.");
+  }
   for (const [id, record] of Object.entries(facts.submissions)) {
     if (record.composition) {
       const child = record.composition;
@@ -287,8 +306,8 @@ export function project(
     updates.push([run.stoppingSequence, run.stoppingAt]);
   if (run?.exit && match && run.exit.sequence >= match.sequence)
     updates.push([run.exit.sequence, run.exit.occurredAt]);
-  if (stage === "completed" && run?.result === undefined)
-    fail("history_gap", "Completed Run result is missing.");
+  if (stage === "completed" && run?.output === undefined)
+    fail("history_gap", "Completed Run output is missing.");
   const snapshot: TaskSnapshot = {
     ...parentAssociation(facts, task.request.requestId),
     requestId: task.request.requestId,
@@ -321,17 +340,16 @@ export function project(
       snapshot.error = structuredClone(
         run.error ?? { code: "worker_exit", message: "Worker exited without a reliable result." },
       );
-    if (includeResult && (stage === "completed" || stage === "failed") && run.result !== undefined)
-      snapshot.result = structuredClone(run.result);
-    if (stage === "completed" && run.outputCid !== undefined) snapshot.outputCid = run.outputCid;
+    if (includeResult && (stage === "completed" || stage === "failed") && run.output !== undefined)
+      snapshot.output = structuredClone(run.output);
   }
   return snapshot;
 }
 export function projectRun(facts: Facts, runId: string, now: number): RunSnapshot {
   const run = facts.runs[runId];
   if (!run) fail("not_found", "Run not found.");
-  if (runStage(run) === "completed" && run.result === undefined)
-    fail("history_gap", "Completed Run result is missing.");
+  if (runStage(run) === "completed" && run.output === undefined)
+    fail("history_gap", "Completed Run output is missing.");
   const snapshot: RunSnapshot = {
     ...parentAssociation(facts, run.binding.compositionId),
     runId,
@@ -357,8 +375,7 @@ export function projectRun(facts: Facts, runId: string, now: number): RunSnapsho
     ...(run.completedAt ? { completedAt: run.completedAt } : {}),
     ...(run.failedAt ? { failedAt: run.failedAt } : {}),
     ...(run.exit && runStage(run) === "stopped" ? { stoppedAt: run.exit.occurredAt } : {}),
-    ...(run.result === undefined ? {} : { result: structuredClone(run.result) }),
-    ...(run.outputCid === undefined ? {} : { outputCid: run.outputCid }),
+    ...(run.output === undefined ? {} : { output: structuredClone(run.output) }),
     ...(run.error ? { error: structuredClone(run.error) } : {}),
     ...(run.progress === undefined ? {} : { progress: structuredClone(run.progress) }),
     ...(run.reclaimedAt ? { reclaimedAt: run.reclaimedAt } : {}),
@@ -546,6 +563,7 @@ export function reduce(prefix: Facts, events: readonly FactEvent[]): Facts {
         break;
       case "run.started": {
         const created = event.data.run;
+        assertOutputEnvelope(created);
         if (
           run ||
           created.runId !== event.runId ||
@@ -558,8 +576,7 @@ export function reduce(prefix: Facts, events: readonly FactEvent[]): Facts {
           created.stoppingAt ||
           created.completedAt ||
           created.failedAt ||
-          created.result !== undefined ||
-          created.outputCid !== undefined ||
+          created.output !== undefined ||
           created.contentAccess !== undefined ||
           created.error ||
           created.reclaimedAt ||
@@ -602,9 +619,8 @@ export function reduce(prefix: Facts, events: readonly FactEvent[]): Facts {
           fail("invalid_fact", "Run no longer accepts a result.");
         if (event.data.outcome.occurredAt !== event.occurredAt)
           fail("invalid_fact", "Outcome time mismatch.");
+        assertOutputEnvelope(event.data.outcome, event.data.outcome.kind === "completed");
         run.outcome = structuredClone(event.data.outcome);
-        if (run.outcome.kind === "completed" && run.outcome.outputCid !== undefined)
-          run.outputCid = run.outcome.outputCid;
         break;
       case "run.exited":
         if (!run || run.exit) fail("invalid_fact", "Duplicate exit.");
@@ -616,11 +632,11 @@ export function reduce(prefix: Facts, events: readonly FactEvent[]): Facts {
           };
         else if (run.outcome?.kind === "completed") {
           run.completedAt = event.occurredAt;
-          run.result = structuredClone(run.outcome.result);
+          run.output = structuredClone(run.outcome.output);
         } else if (run.outcome?.kind === "failed") {
           run.failedAt = event.occurredAt;
           run.error = structuredClone(run.outcome.error);
-          if (run.outcome.result !== undefined) run.result = structuredClone(run.outcome.result);
+          if (run.outcome.output !== undefined) run.output = structuredClone(run.outcome.output);
         } else if (!run.stopRequested) {
           run.failedAt = event.occurredAt;
           run.error = { code: "worker_exit", message: "Worker exited without a reliable result." };

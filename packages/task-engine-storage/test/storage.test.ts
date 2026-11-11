@@ -151,7 +151,8 @@ for (const mode of ["started", "completed", "future"]) {
         snapshot.stage,
         mode === "completed" ? "completed" : mode === "started" ? "stopped" : "initial",
       );
-      if (mode === "completed") assert.deepEqual(snapshot.result, { text: "durable final" });
+      if (mode === "completed")
+        assert.deepEqual(snapshot.output?.result, { text: "durable final" });
       if (mode === "started") assert.equal(snapshot.error, undefined);
       assert.equal(
         engine.submit(engine.getRequest(requestId, caller), caller).taskId,

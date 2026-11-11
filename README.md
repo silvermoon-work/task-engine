@@ -188,6 +188,19 @@ tag release mapping below.
 
 ## Publish one package
 
+### Unified output candidate (0.2.0)
+
+The `0.2.0-canary-261111-1` candidate groups the final Space CID and business
+result as `output: {cid, result}` across Task/Run facts, HTTP and CLI responses.
+Top-level `result` and `outputCid` are removed. Collection summaries include
+only `output.cid`, not business results. Failure evidence may contain
+`output.result` without a CID; running or failed executions do not fabricate a
+finalized Space. Worker callback return values, result schemas and child
+invocation results remain business JSON; existing Space-aware Bundles need not
+be rebuilt. Development databases using the old envelope are rejected without
+migration: select a fresh Engine data directory. This candidate is not
+publication evidence.
+
 ### Space context canary (2026-11-11)
 
 All nine packages are published as `0.1.0-canary-261111-2` from

@@ -36,13 +36,16 @@ task-engine config reset task.timeoutMs
 业务结果始终是 stdout 上的一个 JSON 对象及换行：
 
 ```json
-{"ok":true,"data":{"taskId":"opaque-id","status":"succeeded","result":null}}
+{"ok":true,"data":{"taskId":"opaque-id","status":"succeeded","output":{"cid":"bafy...","result":null}}}
 ```
 
-成功完成的新版 Run 另带 `outputCid`，`run`、`task await` 和 `task query`
-均可取得；它不改写业务 `result`。输出文件块及保留根存入实例的 SQLite，
+成功完成的新版 Run 使用统一的 `output: {cid, result}`，`run`、`task await`
+和 `task query --id` 均可取得；普通列表仅包含 `output.cid`，不展开业务结果。
+顶层不再返回 `outputCid` 或 `result`，业务 `result` 本身不被改写。
+输出文件块及保留根存入实例的 SQLite，
 重启后仍可被后续任务通过 `context.space(cid)` 读取。离线 `data prune --cache`
 同时标记文件缓存和 SQLite 输出块，只删除不再被保留任务引用的内容。
+这是尚未发布的输出结构调整；旧开发数据库不迁移，请使用新的数据目录。
 
 失败为 `{"ok":false,"error":{"code":"…","message":"…"}}`。
 有可信任务结果或已完成的部分清理时，同一对象保留 `data`，不伪称回滚。

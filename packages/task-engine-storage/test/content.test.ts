@@ -84,7 +84,7 @@ test("SQLite content blocks, multi-Run roots and access associations survive reo
 });
 
 for (const outputCid of [undefined, cid])
-  test(`SQLite replays additive completed output CID (${outputCid ? "present" : "legacy absent"}) and content access`, async () => {
+  test(`SQLite replays output envelope (${outputCid ? "with CID" : "non-bundle result"}) and content access`, async () => {
     const directory = resolve(".cache", `output-${randomUUID()}`);
     await mkdir(directory, { recursive: true });
     const filename = join(directory, "tasks.sqlite");
@@ -107,9 +107,11 @@ for (const outputCid of [undefined, cid])
       data: {
         outcome: {
           kind: "completed",
-          result: { ok: true },
+          output: {
+            result: { ok: true },
+            ...(outputCid === undefined ? {} : { cid: outputCid }),
+          },
           occurredAt: time(3),
-          ...(outputCid === undefined ? {} : { outputCid }),
         },
       },
     });
@@ -136,10 +138,17 @@ for (const outputCid of [undefined, cid])
         const taskSnapshot = project(view.facts, task.taskId, epoch + 5);
         const runSnapshot = projectRun(view.facts, run.runId, epoch + 5);
         assert.equal(view.facts.projectionVersion, 5);
-        assert.equal(view.facts.runs[run.runId]?.outputCid, outputCid);
+        assert.equal(view.facts.runs[run.runId]?.output?.cid, outputCid);
         assert.equal(taskSnapshot.stage, "completed");
-        assert.equal(taskSnapshot.outputCid, outputCid);
-        assert.equal(runSnapshot.outputCid, outputCid);
+        assert.equal(taskSnapshot.output?.cid, outputCid);
+        assert.equal(runSnapshot.output?.cid, outputCid);
+        assert.deepEqual(taskSnapshot.output, {
+          ...(outputCid ? { cid: outputCid } : {}),
+          result: { ok: true },
+        });
+        assert.deepEqual(runSnapshot.output, taskSnapshot.output);
+        assert.equal(Object.hasOwn(runSnapshot, "result"), false);
+        assert.equal(Object.hasOwn(runSnapshot, "outputCid"), false);
         assert.deepEqual(runSnapshot.contentAccess, ["bundle", "input"]);
         assert.deepEqual(taskSnapshot.run?.contentAccess, ["bundle", "input"]);
       } finally {

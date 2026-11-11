@@ -7,7 +7,13 @@ import * as dagPb from "@ipld/dag-pb";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
 import { createIpfsGatewayClient, type GatewayClient } from "@silvermoon-work/task-engine";
-import { type ErrorFact, type Json, json, TaskError } from "@silvermoon-work/task-protocol";
+import {
+  type ErrorFact,
+  type Json,
+  type TaskOutput,
+  json,
+  TaskError,
+} from "@silvermoon-work/task-protocol";
 
 export type Status =
   | "pending"
@@ -23,14 +29,13 @@ export interface TaskRecord {
   status: Status;
   createdAt: string;
   completedAt?: string;
-  result?: Json;
+  output?: TaskOutput;
   error?: ErrorFact;
   released: boolean;
   roots: string[];
   timeoutMs: number;
   input?: Record<string, Json>;
   cid?: string;
-  outputCid?: string;
   cancelRequested?: boolean;
   releaseProof?: Json;
   logsError?: ErrorFact;
@@ -247,7 +252,17 @@ export class Repository {
         "STORAGE_CORRUPT",
         "Managed task identity or lifecycle record is invalid.",
       );
-    if (Object.hasOwn(task, "result")) json(task.result, Number.MAX_SAFE_INTEGER);
+    if ("result" in task || "outputCid" in task)
+      throw new TaskError(
+        "UNSUPPORTED_STORAGE",
+        "Legacy task output requires a new data directory.",
+      );
+    if (task.output !== undefined) {
+      if (!task.output || typeof task.output !== "object" || !Object.hasOwn(task.output, "result"))
+        throw new TaskError("STORAGE_CORRUPT", "Task output must contain a business result.");
+      json(task.output.result, Number.MAX_SAFE_INTEGER);
+      if (task.output.cid !== undefined) CID.parse(task.output.cid);
+    }
     return task;
   }
   put(task: TaskRecord, car?: Uint8Array): void {

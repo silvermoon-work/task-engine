@@ -50,6 +50,10 @@ export interface ErrorFact {
   code: string;
   message: string;
 }
+export interface TaskOutput {
+  cid?: string;
+  result: Json;
+}
 export interface ParentTaskAssociation {
   runId: string;
   rootRunId: string;
@@ -85,8 +89,7 @@ export interface TaskSnapshot {
   };
   termination?: { terminatedAt: string };
   error?: ErrorFact;
-  result?: Json;
-  outputCid?: string;
+  output?: TaskOutput;
 }
 export interface Binding {
   /** Host-owned isolation identity; absent for ordinary non-composing Tasks. */
@@ -116,8 +119,8 @@ export interface TaskRecord {
   canceledSequence?: number;
 }
 export type RunOutcome =
-  | { kind: "completed"; result: Json; outputCid?: string; occurredAt: string }
-  | { kind: "failed"; error: ErrorFact; result?: Json; occurredAt: string };
+  | { kind: "completed"; output: TaskOutput; occurredAt: string }
+  | { kind: "failed"; error: ErrorFact; output?: TaskOutput; occurredAt: string };
 export interface RunExit {
   basis: "worker" | "recovery";
   occurredAt: string;
@@ -142,8 +145,7 @@ export interface RunRecord {
   progress?: Json;
   completedAt?: string;
   failedAt?: string;
-  result?: Json;
-  outputCid?: string;
+  output?: TaskOutput;
   error?: ErrorFact;
   reclaimedAt?: string;
   workerGeneration?: string;
@@ -260,8 +262,7 @@ export interface RunSnapshot {
   completedAt?: string;
   failedAt?: string;
   stoppedAt?: string;
-  result?: Json;
-  outputCid?: string;
+  output?: TaskOutput;
   error?: ErrorFact;
   progress?: Json;
   reclaimedAt?: string;
@@ -383,7 +384,7 @@ export interface TaskQuery {
 }
 export interface TaskSummary {
   bundle?: BundleReference;
-  outputCid?: string;
+  output?: Pick<TaskOutput, "cid">;
   name?: string;
   taskId: string;
   requestId: string;
@@ -430,7 +431,7 @@ export interface RunQuery {
 }
 export interface RunSummary {
   bundle?: BundleReference;
-  outputCid?: string;
+  output?: Pick<TaskOutput, "cid">;
   name?: string;
   runId: string;
   type: string;

@@ -129,11 +129,15 @@ test("verified memory-source Worker streams resources independent of author/host
       const run = snapshot.run!.runId;
       await until(() => !!engine.getRun(run, caller).reclaimedAt);
       assert.ok(
-        snapshot.result && typeof snapshot.result === "object" && !Array.isArray(snapshot.result),
+        snapshot.output?.result &&
+          typeof snapshot.output?.result === "object" &&
+          !Array.isArray(snapshot.output?.result),
       );
-      assert.equal(snapshot.result.value, 7);
-      assert.equal(snapshot.result.bytes, 600_000);
-      assert.ok(typeof snapshot.result.chunks === "number" && snapshot.result.chunks > 1);
+      assert.equal(snapshot.output?.result.value, 7);
+      assert.equal(snapshot.output?.result.bytes, 600_000);
+      assert.ok(
+        typeof snapshot.output?.result.chunks === "number" && snapshot.output?.result.chunks > 1,
+      );
       const evaluated = await readFile(marker, "utf8");
       assert.deepEqual(JSON.parse(evaluated.trim().split("\n")[1]!), {
         startedAt: snapshot.run!.startedAt,

@@ -24,7 +24,7 @@ test("init returns a deterministic owned task template without CLI or package-ma
     await readFile(new URL("../../task-sdk/package.json", import.meta.url), "utf8"),
   );
   assert.deepEqual(manifest.dependencies, {
-    "@silvermoon-work/task-sdk": "0.1.0-canary-261111-2",
+    "@silvermoon-work/task-sdk": "0.2.0-canary-261111-1",
     "@sinclair/typebox": "0.34.52",
   });
   const candidate = createTaskProject({ name: "@example/echo", sdkVersion: sdkManifest.version });

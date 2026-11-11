@@ -1,5 +1,11 @@
 # @silvermoon-work/task-protocol
 
+The 0.2.0 output contract uses `TaskOutput {cid?: string; result: Json}` in
+Task/Run snapshots, persisted outcomes and records. Bundle execution supplies the
+final Space CID on success; internal non-Bundle hosts and failure evidence may
+omit it. Collection summaries contain only the CID. The old sibling `result`
+and `outputCid` representation is rejected rather than migrated.
+
 The generic protocol is already migrated and published as
 `0.1.0-canary-261109-2`. Workspace SDK, builder and Engine packages depend on
 this package, not the old-scope protocol. Protocol URI strings and source

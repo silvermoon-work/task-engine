@@ -884,5 +884,97 @@
     "rawGateway": "b125793f2edd0045ec5d9e3fd0a2df700bafa4b3",
     "carGateway": "83285777bcabc6e64a168cab374c58cb706a6191",
     "managed": "07fa0d07c41ea8dc3f9351a1464fa5a38da15c3e"
+  },
+  "node22Followup": {
+    "baselineCommit": "676e2bdd7011b455bc016f541df66e26abce4ecc",
+    "failedCI": {
+      "run": 43074956779,
+      "jobs": [130712339611, 130721327431],
+      "node": "22.13.0",
+      "timeoutMinutes": 15
+    },
+    "runtimes": {
+      "windowsArchiveSha256": "b0feb09ebf41328628e7383f7a092fb7342ce1e05c867a90cf8f1379205a8429",
+      "linuxArchiveSha256": "3ff0d57063c33313d73d0bdcebc4c778ad6be948234584694a042c6fe57164f6"
+    },
+    "before": {
+      "platform": "win32",
+      "passed": 5,
+      "cancelled": 1,
+      "diagnosticBoundMs": 30000,
+      "logSha256": "4af851def5e311d8d7e2a3f3a08bbb746f0554c60874746bbb9dde9171915117"
+    },
+    "inspector": {
+      "module": "node:internal/assert/utils",
+      "function": "findColumn",
+      "frameDepth": 1619,
+      "column": 10563,
+      "codeLength": 13063,
+      "nextReadBytes": 0,
+      "assertion": "intentional missing HAMT routing shard",
+      "conclusion": "Node22为预期失败的裸assert.ok提取tsx隐式消息时递归卡住；不属于gateway资源等待。"
+    },
+    "change": "两个故意失败的proof完整性断言增加显式消息；条件、外层throws/rejects、测试集合、CI时限与生产代码不变。",
+    "focusedAfter": {
+      "platform": "win32",
+      "node": "v22.13.0",
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "durationMs": 3733.0629,
+      "logSha256": "3f0cb0beea88ab4f9b7abf35100bcda35b078c96a048a39208b483b410c8f6cb"
+    },
+    "fullCLIWindows": {
+      "node": "v22.13.0",
+      "passed": 62,
+      "failed": 4,
+      "skipped": 1,
+      "cancelled": 0,
+      "durationMs": 132496.361,
+      "logSha256": "22911400e0a5ab2eecd5a7b7f099f718688374e0779481b3a5f9c4f3647cab66",
+      "outcome": "正常结束但不通过；既有诊断文件身份检查失败。"
+    },
+    "preexistingBlocker": {
+      "module": "packages/task-engine-cli/src/diagnostics.ts",
+      "lastChangedCommit": "bf64d0be1d470aef3a5d7870bfccee6a4da60a17",
+      "message": "Managed diagnostic file identity changed.",
+      "isolatedTest": "managed diagnostics reserve bounded private space, redact failures and survive restart",
+      "isolatedDurationMs": 1060.968,
+      "isolatedPassed": 0,
+      "isolatedFailed": 1,
+      "logSha256": "a307c57363d68421c7d6627966f7d6b1645e716aeef30bdf1a7de4f89be579b4",
+      "changed": false
+    },
+    "linux": {
+      "runtimeVerified": true,
+      "fullCLIOutcome": "unavailable",
+      "reason": "独立WSL的既有proxy不可达且offline supply-chain metadata不全；复用挂载依赖的Engine data导入在Node22/24均超诊断上界；不宣称Linux CI通过。"
+    },
+    "release": "仍需父级对新准确main的真实Linux CI独立验证；未发布或接受门禁。",
+    "repositoryCheck": {
+      "status": "passed",
+      "node": "v26.13.0",
+      "turboPassed": 40,
+      "turboTotal": 40,
+      "duration": "2m5.607s",
+      "logSha256": "1d0606b9c80745ce0da4eb37d3a0a9e21bad5c7443f846292c56df668c249913"
+    },
+    "focusedFinalAfter": {
+      "platform": "win32",
+      "node": "v22.13.0",
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "durationMs": 3660.4053,
+      "logSha256": "2bc91182b700fe1e44dd38008950abe9926ef4749f41d82fd75d936a0c502789",
+      "testBlob": "c6ba1bb50f452e75f281d56b494c9fcd5804476f"
+    },
+    "cleanup": {
+      "ownedWindowsAndWSLToolsRemoved": true,
+      "loopbackInspectorClosed": true,
+      "parentRemoteConsumerUntouched": true
+    }
   }
 }

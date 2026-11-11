@@ -162,6 +162,11 @@ regression 测试验证；外层公网TLS/HTTP2仍属部署。
 
 ## 仓库验证
 
+Node22.13 CI超时的有界跟进见
+[node22-diagnosis.md](node22-diagnosis.md)：两个预期失败的证明断言保留条件并补齐消息，准确Node22下raw/CAR为19/19通过；完整Windows
+Node22
+CLI虽不再挂起，但既有诊断文件身份检查失败不计通过。默认Node26完整`pnpm check`重新通过；Linux准确main发布CI仍须父级独立验证。
+
 raw/CAR focused regression：19/19 通过；测试类型检查通过。完整 `pnpm check`
 通过（40/40 Turborepo tasks，测试类型检查及全部 package
 lint通过）；仓库原有 Linux-only zombie 身份测试在 Windows 正常跳过，与外部套件0

@@ -307,7 +307,8 @@ test("HAMT path proof includes routing subshards, no siblings or file payload", 
     exporter(`${f.root}/${chosen.path}`, {
       async *get(cid: CID) {
         const block = blocks.find((b, i) => i !== 1 && key(b.cid) === key(cid));
-        assert.ok(block);
+        // Node 22 can hang extracting an implicit message from this transpiled negative case.
+        assert.ok(block, "incomplete proof is missing a required HAMT routing shard");
         yield block.bytes;
       },
     }),
@@ -685,7 +686,7 @@ test("entity recovers a multilevel shared UnixFS file exactly; directories stop,
           blocks.filter((block) => !block.cid.equals(f.b)).map((block) => key(block.cid)),
         );
         for (const required of [f.target, f.branch, f.a, f.b])
-          assert.ok(incomplete.has(key(required)));
+          assert.ok(incomplete.has(key(required)), "incomplete proof is missing a required block");
       });
     }
   }

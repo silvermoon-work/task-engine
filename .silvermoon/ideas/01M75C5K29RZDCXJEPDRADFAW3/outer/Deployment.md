@@ -4,6 +4,8 @@
 
 外部演练使用同步后的 [Ubuntu 验证脚本](verify-ubuntu.mjs)，安装依赖和执行结果记录在本世界的部署证据中。脚本只从当前独立 consumer 的 registry 安装解析包，不读取仓库源码。
 
+执行结果见 [RC 与 Ubuntu 验收证据](deployment-verification.md)；契约与脚本先同步，再执行外部验证，最后归档结果。
+
 ## Steps
 
 ### D-S01: 发布 CLI RC

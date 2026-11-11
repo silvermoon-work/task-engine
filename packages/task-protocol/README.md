@@ -12,9 +12,9 @@ this package, not the old-scope protocol. Protocol URI strings and source
 specification links retain their original identity; they are not package
 dependencies.
 
-The current release candidate is `0.1.0` for the managed Engine
-delivery. This manifest preparation is not a publication claim and must not
-overwrite an existing npm version.
+The current stable release is `0.1.0` on `latest`; publication and installed
+acceptance are recorded in the [release notes](../../README.md#stable-010-2026-11-11).
+Published versions are immutable.
 
 ## Task Bundle bytes and structure
 

@@ -8,6 +8,8 @@
 
 主 Agent 完成实现复核后，选择唯一受影响映射包的新 RC，确认历史版本/tag 未占用。发布前同步准确版本到 main，并等待准确提交 main push CI 全部通过；只经 package-specific 不可变 tag 和 `publish-npm.yaml` Trusted Publishing 发布，保留 latest/canary 指针。通过指定 SSH 设备，在专用临时 consumer 普通安装精确 registry 版本，不改共享工具或服务。
 
+本轮仅发布 `@silvermoon-work/task-engine-cli@0.2.0-rc.2`，tag 为 `task-engine-cli-v0.2.0-rc.2`；其余内部依赖沿用已发布 `0.2.0-rc.0`。发布前观察到 latest=`0.1.0`、canary=`0.2.0-canary-261111-1`、rc=`0.2.0-rc.1`。若精确版本/tag 已占用则停止，不移动已有 tag。
+
 准备真实任务 bundle 和带多层目录的任务输出，记录请求根 CID 与路径。独立客户端使用既有 CAR 读取器及 Kubo，从请求根验证路径关系，不相信 CAR roots 或服务端附带的终点声明。
 
 ### D-S02: 演练成功和中断传输

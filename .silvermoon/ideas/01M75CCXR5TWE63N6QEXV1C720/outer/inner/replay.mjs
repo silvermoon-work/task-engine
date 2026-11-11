@@ -5,6 +5,7 @@ import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { createServer, request } from "node:http";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { compareWaves, summarizeWindow } from "./memory.mjs";
 
 // 仅通过已安装包的公开入口、CLI 和 HTTP 验证；不导入源码或内部模块。
 const args = process.argv.slice(2);
@@ -13,6 +14,63 @@ const option = (name, fallback) => {
   return index < 0 ? fallback : args[index + 1];
 };
 const consumer = resolve(option("consumer", "."));
+const memoryArm = option("memory-arm");
+if (option("load", "no") === "yes" && !memoryArm) {
+  const runs = [];
+  const pairs = [];
+  const sharedSourceName = `.gateway-load-${randomUUID()}.mjs`;
+  const portProbe = createServer();
+  await new Promise(done => portProbe.listen(0, "127.0.0.1", done));
+  const sharedPort = portProbe.address().port;
+  await new Promise(done => portProbe.close(done));
+  let failure;
+  try {
+    for (let repetition = 0; repetition < 3; repetition++) {
+      const arms = {};
+      for (const arm of repetition % 2 ? ["treatment", "control"] : ["control", "treatment"]) {
+        const path = resolve(`${option("work", ".gateway-paired")}-${repetition}-${arm}.json`);
+        const argv = args.filter((_, index) =>
+          !["--report", "--work"].includes(args[index]) &&
+          !["--report", "--work"].includes(args[index - 1]));
+        const child = spawn(process.execPath, [fileURLToPath(import.meta.url), ...argv,
+          "--source-name", sharedSourceName, "--port", String(sharedPort),
+          "--memory-arm", arm, "--work", `${option("work", ".gateway-paired")}-${repetition}-${arm}`,
+          "--report", path], { stdio: "inherit" });
+        const code = await new Promise((done, reject) => {
+          child.once("error", reject);
+          child.once("close", done);
+        });
+        arms[arm] = JSON.parse(await readFile(path, "utf8"));
+        runs.push({ repetition, arm, report: arms[arm] });
+        await rm(path);
+        assert.equal(code, 0, `Replay ${repetition}/${arm} failed`);
+      }
+      assert.equal(arms.control.taskCarSha256, arms.treatment.taskCarSha256, "Mismatched task CAR");
+      for (let wave = 0; wave < 3; wave++) {
+        const control = arms.control.measurements.waves[wave];
+        const treatment = arms.treatment.measurements.waves[wave];
+        pairs.push({ repetition, wave, ...compareWaves(control, treatment),
+          controlMaxLatency: Math.max(...control.latencies),
+          treatmentMaxLatency: Math.max(...treatment.latencies),
+          latencyBudget: Math.max(Math.max(...control.latencies) * 5, 2000) });
+      }
+    }
+    for (const pair of pairs) {
+      assert.ok(pair.passed, `Incremental RSS budget: ${JSON.stringify(pair)}`);
+      assert.ok(pair.treatmentMaxLatency <= pair.latencyBudget, `Paired latency: ${JSON.stringify(pair)}`);
+    }
+  } catch (error) {
+    failure = error;
+  } finally {
+    if (option("report")) await writeFile(resolve(option("report")), `${JSON.stringify({
+      protocol: "paired-current-memory-v1", node: process.version, platform: process.platform,
+      passed: !failure, error: failure?.message, pairs, runs,
+    }, null, 2)}\n`);
+  }
+  if (failure) throw failure;
+  console.log(JSON.stringify({ passed: true, pairs }));
+  process.exit(0);
+}
 const treeRoot = resolve(option("tree-root", consumer));
 function resolveImport(name, cwd = consumer) {
   const resolved = spawnSync(
@@ -39,7 +97,7 @@ const port = Number(option("port", "0"));
 const holdMs = Number(option("hold-ms", "0"));
 const fixtures = option("fixtures");
 const token = option("token");
-const sourceName = `.gateway-load-${randomUUID()}.mjs`;
+const sourceName = option("source-name", `.gateway-load-${randomUUID()}.mjs`);
 const sourcePath = join(consumer, sourceName);
 const bin = join(dirname(cli), "bin.js");
 const env = {
@@ -82,7 +140,7 @@ async function command(...argv) {
   commands.push(argv.slice(0, 2).join(" "));
   return value.data;
 }
-const report = { commands, fixtures: [], measurements: {} };
+const report = { commands, fixtures: [], measurements: {}, node: process.version, arm: memoryArm };
 try {
   await command(
     "config",
@@ -207,7 +265,9 @@ try {
     const parts = [];
     for await (const part of encoded.stream) parts.push(part);
     await encoded.close();
-    await writeFile(archive, Buffer.concat(parts));
+    const archiveBytes = Buffer.concat(parts);
+    report.taskCarSha256 = createHash("sha256").update(archiveBytes).digest("hex");
+    await writeFile(archive, archiveBytes);
     const input = join(work, "input.json");
     const loadInput = join(work, "load-input.json");
     await writeFile(input, '{"value":42}');
@@ -237,26 +297,40 @@ try {
         statuses: result.output.result.statuses,
       };
     }
-    const baseline = [];
-    for (let i = 0; i < 4; i++) baseline.push((await task()).latency);
     const status = () => command("server", "status", "--data-dir", data);
-    const before = await status();
-    // 八个真实 Worker 各执行四次读取，避免负载在 CLI 启动前就结束的伪共载。
-    const tasks = await Promise.all(
+    // 两臂采用相同文件和 Worker 预热，随后仅切换任务输入中的 gateway。
+    await Promise.all(
       Array.from({ length: 8 }, () => task(loadInput)),
     );
-    const latencies = tasks.map((result) => result.latency);
-    const loadStatus = tasks.flatMap((result) => result.statuses);
-    const after = await status();
-    assert.ok(loadStatus.includes(429), JSON.stringify(loadStatus));
-    assert.ok(loadStatus.includes(200));
-    assert.equal(loadStatus.length, 32);
-    assert.ok(after.gateway.peakActive <= 2);
-    assert.ok(
-      Math.max(...latencies) <= Math.max(Math.max(...baseline) * 5, 2000),
-    );
-    const rssGrowth = after.peakRssBytes - before.rssBytes;
-    assert.ok(rssGrowth <= 134217728, `RSS growth ${rssGrowth}`);
+    const waves = [];
+    report.measurements.waves = waves;
+    for (let wave = 0; wave < 3; wave++) {
+      const beginning = await status();
+      assert.ok(beginning.memory, "Installed CLI lacks current-memory sampling; publish a fresh package, never replace rc.5");
+      await new Promise(done => setTimeout(done, 1000));
+      const quietEnd = await status();
+      const tasks = await Promise.all(
+        Array.from({ length: 8 }, () => task(memoryArm === "control" ? input : loadInput)),
+      );
+      const loadEnd = await status();
+      await new Promise(done => setTimeout(done, 1000));
+      const drainEnd = await status();
+      const statuses = tasks.flatMap(result => result.statuses);
+      waves.push({
+        quiet: summarizeWindow(beginning.memory, quietEnd.memory, 1000),
+        load: summarizeWindow(quietEnd.memory, loadEnd.memory),
+        drain: summarizeWindow(loadEnd.memory, drainEnd.memory, 1000),
+        latencies: tasks.map(result => result.latency), statuses,
+        gateway: drainEnd.gateway, lifetimePeakRssDiagnosticOnly: drainEnd.peakRssBytes,
+      });
+      assert.ok(drainEnd.gateway.peakActive <= 2);
+      assert.equal(drainEnd.gateway.active, 0);
+      if (memoryArm === "treatment") {
+        assert.ok(statuses.includes(429), JSON.stringify(statuses));
+        assert.ok(statuses.includes(200), "No successful gateway reads");
+        assert.equal(statuses.length, 32);
+      } else assert.equal(statuses.length, 0);
+    }
     const dagPb = await import(dependency("@ipld/dag-pb"));
     const links = [];
     for (let i = 0; i < 7; i++) {
@@ -333,26 +407,11 @@ try {
     const faultMetrics = (await status()).gateway;
     assert.ok(faultMetrics.misses >= 2 && faultMetrics.storageErrors >= 1);
     await task();
-    const finalMemory = await status();
-    const totalRssGrowth = finalMemory.peakRssBytes - before.rssBytes;
-    assert.ok(
-      totalRssGrowth <= 134217728,
-      `Total RSS growth ${totalRssGrowth}`,
-    );
-    report.measurements = {
-      baseline,
-      latencies,
-      statuses: loadStatus,
-      before: before.gateway,
-      after: after.gateway,
+    Object.assign(report.measurements, {
       recovered: recovered.gateway,
       recoveryMs,
       faultMetrics,
-      baselineRssBytes: before.rssBytes,
-      peakRssBytes: finalMemory.peakRssBytes,
-      rssGrowth: totalRssGrowth,
-      workerLoadRssGrowth: rssGrowth,
-    };
+    });
     const shutdownClient = await paused();
     const shutdownStart = performance.now();
     await command("server", "stop", "--data-dir", data);
@@ -391,5 +450,7 @@ try {
     await rm(sourcePath, { force: true });
     if (stopped) await rm(work, { recursive: true, force: true });
     else console.error(`停止未确认，保留自有实例身份和诊断数据：${work}`);
+    if (reportPath)
+      await writeFile(resolve(reportPath), `${JSON.stringify(report, null, 2)}\n`);
   }
 }

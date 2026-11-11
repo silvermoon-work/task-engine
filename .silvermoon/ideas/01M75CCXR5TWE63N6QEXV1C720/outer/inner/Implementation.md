@@ -25,10 +25,38 @@
 - 数值门限：观测活跃网关请求不超过 **2**；过载必须出现 **429**；
   负载期间所有 **8 个任务成功**且返回验证过的结果；
   共载任务最大延迟不超过 **max(基线最大延迟 × 5, 2000 ms)**；
-  RSS 相对热身后基线增长不超过 **128 MiB**；断开、超时或 shutdown 后
+  成对采样阶段增长差不超过 **128 MiB**（有限工作负载实验预算，不是 RSS 硬上限）；断开、超时或 shutdown 后
   **3000 ms** 内 active 归零并可继续执行任务/读取（shutdown 本身除外）。
   不在失败后放宽门限；真实浏览器由父级使用同一 fixture 独立验证。
 - HTTP listener、连接总额和事件循环仍共享；此预算不是恶意租户的硬隔离。
+
+### 修订后的内存实验协议（执行前冻结）
+
+旧 `lifetime maxRSS - phase current RSS` 混合不同时间范围，也包含 Worker 启动，
+历史通过和 Ubuntu 两次失败均保留，但不能证明网关增量或内存泄漏，I-S03/I-AC03
+重开。理想世界、128 MiB 数值与其他预算不变。不优化产品或提高阈值来迎合测量。
+
+固定 3 个独立匹配重复，每对新建 task-only control 与 task+gateway treatment
+受管进程，顺序 C/T、T/C、C/T。Node、配置、fixture、任务代码/CAR、8 并发、
+输入 value/headers、文件预热与 Worker 预热相同；唯一测量负载差异是 input.gateway
+启用32次读取。两臂均先读取同一1 MiB文件并运行一波8个带网关读取的任务作等量预热，
+不计为测量。每臂此后固定3波，均为8个真实任务，treatment 每波32次读取；
+control 每波0次。每波 quiet 1000ms、load 到8任务释放、drain 1000ms，
+由已有身份校验的 managed status 确认 phase 边界，禁止强制 GC。
+
+服务主线程每50ms采样 current rss/heapUsed/heapTotal/external/arrayBuffers，
+最多保留2048条（约102秒）；每阶段通过现有认证 status 取一次有界历史，无高频
+CLI采样进程、无新未认证路由。每个窗口至少2样本，quiet/drain至少1000ms，
+样本覆盖至少750ms；任意相邻/边界间隙不得超过250ms，序号连续，数值有限正整数；
+缺失、覆盖不足或截断必须失败。原始窗口样本与每计数器 min/median/max/end 均留存。
+RSS是进程（含全部Worker）指标，其余是调用主线程指标；arrayBuffers已包含在external，
+禁止叠加，lifetime maxRSS仅诊断。
+
+每波增长 = max(load RSS峰值, drain RSS峰值) - 本波quiet RSS中位数，保留负值，
+不截零、不挑最好一轮。按重复/波次逐项匹配，全部9个 treatment增长-control增长
+必须 ≤134217728 bytes；延迟逐波按对应control最大值判定原5倍/2000ms门限。
+报告所有配对值、quiet/drain平台与线程计数器；短期3波不是无泄漏证明，不要求
+RSS严格回到基线，GC/allocator及单机顺序偏差须明确。OS/container硬内存上限不在范围。
 
 ## Node 22.13 发布检查补充
 
@@ -77,7 +105,7 @@ Node24通过。仅补齐两个故意失败的证明断言消息，避免Node22�
 
 达到契约中预先固定的数值负载后，任务延迟退化、RSS、并发上限和结束回收时限均达标；故障指标可区分缺块与存储错误，`pnpm check` 通过。
 
-结果：8个真实 Worker 与32次1MiB读取共载成功；peakActive=2，6次429，
+历史旧口径结果（不能作为修订后内存标准的通过证据）：8个真实 Worker 与32次1MiB读取共载成功；peakActive=2，6次429，
 最大任务延迟2780.2943ms（门限4510.577ms），RSS增长94818304 bytes，abort回收779.1579ms，
 活跃消费者下停止1084.0202ms。故障快照分开记录misses/storageErrors/cancellations，
 在线GC拒绝、离线GC实际回收8块；19项focused回归、测试类型检查与完整`pnpm check`

@@ -16,6 +16,79 @@ import { MemoryIpfsClient } from "@silvermoon-work/task-engine/testing";
 import { processBirth, stopManaged } from "../src/managed.js";
 import { encodeTaskBundleCar } from "@silvermoon-work/task-builder/car";
 import { memoryTree } from "@silvermoon-work/task-builder/tree";
+import { sampleMemory } from "../src/memory.js";
+
+test("memory sampler bounds history and stops its timer", async () => {
+  let reads = 0;
+  const sampler = sampleMemory(
+    () => {
+      reads++;
+      return { rss: reads, heapUsed: 1, heapTotal: 2, external: 3, arrayBuffers: 1 };
+    },
+    () => reads,
+    5,
+    3,
+  );
+  try {
+    await new Promise((done) => setTimeout(done, 40));
+    const snapshot = sampler.snapshot();
+    assert.equal(snapshot.samples.length, 3);
+    assert.equal(snapshot.samples.at(-1)?.sequence, reads);
+    assert.equal(snapshot.samples[0]?.sequence, reads - 2);
+  } finally {
+    sampler.close();
+  }
+  const stopped = reads;
+  await new Promise((done) => setTimeout(done, 20));
+  assert.equal(reads, stopped);
+});
+
+test("paired replay ignores lifetime peaks, matches phase growth and rejects missing coverage", async () => {
+  const helper = new URL(
+    "../../../.silvermoon/ideas/01M75CCXR5TWE63N6QEXV1C720/outer/inner/memory.mjs",
+    import.meta.url,
+  ).href;
+  const { summarizeWindow, compareWaves } = await import(helper);
+  const window = (rss: number) => ({
+    summary: { rss: { median: rss, max: rss } },
+  });
+  const wave = (base: number, peak: number) => ({
+    quiet: window(base),
+    load: window(peak),
+    drain: window(peak - 1),
+    peakRssBytes: 2 ** 40,
+  });
+  assert.equal(compareWaves(wave(100, 200), wave(300, 410)).differential, 10);
+  assert.equal(compareWaves(wave(100, 200), wave(300, 410)).passed, true);
+  assert.equal(compareWaves(wave(100, 200), wave(300, 134218129)).passed, false);
+  assert.equal(compareWaves(wave(200, 100), wave(300, 250)).differential, 50);
+  const samples = Array.from({ length: 20 }, (_, i) => ({
+    atMs: (i + 1) * 50,
+    sequence: i + 1,
+    rss: i + 1,
+    heapUsed: 1,
+    heapTotal: 2,
+    external: 3,
+    arrayBuffers: 1,
+  }));
+  const start = { atMs: 0 };
+  const end = { atMs: 1000, cadenceMs: 50, samples };
+  assert.equal(summarizeWindow(start, end, 1000).summary.rss.median, 10.5);
+  assert.throws(() => summarizeWindow(start, { ...end, samples: [] }), /samples/);
+  assert.throws(() => summarizeWindow(start, { ...end, samples: samples.slice(7) }), /gap/);
+  assert.throws(
+    () => summarizeWindow(start, { ...end, samples: samples.filter((_, i) => i !== 4) }),
+    /Lost samples/,
+  );
+  assert.throws(
+    () =>
+      summarizeWindow(start, {
+        ...end,
+        samples: [...samples.slice(0, -1), { ...samples[19], rss: NaN }],
+      }),
+    /Invalid rss/,
+  );
+});
 
 const bin = resolve("dist", "bin.js");
 interface Result {

@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
 import { TaskError } from "@silvermoon-work/task-protocol";
+import { CarRequestError, serveCar, wantsCar } from "./car-gateway.js";
 
 const media = "application/vnd.ipld.raw";
 export interface RawGatewayOptions {
@@ -11,8 +12,10 @@ export interface RawGatewayOptions {
   maxConcurrent: number;
   maxBlockBytes: number;
   timeoutMs: number;
+  maxTraversalBlocks?: number;
+  maxCarBytes?: number;
 }
-type LocalRead = (
+export type LocalRead = (
   cid: CID,
   options: { signal: AbortSignal; maxBytes: number },
 ) => Promise<Uint8Array>;
@@ -49,9 +52,13 @@ function matches(value: string | undefined, etag: string, weak: boolean): boolea
 export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
   if (
     !["disabled", "public", "token"].includes(options.access) ||
-    ![options.maxConcurrent, options.maxBlockBytes, options.timeoutMs].every(
-      (value) => Number.isSafeInteger(value) && value > 0,
-    ) ||
+    ![
+      options.maxConcurrent,
+      options.maxBlockBytes,
+      options.timeoutMs,
+      options.maxTraversalBlocks ?? 128,
+      options.maxCarBytes ?? 67_108_864,
+    ].every((value) => Number.isSafeInteger(value) && value > 0) ||
     options.maxBlockBytes > 2_147_483_646 ||
     options.timeoutMs > 2_147_483_647
   )
@@ -104,6 +111,10 @@ export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
     }, options.timeoutMs);
     try {
       const url = new URL(request.url ?? "/", "http://localhost");
+      if (wantsCar(url, request.headers.accept ?? "")) {
+        await serveCar(request, response, url, options, local, controller.signal);
+        return;
+      }
       const name = /^\/ipfs\/([^/]+)$/.exec(url.pathname)?.[1];
       if (!name || name.length > 2048) return end(400);
       let cid: CID;
@@ -195,9 +206,25 @@ export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
         response.once("close", resolve);
         response.end(request.method === "HEAD" ? undefined : bytes, resolve);
       });
-    } catch {
+    } catch (error) {
       if (response.headersSent) response.destroy();
-      else end(500);
+      else {
+        const code = (error as NodeJS.ErrnoException).code;
+        const onlyCached = request.headers["cache-control"]
+          ?.split(",")
+          .some((part) => part.trim().toLowerCase() === "only-if-cached");
+        end(
+          error instanceof CarRequestError
+            ? error.status
+            : code === "ENOENT" || code === "ERR_NOT_FOUND"
+              ? onlyCached
+                ? 412
+                : 404
+              : code === "BLOCK_TOO_LARGE"
+                ? 413
+                : 500,
+        );
+      }
     } finally {
       clearTimeout(timer);
       request.removeListener("aborted", abort);

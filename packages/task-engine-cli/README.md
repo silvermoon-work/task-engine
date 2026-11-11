@@ -128,14 +128,15 @@ stop 默认拒绝在途任务；`--cancel-running` 明确取消并等待释放�
 实际磁盘不足是 Server 致命故障，停止接收任务、处理自有资源并以失败退出；
 不能落盘或无法确认释放时如实报告，不把退出当释放证据。
 
-### 本地 raw gateway（当前源码新增，默认禁用）
+### 本地 raw/CAR gateway（当前源码新增，默认禁用）
 
 Engine 核心不提供 HTTP 分发；受管 CLI 宿主在同一监听地址提供可选
-`GET/HEAD /ipfs/{cid}?format=raw`。仅从实例文件缓存及持久输出块读取，
+`GET/HEAD /ipfs/{cid}?format=raw` 和下述 CAR 路径路由。仅从实例文件缓存及持久输出块读取，
 **从不调用回源入口**；即使配置 `server.ipfsGateway`，该路由也不联网。
 CID 只标识内容，不是访问凭证。开启 `public` 会允许所有可连接监听地址的
 客户端读取全部已缓存块，包含其他任务的包和输出；不得在不可信网络直接开放。
-任务 API 的现有可信网络边界不因此改变，raw token 不保护任务 API。
+任务 API 的现有可信网络边界不因此改变，gateway token 不保护任务 API。
+为兼容已有配置，`server.rawGatewayAccess/Token` 同时控制 raw 与 CAR。
 
 ```powershell
 task-engine config set server.rawGatewayAccess public
@@ -157,11 +158,11 @@ loopback/可信网络使用显式 public，或由授权反向代理处理访问�
 
 支持范围：CIDv0/v1（同 block 归一化为 CIDv1 缓存键）、SHA2-256 和
 identity（包括空探测 `bafkqaaa`），不解释 codec、不重编码 block。
-其他 hash 明确 501。只提供根 block，无 CAR、IPNS、UnixFS 路径解析、
-上传、pin、递归回源、DAG 范围或局部读取。无 format 且无 Accept 为 400；
+其他 hash 明确 501。raw 表示只提供根 block，不解析 UnixFS 路径，
+不支持上传、pin、递归回源或局部读取。无 format 且无 Accept 为 400；
 Accept 可选择 `application/vnd.ipld.raw` 或匹配通配符，质量值/排除项生效，
 不支持表示为 406，`format=raw` 优先于 Accept。重复 format/filename、
-非法 CID、路径、dag-scope/entity-bytes 为 400。Range 忽略并返回完整已验证
+非法 CID、raw 路径、raw 的 dag-scope/entity-bytes 为 400。Range 忽略并返回完整已验证
 block（200，`Accept-Ranges: none`），不能将片段当 raw block。
 普通缺块 404，`Cache-Control: only-if-cached` 缺块 412，损坏和存储错误
 500，不伪装成未命中。所有错误无内容 body，HEAD 永远无 body。
@@ -184,6 +185,56 @@ HTTP listener、连接上限 `server.maxConnections` 和事件循环仍由宿主
 
 完整规范固定版本、适用矩阵及双节点命令见
 [本轮验证依据](../../.silvermoon/ideas/01M75C5K29RZDCXJEPDRADFAW3/outer/inner/verification.md)。
+
+### 本地 CAR 路径证明（迭代 2）
+
+```powershell
+curl.exe --fail -o proof.car -H "Accept: application/vnd.ipld.car;version=1;order=dfs;dups=n" "http://127.0.0.1:8787/ipfs/<bundle-cid>/resources/nested/proof.txt?format=car&dag-scope=block"
+curl.exe -I "http://127.0.0.1:8787/ipfs/<bundle-cid>/resources/nested/proof.txt?format=car&dag-scope=block"
+```
+
+仅支持显式 `dag-scope=block`：包含请求根、路径所需目录及 HAMT 子分片、
+终点 block；不读取兄弟节点或终点文件的内容子 DAG，也不递归列举终点目录。
+复用 UnixFS exporter 的普通目录、HAMT、file/raw 与 raw codec；
+支持 CIDv0/v1、SHA2-256/identity。identity 为虚拟 block，不写入 CAR 数据段。
+不支持其他 codec/hash、symlink 跟随、IPNS、entity/all、entity-bytes 或回源。
+路径中间节点必须是目录，不把文件后的多余路径悄悄忽略。
+非法 UnixFS 数据或损坏 block 失败，不套用 Task bundle 的文件白名单。
+
+只输出 `application/vnd.ipld.car; version=1; order=dfs; dups=n`。
+`format=car` 选择 CAR 表示；无 format 时按 Accept 权重选择 raw/CAR，
+相同权重优先显式 CAR，纯通配符保持既有 raw 默认。
+Accept 的 CAR 参数及 `car-version/car-order/car-dups` 必须能满足，
+查询参数优先；仅支持 `1/dfs/n`，其他变体 406，重复参数 400。
+省略 scope 或 entity/all、entity-bytes 返回 400，**不是默认 all 的子集**。
+唯一探测例外是 `/ipfs/bafkqaaa?format=car`：可省略 scope，返回根为
+`bafkqaaa` 的有效空 CAR；HEAD 无 body。其他 identity 仍要求显式 block scope。
+
+路径逐段 percent-decode 一次，`%2F` 是路径分隔符，然后合并重复斜线并处理
+`.`/`..`（不能越过请求根）；`%252F` 是文字 `%2F`，`+` 不是空格。
+路径最多 64 段、原始 pathname 最多 16384 字符；控制字符和反斜线明确 400。
+IPFS URI 使用规范 CID 和逐段编码，保留尾斜线，避免非 ASCII 响应头。
+
+GET 逐 block 校验 CID 后发送原始 bytes，不重新编码内容。
+含 attachment、nosniff、Vary、Content-Location（明确实际 CAR 参数）、
+IPFS 路径/URI、Accept-Ranges: none 和绑定根/规范路径/scope/表示的强 ETag。
+HEAD 与命中 If-None-Match 在发 headers 前验证整条证明；不发送 body 或虚构
+Content-Length。If-Match 使用强比较，If-None-Match 可弱比较。
+根缺失普通 404、only-if-cached 412；损坏 500、预算超限 413。
+GET 发 headers 后遇到路径缺失、损坏、预算或超时，直接断开传输，
+不以正常 HTTP 结束符把部分 CAR 伪装成完整成功。
+**CAR 可解析不代表路径完整**：客户端必须从请求根验证所有命名路径边和终点；
+CAR roots 和服务端提供的终点都不是信任锚。
+
+raw/CAR 共用既有 access、并发、每 block 上限和总时限，不消耗任务执行配额。
+新增 `server.carGatewayMaxBlocks=128` 限制读取次数及输出去重集合，
+`server.carGatewayMaxBytes=67108864` 分别限制累计读取 bytes 与完整 CAR 输出
+（含 framing）。超限不建立队列；修改后重启生效。
+发送等待 socket drain，取消/超时会打断等待并释放 slot。
+不缓存整份 CAR；只保留当前块、有限 CID 集和库的遍历状态。
+HAMT 递归的父分片/解码状态仍可能存活到遍历完成，受累计读取预算约束，
+不是恒定一块内存或恶意租户隔离承诺。详见
+[迭代 2 实现证据及复核输入](../../.silvermoon/ideas/01M75C8GZ7M5PS1FFWQKW1HRJC/outer/inner/verification.md)。
 
 ### 后台故障诊断（当前源码新增）
 

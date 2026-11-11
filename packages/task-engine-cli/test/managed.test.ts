@@ -6,6 +6,8 @@ import { createServer } from "node:http";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
+import { CarReader } from "@ipld/car/reader";
+import * as dagPb from "@ipld/dag-pb";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
 import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
@@ -91,7 +93,7 @@ async function freePort() {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   return port;
 }
-test("two independent managed Engines execute a multi-block bundle through A's opt-in local raw gateway", async (t) => {
+test("two independent managed Engines execute a multi-block bundle through A's opt-in local raw/CAR gateway", async (t) => {
   const directory = resolve(".cache", `two-engines-${randomUUID()}`);
   await mkdir(directory, { recursive: true });
   const a = join(directory, "a"),
@@ -153,6 +155,34 @@ test("two independent managed Engines execute a multi-block bundle through A's o
   assert.equal(primed.data.status, "succeeded");
   assert.deepEqual((primed.data.output as { result: unknown }).result, { echo: "independent" });
   const outputCid = CID.parse((primed.data.output as { cid: string }).cid);
+  const proofResponse = await fetch(
+    `${urlA}/ipfs/${built.cid}/worker.cjs?format=car&dag-scope=block`,
+  );
+  assert.equal(proofResponse.status, 200);
+  const proof = await CarReader.fromBytes(new Uint8Array(await proofResponse.arrayBuffer()));
+  const proofBlocks = [];
+  for await (const block of proof.blocks()) {
+    assert.deepEqual((await sha256.digest(block.bytes)).bytes, block.cid.multihash.bytes);
+    proofBlocks.push(block);
+  }
+  assert.equal(proofBlocks.length, 2);
+  assert.equal(proofBlocks[0]!.cid.toV1().toString(), CID.parse(built.cid).toV1().toString());
+  const worker = dagPb
+    .decode(proofBlocks[0]!.bytes)
+    .Links.find((link) => link.Name === "worker.cjs");
+  assert.ok(worker);
+  assert.equal(proofBlocks[1]!.cid.toV1().toString(), worker.Hash.toV1().toString());
+  const outputCar = await fetch(`${urlA}/ipfs/${outputCid}?format=car&dag-scope=block`);
+  assert.equal(outputCar.status, 200);
+  const outputProof = await CarReader.fromBytes(new Uint8Array(await outputCar.arrayBuffer()));
+  assert.ok(await outputProof.get(outputCid));
+  const missCar = await fetch(
+    `${urlA}/ipfs/${CID.createV1(0x55, await sha256.digest(Buffer.from("car absent")))}?format=car&dag-scope=block`,
+    {
+      headers: { "cache-control": "only-if-cached" },
+    },
+  );
+  assert.equal(missCar.status, 412);
   const outputResponse = await fetch(`${urlA}/ipfs/${outputCid}?format=raw`);
   assert.equal(outputResponse.status, 200);
   assert.deepEqual(
@@ -606,7 +636,7 @@ key:"child",cid:${JSON.stringify(built.cid)},path:"resources/child",input,timeou
       effectiveValue: unknown;
       source: string;
     }[];
-    assert.equal(items.length, 20);
+    assert.equal(items.length, 22);
     assert.deepEqual(
       items.map((item) => item.key),
       items.map((item) => item.key).sort(),

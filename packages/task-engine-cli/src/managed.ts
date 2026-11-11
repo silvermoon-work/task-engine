@@ -1042,6 +1042,8 @@ export async function serveManaged(
         maxConcurrent: Number(effective(config, "server.rawGatewayMaxConcurrent")),
         maxBlockBytes: Number(effective(config, "server.rawGatewayMaxBlockBytes")),
         timeoutMs: Number(effective(config, "server.rawGatewayTimeoutMs")),
+        maxTraversalBlocks: Number(effective(config, "server.carGatewayMaxBlocks")),
+        maxCarBytes: Number(effective(config, "server.carGatewayMaxBytes")),
       },
       (cid, options) => content!.local(cid, options),
     );

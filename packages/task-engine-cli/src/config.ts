@@ -23,6 +23,8 @@ export const defaults = {
   "server.rawGatewayMaxConcurrent": 4,
   "server.rawGatewayMaxBlockBytes": 2_097_152,
   "server.rawGatewayTimeoutMs": 10_000,
+  "server.carGatewayMaxBlocks": 128,
+  "server.carGatewayMaxBytes": 67_108_864,
   "server.dataDir": join(homedir(), ".silvermoon.work", "task-engine"),
   "client.engine": "http://127.0.0.1:8787",
   "task.timeoutMs": 60_000,

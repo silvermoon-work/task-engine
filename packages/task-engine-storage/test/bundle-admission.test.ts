@@ -66,7 +66,11 @@ const physical=openSqliteStore(${JSON.stringify(filename)},{fault(point){if(arme
 const store={
 claim:id=>physical.claim(id),release:id=>physical.release(id),read:()=>physical.read(),
 append(owner,watermark,events){armed=events.some(event=>event.type==="submission.resolved");return physical.append(owner,watermark,events)},
-compact:(...args)=>physical.compact(...args),close:()=>physical.close()
+compact:(...args)=>physical.compact(...args),close:()=>physical.close(),
+readContentBlock:cid=>physical.readContentBlock(cid),
+writeContentBlock:(...args)=>physical.writeContentBlock(...args),
+retainRunContent:(...args)=>physical.retainRunContent(...args),
+readRunContentRoots:runId=>physical.readRunContentRoots(runId)
 };
 const engine=createTaskEngine({store,ipfsClient,authorize:()=>true});
 await engine.start();

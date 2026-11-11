@@ -210,7 +210,8 @@ murmur3-128 的 HAMT；symlink/metadata 只作为自身 entity，不跟随 symli
 保留原始 bytes。支持 CIDv0/v1、SHA2-256/identity；identity 的 links 仍被校验与遍历，
 但虚拟 block 不写入 CAR 数据段。未知 codec/hash 明确 501，不跳过缺块。
 不支持 IPNS、上传、pin 或回源。
-路径中间节点必须是目录，不把文件后的多余路径悄悄忽略。
+UnixFS 路径中间节点必须是目录，不把文件后的多余路径悄悄忽略；
+DAG-CBOR 可以经 map/array 内的 IPLD link 解析 CAR 路径。
 损坏 codec 数据或 hash 失败；非 UnixFS DAG-PB Data 可作为通用 IPLD 数据。
 
 `entity-bytes=from:to` 是闭区间，负偏移从文件末尾计数，`to=*` 表示文件末尾。
@@ -225,7 +226,8 @@ murmur3-128 的 HAMT；symlink/metadata 只作为自身 entity，不跟随 symli
 `format=car` 选择 CAR 表示；无 format 时按 Accept 权重选择 raw/CAR，
 相同权重优先显式 CAR，纯通配符保持既有 raw 默认。
 Accept 的 CAR 参数及 `car-version/car-order/car-dups` 必须能满足，
-查询参数优先；支持 `1/dfs/n|y`，其他变体 406，重复参数 400。
+查询参数优先；支持 `1/dfs/n|y`，`order=unk` 表示客户端不约束顺序，
+服务端仍输出显式 `order=dfs`。其他变体 406，重复参数 400。
 Accept 按媒体范围 specificity、参数及 q 值选择可满足的变体；省略 dups 默认 n。
 dups=y 按真实 DFS 每次图出现发送完整 block（包括重复子树），不是重复输出路径解析器
 的内部读取；identity 虚拟块在两种策略下均不写入 CAR。
@@ -243,8 +245,9 @@ IPFS 路径/URI、Accept-Ranges: none 和绑定根/规范路径/有效 scope/请
 HEAD 与命中 If-None-Match 在发 headers 前验证所选范围的必要集合，不要求文件完整 DAG；不发送 body 或虚构
 Content-Length。If-Match 使用强比较，If-None-Match 可弱比较。
 根缺失普通 404、only-if-cached 412；损坏 500、预算超限 413。
-GET 发 headers 后遇到路径/后代缺失、损坏、预算或超时，直接断开传输，
-不以正常 HTTP 结束符把部分 CAR 伪装成完整成功。
+GET 发 headers 后遇到缺失路径 link，可正常结束包含父节点的有效部分 CAR，
+用于证明该路径不存在；HEAD/条件请求仍在 headers 前返回 404。
+缺失必要后代 block、损坏、预算或超时则直接断开传输，不伪装成完整成功。
 **CAR 可解析不代表范围完整**：客户端必须检查 HTTP 完整结束，并从请求根验证路径和
 所选范围内所有必要 links；UnixFS 文件还应验证恢复的全部 bytes。
 CAR roots 和服务端提供的终点都不是信任锚。
@@ -264,6 +267,35 @@ HAMT 路径证明的父分片/解码状态仍可能存活到路径解析完成�
 读取一致性采用逐块、非快照语义：已校验的当前块可继续发出，后续必需块被并发
 prune 删除时检索失败，不重新回源、不静默省略。已读取块之后被删除不影响该响应；
 HEAD/304 仅证明本次检查时完整，不保证下一次 GET 或本地 pin。
+
+### HTTP、浏览器与运行观测（迭代 5）
+
+启用的 gateway 对 GET/HEAD/OPTIONS 返回 `Access-Control-Allow-Origin: *`，
+不允许 credentials/cookies；浏览器请使用 `credentials: "omit"`。
+token 模式允许不携带 token 的 OPTIONS preflight，但实际读取仍要求
+`Authorization: Bearer ...`。只允许 GET/HEAD 及显式列出的读取请求头，
+非法方法或 Cookie/未知请求头的 preflight 为 403。
+ETag、Content-Disposition、Content-Location、IPFS 路径/roots/URI、范围与重试头可由
+浏览器读取；不暴露 token、实例身份或管理接口。禁用模式不开放 CORS。
+raw 与 CAR 均提供 `X-Ipfs-Roots`。
+
+`server status --data-dir ...` 通过既有实例身份验证通道返回 `gateway` 快照：
+`requests`、本地块读取 `hits/misses`、`outputBytes`、`failures`、
+`storageErrors`、`cancellations`、`timeouts`、`rejected`、`active/peakActive`。
+计数随进程重启清零；hits 是实际本地块读取次数（identity 不读盘），
+misses 包含缺块和不可解析的路径 link；损坏/磁盘读错误不当作 miss，
+取消/超时不当作 storageErrors。failures 包括 HTTP 错误、断开的传输和路径缺失证明，
+不是仅统计 5xx。outputBytes 是交给 Node 响应流的 body 字节，不含 headers，
+不是客户端确认收到的网络字节；HEAD/304 不增加它。
+`rssBytes/peakRssBytes` 是整个宿主进程（含 Worker）的当前/历史峰值 RSS。
+没有新增公开 metrics URL；不要将受管状态端点透传到公网。
+
+固定外部套件 `gateway-conformance v0.14.1` 的支持矩阵、全部逐项结果、
+负载数值门限、Windows 测量和 registry consumer/浏览器回放命令见
+[迭代 5 验证](../../.silvermoon/ideas/01M75CCXR5TWE63N6QEXV1C720/outer/inner/verification.md)。
+默认 128-block 预算不是无限 DAG 的 conformance 承诺；外部 suite 的完整 HAMT fixture
+需要显式 4096-block 验证配置，而 128-block 超限行为另有固定预算测试。
+共享 listener/连接总额/事件循环仍不是多租户硬隔离；外层 TLS、连接限额与进程隔离由部署负责。
 
 ### 后台故障诊断（当前源码新增）
 

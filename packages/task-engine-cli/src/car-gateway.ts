@@ -182,7 +182,8 @@ function quality(accept: string, type: string, url: URL, candidate: Variant = va
       } else if (
         type !== media ||
         !Object.hasOwn(candidate, key) ||
-        (url.searchParams.get(`car-${key}`) ?? value) !== candidate[key as keyof Variant]
+        ((url.searchParams.get(`car-${key}`) ?? value) !== candidate[key as keyof Variant] &&
+          !(key === "order" && (url.searchParams.get("car-order") ?? value) === "unk"))
       )
         supported = false;
     }
@@ -280,8 +281,9 @@ export async function serveCar(
   url: URL,
   options: RawGatewayOptions,
   local: LocalRead,
-  signal: AbortSignal,
+  controller: AbortController,
 ) {
+  const signal = controller.signal;
   for (const key of [
     "format",
     "dag-scope",
@@ -297,7 +299,11 @@ export async function serveCar(
   const requestedScope = url.searchParams.get("dag-scope") ?? "all";
   if (!["block", "entity", "all"].includes(requestedScope)) throw new CarRequestError(400);
   const scope = range ? "entity" : (requestedScope as "block" | "entity" | "all");
-  for (const [key, values] of Object.entries({ version: ["1"], order: ["dfs"], dups: ["n", "y"] }))
+  for (const [key, values] of Object.entries({
+    version: ["1"],
+    order: ["dfs", "unk"],
+    dups: ["n", "y"],
+  }))
     if (url.searchParams.has(`car-${key}`) && !values.includes(url.searchParams.get(`car-${key}`)!))
       throw new CarRequestError(406);
   const accept = request.headers.accept ?? "";
@@ -374,6 +380,7 @@ export async function serveCar(
   };
   const validate = async (cid: CID, descending: boolean) => {
     if (!descending) return;
+    if (cid.code === dagCbor.code) return;
     const entry = await exporter(cid, store, { signal, offline: true });
     if (entry.type !== "directory") throw new CarRequestError(404);
   };
@@ -468,6 +475,7 @@ export async function serveCar(
   response.setHeader("content-type", contentType);
   response.setHeader("x-content-type-options", "nosniff");
   response.setHeader("x-ipfs-path", `/ipfs/${encoded}`);
+  response.setHeader("x-ipfs-roots", root.toString());
   response.setHeader("ipfs-uri", `ipfs://${encoded}`);
   response.setHeader("accept-ranges", "none");
   response.setHeader(
@@ -521,13 +529,19 @@ export async function serveCar(
     if (!account(cid, bytes)) return;
     await writer.put({ cid, bytes });
   };
+  let missingPath: unknown;
   try {
     response.writeHead(200);
     await emitPath(root, cached.bytes);
     await traverse();
   } catch (error) {
-    response.destroy();
-    throw error;
+    if ((error as NodeJS.ErrnoException).code === "ERR_NOT_FOUND") {
+      // A missing link is provable by the already emitted parent, unlike a missing block.
+      missingPath = error;
+    } else {
+      controller.abort(error);
+      throw error;
+    }
   } finally {
     await writer.close();
     await pump;
@@ -537,4 +551,5 @@ export async function serveCar(
     response.once("close", resolve);
     response.end(resolve);
   });
+  if (missingPath) throw missingPath;
 }

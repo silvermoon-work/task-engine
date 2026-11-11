@@ -329,7 +329,7 @@ test("CAR negotiation, explicit scope, identity probes, URL decoding and honest 
     ["?format=car&dag-scope=invalid", "", 400],
     ["?format=car&dag-scope=block&entity-bytes=0:1", "", 200],
     ["?format=car&dag-scope=block&car-version=2", "", 406],
-    ["?format=car&dag-scope=block&car-order=unk", "", 406],
+    ["?format=car&dag-scope=block&car-order=unk", "", 200],
     ["?format=car&dag-scope=block&car-dups=y", "", 200],
     ["?format=car&dag-scope=block&format=car", "", 400],
     ["?format=car&dag-scope=block&dag-scope=block", "", 400],
@@ -448,7 +448,7 @@ test("missing/tampered children fail transport, HEAD preflights, traversal/outpu
   const parent = f.entries.get("dir")!;
   const query = `/ipfs/${f.root}/dir/deep/${encodeURIComponent("文 件%2F.bin")}?format=car&dag-scope=block`;
   for (const corrupt of [false, true]) {
-    const { url } = await listen(t, async (cid) => {
+    const { gateway, url } = await listen(t, async (cid) => {
       if (key(cid) === key(parent)) {
         if (corrupt) return Uint8Array.of(255);
         throw missing();
@@ -463,6 +463,7 @@ test("missing/tampered children fail transport, HEAD preflights, traversal/outpu
     assert.equal(head.status, corrupt ? 500 : 404);
     const conditional = await fetch(url + query, { headers: { "if-none-match": "*" } });
     assert.equal(conditional.status, corrupt ? 500 : 404, "incomplete proof must not return 304");
+    assert.equal(gateway.snapshot().cancellations, 0, "server failures are not client aborts");
   }
   for (const options of [{ maxTraversalBlocks: 1 }, { maxCarBytes: 1 }]) {
     const { url } = await listen(t, async (cid) => f.blocks.get(key(cid))!, {
@@ -773,6 +774,14 @@ test("general DAG-CBOR and DAG-PB, shared and identity descendants: entity is bl
     );
     for (const block of blocks) assert.deepEqual(block.bytes, f.blocks.get(key(block.cid)));
   }
+  const pathRoot = await f.put(dagCbor.code, dagCbor.encode({ files: { leaf: f.a } }));
+  const pathResponse = await fetch(`${url}/ipfs/${pathRoot}/files/leaf?format=car`);
+  assert.equal(pathResponse.status, 200);
+  const pathProof = await readArchive(new Uint8Array(await pathResponse.arrayBuffer()));
+  assert.deepEqual(
+    pathProof.blocks.map((block) => key(block.cid)),
+    [pathRoot, f.a].map(key),
+  );
   for (const unknown of [
     CID.createV1(0x129, await sha256.digest(Buffer.from("unknown codec"))),
     CID.createV1(0x55, await sha512.digest(Buffer.from("unknown hash"))),
@@ -798,6 +807,27 @@ test("general DAG-CBOR and DAG-PB, shared and identity descendants: entity is bl
       }
     }
   }
+});
+
+test("missing CAR path ends a valid parent proof without disguising missing payload blocks", async (t) => {
+  const f = await fixture();
+  const { gateway, url } = await listen(t, async (cid) => {
+    const bytes = f.blocks.get(key(cid));
+    if (!bytes) throw missing();
+    return bytes;
+  });
+  const path = `${url}/ipfs/${f.root}/dir/absent?format=car`;
+  const response = await fetch(path);
+  assert.equal(response.status, 200);
+  const proof = await readArchive(new Uint8Array(await response.arrayBuffer()));
+  assert.deepEqual(
+    proof.blocks.map((block) => key(block.cid)),
+    [f.root, f.entries.get("dir")!].map(key),
+  );
+  assert.equal(gateway.snapshot().misses, 1);
+  assert.equal(gateway.snapshot().failures, 1);
+  assert.equal((await fetch(path, { method: "HEAD" })).status, 404);
+  assert.equal((await fetch(path, { headers: { "if-none-match": "*" } })).status, 404);
 });
 
 async function rangeFixture() {

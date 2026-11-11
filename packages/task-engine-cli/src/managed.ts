@@ -763,6 +763,9 @@ export async function serveManaged(
               instanceId: instance.instanceId,
               engineUrl: instance.engineUrl,
               activeTasks: repository!.all().filter((task) => !task.released).length,
+              gateway: rawGateway!.snapshot(),
+              rssBytes: process.memoryUsage().rss,
+              peakRssBytes: process.resourceUsage().maxRSS * 1024,
             },
           });
           return;

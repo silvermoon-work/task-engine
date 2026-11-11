@@ -178,6 +178,61 @@ test("disabled/authenticated access does not read local content and tokens are v
   assert.throws(() => validateValue("server.rawGatewayToken", "secret"));
 });
 
+test("CORS supports credential-free public and bearer reads; managed metrics classify storage facts", async (t) => {
+  const token = "z".repeat(32);
+  let fault = "";
+  const bytes = Buffer.from("browser block");
+  const cid = CID.createV1(0x55, await sha256.digest(bytes));
+  const gateway = createRawGateway({ ...profile, access: "token", token }, async () => {
+    if (fault) throw Object.assign(new Error("Local storage failure."), { code: fault });
+    return bytes;
+  });
+  const url = await listen(t, gateway);
+  const path = `${url}/ipfs/${cid}?format=raw`;
+  const preflight = await fetch(path, {
+    method: "OPTIONS",
+    headers: {
+      origin: "https://browser.example",
+      "access-control-request-method": "GET",
+      "access-control-request-headers": "authorization,if-none-match",
+    },
+  });
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get("access-control-allow-origin"), "*");
+  assert.equal(preflight.headers.get("access-control-allow-credentials"), null);
+  assert.match(preflight.headers.get("access-control-allow-headers") ?? "", /Authorization/);
+  for (const headers of [
+    { "access-control-request-method": "POST" },
+    { "access-control-request-headers": "Cookie" },
+    { "access-control-request-headers": "X-Secret" },
+  ])
+    assert.equal((await fetch(path, { method: "OPTIONS", headers })).status, 403);
+  const denied = await fetch(path);
+  assert.equal(denied.status, 401);
+  assert.equal(denied.headers.get("access-control-allow-origin"), "*");
+  const headers = { authorization: `Bearer ${token}`, origin: "https://browser.example" };
+  const good = await fetch(path, { headers });
+  assert.deepEqual(Buffer.from(await good.arrayBuffer()), bytes);
+  assert.equal(good.headers.get("x-ipfs-roots"), cid.toString());
+  for (const name of ["ETag", "Content-Disposition", "X-Ipfs-Roots", "Ipfs-Uri"])
+    assert.ok(good.headers.get("access-control-expose-headers")?.includes(name));
+  const head = await fetch(path, { method: "HEAD", headers });
+  assert.equal((await head.arrayBuffer()).byteLength, 0);
+  fault = "ENOENT";
+  assert.equal((await fetch(path, { headers })).status, 404);
+  fault = "EIO";
+  assert.equal((await fetch(path, { headers })).status, 500);
+  const snapshot = gateway.snapshot();
+  assert.equal(snapshot.active, 0);
+  assert.equal(snapshot.hits, 2);
+  assert.equal(snapshot.misses, 1);
+  assert.equal(snapshot.storageErrors, 1);
+  assert.equal(snapshot.outputBytes, bytes.length, "HEAD and errors contribute no output bytes");
+  assert.equal(snapshot.failures, 6);
+  assert.equal(snapshot.cancellations, 0);
+  assert.ok(!JSON.stringify(snapshot).includes(token));
+});
+
 test("byte/concurrency budgets, timeout, disconnect and shutdown release independent gateway slots", async (t) => {
   const directory = resolve(".cache", `raw-limits-${randomUUID()}`);
   await mkdir(directory, { recursive: true });
@@ -256,4 +311,11 @@ test("byte/concurrency budgets, timeout, disconnect and shutdown release indepen
   await ended;
   await closingRequest;
   assert.equal((await fetch(`${url}/ipfs/bafkqaaa?format=raw`)).status, 503);
+  const metrics = gateway.snapshot();
+  assert.equal(metrics.active, 0);
+  assert.equal(metrics.peakActive, 1);
+  assert.equal(metrics.rejected, 1);
+  assert.equal(metrics.timeouts, 1);
+  assert.equal(metrics.cancellations, 2);
+  assert.equal(metrics.storageErrors, 0, "timeouts and aborts are not storage failures");
 });

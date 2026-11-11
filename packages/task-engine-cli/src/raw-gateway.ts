@@ -67,8 +67,47 @@ export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
     throw new TaskError("INVALID_CONFIG_VALUE", "Token gateway requires a rawGatewayToken.");
   const active = new Set<Promise<void>>();
   const controllers = new Set<AbortController>();
+  const metrics = {
+    requests: 0,
+    hits: 0,
+    misses: 0,
+    outputBytes: 0,
+    failures: 0,
+    storageErrors: 0,
+    cancellations: 0,
+    timeouts: 0,
+    rejected: 0,
+    peakActive: 0,
+  };
   let closing = false;
   const serve = async (request: IncomingMessage, response: ServerResponse) => {
+    metrics.requests++;
+    let completed = false;
+    const written = (chunk: unknown, encoding?: unknown) => {
+      if (typeof chunk === "string")
+        metrics.outputBytes += Buffer.byteLength(
+          chunk,
+          typeof encoding === "string" ? (encoding as BufferEncoding) : undefined,
+        );
+      else if (chunk instanceof Uint8Array) metrics.outputBytes += chunk.byteLength;
+    };
+    const originalWrite = response.write;
+    const originalEnd = response.end;
+    response.write = function (this: ServerResponse, chunk: unknown, ...args: unknown[]) {
+      written(chunk, args[0]);
+      return Reflect.apply(originalWrite, this, [chunk, ...args]);
+    } as typeof response.write;
+    response.end = function (this: ServerResponse, chunk?: unknown, ...args: unknown[]) {
+      written(chunk, args[0]);
+      return Reflect.apply(originalEnd, this, [chunk, ...args]);
+    } as typeof response.end;
+    response.once("finish", () => {
+      completed = true;
+      if (response.statusCode >= 400) metrics.failures++;
+    });
+    response.once("close", () => {
+      if (!completed) metrics.failures++;
+    });
     const end = (status: number) => {
       if (!response.destroyed && !response.writableEnded) {
         response.writeHead(status, { "cache-control": "no-store", "content-length": "0" });
@@ -76,6 +115,32 @@ export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
       }
     };
     if (options.access === "disabled") return end(404);
+    response.setHeader("access-control-allow-origin", "*");
+    response.setHeader("access-control-allow-methods", "GET, HEAD, OPTIONS");
+    response.setHeader(
+      "access-control-allow-headers",
+      "Authorization, Accept, Content-Type, Range, User-Agent, X-Requested-With, If-Match, If-None-Match, Cache-Control",
+    );
+    response.setHeader(
+      "access-control-expose-headers",
+      "Content-Type, Content-Range, Content-Length, Content-Disposition, Content-Location, ETag, Cache-Control, Accept-Ranges, X-Ipfs-Path, X-Ipfs-Roots, Ipfs-Uri, Retry-After",
+    );
+    // Preflight carries header names, not the bearer credential. Reads still authenticate below.
+    if (request.method === "OPTIONS") {
+      const method = request.headers["access-control-request-method"];
+      const headers = request.headers["access-control-request-headers"] ?? "";
+      const allowed = new Set(
+        String(response.getHeader("access-control-allow-headers")).toLowerCase().split(/,\s*/),
+      );
+      if (
+        (method && method !== "GET" && method !== "HEAD") ||
+        headers
+          .split(",")
+          .some((header) => header.trim() && !allowed.has(header.trim().toLowerCase()))
+      )
+        return end(403);
+      return end(204);
+    }
     if (options.access === "token") {
       const expected = Buffer.from(`Bearer ${options.token}`);
       const actual = Buffer.from(request.headers.authorization ?? "");
@@ -86,16 +151,23 @@ export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
     }
     if (closing) return end(503);
     if (request.method !== "GET" && request.method !== "HEAD") {
-      response.setHeader("allow", "GET, HEAD");
+      response.setHeader("allow", "GET, HEAD, OPTIONS");
       return end(405);
     }
-    if (active.size >= options.maxConcurrent) {
+    if (controllers.size >= options.maxConcurrent) {
+      metrics.rejected++;
       response.setHeader("retry-after", "1");
       return end(429);
     }
     const controller = new AbortController();
     controllers.add(controller);
-    const abort = () => controller.abort();
+    metrics.peakActive = Math.max(metrics.peakActive, controllers.size);
+    const abort = () => {
+      if (!response.writableFinished && !controller.signal.aborted) {
+        metrics.cancellations++;
+        controller.abort();
+      }
+    };
     request.once("aborted", abort);
     response.once("close", abort);
     let timedOut = false;
@@ -105,14 +177,27 @@ export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
     controller.signal.addEventListener("abort", stop, { once: true });
     const timer = setTimeout(() => {
       timedOut = true;
+      metrics.timeouts++;
       if (response.headersSent) response.destroy();
       else end(504);
       controller.abort();
     }, options.timeoutMs);
+    const read: LocalRead = async (cid, readOptions) => {
+      try {
+        const bytes = await local(cid, readOptions);
+        metrics.hits++;
+        return bytes;
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code === "ENOENT" || code === "ERR_NOT_FOUND") metrics.misses++;
+        else if (!controller.signal.aborted && code !== "BLOCK_TOO_LARGE") metrics.storageErrors++;
+        throw error;
+      }
+    };
     try {
       const url = new URL(request.url ?? "/", "http://localhost");
       if (wantsCar(url, request.headers.accept ?? "")) {
-        await serveCar(request, response, url, options, local, controller.signal);
+        await serveCar(request, response, url, options, read, controller);
         return;
       }
       const name = /^\/ipfs\/([^/]+)$/.exec(url.pathname)?.[1];
@@ -148,7 +233,7 @@ export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
         if (bytes.length > options.maxBlockBytes) return end(413);
       } else {
         try {
-          bytes = await local(cid, {
+          bytes = await read(cid, {
             signal: controller.signal,
             maxBytes: options.maxBlockBytes,
           });
@@ -172,6 +257,7 @@ export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
       response.setHeader("vary", "Accept");
       response.setHeader("x-content-type-options", "nosniff");
       response.setHeader("x-ipfs-path", `/ipfs/${cid}`);
+      response.setHeader("x-ipfs-roots", cid.toString());
       response.setHeader("ipfs-uri", `ipfs://${cid}`);
       url.searchParams.set("format", "raw");
       response.setHeader("content-location", `${url.pathname}${url.search}`);
@@ -207,8 +293,13 @@ export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
         response.end(request.method === "HEAD" ? undefined : bytes, resolve);
       });
     } catch (error) {
-      if (response.headersSent) response.destroy();
-      else {
+      if ((error as NodeJS.ErrnoException).code === "ERR_NOT_FOUND") {
+        metrics.misses++;
+        if (response.headersSent) metrics.failures++;
+      }
+      if (response.headersSent) {
+        if (!response.writableEnded) controller.abort(error);
+      } else {
         const code = (error as NodeJS.ErrnoException).code;
         const onlyCached = request.headers["cache-control"]
           ?.split(",")
@@ -234,6 +325,9 @@ export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
     }
   };
   return {
+    snapshot() {
+      return { ...metrics, active: controllers.size };
+    },
     handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
       const operation = serve(request, response);
       active.add(operation);
@@ -242,7 +336,10 @@ export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
     },
     async close() {
       closing = true;
-      for (const controller of controllers) controller.abort();
+      for (const controller of controllers) {
+        if (!controller.signal.aborted) metrics.cancellations++;
+        controller.abort();
+      }
       await Promise.allSettled([...active]);
     },
   };

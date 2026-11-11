@@ -4,6 +4,8 @@
 
 外部验证使用先同步的 [Ubuntu scope 验证脚本](verify-scopes-ubuntu.mjs)；fixture 使用本 Idea 的独立公共库工具，并增加 3 MiB、多层分块文件。脚本只从临时 registry consumer 解析安装包，不导入仓库产品内部模块。
 
+实际发布、独立恢复/枚举、工具修正及清理结果见 [部署验收证据](deployment-verification.md)；归档已观察结果不改变先前同步的验证要求。
+
 ## Steps
 
 ### D-S01: 部署已知完整与不完整数据集

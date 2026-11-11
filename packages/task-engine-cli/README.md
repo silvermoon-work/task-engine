@@ -5,7 +5,8 @@ Task Engine 的本地后台 Server 与任务调用 CLI，要求 Node.js 22.13+�
 旧 `0.1.0-canary-261110-1` 是单次嵌入执行命令，不具有下列接口。
 本文描述 **0.2.0 canary** 的接口，保留 0.1.0 的帮助纠错和后台故障诊断。
 0.1.0 正式版已完成验收，见[发布记录](../../README.md#stable-010-2026-11-11)。
-以下安装命令须在发布完成后使用；CLI Spec v1.0 是规范版本，
+`0.2.0-canary-261111-1` 已发布并完成 office-ubuntu 实测；
+见[发布记录](../../README.md#unified-output-canary-020)。CLI Spec v1.0 是规范版本，
 不是 npm 包的 1.0.0 或已发布声明。
 
 ```powershell
@@ -62,7 +63,7 @@ task-engine config reset task.timeoutMs
 输出文件块及保留根存入实例的 SQLite，
 重启后仍可被后续任务通过 `context.space(cid)` 读取。离线 `data prune --cache`
 同时标记文件缓存和 SQLite 输出块，只删除不再被保留任务引用的内容。
-这是尚未发布的输出结构调整；旧开发数据库不迁移，请使用新的数据目录。
+这是 breaking change；旧开发数据库不迁移，请使用新的数据目录，并重启新版 Server。
 `output.cid` 是内容标识，不代表内容已上传或公开；本地输出不会自动发布到
 Pinboard、Kubo 或公共 Gateway，其他实例不能仅凭 CID 保证读取到这些块。
 
@@ -183,8 +184,8 @@ bundleMaxBytes=67108864、maxConnections=256。
 `--expected-cid` 或 `--max-runtime-ms`。已提供的子任务能力直接按服务预算执行。
 
 发布映射为 `task-engine-cli`。当前正式版为 `0.1.0`（npm `latest`），
-本轮候选为 `0.2.0-canary-261111-1`（npm `canary`），不修改 `latest`；
-准备工作不意味着已发布，也不因 Builder 发布而自动发布。
+本轮已发布 `0.2.0-canary-261111-1`（npm `canary`），未修改 `latest`；
+每个包独立发布，不因 Builder 发布而自动发布。
 每次只能发布一个明确授权的映射包。
 内部 runtime/peer 及当前发布守卫检查的 dev workspace 依赖必须已有匹配发布版本；
 每步确认准确依赖可用后才进入下一步，不自动发布其他依赖。

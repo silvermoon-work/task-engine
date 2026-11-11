@@ -1,5 +1,12 @@
 # 端到端验证：安装 → Init → Build → Server → 持久任务
 
+0.2.0 canary 的输出封装已改为
+`data.output: {cid, result}`；本文保留的 0.1.0 验证示例使用旧的 `data.result` /
+`data.outputCid`。验证 `0.2.0-canary-261111-1` 时，请改为检查
+`data.output.result` /
+`data.output.cid`，并使用新的 Engine 数据目录。发布后实测记录见
+[0.2.0 发布记录](../README.md#unified-output-canary-020)。
+
 本文是 **0.1.0 / latest**
 的可重复操作指南，不是已执行的验收记录。对应版本已发布，实际安装验收边界见
 [发布记录](../README.md#stable-010-2026-11-11)；源码版本号与历史 canary 测试不能代替最终 registry 制品的安装验收。

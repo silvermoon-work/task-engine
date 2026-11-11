@@ -224,9 +224,9 @@ tag release mapping below.
 
 ## Publish one package
 
-### Unified output candidate (0.2.0)
+### Unified output canary (0.2.0)
 
-The `0.2.0-canary-261111-1` candidate groups the final Space CID and business
+The `0.2.0-canary-261111-1` release groups the final Space CID and business
 result as `output: {cid, result}` across Task/Run facts, HTTP and CLI responses.
 Top-level `result` and `outputCid` are removed. Collection summaries include
 only `output.cid`, not business results. Failure evidence may contain
@@ -234,8 +234,36 @@ only `output.cid`, not business results. Failure evidence may contain
 finalized Space. Worker callback return values, result schemas and child
 invocation results remain business JSON; existing Space-aware Bundles need not
 be rebuilt. Development databases using the old envelope are rejected without
-migration: select a fresh Engine data directory. This candidate is not
-publication evidence.
+migration: select a fresh Engine data directory.
+
+All nine packages were published separately from
+`95174d751f40065a66e33af571a4d162bc3c3940`, after successful
+[exact-commit Node 22/24 CI](https://github.com/silvermoon-work/task-engine/actions/runs/43016025825).
+Their `canary` tags select `0.2.0-canary-261111-1`; existing `latest` tags were
+not changed. The 0.1.0 CLI help, diagnostics and typed-template improvements
+remain included.
+
+| Package                                | Trusted publication                                                                |
+| -------------------------------------- | ---------------------------------------------------------------------------------- |
+| `@silvermoon-work/task-protocol`       | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43017398539) |
+| `@silvermoon-work/task-sdk`            | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43017885056) |
+| `@silvermoon-work/task-builder`        | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43018255472) |
+| `@silvermoon-work/task-builder-cli`    | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43018703462) |
+| `@silvermoon-work/task-engine`         | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43019008930) |
+| `@silvermoon-work/task-engine-storage` | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43019533873) |
+| `@silvermoon-work/task-engine-http`    | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43019907915) |
+| `@silvermoon-work/task-engine-cli`     | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43020286592) |
+| `@silvermoon-work/task-engine-server`  | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43020808203) |
+
+Full `pnpm check` passed on Windows and `office-ubuntu`. A fresh consumer
+installed all nine exact registry versions, verified tarball integrities and
+dist-tags, and ran real Worker/HTTP/SQLite/offline-Kubo tests. Task and Run
+responses, CLI `run`, `task await` and `task query --id` all returned the same
+`output` envelope without old sibling fields; collection summaries contained
+only the CID. Both HTTP and CLI preserved an explicit `output.result: null`. The
+2 MiB file checksum, cancellation recovery, same-Space links, retained output
+after restart, and history with content acquisition disabled also passed.
+Temporary services were stopped after verification.
 
 ### Stable 0.1.0 (2026-11-11)
 

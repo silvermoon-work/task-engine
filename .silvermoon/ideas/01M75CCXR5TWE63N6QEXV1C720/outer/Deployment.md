@@ -4,6 +4,8 @@
 
 外部回放使用已同步的 [公共包 CLI 回放](inner/replay.mjs) 与 [真实浏览器检查页](inner/browser.html)，不导入产品私有源码。协议套件固定 `ipfs/gateway-conformance v0.14.1` / `011d20bd61c4736e3301d35e8fe388773e492511`；固定选择器和数值阈值继承实现契约，不在外部失败后调整。
 
+当前外部部署因固定共载 RSS 门限未通过而阻塞，详见 [实际阻塞证据与清理记录](deployment-blocker.md)。D 清单保持未勾选；未提交或接受部署，不推进后续迭代。
+
 ## Steps
 
 ### D-S01: 在目标拓扑验证互操作

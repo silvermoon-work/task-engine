@@ -208,13 +208,13 @@ export function createSpaces(config: {
     if (sid.startsWith("ipfs:")) return space(sid.slice(5));
     throw new TaskError("invalid_space", "Host returned an unknown Space identity.");
   }
-  function mutate(operation: () => Promise<unknown>): Promise<void> {
+  function mutate(operation: () => Promise<unknown>, options?: SpaceOptions): Promise<void> {
     if (finishing) return Promise.reject(new TaskError("run_finished", "Task is finishing."));
     const promise = new Promise<unknown>((resolve) => resolve(operation())).then(() => {});
     mutations.add(promise);
     void promise
       .catch((error: unknown) => {
-        mutationError ??= error;
+        if (!options?.signal?.aborted || error !== options.signal.reason) mutationError ??= error;
       })
       .finally(() => mutations.delete(promise));
     return promise;
@@ -243,7 +243,7 @@ export function createSpaces(config: {
           },
           options,
         );
-      });
+      }, options);
     },
     link(path: string, ref: SpaceRef, options?: SpaceOptions) {
       return mutate(() => {
@@ -252,7 +252,7 @@ export function createSpaces(config: {
           { operation: "link", path: normalizeSpacePath(path), ref: ref.toJSON() },
           options,
         );
-      });
+      }, options);
     },
   });
   return {

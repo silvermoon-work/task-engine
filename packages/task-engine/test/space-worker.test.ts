@@ -37,6 +37,18 @@ for (const fail of [false, true])
         join(directory, "callback.ts"),
         `export default async (_input, context) => {
   if ("generation" in context || "checkpoint" in context) throw Error("Legacy API");
+  const abort = new AbortController();
+  const interrupted = context.output.write("/cancelled.txt", new ReadableStream({
+    start(controller) { controller.enqueue(new Uint8Array([1])); }
+  }), {signal: abort.signal});
+  await new Promise(resolve => setTimeout(resolve, 30));
+  abort.abort();
+  let cancelled = false;
+  try { await interrupted; } catch { cancelled = true; }
+  if (!cancelled) throw Error("Write cancellation not observed");
+  let partial = false;
+  try { await context.output.root.resolve("cancelled.txt").read(); partial = true; } catch {}
+  if (partial) throw Error("Cancelled file was committed");
   const ref = context.bundle.root.resolve("resources");
   await context.output.link("/", ref);
   const node = await context.output.root.resolve("greeting.txt").read();

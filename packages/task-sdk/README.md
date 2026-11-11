@@ -68,8 +68,9 @@ bundle their own validators. Custom hosts must implement the same validation
 and negative-ACK lifecycle, not acknowledge every frame.
 
 The SDK owns bounded queues, generation/Run routing, declaration equality,
-cancellation and resource streams. A failed output write remains a failed
-output even if the callback catches it. Rejected completion is reported as
+cancellation and resource streams. Explicit per-operation cancellation can be
+caught and followed by another write; it does not poison the Run. Other output
+write failures fail the Run even if the callback catches them. Rejected completion is reported as
 failure; rejected `RunFailure` evidence is re-reported without that evidence.
 Release follows an acknowledged terminal fact; an unavailable terminal channel
 reports uncertainty. Cancellation keeps its stopping/release path.

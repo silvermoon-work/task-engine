@@ -570,7 +570,10 @@ class RunWorker {
       finish();
     };
     const promise = execute().catch((error: unknown) => {
-      if (message.operation === "write" || message.operation === "link")
+      if (
+        (message.operation === "write" || message.operation === "link") &&
+        !controller.signal.aborted
+      )
         context.spaceError ??= error;
       if (message.content instanceof ReadableStream && !message.content.locked)
         void message.content.cancel(error).catch(() => {});

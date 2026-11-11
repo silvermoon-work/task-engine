@@ -101,7 +101,6 @@ export function createRunSpaceHost(options: RunSpaceHostOptions): SpaceHost {
   }
   // Race uncooperative caller ports as well as propagating cancellation to them.
   async function abortable<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
-    signal.throwIfAborted();
     let abort: (() => void) | undefined;
     try {
       return await Promise.race([
@@ -109,6 +108,7 @@ export function createRunSpaceHost(options: RunSpaceHostOptions): SpaceHost {
         new Promise<never>((_, reject) => {
           abort = () => reject(signal.reason);
           signal.addEventListener("abort", abort, { once: true });
+          if (signal.aborted) abort();
         }),
       ]);
     } finally {

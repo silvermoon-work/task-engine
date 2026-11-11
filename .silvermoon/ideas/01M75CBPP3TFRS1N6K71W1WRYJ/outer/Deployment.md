@@ -4,6 +4,8 @@
 
 外部复核使用先同步的 [Ubuntu 范围验证脚本](verify-range-ubuntu.mjs)，将 [公共库 fixture/oracle](inner/range-proof.mjs) 复制到同一独立 consumer。范围响应必须能被空离线 Kubo 按 offset/length 恢复；不能通过增添无关 blocks 规避最小证明要求。
 
+发布、实际范围/传输/协商结果和清理记录见 [部署验收证据](deployment-verification.md)，仅归档已经观察的结果，不改变先前同步的验证要求。
+
 ## Steps
 
 ### D-S01: 准备可重复的大文件范围查询

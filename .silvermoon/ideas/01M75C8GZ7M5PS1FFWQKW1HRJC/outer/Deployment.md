@@ -2,6 +2,8 @@
 
 用户要求沿用上一轮由 subagent 实施、主 Agent 审批 impl/deploy 并推进到 completed 的流程。本轮使用新 CLI RC 与指定 Ubuntu 设备进行隔离验证；只验证显式 block-scope CAR/path profile，不声明完整 DAG、文件范围、递归回源或 IPNS。
 
+外部复核使用先同步的 [Ubuntu 验证脚本](verify-car-ubuntu.mjs)。脚本仅解析独立 registry consumer 的包，生成多层 bundle 与 3000000 字节任务输出；独立命名边验证器及隔离离线 Kubo 共同检验路径和终点。完整结果另以本世界的简洁证据归档。
+
 ## Steps
 
 ### D-S01: 准备独立路径查询客户端

@@ -583,7 +583,10 @@ class RunWorker {
             "space_capacity",
             "Too many failed Space operations.",
           );
-        else (context.spaceErrors ??= new Map()).set(spaceId as number, error);
+        else {
+          context.spaceErrors ??= new Map();
+          context.spaceErrors.set(spaceId as number, error);
+        }
       }
       if (message.content instanceof ReadableStream && !message.content.locked)
         void message.content.cancel(error).catch(() => {});

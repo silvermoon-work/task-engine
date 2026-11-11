@@ -110,18 +110,27 @@ export async function directoryTree(directory: string): Promise<ReadonlyFileTree
             yield buffer.subarray(0, bytesRead);
           }
           const after = await handle.stat({ bigint: true });
-          const current = await stat(await locate(path), { bigint: true });
-          if (
-            [after, current].some(
-              (value) =>
-                value.dev !== before.dev ||
-                value.ino !== before.ino ||
-                value.size !== before.size ||
-                value.mtimeNs !== before.mtimeNs ||
-                value.ctimeNs !== before.ctimeNs,
+          const currentHandle = await open(
+            await locate(path),
+            constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0),
+          );
+          try {
+            // Node 22 on Windows reports different devices for path and handle stats.
+            const current = await currentHandle.stat({ bigint: true });
+            if (
+              [after, current].some(
+                (value) =>
+                  value.dev !== before.dev ||
+                  value.ino !== before.ino ||
+                  value.size !== before.size ||
+                  value.mtimeNs !== before.mtimeNs ||
+                  value.ctimeNs !== before.ctimeNs,
+              )
             )
-          )
-            throw treeError("INPUT_CHANGED", path, "Input changed while being read");
+              throw treeError("INPUT_CHANGED", path, "Input changed while being read");
+          } finally {
+            await currentHandle.close();
+          }
         } finally {
           await handle.close();
         }

@@ -1,7 +1,17 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { copyFile, cp, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  cp,
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
@@ -347,6 +357,32 @@ test("output precedence uses description-relative defaults and cwd-relative expl
     assert.equal(explicit.data.module.directory, join(root, "caller", "another"));
     for (const output of [".", "assets", "assets/subdir"])
       await invoke(root, ["build", "--out-dir", output], 1);
+  });
+});
+
+test("directory reads accept unchanged files and reject replaced paths", async () => {
+  await fixture(async (root) => {
+    const tree = await directoryTree(root);
+    const content = Buffer.alloc(200_000, 32);
+    await writeFile(join(root, "unchanged"), content);
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of await tree.read("unchanged")) chunks.push(chunk);
+    assert.deepEqual(Buffer.concat(chunks), content);
+
+    await writeFile(join(root, "replaced"), content);
+    const reader = (await tree.read("replaced")).getReader();
+    try {
+      assert.equal((await reader.read()).done, false);
+      await rename(join(root, "replaced"), join(root, "original"));
+      await writeFile(join(root, "replaced"), content);
+      await assert.rejects(async () => {
+        while (!(await reader.read()).done) {
+          /* consume to verification */
+        }
+      }, /Input changed/);
+    } finally {
+      reader.releaseLock();
+    }
   });
 });
 

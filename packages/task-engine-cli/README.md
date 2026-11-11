@@ -1,8 +1,10 @@
 # @silvermoon-work/task-engine-cli
 
 Task Engine 的本地后台 Server 与任务调用 CLI，要求 Node.js 22.13+。
-当前源码实现已批准的 CLI Spec v1.0；这不表示新版本已发布或部署验收已通过。
+当前源码实现已批准的 CLI Spec v1.0。
 已有 `0.1.0-canary-261110-1` 仍是旧的单次嵌入执行命令，不具有下列新接口。
+`0.1.0-canary-261111-2` 已发布并完成真实安装验证，包含下列接口及新的 Space
+输出持久化；见[发布验收记录](../../README.md#space-context-canary-2026-11-11)。
 
 ```powershell
 task-engine server start

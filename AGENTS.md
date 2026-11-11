@@ -37,6 +37,12 @@
 - Internal runtime and peer dependencies must have matching versions already on
   npm. Publish missing dependencies separately before tagging the dependent
   package.
+- Artifact verification also checks internal devDependencies. Compute release
+  order from every dependency field; for example, publish Builder CLI before
+  Engine even though that edge is development-only.
+- A successful publish can precede registry metadata visibility. Wait for the
+  exact-version lookup used by the verifier, then retry the same immutable tag;
+  never move a tag or bypass dependency verification.
 - Use npm Trusted Publishing, not stored tokens. Manual workflow runs are dry
   runs only. Never push release tags or publish without explicit authorization.
 - Publish npm packages only through GitHub Actions

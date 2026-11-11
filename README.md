@@ -188,6 +188,42 @@ tag release mapping below.
 
 ## Publish one package
 
+### Space context canary (2026-11-11)
+
+All nine packages are published as `0.1.0-canary-261111-2` from
+`13e3b9901b8e49eca6c457dc71b7fffbf1432ffe`, after successful
+[exact-commit Node 22/24 CI](https://github.com/silvermoon-work/task-engine/actions/runs/42994187062).
+Each package used its own immutable tag and Trusted Publishing workflow;
+`canary` selects the new version and `latest` remains `0.0.0`.
+
+| Package                                | Publication                                                                        |
+| -------------------------------------- | ---------------------------------------------------------------------------------- |
+| `@silvermoon-work/task-protocol`       | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/42995586541) |
+| `@silvermoon-work/task-sdk`            | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/42995737405) |
+| `@silvermoon-work/task-builder`        | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/42996645793) |
+| `@silvermoon-work/task-builder-cli`    | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/42997226103) |
+| `@silvermoon-work/task-engine`         | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/42995773125) |
+| `@silvermoon-work/task-engine-storage` | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/42995773432) |
+| `@silvermoon-work/task-engine-http`    | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/42995773562) |
+| `@silvermoon-work/task-engine-cli`     | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/42998761369) |
+| `@silvermoon-work/task-engine-server`  | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/42999348356) |
+
+This is a breaking Space/Ref context change: rebuild older canary Bundles. The
+artifact verifier includes workspace development dependencies when checking
+published prerequisites. Initial dependency-visibility failures were retried
+with unchanged tags, without bypassing the verifier or publishing locally.
+
+Full `pnpm check` passed on Windows and Linux. A fresh project on
+`office-ubuntu` used the published Builder CLI and installed all nine exact
+registry versions with recorded tarball integrities, without source overrides.
+Real Workers ran through HTTP and SQLite against an isolated offline Kubo:
+Bundle reads, directory enumeration, atomic cancellation followed by a
+successful write, finite same-output links, and a streamed 2 MiB file all
+passed. After restart, a second Run consumed the persisted output and retained
+the same root CID. Another restart with content acquisition disabled still
+returned completed history and its output CID. Both Runs were physically
+reclaimed.
+
 ### Published canaries (2026-11-09, first round)
 
 All six packages were published through Trusted Publishing from the verified

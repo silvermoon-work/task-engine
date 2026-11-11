@@ -3,6 +3,9 @@
 Task production CLI and reusable command runner. Node >=22.13 is required.
 This document describes the redesigned source interface; registry acceptance
 requires separately publishing compatible Builder and CLI packages.
+The coordinated `0.1.0-canary-261111-2` release and installed-package smoke
+verification are recorded in the
+[release notes](../../README.md#space-context-canary-2026-11-11).
 
 ## Commands
 

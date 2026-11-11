@@ -7,16 +7,18 @@ callback/context types. It uses
 
 Migrated under the original MIT license from
 [potential-guide at 6614f46](https://github.com/shazhou-ww/potential-guide/tree/6614f46bf0f4152c61bd2c73d6c4b21ab4cf366f/packages/task-sdk).
-The runtime and public API are preserved; package imports now use the
+The initial migration preserved the runtime and public API; package imports use the
 `@silvermoon-work` workspace. The initial `0.1.0-canary-261109-1` was published through
 [Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/42588331015)
 with an exact dependency on protocol `0.1.0-canary-261109-2`.
 Select an explicit SDK version or the `canary` dist-tag; `latest` is still the
 `0.0.0` placeholder.
 
-The current source candidate is `0.1.0-canary-261110-1`, paired with protocol
-`0.1.0-canary-261110-1`. Publish these separately in dependency order only after
-the exact candidate receives approval; the manifest is not npm availability evidence.
+The coordinated `0.1.0-canary-261111-2` release introduces the breaking Space
+context contract and uses the matching protocol and Engine. Publication and
+installed-package verification are recorded in the
+[release notes](../../README.md#space-context-canary-2026-11-11).
+Rebuild older canary Bundles for the new host protocol.
 
 Versions from `0.1.0-canary-261109-2` additionally restore `TaskContext.invokeTask`,
 `ChildTaskInvocation` author types and host-ACK child results, previously
@@ -30,12 +32,11 @@ Use the migrated workspace
 to create a private project, then build its module and CAR. Standalone `car`
 accepts `dist/task.yaml`; CAR inspection is a library operation, not a Builder
 `check` command in the redesigned interface.
-Builder core version 2 and CLI version 1 generated the old SDK template;
-use core version 3 and CLI version 3 for the migrated default. Existing projects can
-explicitly select the SDK version with child invocation support:
+Use the matching `0.1.0-canary-261111-2` Builder and CLI for Space-aware
+templates. Existing projects can select the SDK explicitly:
 
 ```text
-pnpm add @silvermoon-work/task-sdk@0.1.0-canary-261109-2
+pnpm add @silvermoon-work/task-sdk@0.1.0-canary-261111-2
 ```
 
 For the current workspace CLI:

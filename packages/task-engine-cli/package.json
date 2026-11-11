@@ -24,7 +24,7 @@
     "build": "tsc -b",
     "clean": "node -e \"for (const path of ['dist', '.cache']) require('node:fs').rmSync(path, { recursive: true, force: true })\"",
     "lint": "biome lint .",
-    "test": "tsx --test \"test/*.test.ts\"",
+    "test": "tsx --test --test-concurrency=1 \"test/*.test.ts\"",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {

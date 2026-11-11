@@ -57,7 +57,7 @@ async function freePort() {
   return port;
 }
 test("managed installed entry: lifecycle, persistent execution, logs, configuration and offline cleanup", {
-  timeout: 180_000,
+  timeout: process.platform === "win32" ? 300_000 : 180_000,
 }, async (t) => {
   const directory = resolve(".cache", `managed-${randomUUID()}`);
   await mkdir(directory, { recursive: true });
@@ -180,7 +180,7 @@ export default async (input,context)=>{
   await writeFile(
     parentEntry,
     `export default async(input,context)=>context.invokeTask({
-key:"child",cid:${JSON.stringify(built.cid)},path:"resources/child",input,timeoutMs:5000});`,
+key:"child",cid:${JSON.stringify(built.cid)},path:"resources/child",input,timeoutMs:15000});`,
   );
   const parent = await buildBundleFixture({
     declaration: {

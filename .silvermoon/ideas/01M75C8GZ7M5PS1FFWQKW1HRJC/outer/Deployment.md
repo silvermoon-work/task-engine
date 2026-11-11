@@ -4,6 +4,8 @@
 
 外部复核使用先同步的 [Ubuntu 验证脚本](verify-car-ubuntu.mjs)。脚本仅解析独立 registry consumer 的包，生成多层 bundle 与 3000000 字节任务输出；独立命名边验证器及隔离离线 Kubo 共同检验路径和终点。完整结果另以本世界的简洁证据归档。
 
+已观察的结果与发布、失败重试和清理边界见 [部署验收证据](deployment-verification.md)；归档证据不改变先前同步的验证要求。
+
 ## Steps
 
 ### D-S01: 准备独立路径查询客户端

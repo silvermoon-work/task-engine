@@ -2,11 +2,15 @@
 
 沿用用户授权的顺序迭代：一个 subagent 实施，主 Agent 独立验收 impl/deploy，发布新 RC 并在指定 Ubuntu 设备验证，目标 completed。本轮仅覆盖完整 DAG scope，不包含字节范围、IPNS、回源或永久 pin。
 
+外部验证使用先同步的 [Ubuntu scope 验证脚本](verify-scopes-ubuntu.mjs)；fixture 使用本 Idea 的独立公共库工具，并增加 3 MiB、多层分块文件。脚本只从临时 registry consumer 解析安装包，不导入仓库产品内部模块。
+
 ## Steps
 
 ### D-S01: 部署已知完整与不完整数据集
 
 独立实现审查通过后，仅为实际受影响映射包选择未占用的新 RC；main 的准确发布提交 CI 全部通过后，使用不可变 package-specific tag 由 `publish-npm.yaml` Trusted Publishing 发布，保留 latest/canary 与历史版本。不本地 publish，不自动发布依赖。
+
+本轮唯一映射包为 `@silvermoon-work/task-engine-cli@0.2.0-rc.3`，tag 为 `task-engine-cli-v0.2.0-rc.3`；内部依赖沿用已发布 `0.2.0-rc.0`。发布前观察为 latest=`0.1.0`、canary=`0.2.0-canary-261111-1`、rc=`0.2.0-rc.2`；版本/tag 已占用则停止，不移动已有 tag。
 
 通过指定 SSH 设备，在专用临时 consumer 普通安装精确 registry 版本，核对 manifest 与 lockfile integrity；不改共享工具、全局配置或现有服务。准备已知 CID 的多块大文件、多层目录、HAMT、共享子图、identity links 和声明支持的非 UnixFS DAG，记录独立预期集合及故意缺失的后代。仅向本轮自有缓存放入测试数据，不能通过其他网关补全。
 

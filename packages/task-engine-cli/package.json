@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-engine-cli",
-  "version": "0.2.0-rc.2",
+  "version": "0.2.0-rc.3",
   "description": "Managed local Task Engine server and persistent task CLI.",
   "type": "module",
   "sideEffects": false,

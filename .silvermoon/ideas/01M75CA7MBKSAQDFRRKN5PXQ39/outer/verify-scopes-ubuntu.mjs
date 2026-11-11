@@ -189,7 +189,8 @@ try {
       assert.equal(result.headers["content-type"], "application/vnd.ipld.car; version=1; order=dfs; dups=n");
       const blocks = await readCar(result.bytes);
       sameSet(blocks.map((block) => key(block.cid)), scope === "block" ? [cid] : scope === "entity" ? expectedEntity : expectedAll);
-      for (const block of blocks) assert.deepEqual(block.bytes, stored.get(key(block.cid)).bytes);
+      for (const block of blocks)
+        assert.deepEqual(Buffer.from(block.bytes), Buffer.from(stored.get(key(block.cid)).bytes));
       variants[scope ?? "default"] = { ...result, blocks };
     }
     assert.deepEqual(variants.default.bytes, variants.all.bytes);

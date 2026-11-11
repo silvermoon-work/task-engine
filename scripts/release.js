@@ -104,31 +104,19 @@ export function validateManifest(selected, manifest) {
   }
   validateDependencyOrigins(manifest);
   const prerelease = semver.prerelease(manifest.version);
-  let distTag = prerelease === null ? "latest" : "next";
-  if (prerelease?.some((part) => String(part).startsWith("canary"))) {
-    const match = /^canary-(\d{2})(\d{2})(\d{2})-([1-9]\d*)$/u.exec(
-      prerelease.join("."),
-    );
-    if (match === null) {
-      throw new Error(
-        "Canary versions require canary-YYMMDD-INDEX (INDEX starts at 1).",
-      );
-    }
-    const [, year, month, day, index] = match;
-    const date = new Date(
-      Date.UTC(2000 + Number(year), Number(month) - 1, Number(day)),
-    );
+  const distTag = prerelease === null ? "latest" : "rc";
+  if (prerelease !== null) {
     if (
-      date.getUTCFullYear() !== 2000 + Number(year) ||
-      date.getUTCMonth() !== Number(month) - 1 ||
-      date.getUTCDate() !== Number(day) ||
-      !Number.isSafeInteger(Number(index))
+      prerelease.length !== 2 ||
+      prerelease[0] !== "rc" ||
+      typeof prerelease[1] !== "number" ||
+      !Number.isSafeInteger(prerelease[1]) ||
+      prerelease[1] < 0
     ) {
       throw new Error(
-        "Canary versions require a valid date and safe positive INDEX.",
+        "Prerelease versions require -rc.N with a safe nonnegative integer N; only latest and rc channels are supported.",
       );
     }
-    distTag = "canary";
   }
   return {
     ...selected,

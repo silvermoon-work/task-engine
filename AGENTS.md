@@ -20,6 +20,13 @@
 
 ## Publishing
 
+- Use only `latest` and `rc` for new releases. Stable `<major>.<minor>.<patch>`
+  versions publish to `latest`; release candidates use
+  `<major>.<minor>.<patch>-rc.<N>` and publish to `rc`, starting at `rc.0` and
+  incrementing the numeric index for that base version. Never publish new
+  `canary`, `next`, alpha or beta versions/channels.
+- Preserve historical versions, Git tags and legacy npm dist-tags unless their
+  removal is explicitly authorized. Publishing an RC must not change `latest`.
 - Keep repository release knowledge here, not in a project skill. See
   [README](README.md#publish-one-package) for setup and commands.
 - Release one explicitly mapped package with `<package-id>-v<version>` tags.

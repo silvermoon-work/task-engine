@@ -133,7 +133,7 @@ test("template locks actual CLI/Builder versions and paired SDK without remote l
     assert.equal(manifest.devDependencies[`@silvermoon-work/${name}`], installed.version);
   }
   assert.deepEqual(manifest.dependencies, {
-    "@silvermoon-work/task-sdk": "0.2.0-canary-261111-1",
+    "@silvermoon-work/task-sdk": "0.2.0-rc.0",
     "@sinclair/typebox": "0.34.52",
   });
   assert.equal(manifest.scripts.build, "task-builder build task.build.yaml");

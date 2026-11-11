@@ -153,56 +153,54 @@ test("legacy project packages and npm aliases fail in every dependency section",
 });
 
 test("prerelease suffixes must match exactly and never publish as latest", () => {
-  const selected = selectRelease(packages, { tag: "core-v2.0.0-beta.2" });
+  const selected = selectRelease(packages, { tag: "core-v2.0.0-rc.2" });
   assert.equal(
-    validateManifest(selected, { ...manifest, version: "2.0.0-beta.2" })
-      .distTag,
-    "next",
+    validateManifest(selected, { ...manifest, version: "2.0.0-rc.2" }).distTag,
+    "rc",
   );
   assert.throws(() =>
-    validateManifest(selected, { ...manifest, version: "2.0.0-beta.1" }),
+    validateManifest(selected, { ...manifest, version: "2.0.0-rc.1" }),
   );
 });
 
-test("dated canaries publish only to canary and preserve exact identity", () => {
-  for (const version of [
-    "0.1.0-canary-261109-1",
-    "0.1.0-canary-261109-12",
-    "0.1.0-canary-240229-1",
-  ]) {
+test("release candidates publish only to rc and preserve exact identity", () => {
+  for (const version of ["0.2.0-rc.0", "0.2.0-rc.1", "0.2.0-rc.12"]) {
     const selected = selectRelease(packages, { tag: `core-v${version}` });
     const release = validateManifest(selected, { ...manifest, version });
-    assert.equal(release.distTag, "canary");
+    assert.equal(release.distTag, "rc");
     assert.equal(release.version, version);
     validateArtifact(release, { ...manifest, version });
     assert.throws(() =>
       validateArtifact(release, {
         ...manifest,
-        version: "0.1.0-canary-261109-2",
+        version: "0.2.0-rc.2",
       }),
     );
   }
   assert.equal(validateManifest(selection, manifest).distTag, "latest");
 });
 
-test("canary dates and daily indices must use the canonical release format", () => {
+test("unsupported channels and noncanonical RC indices are rejected", () => {
   for (const suffix of [
     "canary",
     "canary.261109.1",
-    "canary-261109-0",
-    "canary-261109-01",
-    "canary-261132-1",
-    "canary-261300-1",
-    "canary-260229-1",
-    "canary-261109-9007199254740992",
-    "canary-261109-1.extra",
+    "canary-261109-1",
+    "next.0",
+    "alpha.0",
+    "beta.2",
+    "rc",
+    "rc.01",
+    "rc.-1",
+    "rc.9007199254740992",
+    "rc.1.extra",
+    "RC.0",
+    "rc-0",
   ]) {
     const version = `0.1.0-${suffix}`;
-    const selected = selectRelease(packages, { tag: `core-v${version}` });
-    assert.throws(
-      () => validateManifest(selected, { ...manifest, version }),
-      /Canary versions/,
-    );
+    assert.throws(() => {
+      const selected = selectRelease(packages, { tag: `core-v${version}` });
+      validateManifest(selected, { ...manifest, version });
+    }, /Invalid release tag version|Prerelease versions/);
   }
 });
 

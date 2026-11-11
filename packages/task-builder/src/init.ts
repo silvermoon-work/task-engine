@@ -29,7 +29,7 @@ export function createTaskProject(options: TaskProjectOptions = {}): ReadonlyFil
     );
   const taskName = options.taskName ?? name.split("/").at(-1)!;
   const minVersion = options.minRuntimeVersion ?? "22.13.0";
-  const sdkVersion = options.sdkVersion ?? "0.2.0-canary-261111-1";
+  const sdkVersion = options.sdkVersion ?? "0.2.0-rc.0";
   if (!sdkVersion.trim() || [...sdkVersion].some((char) => char.charCodeAt(0) < 32))
     throw new Error("Dependency specifiers must be nonempty without control characters.");
   validateTaskBundle({

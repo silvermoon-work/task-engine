@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-builder",
-  "version": "0.2.0-canary-261111-1",
+  "version": "0.2.0-rc.0",
   "description": "Task Bundle builds from read-only file trees with streaming resources.",
   "type": "module",
   "sideEffects": false,

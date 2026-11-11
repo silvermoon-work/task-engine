@@ -224,6 +224,15 @@ tag release mapping below.
 
 ## Publish one package
 
+### Release candidate channels
+
+New releases use only `latest` (stable versions) and `rc` (`<base>-rc.N`). The
+`0.2.0-rc.0` candidate replaces the dated-canary naming convention without
+changing the 0.2.0 output contract. Existing canary package versions, immutable
+Git tags and npm dist-tags are preserved as historical records. The verifier
+rejects new dated canaries and other prerelease channels. Publish every package
+separately after its exact workspace dependencies are available.
+
 ### Unified output canary (0.2.0)
 
 The `0.2.0-canary-261111-1` release groups the final Space CID and business
@@ -594,18 +603,18 @@ The tag publishes only the mapped package. Both the tagged manifest and the
 tarball must match its exact name and version; the root version is irrelevant.
 Unknown package IDs, private/placeholder names, invalid versions, mismatches,
 unresolved local dependencies, and already-published versions block release.
-Canonical stable and prerelease SemVer versions are supported (without build
-metadata); stable versions use npm's `latest` tag, canaries use `canary`, and
-other prereleases use `next`. Canaries follow
-`<base-version>-canary-YYMMDD-INDEX`, for example `0.1.0-canary-261109-1`. Use
-the release date in the team's local calendar and increment `INDEX`
-independently for each package on that date, starting at 1. Check npm versions
-and existing immutable Git tags before choosing the next index; never reuse an
-existing published version or move a tag. The verifier rejects malformed dates,
-zero/leading-zero indices and unsafe integer indices. All packages in a release
-round may share a version, but each still requires its own explicitly authorized
-package tag and publication. Publish internal dependencies first; `workspace:*`
-packs to their exact package versions.
+Only canonical stable and RC SemVer versions are supported (without build
+metadata). Stable versions publish to `latest`; candidates use
+`<base-version>-rc.N`, for example `0.2.0-rc.0`, and publish to `rc`. Start at
+`rc.0` and increment the numeric index for that base version. The verifier
+rejects canary/next/alpha/beta prereleases, leading-zero indices, additional
+prerelease identifiers and unsafe integer indices. Historical versions and
+legacy npm dist-tags remain unchanged; an RC publication never updates `latest`.
+Check npm versions and existing immutable Git tags before choosing the next
+index; never reuse an existing published version or move a tag. All packages in
+a release round may share a version, but each still requires its own explicitly
+authorized package tag and publication. Publish internal dependencies first;
+`workspace:*` packs to their exact package versions.
 
 The pinned `github-ci-verify` CLI requires the latest `ci.yaml` main push run
 for the exact checked-out SHA and its successful versioned aggregate job and

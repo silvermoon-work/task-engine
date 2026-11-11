@@ -1,14 +1,26 @@
 # @silvermoon-work/task-engine-cli
 
 Task Engine 的本地后台 Server 与任务调用 CLI，要求 Node.js 22.13+。
-当前源码实现已批准的 CLI Spec v1.0。
-已有 `0.1.0-canary-261110-1` 仍是旧的单次嵌入执行命令，不具有下列新接口。
-`0.1.0-canary-261111-2` 已发布并完成真实安装验证，包含下列接口及新的 Space
-输出持久化；见[发布验收记录](../../README.md#space-context-canary-2026-11-11)。
+已发布 `0.1.0-canary-261111-2` 提供受管 Server、持久任务和 Space 输出；
+旧 `0.1.0-canary-261110-1` 是单次嵌入执行命令，不具有下列接口。
+本文描述 **0.2.0 canary** 的接口，保留 0.1.0 的帮助纠错和后台故障诊断。
+以下安装命令须在发布完成后使用；CLI Spec v1.0 是规范版本，
+不是 npm 包的 1.0.0 或已发布声明。
+
+```powershell
+npm install -g @silvermoon-work/task-engine-cli@0.2.0-canary-261111-1
+task-engine --version
+```
+
+完整的 npm 安装 Builder CLI、init、安装依赖和 build 流程见
+[端到端指引](../../docs/end-to-end-verification.md)。默认 build 已交付
+`dist/<derived-package-name>.car`；不要紧接独立 car 覆盖同一输出。
+生成项目的 build 只转译，当前源码模板的类型检查使用独立 typecheck 脚本。
+以下示例假定已构建 `my-task`，`<...>` 须替换为实际回执：
 
 ```powershell
 task-engine server start
-'{"value":7}' | task-engine run --car .\bundle.car --input -
+'{"text":"world"}' | task-engine run --car .\dist\my-task.car --input -
 task-engine run --cid <bundle-cid> --input .\input.json --async
 task-engine task query
 task-engine task query --id <task-id>
@@ -28,6 +40,10 @@ task-engine config reset task.timeoutMs
 `node packages\task-engine-cli\dist\bin.js --help`。
 所有层级支持 `--help`/`-h`；根入口支持 `--version`。
 根或分组无子命令只显示帮助，不连接服务或创建数据。
+帮助文本写 stdout、退出 0，不产生业务副作用。错误路径即使加 `--help`
+也返回失败 JSON/退出 1；例如 `tasks query --help` 会建议
+`task-engine task query`，不会自动纠正执行，也没有复数 alias。
+叶帮助允许省略尚未填写的必填参数，但不掩盖未知/重复选项、多余参数或互斥组合。
 
 ## 命令和结果
 
@@ -46,6 +62,8 @@ task-engine config reset task.timeoutMs
 重启后仍可被后续任务通过 `context.space(cid)` 读取。离线 `data prune --cache`
 同时标记文件缓存和 SQLite 输出块，只删除不再被保留任务引用的内容。
 这是尚未发布的输出结构调整；旧开发数据库不迁移，请使用新的数据目录。
+`output.cid` 是内容标识，不代表内容已上传或公开；本地输出不会自动发布到
+Pinboard、Kubo 或公共 Gateway，其他实例不能仅凭 CID 保证读取到这些块。
 
 失败为 `{"ok":false,"error":{"code":"…","message":"…"}}`。
 有可信任务结果或已完成的部分清理时，同一对象保留 `data`，不伪称回滚。
@@ -76,8 +94,10 @@ Builder 保留归档生产 API，不恢复已移除的独立 CAR 包。
 异步回执后的终端退出不取消任务；任何受理或释放不确定都明确失败，不自动重提。
 
 `task query` 支持重复 `--status`（并集）、`--since/--until`（与其他条件交集）；
+status 枚举为 `pending/running/succeeded/failed/timed_out/cancelled/rejected`。
 时间使用带时区 RFC 3339，按创建时间含 since、不含 until。
-固定按创建时间、taskId 升序。`--id` 与筛选、分页互斥，
+同时提供时 since 必须早于 until。固定按创建时间、taskId 升序。
+`--id` 与 `--status/--since/--until/--limit/--cursor` 全部互斥，
 保持 `items` 数组，未匹配为空数组；不返回日志或等待完成。
 列表和日志 `--limit` 默认 100、范围 1–1000，`--cursor` 是绑定服务及筛选的不透明游标。
 日志按持久化追加顺序分页，只有 time/level/message，不混入完整业务结果。
@@ -105,6 +125,27 @@ stop 默认拒绝在途任务；`--cancel-running` 明确取消并等待释放�
 不读 Kubo 环境、不隐式联网、上传或 pin。协议既有包/块/载荷限制仍有效。
 实际磁盘不足是 Server 致命故障，停止接收任务、处理自有资源并以失败退出；
 不能落盘或无法确认释放时如实报告，不把退出当释放证据。
+
+### 后台故障诊断（当前源码新增）
+
+后台进程通常没有终端。实例目录下的 `daemon-diagnostic.json` 是预分配的
+4096 字节单条 JSON 快照，末尾空白可直接由 JSON parser 忽略。
+启动前验证创建/写入/同步能力，最近一次
+`startup-failed/storage-failed/shutdown-failed/uncaught-exception`
+覆盖同一槽位。它不是任务日志或审计历史，不自动扩展或无限追加。
+
+```powershell
+Get-Content .\engine-data\daemon-diagnostic.json -Raw | ConvertFrom-Json
+```
+
+记录包含 time、pid、instanceId，以及允许的系统错误码、SQLite 错误码和原因链，
+不写 message/stack、URL、输入/输出或 token。重启不清除上一次失败，
+排查时核对 instanceId，不能把旧故障当成本次状态；正常状态仍查询 `server status`。
+预分配原地覆盖可缓解磁盘满，但同盘 EIO、只读文件系统、权限丢失和强杀
+都可能阻止诊断落盘。诊断失败时 stderr 也只是 best effort，不能保证后台可见。
+此新增通道不改变命令树、业务 stdout JSON 或退出码，尚未随上述 canary 发布。
+
+### 显式离线清理
 
 `data prune` 必须离线取得同一实例锁，不自动停止服务或递归删除目录：
 
@@ -140,12 +181,11 @@ bundleMaxBytes=67108864、maxConnections=256。
 旧省略输入改为显式 `--input -`；不再使用 `--allow-children`、
 `--expected-cid` 或 `--max-runtime-ms`。已提供的子任务能力直接按服务预算执行。
 
-发布映射为 `task-engine-cli`。只发布已审查精确版本的单包 canary，
-沿用上游候选 `0.1.0-canary-261110-2`，不是已发布事实，也不因 Builder 发布而自动发布。
-父代理选定的准备顺序为 Protocol `0.1.0-canary-261110-1` →
-SDK `0.1.0-canary-261110-1` → Engine `0.1.0-canary-261110-1` →
-本 CLI `0.1.0-canary-261110-2`。每次只能发布一个映射包。
+发布映射为 `task-engine-cli`。当前已发布基线是 `0.1.0-canary-261111-2`，
+本轮候选为 `0.2.0-canary-261111-1`（npm `canary`），不修改 `latest`；
+准备工作不意味着已发布，也不因 Builder 发布而自动发布。
+每次只能发布一个明确授权的映射包。
 内部 runtime/peer 及当前发布守卫检查的 dev workspace 依赖必须已有匹配发布版本；
-每步确认准确依赖可用后才进入下一步，不能因这组候选而自动发布其他依赖。
-不批量、不自动发布依赖、不发布 stable，不移动 tag；
+每步确认准确依赖可用后才进入下一步，不自动发布其他依赖。
+不批量、不自动发布依赖；未经明确授权不推发布 tag 或发布正式版，不移动 tag；
 构想、实施检查或 manual dry-run 不等于真实发布和安装验收。

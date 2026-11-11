@@ -1,12 +1,101 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { mkdir, readdir, rm } from "node:fs/promises";
+import { link, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import * as dagPb from "@ipld/dag-pb";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
 import { DiskContent, Repository, pruneData, type TaskRecord } from "../src/data.js";
+import { managedDiagnostics } from "../src/diagnostics.js";
+import type { RunLogEntry } from "@silvermoon-work/task-protocol";
+
+test("durable log snapshots are atomic and replay without new disk writes or cursor positions", async (t) => {
+  const directory = resolve(".cache", `log-snapshots-${randomUUID()}`);
+  await mkdir(directory, { recursive: true });
+  let failure: unknown;
+  const repository = new Repository(directory, (error) => {
+    failure = error;
+  });
+  const observer = new DatabaseSync(join(directory, "tasks.sqlite"), { readOnly: true });
+  t.after(async () => {
+    observer.close();
+    repository.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const entries: RunLogEntry[] = [1, 2, 3].map((sequence) => ({
+    runId: "run",
+    sequence,
+    receivedAt: "2026-01-01T00:00:00.000Z",
+    level: "info",
+    message: `entry-${sequence}`,
+  }));
+  repository.db.exec(`CREATE TRIGGER reject_second BEFORE INSERT ON logs WHEN NEW.sequence=2
+    BEGIN SELECT RAISE(FAIL, 'controlled write failure'); END;`);
+  assert.throws(() => repository.appendLogs("task", entries));
+  assert.ok(failure);
+  assert.equal(observer.prepare("SELECT count(*) AS n FROM logs").get()?.n, 0);
+  repository.db.exec("DROP TRIGGER reject_second");
+  repository.appendLogs("task", entries.slice(0, 2));
+  const version = observer.prepare("PRAGMA data_version").get()?.data_version;
+  repository.appendLogs("task", entries.slice(0, 2));
+  assert.equal(observer.prepare("PRAGMA data_version").get()?.data_version, version);
+  repository.appendLogs("task", entries);
+  assert.deepEqual(
+    observer
+      .prepare("SELECT position,sequence,message FROM logs ORDER BY position")
+      .all()
+      .map((row) => ({ ...row })),
+    entries.map((entry) => ({
+      position: entry.sequence,
+      sequence: entry.sequence,
+      message: entry.message,
+    })),
+  );
+});
+
+test("managed diagnostics reserve bounded private space, redact failures and survive restart", async (t) => {
+  const directory = resolve(".cache", `diagnostics-${randomUUID()}`);
+  await mkdir(directory, { recursive: true });
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const path = join(directory, "daemon-diagnostic.json");
+  const first = managedDiagnostics(directory, "first-instance");
+  try {
+    first.record(
+      "shutdown-failed",
+      new AggregateError(
+        [
+          Object.assign(new Error("secret-token"), { code: "ENOSPC", path: "private-path" }),
+          Object.assign(new Error("private-input"), { code: "SECRET_VALUE" }),
+        ],
+        "sensitive-output",
+      ),
+    );
+  } finally {
+    first.close();
+  }
+  const saved = await readFile(path, "utf8");
+  assert.equal(Buffer.byteLength(saved), 4096);
+  assert.doesNotMatch(saved, /secret|sensitive|private|SECRET/);
+  assert.deepEqual(JSON.parse(saved).causes, [{ systemCode: "ENOSPC" }, {}]);
+  if (process.platform !== "win32") assert.equal((await stat(path)).mode & 0o777, 0o600);
+  const second = managedDiagnostics(directory, "second-instance");
+  try {
+    assert.equal(await readFile(path, "utf8"), saved);
+    second.record("storage-failed", Object.assign(new Error("secret"), { code: "EIO" }));
+    const latest = JSON.parse(await readFile(path, "utf8"));
+    assert.equal(latest.instanceId, "second-instance");
+    assert.equal(latest.systemCode, "EIO");
+  } finally {
+    second.close();
+  }
+  await link(path, join(directory, "shared"));
+  assert.throws(() => managedDiagnostics(directory, "third-instance"), { code: "START_FAILED" });
+  await rm(join(directory, "shared"));
+  await writeFile(path, "invalid-size");
+  assert.throws(() => managedDiagnostics(directory, "third-instance"), { code: "START_FAILED" });
+});
 
 test("offline mark-sweep preserves shared descendants, rejects unknown graphs and reports partial history changes", async (t) => {
   const directory = resolve(".cache", `prune-${randomUUID()}`);

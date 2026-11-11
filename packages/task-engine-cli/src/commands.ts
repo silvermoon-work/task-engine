@@ -28,9 +28,7 @@ import {
   stopManaged,
   type ResponseValue,
 } from "./managed.js";
-import { commandOf, help, leafHelp, leaves, options, startKeys } from "./usage.js";
-const booleans = new Set(["--async", "--cancel-running", "--cache"]);
-const repeated = new Set(["--status", "--task"]);
+import { commandOf, leafHelp, parseArguments, startKeys } from "./usage.js";
 function timestamp(value: string): string {
   const parts = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)/.exec(value);
   if (
@@ -59,7 +57,7 @@ export async function main(
   argv: readonly string[] = process.argv.slice(2),
   parentSignal?: AbortSignal,
 ): Promise<number> {
-  const { command, offset } = commandOf(argv);
+  const { command } = commandOf(argv);
   const readOnly = [
     "server status",
     "task query",
@@ -82,37 +80,8 @@ export async function main(
   let response: ResponseValue;
   let exitCode = 1;
   try {
-    if (!(leaves as readonly string[]).includes(command))
-      throw new TaskError("ARGUMENT_INVALID", `Unknown command. ${help}`);
-    const values = new Map<string, string[]>();
-    const positional: string[] = [];
-    for (let index = offset; index < argv.length; index++) {
-      const key = argv[index]!;
-      if (!key.startsWith("-")) {
-        positional.push(key);
-        continue;
-      }
-      if (!options[command]!.includes(key) || (values.has(key) && !repeated.has(key)))
-        throw new TaskError(
-          "ARGUMENT_INVALID",
-          `Unknown or duplicate option ${key}. ${leafHelp(command)}`,
-        );
-      const value = booleans.has(key) ? "true" : argv[++index];
-      if (!value || (value.startsWith("-") && value !== "-"))
-        throw new TaskError("ARGUMENT_REQUIRED", `Missing value for ${key}. ${leafHelp(command)}`);
-      values.set(key, [...(values.get(key) ?? []), value]);
-      if (key === "--task")
-        while (argv[index + 1] && !argv[index + 1]!.startsWith("-"))
-          values.get(key)!.push(argv[++index]!);
-    }
+    const { values, positional } = parseArguments(argv);
     const get = (key: string) => values.get(key)?.[0];
-    const count =
-      command === "config set"
-        ? 2
-        : ["config get", "config reset", "task logs", "task await"].includes(command)
-          ? 1
-          : 0;
-    if (positional.length !== count) throw new TaskError("ARGUMENT_REQUIRED", leafHelp(command));
     const config = await readConfig();
     controller.signal.throwIfAborted();
     const engine = () => serviceUrl(get("--engine") ?? effective(config, "client.engine"));
@@ -225,14 +194,6 @@ export async function main(
         lock.close();
       }
     } else if (command === "task query") {
-      if (
-        values.has("--id") &&
-        ["--status", "--since", "--until", "--limit", "--cursor"].some((key) => values.has(key))
-      )
-        throw new TaskError(
-          "INVALID_QUERY_OPTIONS",
-          "--id cannot be combined with filters or pagination.",
-        );
       const statuses = values.get("--status") ?? [];
       if (
         statuses.some(

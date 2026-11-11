@@ -233,6 +233,14 @@ text reference preserves string inference, while runtime Schemas require
 nonempty text, integer bytes >=0 and chunks >=1, forbid extra input/result
 properties, and disable messages. The TS contract is trusted executable code;
 esbuild transpilation is not typechecking. JSON contracts remain supported.
+The tree includes a standalone `tsconfig.json` for `src/**/*.ts`, using strict
+NodeNext/ESM checking, ES2023 libraries and no output. It declares TypeScript
+5.9.3 and `@types/node` 22.20.5 as development dependencies, matching the
+repository catalog and Node 22 minimum. Dependency declarations are checked
+too (`skipLibCheck` is not enabled). After installing, run
+`pnpm exec tsc --project tsconfig.json`; the CLI adds `pnpm typecheck` as a
+convenience script. Build remains independently usable transpilation, not a
+typecheck gate.
 The default dependency and author import use
 `@silvermoon-work/task-sdk@0.1.0-canary-261109-2` in builder version
 `0.1.0-canary-261109-3`. Older builder versions still emit the old SDK template;

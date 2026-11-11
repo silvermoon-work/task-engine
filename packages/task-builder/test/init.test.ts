@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import ts from "typescript";
+import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { createTaskProject } from "../src/init.js";
 import { memoryTree, readBytes } from "../src/tree.js";
@@ -13,13 +13,16 @@ test("init returns a deterministic owned task template without CLI or package-ma
   const tree = createTaskProject({ name: "@example/echo" });
   assert.deepEqual(
     (await tree.list("")).map(({ name }) => name),
-    [".gitignore", "assets", "package.json", "src", "task.build.yaml"],
+    [".gitignore", "assets", "package.json", "src", "task.build.yaml", "tsconfig.json"],
   );
   const bytes = await readBytes(tree, "package.json", 65_536);
   const manifest = JSON.parse(Buffer.from(bytes).toString());
   assert.equal(manifest.name, "@example/echo");
   assert.equal(manifest.private, true);
-  assert.equal(manifest.devDependencies, undefined);
+  assert.deepEqual(manifest.devDependencies, {
+    "@types/node": "22.20.5",
+    typescript: "5.9.3",
+  });
   const sdkManifest = JSON.parse(
     await readFile(new URL("../../task-sdk/package.json", import.meta.url), "utf8"),
   );
@@ -55,14 +58,20 @@ test("generated TypeBox contract derives usable Input/Result types and typecheck
   const root = resolve(".cache", `init-types-${randomUUID()}`);
   const tree = createTaskProject();
   try {
-    for (const path of ["package.json", "src/contract.ts", "src/helper.ts", "src/main.ts"]) {
+    for (const path of [
+      "package.json",
+      "tsconfig.json",
+      "src/contract.ts",
+      "src/helper.ts",
+      "src/main.ts",
+    ]) {
       const target = join(root, path);
       await mkdir(dirname(target), { recursive: true });
       await writeFile(target, await readBytes(tree, path, 65_536));
     }
     await writeFile(
-      join(root, "types.test.ts"),
-      `import type { Input, Result } from "./src/contract.js";
+      join(root, "src/types.test.ts"),
+      `import type { Input, Result } from "./contract.js";
 const input: Input = { text: "hello" };
 const result: Result = { text: input.text, bytes: 6, chunks: 1 };
 const text: string = result.text;
@@ -80,22 +89,41 @@ const missingChunks: Result = { text: "hello", bytes: 6 };
 const extraInput: Input = { text: "hello", extra: true };
 `,
     );
-    const program = ts.createProgram([join(root, "types.test.ts"), join(root, "src/main.ts")], {
-      module: ts.ModuleKind.NodeNext,
-      moduleResolution: ts.ModuleResolutionKind.NodeNext,
-      target: ts.ScriptTarget.ES2022,
-      strict: true,
-      skipLibCheck: true,
-      noEmit: true,
-      types: ["node"],
-    });
-    const diagnostics = ts.getPreEmitDiagnostics(program);
-    assert.deepEqual(
-      diagnostics.map((diagnostic) =>
-        ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n"),
-      ),
-      [],
+    const typecheck = () =>
+      spawnSync(
+        process.execPath,
+        [
+          fileURLToPath(import.meta.resolve("typescript/bin/tsc")),
+          "--project",
+          "tsconfig.json",
+          "--pretty",
+          "false",
+        ],
+        { cwd: root, encoding: "utf8" },
+      );
+    const valid = typecheck();
+    assert.equal(valid.status, 0, `${valid.stdout}\n${valid.stderr}`);
+    const contract = await readFile(join(root, "src/contract.ts"), "utf8");
+    await writeFile(
+      join(root, "src/contract.ts"),
+      `${contract}\nconst invalidInput: Input = { text: 123 };
+const invalidResult: Result = { text: "hello", bytes: "6", chunks: 1 };
+`,
     );
+    const invalidContract = typecheck();
+    assert.equal(invalidContract.status, 2, invalidContract.stderr);
+    assert.match(invalidContract.stdout, /src[/\\]contract\.ts.*TS2322.*number.*string/);
+    assert.match(invalidContract.stdout, /src[/\\]contract\.ts.*TS2322.*string.*number/);
+    await writeFile(join(root, "src/contract.ts"), contract);
+    const main = await readFile(join(root, "src/main.ts"), "utf8");
+    await writeFile(
+      join(root, "src/main.ts"),
+      main.replace("bytes, chunks };", 'bytes: "wrong", chunks };'),
+    );
+    const invalidWorker = typecheck();
+    assert.equal(invalidWorker.status, 2, invalidWorker.stderr);
+    assert.match(invalidWorker.stdout, /src[/\\]main\.ts.*TS2345/);
+    assert.match(invalidWorker.stdout, /Type 'string' is not assignable to type 'number'/);
     await assert.rejects(tree.read("src/contract.json"), /File not found/);
   } finally {
     await rm(root, { recursive: true, force: true });

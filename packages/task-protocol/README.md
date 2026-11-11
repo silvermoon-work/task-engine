@@ -12,7 +12,7 @@ this package, not the old-scope protocol. Protocol URI strings and source
 specification links retain their original identity; they are not package
 dependencies.
 
-The current source candidate is `0.1.0-canary-261110-1` for the managed Engine
+The current release candidate is `0.1.0` for the managed Engine
 delivery. This manifest preparation is not a publication claim and must not
 overwrite an existing npm version.
 
@@ -67,7 +67,9 @@ Request 原始表示参与幂等；内容判等与缓存使用 `bundleCid(refere
 通用 Task/完整 Run 的 JSON、schema、请求、事件、Store 与服务边界。
 
 Task Bundle/Worker 使用唯一 `taskSchemaUri` v1，包含独立诊断日志协议。
-项目尚未正式发布，v1 可原地演进；已移除的 Task v2 和未来未知 URL 明确拒绝，不做别名。
+0.1.0 固定本次发布的 v1 契约；后续不兼容变更必须明确版本与升级边界，
+不能继续以“尚未发布”为由静默修改已交付契约。
+已移除的 Task v2 和未来未知 URL 明确拒绝，不做别名。
 TaskType 仅声明 type/version/inputSchema/resultSchema/messageSchema 和完整 run 入口；
 Host 用 RegisteredType 本地模块描述注册，不传动态函数对象给 Engine。
 

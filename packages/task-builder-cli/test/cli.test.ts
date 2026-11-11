@@ -96,6 +96,7 @@ test("r14 examples 1–2: init complete project and refuse an existing destinati
       "src/helper.ts",
       "src/main.ts",
       "task.build.yaml",
+      "tsconfig.json",
     ]);
     const pkg = JSON.parse(await readFile(join(root, "demo", "package.json"), "utf8"));
     assert.equal(pkg.name, "demo");

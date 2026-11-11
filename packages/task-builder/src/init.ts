@@ -55,11 +55,32 @@ export function createTaskProject(options: TaskProjectOptions = {}): ReadonlyFil
           "@silvermoon-work/task-sdk": sdkVersion,
           "@sinclair/typebox": "0.34.52",
         },
+        devDependencies: {
+          "@types/node": "22.20.5",
+          typescript: "5.9.3",
+        },
       },
       null,
       2,
     )}\n`,
     ".gitignore": "node_modules/\ndist/\n*.car\n",
+    "tsconfig.json": `${JSON.stringify(
+      {
+        compilerOptions: {
+          target: "ES2023",
+          lib: ["ES2023"],
+          module: "NodeNext",
+          moduleResolution: "NodeNext",
+          strict: true,
+          verbatimModuleSyntax: true,
+          noEmit: true,
+          types: ["node"],
+        },
+        include: ["src/**/*.ts"],
+      },
+      null,
+      2,
+    )}\n`,
     "task.build.yaml": stringify({
       name: taskName,
       runtime: { minVersion },

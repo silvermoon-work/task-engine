@@ -5,8 +5,8 @@ Task Engine 的本地后台 Server 与任务调用 CLI，要求 Node.js 22.13+�
 旧 `0.1.0-canary-261110-1` 是单次嵌入执行命令，不具有下列接口。
 本文描述 **0.2.0 RC** 的接口，保留 0.1.0 的帮助纠错和后台故障诊断。
 0.1.0 正式版已完成验收，见[发布记录](../../README.md#stable-010-2026-11-11)。
-`0.2.0-canary-261111-1` 已发布并完成 office-ubuntu 实测；
-见[发布记录](../../README.md#unified-output-canary-020)。CLI Spec v1.0 是规范版本，
+`0.2.0-rc.0` 已发布并完成 office-ubuntu 实测；
+见[发布记录](../../README.md#release-candidate-channels)。CLI Spec v1.0 是规范版本，
 不是 npm 包的 1.0.0 或已发布声明。
 
 ```powershell
@@ -184,7 +184,7 @@ bundleMaxBytes=67108864、maxConnections=256。
 `--expected-cid` 或 `--max-runtime-ms`。已提供的子任务能力直接按服务预算执行。
 
 发布映射为 `task-engine-cli`。当前正式版为 `0.1.0`（npm `latest`），
-本轮候选为 `0.2.0-rc.0`（npm `rc`），不修改 `latest`；
+本轮已发布 `0.2.0-rc.0`（npm `rc`），未修改 `latest` 或历史 `canary`；
 每个包独立发布，不因 Builder 发布而自动发布。
 每次只能发布一个明确授权的映射包。
 内部 runtime/peer 及当前发布守卫检查的 dev workspace 依赖必须已有匹配发布版本；

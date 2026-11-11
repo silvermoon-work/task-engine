@@ -227,11 +227,36 @@ tag release mapping below.
 ### Release candidate channels
 
 New releases use only `latest` (stable versions) and `rc` (`<base>-rc.N`). The
-`0.2.0-rc.0` candidate replaces the dated-canary naming convention without
+`0.2.0-rc.0` release replaces the dated-canary naming convention without
 changing the 0.2.0 output contract. Existing canary package versions, immutable
 Git tags and npm dist-tags are preserved as historical records. The verifier
 rejects new dated canaries and other prerelease channels. Publish every package
 separately after its exact workspace dependencies are available.
+
+All nine RC packages were published from
+`27556d29a456ae7a2d514a7c5b6bf7b4b27d89ac`, after successful
+[exact-commit Node 22/24 CI](https://github.com/silvermoon-work/task-engine/actions/runs/43023616690).
+
+| Package                                | Trusted publication                                                                |
+| -------------------------------------- | ---------------------------------------------------------------------------------- |
+| `@silvermoon-work/task-protocol`       | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43024832665) |
+| `@silvermoon-work/task-sdk`            | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43025318118) |
+| `@silvermoon-work/task-builder`        | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43025632171) |
+| `@silvermoon-work/task-builder-cli`    | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43026117529) |
+| `@silvermoon-work/task-engine`         | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43026443601) |
+| `@silvermoon-work/task-engine-storage` | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43026862564) |
+| `@silvermoon-work/task-engine-http`    | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43027342706) |
+| `@silvermoon-work/task-engine-cli`     | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43027905810) |
+| `@silvermoon-work/task-engine-server`  | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43028256843) |
+
+Full Linux and Windows checks passed; one Windows cleanup-marker timing check
+required an isolated test and full rerun, both passed without code changes. A
+fresh `office-ubuntu` consumer installed all nine exact RC versions and verified
+their integrities, `rc` tags and unchanged pre-publication snapshot values for
+every historical `latest`/`canary` pointer. Real HTTP, Worker, SQLite and
+offline-Kubo checks passed, including CLI run/await/query, null output results,
+a streamed 2 MiB file, cancellation recovery, persisted output consumption after
+restart and history with content acquisition disabled.
 
 ### Unified output canary (0.2.0)
 

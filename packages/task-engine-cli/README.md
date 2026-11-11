@@ -128,6 +128,63 @@ stop 默认拒绝在途任务；`--cancel-running` 明确取消并等待释放�
 实际磁盘不足是 Server 致命故障，停止接收任务、处理自有资源并以失败退出；
 不能落盘或无法确认释放时如实报告，不把退出当释放证据。
 
+### 本地 raw gateway（当前源码新增，默认禁用）
+
+Engine 核心不提供 HTTP 分发；受管 CLI 宿主在同一监听地址提供可选
+`GET/HEAD /ipfs/{cid}?format=raw`。仅从实例文件缓存及持久输出块读取，
+**从不调用回源入口**；即使配置 `server.ipfsGateway`，该路由也不联网。
+CID 只标识内容，不是访问凭证。开启 `public` 会允许所有可连接监听地址的
+客户端读取全部已缓存块，包含其他任务的包和输出；不得在不可信网络直接开放。
+任务 API 的现有可信网络边界不因此改变，raw token 不保护任务 API。
+
+```powershell
+task-engine config set server.rawGatewayAccess public
+task-engine server start --data-dir .\engine-a --port 8787
+# 改配置不会热更新已有 Server；重启后才生效。
+# 可改为独立 bearer 访问策略（用随机 32–256 位 URL-safe token 替换占位符）：
+task-engine config set server.rawGatewayToken <random-token>
+task-engine config set server.rawGatewayAccess token
+# 禁用：
+task-engine config reset server.rawGatewayAccess
+```
+
+配置 `token` 但没有合法 token 时启动失败。请求使用
+`Authorization: Bearer <random-token>`，未授权统一 401 且不读取存储；
+禁用统一 404。token 响应为 private 缓存，公网模式为 public immutable。
+token 存在用户配置，`config list/get` 会显示它，请按凭证保护配置和终端记录。
+现有 Engine 上游客户端不支持配置 bearer header，双 Engine 演练应在隔离
+loopback/可信网络使用显式 public，或由授权反向代理处理访问控制。
+
+支持范围：CIDv0/v1（同 block 归一化为 CIDv1 缓存键）、SHA2-256 和
+identity（包括空探测 `bafkqaaa`），不解释 codec、不重编码 block。
+其他 hash 明确 501。只提供根 block，无 CAR、IPNS、UnixFS 路径解析、
+上传、pin、递归回源、DAG 范围或局部读取。无 format 且无 Accept 为 400；
+Accept 可选择 `application/vnd.ipld.raw` 或匹配通配符，质量值/排除项生效，
+不支持表示为 406，`format=raw` 优先于 Accept。重复 format/filename、
+非法 CID、路径、dag-scope/entity-bytes 为 400。Range 忽略并返回完整已验证
+block（200，`Accept-Ranges: none`），不能将片段当 raw block。
+普通缺块 404，`Cache-Control: only-if-cached` 缺块 412，损坏和存储错误
+500，不伪装成未命中。所有错误无内容 body，HEAD 永远无 body。
+
+成功响应含 raw Content-Type、attachment（可安全指定 filename）、
+nosniff、Content-Length、Content-Location、Vary: Accept 和强 ETag
+`"<canonical-cid>.raw"`。先校验本地 bytes，再处理 If-Match（失败 412）和
+If-None-Match（含弱比较，命中 304），不对缺失或损坏块伪造 304。
+HTTP 日期条件因没有稳定 Last-Modified 而忽略。
+
+独立于任务执行/准备配额的配置默认：
+`server.rawGatewayMaxConcurrent=4`（含慢客户端发送阶段，超限 429）、
+`server.rawGatewayMaxBlockBytes=2097152`（读取前限额，超限 413）、
+`server.rawGatewayTimeoutMs=10000`（读取与发送总时限，超时 504；
+已发 headers 则断开）。客户端断开和 Server 停止取消本地读并释放 slot。
+CID 文本最多 2048 字符，filename 最多 256 字符；这些为本 profile 上界。
+单请求最多读取 block 上界加 1 字节用于检测并发增长，不建立后台队列。
+HTTP listener、连接上限 `server.maxConnections` 和事件循环仍由宿主共享，
+不是针对恶意租户的进程/网络隔离；可在独立实例/反向代理设置连接级预算。
+
+完整规范固定版本、适用矩阵及双节点命令见
+[本轮验证依据](../../.silvermoon/ideas/01M75C5K29RZDCXJEPDRADFAW3/outer/inner/verification.md)。
+
 ### 后台故障诊断（当前源码新增）
 
 后台进程通常没有终端。实例目录下的 `daemon-diagnostic.json` 是预分配的

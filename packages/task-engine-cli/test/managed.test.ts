@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { appendFile, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
+import { CID } from "multiformats/cid";
+import { sha256 } from "multiformats/hashes/sha2";
 import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { MemoryIpfsClient } from "@silvermoon-work/task-engine/testing";
@@ -89,6 +91,92 @@ async function freePort() {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   return port;
 }
+test("two independent managed Engines execute a multi-block bundle through A's opt-in local raw gateway", async (t) => {
+  const directory = resolve(".cache", `two-engines-${randomUUID()}`);
+  await mkdir(directory, { recursive: true });
+  const a = join(directory, "a"),
+    b = join(directory, "b");
+  const portA = await freePort(),
+    portB = await freePort();
+  const urlA = `http://127.0.0.1:${portA}`,
+    urlB = `http://127.0.0.1:${portB}`;
+  let outbound = 0;
+  const upstream = createServer((_request, response) => {
+    outbound++;
+    response.writeHead(500).end();
+  });
+  await new Promise<void>((done) => upstream.listen(0, "127.0.0.1", done));
+  t.after(async () => {
+    await Promise.all([stopManaged(a, true), stopManaged(b, true)]);
+    await new Promise<void>((done) => upstream.close(() => done()));
+    await rm(directory, { recursive: true, force: true });
+  });
+  const run = async (args: string[]) => {
+    const result = await execute(args, directory);
+    assert.equal(result.code, 0, result.stdout + result.stderr);
+    return result.parse();
+  };
+  await run(["config", "set", "server.rawGatewayAccess", "public"]);
+  await run([
+    "server",
+    "start",
+    "--data-dir",
+    a,
+    "--port",
+    String(portA),
+    "--ipfs-gateway",
+    `http://127.0.0.1:${(upstream.address() as { port: number }).port}`,
+  ]);
+  // B uses the same config location, but must not itself expose its cache.
+  await run(["config", "reset", "server.rawGatewayAccess"]);
+  await run(["server", "start", "--data-dir", b, "--port", String(portB), "--ipfs-gateway", urlA]);
+  const entry = join(directory, "entry.ts");
+  await writeFile(entry, "export default async (input) => ({echo: input.value});");
+  const built = await buildBundleFixture({
+    entry,
+    outDirectory: join(directory, "bundle"),
+    declaration: {
+      $schema: taskSchemaUri,
+      name: "independent raw gateway execution",
+      runtime: { type: "node", minVersion: "22.13.0" },
+      entry: "worker.cjs",
+      binary: [],
+      inputSchema: { type: "object" },
+      resultSchema: true,
+      messageSchema: false,
+    },
+  });
+  const car = built.car;
+  const input = join(directory, "input.json");
+  await writeFile(input, '{"value":"independent"}');
+  const primed = await run(["run", "--engine", urlA, "--car", car, "--input", input]);
+  assert.equal(primed.data.status, "succeeded");
+  assert.deepEqual((primed.data.output as { result: unknown }).result, { echo: "independent" });
+  const outputCid = CID.parse((primed.data.output as { cid: string }).cid);
+  const outputResponse = await fetch(`${urlA}/ipfs/${outputCid}?format=raw`);
+  assert.equal(outputResponse.status, 200);
+  assert.deepEqual(
+    (await sha256.digest(new Uint8Array(await outputResponse.arrayBuffer()))).bytes,
+    outputCid.multihash.bytes,
+  );
+  assert.equal(outbound, 0);
+  await new Promise<void>((done) => upstream.close(() => done()));
+  const response = await fetch(`${urlB}/ipfs/${built.cid}?format=raw`);
+  assert.equal(response.status, 404);
+  const executed = await run(["run", "--engine", urlB, "--cid", built.cid, "--input", input]);
+  assert.equal(executed.data.status, "succeeded");
+  assert.deepEqual((executed.data.output as { result: unknown }).result, { echo: "independent" });
+  const blocksA = await readdir(join(a, "blocks"));
+  const blocksB = await readdir(join(b, "blocks"));
+  assert.ok(blocksA.length > 1);
+  for (const cid of blocksA) {
+    assert.ok(blocksB.includes(cid), cid);
+    const raw = await fetch(`${urlA}/ipfs/${cid}?format=raw`);
+    assert.equal(raw.status, 200);
+    assert.deepEqual(Buffer.from(await raw.arrayBuffer()), await readFile(join(b, "blocks", cid)));
+  }
+  assert.equal(outbound, 0);
+});
 test("managed installed entry: lifecycle, persistent execution, logs, configuration and offline cleanup", async (t) => {
   const directory = resolve(".cache", `managed-${randomUUID()}`);
   await mkdir(directory, { recursive: true });
@@ -518,7 +606,7 @@ key:"child",cid:${JSON.stringify(built.cid)},path:"resources/child",input,timeou
       effectiveValue: unknown;
       source: string;
     }[];
-    assert.equal(items.length, 15);
+    assert.equal(items.length, 20);
     assert.deepEqual(
       items.map((item) => item.key),
       items.map((item) => item.key).sort(),

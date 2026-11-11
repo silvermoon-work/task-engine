@@ -18,6 +18,11 @@ export const defaults = {
   "server.bundleMaxBytes": 67_108_864,
   "server.maxConnections": 256,
   "server.ipfsGateway": null,
+  "server.rawGatewayAccess": "disabled",
+  "server.rawGatewayToken": null,
+  "server.rawGatewayMaxConcurrent": 4,
+  "server.rawGatewayMaxBlockBytes": 2_097_152,
+  "server.rawGatewayTimeoutMs": 10_000,
   "server.dataDir": join(homedir(), ".silvermoon.work", "task-engine"),
   "client.engine": "http://127.0.0.1:8787",
   "task.timeoutMs": 60_000,
@@ -78,6 +83,10 @@ export function validateValue(key: ConfigKey, value: unknown, base = process.cwd
     throw new TaskError("INVALID_CONFIG_VALUE", `${key} must be a nonempty string.`);
   if (key === "server.dataDir") return isAbsolute(value) ? resolve(value) : resolve(base, value);
   if (key === "client.engine" || key === "server.ipfsGateway") return serviceUrl(value);
+  if (key === "server.rawGatewayAccess" && !["disabled", "public", "token"].includes(value))
+    throw new TaskError("INVALID_CONFIG_VALUE", `${key} must be disabled, public or token.`);
+  if (key === "server.rawGatewayToken" && !/^[A-Za-z0-9_-]{32,256}$/.test(value))
+    throw new TaskError("INVALID_CONFIG_VALUE", `${key} must be 32–256 URL-safe characters.`);
   return value;
 }
 export async function readConfig(): Promise<UserConfig> {

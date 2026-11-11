@@ -223,13 +223,18 @@ export class Repository {
       .all()
       .map((row) => this.decode(row));
   }
-  readContentBlock(cid: string): Uint8Array | undefined {
+  readContentBlock(cid: string, maxBytes = Number.MAX_SAFE_INTEGER): Uint8Array | undefined {
     if (
       !this.db
         .prepare("SELECT 1 FROM sqlite_schema WHERE type='table' AND name='ipfs_blocks'")
         .get()
     )
       return undefined;
+    const size = this.db
+      .prepare("SELECT length(bytes) AS size FROM ipfs_blocks WHERE cid=?")
+      .get(cid);
+    if (size && Number(size.size) > maxBytes)
+      throw new TaskError("BLOCK_TOO_LARGE", "Local block exceeds the read budget.");
     const row = this.db.prepare("SELECT bytes FROM ipfs_blocks WHERE cid=?").get(cid);
     if (!row) return undefined;
     if (!(row.bytes instanceof Uint8Array))
@@ -357,7 +362,7 @@ export class DiskContent implements GatewayClient {
     gateway?: string,
     private readonly failed: (error: unknown) => void = () => {},
     private readonly beforeWrite?: () => void,
-    private readonly retainedBlock?: (cid: string) => Uint8Array | undefined,
+    private readonly retainedBlock?: (cid: string, maxBytes?: number) => Uint8Array | undefined,
   ) {
     this.checkDirectory();
     if (gateway) this.gateway = createIpfsGatewayClient(gateway, { allowPath: true });
@@ -391,7 +396,12 @@ export class DiskContent implements GatewayClient {
       throw error;
     }
   }
-  async local(cid: CID): Promise<Uint8Array> {
+  async local(
+    cid: CID,
+    options: { signal?: AbortSignal; maxBytes?: number } = {},
+  ): Promise<Uint8Array> {
+    options.signal?.throwIfAborted();
+    const maxBytes = options.maxBytes ?? Number.MAX_SAFE_INTEGER;
     this.checkDirectory();
     const path = join(this.directory, "blocks", cid.toV1().toString());
     const metadata = await lstat(path).catch((error: NodeJS.ErrnoException) => {
@@ -399,19 +409,45 @@ export class DiskContent implements GatewayClient {
       return undefined;
     });
     if (!metadata) {
-      const retained = this.retainedBlock?.(cid.toV1().toString());
+      const retained = this.retainedBlock?.(cid.toV1().toString(), maxBytes);
       if (!retained) {
         const error: NodeJS.ErrnoException = new Error(`Content block is not cached: ${cid}.`);
         error.code = "ENOENT";
         throw error;
       }
+      if (retained.byteLength > maxBytes)
+        throw new TaskError("BLOCK_TOO_LARGE", "Local block exceeds the read budget.");
       await verifyBlock(cid, retained);
+      options.signal?.throwIfAborted();
       return retained;
     }
     if (!metadata.isFile() || metadata.isSymbolicLink())
       throw new TaskError("CACHE_OWNERSHIP_UNKNOWN", "Cache block is not a regular file.");
-    const bytes = await readFile(path);
+    if (metadata.size > maxBytes)
+      throw new TaskError("BLOCK_TOO_LARGE", "Local block exceeds the read budget.");
+    const file = await open(path, "r");
+    let bytes: Uint8Array;
+    try {
+      const current = await file.stat();
+      if (!current.isFile() || current.size > maxBytes)
+        throw new TaskError("BLOCK_TOO_LARGE", "Local block exceeds the read budget.");
+      // Bound allocation even if an external writer grows the file after stat.
+      const buffer = Buffer.alloc(Math.min(current.size + 1, maxBytes + 1));
+      let offset = 0;
+      while (offset < buffer.length) {
+        options.signal?.throwIfAborted();
+        const { bytesRead } = await file.read(buffer, offset, buffer.length - offset, offset);
+        if (!bytesRead) break;
+        offset += bytesRead;
+      }
+      if (offset > maxBytes)
+        throw new TaskError("BLOCK_TOO_LARGE", "Local block exceeds the read budget.");
+      bytes = buffer.subarray(0, offset);
+    } finally {
+      await file.close();
+    }
     await verifyBlock(cid, bytes);
+    options.signal?.throwIfAborted();
     return bytes;
   }
   readonly block = {

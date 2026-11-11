@@ -30,6 +30,7 @@ import {
 } from "./data.js";
 import { executeTask, PreparationPool, PreparingCapacity } from "./execution.js";
 import { managedDiagnostics } from "./diagnostics.js";
+import { createRawGateway, type RawGatewayOptions } from "./raw-gateway.js";
 
 const exec = promisify(execFile);
 export interface ResponseValue {
@@ -522,6 +523,7 @@ export async function serveManaged(
   const lock = await directoryLock(String(effective(config, "server.dataDir")), true);
   let repository: Repository | undefined;
   let content: DiskContent | undefined;
+  let rawGateway: ReturnType<typeof createRawGateway> | undefined;
   let closing = false;
   let fatal: unknown;
   let fatalScheduled = false;
@@ -591,6 +593,7 @@ export async function serveManaged(
         repository!.put(task);
       }
       try {
+        await rawGateway?.close();
         await content?.close();
       } catch (error) {
         errors.push(error);
@@ -726,6 +729,14 @@ export async function serveManaged(
   server.on("request", (incoming, outgoing) => {
     void (async () => {
       const url = new URL(incoming.url ?? "/", "http://localhost");
+      if (
+        url.pathname === "/ipfs" ||
+        url.pathname.startsWith("/ipfs/") ||
+        url.pathname.startsWith("/ipns/")
+      ) {
+        await rawGateway!.handle(incoming, outgoing);
+        return;
+      }
       if (url.pathname.startsWith("/_managed/")) {
         const nonce = incoming.headers["x-task-engine-nonce"];
         const controlBody = incoming.method === "POST" ? await bodyOf(incoming) : undefined;
@@ -1020,6 +1031,19 @@ export async function serveManaged(
       String(effective(config, "server.ipfsGateway") ?? "") || undefined,
       failStorage,
       hooks.beforeCacheWrite,
+      (cid, maxBytes) => repository!.readContentBlock(cid, maxBytes),
+    );
+    rawGateway = createRawGateway(
+      {
+        access: String(effective(config, "server.rawGatewayAccess")) as RawGatewayOptions["access"],
+        ...(config["server.rawGatewayToken"]
+          ? { token: String(config["server.rawGatewayToken"]) }
+          : {}),
+        maxConcurrent: Number(effective(config, "server.rawGatewayMaxConcurrent")),
+        maxBlockBytes: Number(effective(config, "server.rawGatewayMaxBlockBytes")),
+        timeoutMs: Number(effective(config, "server.rawGatewayTimeoutMs")),
+      },
+      (cid, options) => content!.local(cid, options),
     );
     startupSignal.throwIfAborted();
     server.maxConnections = Number(effective(config, "server.maxConnections"));

@@ -136,6 +136,9 @@ files are read and validated; unselected notes, stale files and archives are
 not read. It never reads the build description, compiles, runs contracts or
 installs packages. Links cannot escape the module tree, and reads detect
 observable input changes.
+Read verification compares handle-based metadata for both the streamed file
+and its current path, preserving replacement detection on Windows Node 22.13
+where path-based and handle-based device identifiers differ.
 The input module directory and all its ancestors must be canonical, without
 symlinks or Windows junctions. Linked module/ancestor aliases are rejected
 before choosing or writing an output, so they cannot disguise an internal CAR

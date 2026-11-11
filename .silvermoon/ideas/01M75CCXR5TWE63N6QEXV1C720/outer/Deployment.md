@@ -2,11 +2,15 @@
 
 用户已授权夜间按顺序自主推进：新 subagent 实施，主 Agent 独立审批门禁、发布 RC、连接指定 Ubuntu 设备验证并清理自有测试资源。不得开放公网监听、修改共享全局工具或绕过失败测试；真实 blocking issue 应保留现场并停止后续迭代。
 
+外部回放使用已同步的 [公共包 CLI 回放](inner/replay.mjs) 与 [真实浏览器检查页](inner/browser.html)，不导入产品私有源码。协议套件固定 `ipfs/gateway-conformance v0.14.1` / `011d20bd61c4736e3301d35e8fe388773e492511`；固定选择器和数值阈值继承实现契约，不在外部失败后调整。
+
 ## Steps
 
 ### D-S01: 在目标拓扑验证互操作
 
 实现审查通过后，仅为实际受影响映射包选择未占用的新 RC；准确 main push CI 全部通过后，经不可变 package-specific tag 和 `publish-npm.yaml` Trusted Publishing 发布，保留 latest/canary 与历史版本。不本地 publish、不自动发布依赖、不移动 tag。
+
+本轮仅发布 `@silvermoon-work/task-engine-cli@0.2.0-rc.5`，tag 为 `task-engine-cli-v0.2.0-rc.5`。发布前 latest=`0.1.0`、canary=`0.2.0-canary-261111-1`、rc=`0.2.0-rc.4`；内部依赖沿用已发布 `0.2.0-rc.0`。版本/tag 已占用则停止。
 
 在指定 SSH 设备的专用临时 consumer 普通安装精确 registry RC，核对 manifest/lock integrity。使用已经固定的规范/suite 提交、fixtures 与适用测试矩阵，记录每项测试、实际结果和有范围依据的排除项，不能以跳过代替通过。
 

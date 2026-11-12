@@ -1,6 +1,6 @@
 # @silvermoon-work/task-engine-cli
 
-Task Engine 的本地后台 Server 与任务调用 CLI，要求 Node.js 22.13+。
+Task Engine 的本地后台 Server 与任务调用 CLI，要求 Node.js 22.15+（23.x 至少 23.5）。
 已发布 `0.1.0-canary-261111-2` 提供受管 Server、持久任务和 Space 输出；
 旧 `0.1.0-canary-261110-1` 是单次嵌入执行命令，不具有下列接口。
 本文描述 **0.2.0 RC** 的接口，保留 0.1.0 的帮助纠错和后台故障诊断。

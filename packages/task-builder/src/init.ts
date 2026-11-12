@@ -28,7 +28,7 @@ export function createTaskProject(options: TaskProjectOptions = {}): ReadonlyFil
       `Package name "${name}" produces an unsafe output path "${outDirectory}". Choose a package name without reserved device names or trailing dots.`,
     );
   const taskName = options.taskName ?? name.split("/").at(-1)!;
-  const minVersion = options.minRuntimeVersion ?? "22.13.0";
+  const minVersion = options.minRuntimeVersion ?? "22.15.0";
   const sdkVersion = options.sdkVersion ?? "0.2.0-rc.0";
   if (!sdkVersion.trim() || [...sdkVersion].some((char) => char.charCodeAt(0) < 32))
     throw new Error("Dependency specifiers must be nonempty without control characters.");
@@ -50,7 +50,7 @@ export function createTaskProject(options: TaskProjectOptions = {}): ReadonlyFil
         version: "0.0.0",
         private: true,
         type: "module",
-        engines: { node: ">=22.13.0" },
+        engines: { node: "^22.15.0 || >=23.5.0" },
         dependencies: {
           "@silvermoon-work/task-sdk": sdkVersion,
           "@sinclair/typebox": "0.34.52",

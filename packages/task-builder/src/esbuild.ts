@@ -245,7 +245,7 @@ runTask(async (input, context) => {
     define: { "import.meta.url": "__artifactURL" },
     banner: {
       js: options.binding
-        ? 'const __artifactURL = require("node:url").pathToFileURL(__filename).href;'
+        ? 'const __artifactURL = __filename.startsWith("ipfs://") ? __filename : require("node:url").pathToFileURL(__filename).href;'
         : `const __filename=${JSON.stringify(`task-tree:///${entry}`)};const __dirname=${JSON.stringify(`task-tree:///${posix.dirname(entry)}`)};const __artifactURL=__filename;`,
     },
     metafile: true,

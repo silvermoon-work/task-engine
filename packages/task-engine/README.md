@@ -35,7 +35,12 @@ accepted 与 Task 创建原子持久化，rejected 也保留幂等依据。
 准备没有整体截止；停止观察不取消处理，Task 时间只在最终创建时锚定。
 `getRequest` 读取原始意图，`getRequestStatus` 独立读取处理结果。
 
-每 Run 以内存 CommonJS source 启动已验证 `worker.cjs`，不加载作者 factory，也不启动历史业务复验 Worker。
+每 Run 由引擎随包分发的本地 bootstrap 启动 Worker，在 Worker 内安装同步模块 hook，
+再以 `ipfs://<canonical-cid>/worker.cjs` 加载已验证的内存 CommonJS source。
+最低 Node 为 22.15.0；23.x 需至少 23.5.0，精确范围为 `^22.15.0 || >=23.5.0`。
+宿主仍负责内容读取、校验和授权，hook 只读当前入口，
+不联网、不将 bundle 源码落盘、不使用 eval 或加载时源码改写。
+不加载作者 factory，也不启动历史业务复验 Worker。
 `context.bundle` 是带固定 `cid` 的只读 Space；
 `context.bundle.root.resolve(path).read({signal?})` 返回文件／目录联合类型。
 文件的 `content` 是背压友好的字节流，目录的 `entries` 是按需消费的异步迭代。
@@ -86,6 +91,29 @@ MemoryStore，并提供 VirtualClock；旧协调器资源 fixtures
 只是内部回归测试，不是生产注册 API。`pool` 保留业务资源协调工具。
 Worker 不是 OS 安全沙箱。
 关闭和退休共享同一个 Worker 终止 Promise，等待实际退出，不重复请求终止。
+
+## IPFS 模块地址与重建
+
+首期仅支持已验证 bundle 的单文件 CJS 入口及 Node 内置模块。其他 CID、资源路径、
+路径穿越、编码路径、凭据、查询和片段明确拒绝；不开放本地模块、node_modules、
+其他协议或运行时模块图。CIDv0 别名规范化到相同 CIDv1 入口及 CJS cache 身份。
+hook 是每 Worker 的加载适配，不是安全沙箱，不改变内置模块已有能力，
+也不为任务创建的子 Worker 自动安装 hook。宿主的模块加载行为不变。
+
+新版 Builder 使 `import.meta.url` 等于规范 IPFS 入口；`__filename` 为该完整 URL，
+`__dirname` 为 `ipfs://<canonical-cid>`，二者不是宿主文件路径。
+不要对其调用 `fileURLToPath`、`pathToFileURL`、`createRequire` 或依赖磁盘路径拼接。
+bootstrap 自己以本地 URL 创建 require，再加载 IPFS 入口；作者不需要新增启动 API。
+原生 `require.cache`、`require.resolve`、`require.resolve.paths` 及内置模块保留；
+Node 22.15.0 与 24.11.1 的 `require.resolve(ipfsURL)` 不走 hook，仍报
+`MODULE_NOT_FOUND`，不承诺通用 IPFS require/resolve API。
+
+需要正确模块地址的旧产物须用新版 Builder 重新构建、重新生成 CAR/CID，再提交新 CID。
+这只是地址生成修正：不改变 `task.yaml`、`taskSchemaUri`、SDK 握手、Space protocol
+或业务 schema，不新增 loaderVersion，不根据 Builder 版本拒绝旧产物。
+旧产物不保证自动获得修正后的 `import.meta.url`，也没有兼容 eval 分支。
+运行时仍同时要求引擎最低版本及声明中的 `runtime.minVersion`；已有低版本声明
+不会因此单独被拒绝。初始化模板默认声明 22.15.0，协议/SDK 的独立 API 本身未改变。
 
 ## Run 文件空间（breaking change）
 

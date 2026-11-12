@@ -23,6 +23,7 @@ import {
   validateBundleReference,
 } from "@silvermoon-work/task-protocol";
 import { BundleCache, type BundleLimits, type BundleCacheOptions } from "./bundle.js";
+import { bundleModuleURL } from "./bundle-module.js";
 import type { IpfsClient } from "./content.js";
 import { TaskEngine as Coordinator, type EngineOptions as CoordinatorOptions } from "./engine.js";
 import { newId } from "./identity.js";
@@ -222,7 +223,7 @@ export class TaskEngine implements TaskService {
       inputSchema: bundle.resolved.inputSchema,
       resultSchema: bundle.resolved.resultSchema,
       messageSchema: bundle.resolved.messageSchema,
-      module: `ipfs://${bundle.cid}/worker.cjs`,
+      module: bundleModuleURL(bundle.cid),
       exportName: "unused",
       configuration: null,
       bundle: { cid: bundle.cid, declaration: bundle.resolved },

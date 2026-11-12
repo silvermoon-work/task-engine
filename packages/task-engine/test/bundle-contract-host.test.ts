@@ -77,6 +77,192 @@ async function compile(directory: string, source: string, schemas: Record<string
   return { contents, resolved, cid };
 }
 type Built = Awaited<ReturnType<typeof compile>>;
+
+test("IPFS module entry preserves Builder URLs, CJS APIs, cache and per-Run isolation", async () => {
+  await fixture(async (directory) => {
+    const built = await compile(
+      directory,
+      `import {runTask} from "@silvermoon-work/task-sdk";
+const state = globalThis;
+state.moduleEvaluations = (state.moduleEvaluations ?? 0) + 1;
+runTask(async () => {
+  const cached = require.cache[__filename];
+  const first = module.require(__filename);
+  const second = module.require(__filename);
+  let ipfsResolve;
+  try { require.resolve(__filename); } catch (error) { ipfsResolve = error.code; }
+  return {
+    url: import.meta.url, filename: __filename, dirname: __dirname,
+    require: typeof require, cache: typeof require.cache,
+    resolve: require.resolve("node:path"), paths: typeof require.resolve.paths,
+    cached: Boolean(cached), same: first === second && cached.exports === first,
+    evaluations: state.moduleEvaluations, ipfsResolve,
+    builtin: typeof module.require("node:crypto").createHash,
+    options: process.env.NODE_OPTIONS, sourceVisible: "bundleSource" in module.require("node:worker_threads").workerData
+  };
+});`,
+      { resultSchema: true },
+    );
+    const expected = {
+      url: `ipfs://${built.cid}/worker.cjs`,
+      filename: `ipfs://${built.cid}/worker.cjs`,
+      dirname: `ipfs://${built.cid}`,
+      require: "function",
+      cache: "object",
+      resolve: "node:path",
+      paths: "function",
+      cached: true,
+      same: true,
+      evaluations: 1,
+      ipfsResolve: "MODULE_NOT_FOUND",
+      builtin: "function",
+      options: "",
+      sourceVisible: false,
+    };
+    const runs = await Promise.all([supervise(built, {}), supervise(built, {})]);
+    for (const observed of runs)
+      assert.deepEqual(observed?.outcomes, [{ kind: "completed", result: expected }]);
+  });
+});
+
+test("IPFS module hook rejects non-entry addresses without disclosing credentials", async () => {
+  await fixture(async (directory) => {
+    const built = await compile(
+      directory,
+      `import {runTask} from "@silvermoon-work/task-sdk";
+runTask(async () => {
+  const cid = __filename.slice(7, -11);
+  const requests = [
+    "ipfs://" + cid + "/resources/data.js",
+    "ipfs://bafybeigdyrzt5sfp7udm7hu76u7cnngv7cbd3gbta6ipjcnpf7bh6zyvle/worker.cjs",
+    "ipfs://invalid/worker.cjs", "ipfs://user:secret@" + cid + "/worker.cjs",
+    "ipfs://" + cid + "/other/../worker.cjs",
+    "ipfs://" + cid + "/%77orker.cjs",
+    "ipfs://" + cid + "/%2e%2e/worker.cjs",
+    "ipfs://" + cid + "/worker.cjs?query",
+    "ipfs://" + cid + "/worker.cjs#fragment",
+    "ipfs://" + cid + "/worker.cjs?", "ipfs://" + cid + "/worker.cjs#",
+    "ipfs://" + cid + "/worker.cjs/extra",
+    "./resources/data.js", "file:///host-secret.cjs", "https://user:secret@host/code.js",
+    "unbundled-package"
+  ];
+  return requests.map(request => {
+    try { Reflect.apply(module.require, module, [request]); return {loaded: true}; }
+    catch (error) { return {code: error.code, message: error.message}; }
+  });
+});`,
+      { resultSchema: true },
+    );
+    const observed = await supervise(built, {});
+    const outcome = observed?.outcomes[0];
+    assert.ok(outcome?.kind === "completed" && Array.isArray(outcome.result));
+    const result = outcome.result;
+    assert.equal(result.length, 16);
+    for (const error of result) {
+      assert.ok(error && typeof error === "object" && !Array.isArray(error));
+      assert.equal(error.code, "unsupported_module");
+      assert.ok(typeof error.message === "string");
+      assert.match(error.message, new RegExp(`ipfs://${built.cid}/worker.cjs`));
+      assert.doesNotMatch(error.message, /secret|host-secret|user:/);
+    }
+    const local = new URL("./isolated-type.mjs", import.meta.url).href;
+    assert.equal(
+      typeof (await import(local)).createType,
+      "function",
+      "host local loading is unchanged",
+    );
+  });
+});
+
+test("IPFS module lifecycle logs, cancels and confirms physical exit without inventing cleanup proof", async () => {
+  await fixture(async (directory) => {
+    const built = await compile(
+      directory,
+      `import {runTask} from "@silvermoon-work/task-sdk";
+runTask(async (input, context) => {
+  await context.log({level: "info", message: "IPFS entry loaded"});
+  await context.progress({stage: "execution", message: "ready"});
+  if (input.blocked) { for (;;) {} }
+  await new Promise(resolve => context.signal.addEventListener("abort", resolve, {once: true}));
+  return {cancelled: context.signal.aborted};
+});`,
+      { resultSchema: true },
+    );
+    for (const blocked of [false, true]) {
+      const progress: Json[] = [],
+        logs: string[] = [],
+        outcomes: RunOutcomeReport[] = [];
+      let exited = false,
+        released = false;
+      let loss: string | undefined;
+      const supervisor = new TypeSupervisor(
+        {
+          type: built.cid,
+          version: "1",
+          environment: "ipfs-lifecycle",
+          ...built.resolved,
+          bundle: { cid: built.cid, declaration: built.resolved },
+          module: `ipfs://${built.cid}/worker.cjs`,
+          exportName: "",
+          configuration: null,
+          getBundleSource: () => built.contents.get("worker.cjs")!.toString(),
+        },
+        {
+          async progress(_run, value) {
+            progress.push(value);
+          },
+          log(_run, _generation, _scope, value) {
+            logs.push(value.message);
+            return { state: "unavailable", reason: "disabled" };
+          },
+          async complete() {},
+          async failed() {},
+          async confirm() {},
+          async outcome(_run, value) {
+            outcomes.push(value);
+          },
+          async exited() {
+            exited = true;
+          },
+          released() {
+            assert.equal(exited, true);
+            released = true;
+          },
+          lost(_runs, error) {
+            loss = error.code;
+          },
+        },
+        {
+          heartbeatMs: 20,
+          healthMs: 5000,
+          maxInFlight: 8,
+          maxPayloadBytes: 65536,
+          stopGraceMs: 1000,
+          forceExitWaitMs: 1000,
+        },
+      );
+      try {
+        await supervisor.run("run", { blocked }, "scope");
+        await until(() => progress.length === 1);
+        assert.deepEqual(logs, ["IPFS entry loaded"]);
+        if (blocked) {
+          const exit = await supervisor.forceTerminate("run");
+          assert.equal(exit.forced, true);
+        } else supervisor.cancel("run");
+        await until(() => released || loss !== undefined);
+        assert.equal(exited, true);
+        assert.equal(loss, blocked ? "reclamation_unknown" : undefined);
+        assert.equal(released, !blocked);
+        assert.equal(supervisor.canRoute("run"), false);
+        if (!blocked)
+          assert.deepEqual(outcomes, [{ kind: "completed", result: { cancelled: true } }]);
+      } finally {
+        await supervisor.close();
+      }
+    }
+  });
+});
+
 async function supervise(
   built: Built,
   input: Json,

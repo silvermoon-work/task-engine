@@ -1,6 +1,6 @@
 name: Echo
 runtime:
-  minVersion: "22.13.0"
+  minVersion: "22.15.0"
 source:
   entry: src/main.ts
   contract: src/contract.json

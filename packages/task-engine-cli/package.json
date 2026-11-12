@@ -50,7 +50,7 @@
     "@silvermoon-work/task-sdk": "workspace:*"
   },
   "engines": {
-    "node": ">=22.13.0"
+    "node": "^22.15.0 || >=23.5.0"
   },
   "publishConfig": {
     "access": "public",

@@ -23,6 +23,7 @@ import {
   validateRunLog,
   validateRunProgress,
 } from "@silvermoon-work/task-protocol";
+import { bundleModuleURL } from "./bundle-module.js";
 
 export interface TypeChannel {
   invokeTask?(
@@ -165,7 +166,11 @@ class RunWorker {
     if (registration.bundle) {
       if (!registration.getBundleSource)
         throw new TaskError("invalid_bundle", "Verified Bundle source is required.");
-      this.registration = { ...registration, moduleDigest: registration.bundle.cid };
+      this.registration = {
+        ...registration,
+        module: bundleModuleURL(registration.bundle.cid),
+        moduleDigest: registration.bundle.cid,
+      };
       return;
     }
     if (!registration.module.startsWith("file:") || !registration.exportName)
@@ -197,15 +202,13 @@ class RunWorker {
     if (this.starting) return this.starting;
     if (this.worker) return;
     const generation = randomUUID();
+    const workerFile = this.registration.bundle ? "bundle-worker.js" : "type-worker.js";
     const worker = new Worker(
-      this.registration.bundle
-        ? this.registration.getBundleSource!()
-        : new URL(
-            import.meta.url.endsWith(".ts") ? "../dist/type-worker.js" : "./type-worker.js",
-            import.meta.url,
-          ),
+      new URL(
+        import.meta.url.endsWith(".ts") ? `../dist/${workerFile}` : `./${workerFile}`,
+        import.meta.url,
+      ),
       {
-        ...(this.registration.bundle ? { eval: true } : {}),
         execArgv: [],
         stdout: true,
         stderr: true,
@@ -225,7 +228,12 @@ class RunWorker {
           maxInFlight: this.limits.maxInFlight,
           ...(this.limits.durableLogs ? { durableLogs: true } : {}),
           maxPayloadBytes: this.limits.maxPayloadBytes,
-          ...(this.registration.bundle ? { bundle: this.registration.bundle } : {}),
+          ...(this.registration.bundle
+            ? {
+                bundle: this.registration.bundle,
+                bundleSource: this.registration.getBundleSource!(),
+              }
+            : {}),
         },
       },
     );

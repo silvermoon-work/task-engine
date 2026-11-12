@@ -11,7 +11,7 @@ import {
   validateBundleReference,
   validateTaskText,
 } from "@silvermoon-work/task-protocol";
-import { gte } from "semver";
+import { gte, satisfies } from "semver";
 import { GatewayReadError, type IpfsClient, openContent, withGatewayHints } from "./content.js";
 
 export type BundleLimits = TaskBundleFileLimits & {
@@ -50,7 +50,7 @@ export function inspectTaskBundle(
     paths: limits.paths,
   });
   if (
-    !gte(process.versions.node, "22.13.0") ||
+    !satisfies(process.versions.node, "^22.15.0 || >=23.5.0") ||
     !gte(process.versions.node, inspected.declaration.runtime.minVersion)
   ) {
     throw new TaskError("unsupported_runtime", "Bundle Node runtime is unsupported.");

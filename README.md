@@ -9,8 +9,8 @@ scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节�
 
 ## 安装试用
 
-使用 Node.js 22.13 或更新版本（建议 Node.js 24），安装两个已编译的 CLI。以下是
-**0.1.0 / latest**
+使用 Node.js 22.15 或更新版本（23.x 至少 23.5，建议 Node.js
+24），安装两个已编译的 CLI。以下是 **0.1.0 / latest**
 已发布并完成真实 registry 安装验证。命令失败时先排查，不继续使用旧产物：
 
 ```powershell

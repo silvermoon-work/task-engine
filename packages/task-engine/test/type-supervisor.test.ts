@@ -148,7 +148,7 @@ test("Bundle host rejects a different handshake CID or Schema before dispatch", 
     const supervisor = new TypeSupervisor(
       {
         ...f.registration,
-        bundle: { cid: "host-verified-bundle", declaration },
+        bundle: { cid: "bafybeigdyrzt5sfp7udm7hu76u7cnngv7cbd3gbta6ipjcnpf7bh6zyvle", declaration },
         getBundleSource: () => `
 const {parentPort,workerData}=require("node:worker_threads");
 const {$schema,inputSchema,resultSchema,messageSchema}=workerData.bundle.declaration;

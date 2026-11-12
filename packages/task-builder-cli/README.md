@@ -1,6 +1,6 @@
 # @silvermoon-work/task-builder-cli
 
-Task production CLI and reusable command runner. Node >=22.13 is required.
+Task production CLI and reusable command runner. Node >=22.15 is required.
 This document describes the 0.1.0 interface; registry acceptance
 requires separately publishing compatible Builder and CLI packages.
 The coordinated `0.1.0-canary-261111-2` release and installed-package smoke
@@ -45,7 +45,7 @@ The editable template includes:
 - `package.json`, `.gitignore`, `pnpm-workspace.yaml`, `tsconfig.json`;
 - `task.build.yaml`, explicit `src/main.ts` and `src/helper.ts`;
 - a TypeBox `src/contract.ts` with a shared Schema and `assets/greeting.txt`;
-- Node minimum 22.13.0, `assets/**` → `resources/`, no binary rules;
+- Node minimum 22.15.0, `assets/**` → `resources/`, no binary rules;
 - independent `typecheck`, build, standalone CAR and explicit `clean` scripts;
   no dependency installation.
 

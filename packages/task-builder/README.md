@@ -37,6 +37,11 @@ canary Bundles before running them with the new Space host protocol.
 
 ## Transformation
 
+IPFS 入口执行需要 Node >=22.15.0（23.x 至少 23.5.0）。新版产物直接以逻辑 IPFS `__filename`
+生成 `import.meta.url`；本地文件执行仍转换为 file URL。不要把 IPFS 模块地址当作
+宿主磁盘路径。已有产物须重新构建并生成新 CID 才获得修正后的地址，不升级
+`task.yaml` 或业务 schema；详见 [Engine 地址语义与重建说明](../task-engine/README.md#ipfs-模块地址与重建)。
+
 ```ts
 import {
   buildTaskBundle,
@@ -45,7 +50,7 @@ import {
 
 const output: ReadonlyFileTree = await buildTaskBundle(input, {
   name: "Echo",
-  runtime: { minVersion: "22.13.0" },
+  runtime: { minVersion: "22.15.0" },
   source: {
     entry: "src/main.ts",
     contract: {
@@ -148,7 +153,7 @@ Dependencies must be present in the input tree. There is no install, network
 resolver, automatic tsconfig discovery, tsconfig path mapping, arbitrary asset
 loader or externally supplied esbuild plugin in this first implementation.
 Compilation targets Node 22 CommonJS and rejects non-static import/require calls.
-The build host must use Node >=22.13; execution runtime eligibility belongs to
+The build host must use Node >=22.15; execution runtime eligibility belongs to
 the Engine.
 
 `source.mode` defaults to `explicit`: the entry calls the SDK's `runTask`

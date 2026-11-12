@@ -319,6 +319,10 @@ try {
       const loadEnd = await status();
       await new Promise(done => setTimeout(done, 1000));
       const drainEnd = await status();
+      report.measurements.pendingWindow = {
+        beginning: beginning.memory, quietEnd: quietEnd.memory,
+        loadEnd: loadEnd.memory, drainEnd: drainEnd.memory,
+      };
       const statuses = tasks.flatMap(result => result.statuses);
       waves.push({
         quiet: summarizeWindow(beginning.memory, quietEnd.memory, 1000),
@@ -327,6 +331,7 @@ try {
         latencies: tasks.map(result => result.latency), statuses,
         gateway: drainEnd.gateway, lifetimePeakRssDiagnosticOnly: drainEnd.peakRssBytes,
       });
+      delete report.measurements.pendingWindow;
       assert.ok(drainEnd.gateway.peakActive <= 2);
       assert.equal(drainEnd.gateway.active, 0);
       if (memoryArm === "treatment") {
@@ -444,6 +449,9 @@ try {
       `${JSON.stringify(report, null, 2)}\n`,
     );
   if (holdMs) await new Promise((done) => setTimeout(done, holdMs));
+} catch (error) {
+  report.error = { message: error.message, code: error.code };
+  throw error;
 } finally {
   let stopped = !started;
   try {

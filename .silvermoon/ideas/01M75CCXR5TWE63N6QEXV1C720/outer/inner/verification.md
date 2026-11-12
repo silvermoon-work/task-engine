@@ -133,6 +133,9 @@ return await page.evaluate(
 
 ## 固定预算下的实测
 
+本节原 Windows RSS 数值属于历史有缺陷口径，不再作为 I-S03/I-AC03 的有效
+内存证明；原始结果和 `evidence.json` 不改写。修订后的当前采样结果与阻塞见下一节。
+
 最终 Windows
 workload 的逐项结果见 evidence.load：热身后4个基线任务，随后8个真实 Worker 各执行4次1
 MiB raw读取（总32次），同时校验全部返回 bytes，成功任务返回已校验
@@ -160,7 +163,72 @@ callback、workspace 目录树边界）不计为测量或通过，自有失败�
 bytes，不是客户端确认交付量。宿主共享 listener/连接限制/事件循环；不承诺恶意客户端的硬 CPU/内存/网络隔离。精确的1000ms读取超时、413预算、断连、慢消费者 backpressure、缺块/损坏及逐块删除/GC 行为同时由 focused
 regression 测试验证；外层公网TLS/HTTP2仍属部署。
 
+## 修订后的当前内存实验：未通过采样覆盖门禁
+
+协议先于测量同步到 primary：`3e99e433bbf693cd47ff8018157931877ddb54b1`；
+两臂等量冷缓存预热补充同步到 `25a2a69`。没有修改 Ideal、128 MiB 数值、
+50ms cadence、250ms 最大采样间隙或其他服务预算。不是给旧失败补写通过证据。
+
+本地使用 Windows、Node `v26.13.0`、已构建 workspace CLI 的公开入口（不是
+registry 发布包），脚本不导入产品私有模块；远程独立 registry/Linux 门禁尚未重跑。
+新增认证 status 遥测只涉及 `@silvermoon-work/task-engine-cli`，父级需先审查并另发
+新版本后才能在 consumer 使用；已发布 rc.5 不支持该字段，绝不能覆盖旧版本/tag。
+
+执行命令（与上文相同公开入口，报告改为本目录 `memory-evidence.json`）：
+
+```powershell
+node .silvermoon\ideas\01M75CCXR5TWE63N6QEXV1C720\outer\inner\replay.mjs --consumer packages\task-engine-cli --tree-root . --work .gateway-memory-owned --load yes --report .silvermoon\ideas\01M75CCXR5TWE63N6QEXV1C720\outer\inner\memory-evidence.json
+```
+
+完整保留三次尝试，不挑最好结果：
+
+1. `memory-warmup-failure.json`：初次8任务冷缓存预热遇 Windows 同 CID 文件
+   并发替换 `EPERM`，未开始测量。两臂随后增加相同串行带/不带 gateway 预热，
+   不修改生产存储代码，不减少测量负载。
+2. `memory-coverage-failure.json`：等量预热后首次 control/load 采样覆盖失败，
+   0 个有效波次；该版尚未在校验失败前保留窗口，不能重建缺失数据。
+3. `memory-evidence.json`：为失败窗口增加有界诊断保存后原协议复查，仍在第一
+   control/load 失败。原始四个边界快照完整保留；首个不合格间隙
+   **356.2698ms**，该 load 最大间隙 **750.2986ms**，超过250ms；
+   quiet/drain 最大间隙分别64.4599/64.1700ms。没有通过重试删去前两次失败。
+
+第三次尚未进行 treatment，也没有任何有效匹配对，因此 **128 MiB 增量与成对延迟
+均未判定**。不能把 control 当前RSS变化说成网关增量，不能宣称平台稳定、无泄漏、
+RSS回到基线、故障演练或整体通过。I-S03/I-AC03保持未完成，D仍全部未完成，
+不提交 submitInner，也不进入下一轮。主线程在此负载下的采样间隙是当前实际阻塞；
+不通过提高覆盖阈值、RSS预算或减少8任务/32读取使其通过。
+
+第三次诊断值（**覆盖无效，仅描述实际收到的样本，非阶段真实峰值或门禁证据**）。
+quiet/load/drain 的样本数为30/102/28，边界时长为1804.62/10955.44/1776.57ms。
+每格依次为 min / median / max / end，单位 bytes：
+
+| 计数器 | quiet | load | drain |
+| --- | --- | --- | --- |
+| rss | 241258496 / 241258496 / 241258496 / 241258496 | 201093120 / 218411008 / 241295360 / 214396928 | 214532096 / 214601728 / 214601728 / 214601728 |
+| heapUsed | 70472896 / 70485076 / 70495400 / 70495400 | 36427992 / 61415400 / 86836248 / 41384480 | 41727568 / 41742412 / 41752776 / 41752776 |
+| heapTotal | 114184192 / 114184192 / 114184192 / 114184192 | 114184192 / 125456384 / 130699264 / 127815680 | 127815680 / 127815680 / 127815680 / 127815680 |
+| external | 24121854 / 24121854 / 24121854 / 24121854 | 6067998 / 10237067 / 24122969 / 7196597 | 7198496 / 7198496 / 7198496 / 7198496 |
+| arrayBuffers | 19466000 / 19466000 / 19466000 / 19466000 | 1412144 / 5580629 / 19467115 / 2540743 | 2542642 / 2542642 / 2542642 / 2542642 |
+
+rss包括全部Worker；其他计数器仅为服务主线程，arrayBuffers属于external，不求和。
+生命周期maxRSS只留诊断。未强制GC；短期下降可能来自GC/allocator，
+不能据此作泄漏结论或归因。每次失败均在finally停止自有daemon、等待并发CLI结束、
+移除源fixture/CAR/工作目录；第三次诊断增强保证写报告失败也不跳过停止清理。
+
 ## 仓库验证
+
+本次修订新增内存采样生命周期、有界历史、旧高水位反例、配对数学、真实差值超预算、
+缺失/不连续/非法采样覆盖测试，并在现有受管生命周期案例验证认证status能返回遥测、
+未认证请求不能读取遥测。focused命令：
+
+```powershell
+pnpm --filter @silvermoon-work/task-engine-cli exec tsx --test --test-name-pattern "memory sampler|paired replay|managed installed entry" test\managed.test.ts
+```
+
+结果9/9通过，0 fail/skip；这只证明工具行为，不把失效的本地压力采样判成通过。
+最终完整`pnpm check`通过（40/40任务、测试类型检查、格式、包检查），两份replay模块
+`node --check`通过；曾在新增认证测试的类型检查阶段发现`json()`为unknown，
+补齐测试响应类型后重新运行，不忽略类型错误。
 
 Node22.13 CI超时的有界跟进见
 [node22-diagnosis.md](node22-diagnosis.md)：两个预期失败的证明断言保留条件并补齐消息，准确Node22下raw/CAR为19/19通过；完整Windows

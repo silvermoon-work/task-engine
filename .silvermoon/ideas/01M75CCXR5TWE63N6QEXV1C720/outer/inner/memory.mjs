@@ -10,7 +10,7 @@ export function summarizeWindow(start, end, minimumSpanMs = 0) {
   let previousSequence;
   for (const sample of samples) {
     assert.ok(Number.isFinite(sample.atMs) && sample.atMs > previousAt &&
-      sample.atMs - previousAt <= 250, "Sampling gap/invalid timestamp");
+      sample.atMs - previousAt <= 250, `Sampling gap/invalid timestamp: ${sample.atMs - previousAt}ms at sequence ${sample.sequence}`);
     assert.ok(Number.isSafeInteger(sample.sequence) &&
       (previousSequence === undefined || sample.sequence === previousSequence + 1), "Lost samples");
     for (const key of counters)

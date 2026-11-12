@@ -30,7 +30,9 @@ test("memory sampler bounds history and stops its timer", async () => {
     3,
   );
   try {
-    await new Promise((done) => setTimeout(done, 40));
+    const deadline = performance.now() + 1000;
+    while (reads < 6 && performance.now() < deadline)
+      await new Promise((done) => setTimeout(done, 10));
     const snapshot = sampler.snapshot();
     assert.equal(snapshot.samples.length, 3);
     assert.equal(snapshot.samples.at(-1)?.sequence, reads);
@@ -383,6 +385,12 @@ export default async (input,context)=>{
     assert.equal(duplicate.code, 1);
     const status = await run(["server", "status", "--data-dir", alias]);
     assert.equal(status.parse().data.state, "ready");
+    const memory = status.parse().data.memory as { samples: Array<{ rss: number }> };
+    assert.ok(memory.samples.length > 0 && memory.samples.at(-1)!.rss > 0);
+    const unauthorized = await fetch(`${String(status.parse().data.engineUrl)}/_managed/status`);
+    const denied = (await unauthorized.json()) as Result;
+    assert.equal(denied.error?.code, "LOCAL_SERVER_UNKNOWN");
+    assert.equal(denied.data?.memory, undefined);
     const initialIdentityPath = join(data, "instance.json"),
       initialIdentityText = await readFile(initialIdentityPath, "utf8");
     const fake = createServer((incoming, outgoing) => {

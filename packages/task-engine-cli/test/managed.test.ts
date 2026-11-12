@@ -16,7 +16,39 @@ import { MemoryIpfsClient } from "@silvermoon-work/task-engine/testing";
 import { processBirth, stopManaged } from "../src/managed.js";
 import { encodeTaskBundleCar } from "@silvermoon-work/task-builder/car";
 import { memoryTree } from "@silvermoon-work/task-builder/tree";
-import { sampleMemory } from "../src/memory.js";
+import { createMemorySampler, sampleMemory } from "../src/memory.js";
+
+test("independent process RSS sampling survives busy main isolate and closes after readiness", async (t) => {
+  const sampler = await createMemorySampler();
+  t.after(() => sampler.close());
+  const before = await sampler.snapshot();
+  assert.ok(before.rss.samples.length > 0);
+  assert.equal(before.rss.scope, "process-including-workers");
+  assert.equal(before.main.scope, "main-isolate");
+  assert.equal(Object.hasOwn(before.main.samples[0]!, "rss"), false);
+  const began = performance.timeOrigin + performance.now();
+  while (performance.timeOrigin + performance.now() - began < 450) {
+    // Deliberately block the calling isolate; the RSS worker must keep sampling.
+  }
+  const ended = performance.timeOrigin + performance.now();
+  await new Promise((done) => setTimeout(done, 10));
+  const after = await sampler.snapshot();
+  const independent = after.rss.samples.filter(
+    (sample) => sample.atMs > began && sample.atMs < ended,
+  );
+  assert.ok(independent.length >= 4, JSON.stringify(independent));
+  assert.ok(independent.every((sample) => sample.rss > 0));
+  const gaps = after.main.samples
+    .slice(1)
+    .map((sample, index) => sample.atMs - after.main.samples[index]!.atMs);
+  assert.ok(
+    gaps.some((gap) => gap >= 350),
+    JSON.stringify(gaps),
+  );
+  await sampler.close();
+  await sampler.close();
+  await assert.rejects(sampler.snapshot(), /closed/);
+});
 
 test("memory sampler bounds history and stops its timer", async () => {
   let reads = 0;
@@ -50,7 +82,7 @@ test("paired replay ignores lifetime peaks, matches phase growth and rejects mis
     "../../../.silvermoon/ideas/01M75CCXR5TWE63N6QEXV1C720/outer/inner/memory.mjs",
     import.meta.url,
   ).href;
-  const { summarizeWindow, compareWaves } = await import(helper);
+  const { summarizeWindow, compareWaves, diagnoseMain } = await import(helper);
   const window = (rss: number) => ({
     summary: { rss: { median: rss, max: rss } },
   });
@@ -74,7 +106,13 @@ test("paired replay ignores lifetime peaks, matches phase growth and rejects mis
     arrayBuffers: 1,
   }));
   const start = { atMs: 0 };
-  const end = { atMs: 1000, cadenceMs: 50, samples };
+  const end = {
+    atMs: 1000,
+    cadenceMs: 50,
+    samples,
+    scope: "process-including-workers",
+    source: "dedicated-worker/process.memoryUsage.rss",
+  };
   assert.equal(summarizeWindow(start, end, 1000).summary.rss.median, 10.5);
   assert.throws(() => summarizeWindow(start, { ...end, samples: [] }), /samples/);
   assert.throws(() => summarizeWindow(start, { ...end, samples: samples.slice(7) }), /gap/);
@@ -90,6 +128,14 @@ test("paired replay ignores lifetime peaks, matches phase growth and rejects mis
       }),
     /Invalid rss/,
   );
+  assert.throws(() => summarizeWindow(start, { ...end, scope: "main-isolate" }), /RSS must cover/);
+  const diagnostic = diagnoseMain(start, {
+    ...end,
+    scope: "main-isolate",
+    samples: samples.slice(7),
+  });
+  assert.equal(diagnostic.maxGapMs, 400);
+  assert.equal(diagnostic.coverageIsDiagnosticOnly, true);
 });
 
 const bin = resolve("dist", "bin.js");
@@ -385,8 +431,8 @@ export default async (input,context)=>{
     assert.equal(duplicate.code, 1);
     const status = await run(["server", "status", "--data-dir", alias]);
     assert.equal(status.parse().data.state, "ready");
-    const memory = status.parse().data.memory as { samples: Array<{ rss: number }> };
-    assert.ok(memory.samples.length > 0 && memory.samples.at(-1)!.rss > 0);
+    const memory = status.parse().data.memory as { rss: { samples: Array<{ rss: number }> } };
+    assert.ok(memory.rss.samples.length > 0 && memory.rss.samples.at(-1)!.rss > 0);
     const unauthorized = await fetch(`${String(status.parse().data.engineUrl)}/_managed/status`);
     const denied = (await unauthorized.json()) as Result;
     assert.equal(denied.error?.code, "LOCAL_SERVER_UNKNOWN");

@@ -31,7 +31,7 @@ import {
 import { executeTask, PreparationPool, PreparingCapacity } from "./execution.js";
 import { managedDiagnostics } from "./diagnostics.js";
 import { createRawGateway, type RawGatewayOptions } from "./raw-gateway.js";
-import { sampleMemory } from "./memory.js";
+import { createMemorySampler } from "./memory.js";
 
 const exec = promisify(execFile);
 export interface ResponseValue {
@@ -567,13 +567,16 @@ export async function serveManaged(
     state: "starting",
     released: false,
   };
-  const memory = sampleMemory();
+  const memory = await createMemorySampler().catch((error) => {
+    lock.close();
+    throw error;
+  });
   const persist = () =>
     atomicFile(join(lock.directory, "instance.json"), `${JSON.stringify(instance)}\n`);
   const shutdown = (failure?: unknown): Promise<void> =>
     (closeAttempt ??= (async () => {
       closing = true;
-      memory.close();
+      await memory.close();
       if (failure) fatal = failure;
       const errors: unknown[] = [];
       instance.state = "stopping";
@@ -769,7 +772,7 @@ export async function serveManaged(
               gateway: rawGateway!.snapshot(),
               rssBytes: process.memoryUsage().rss,
               peakRssBytes: process.resourceUsage().maxRSS * 1024,
-              memory: memory.snapshot(),
+              memory: await memory.snapshot(),
             },
           });
           return;

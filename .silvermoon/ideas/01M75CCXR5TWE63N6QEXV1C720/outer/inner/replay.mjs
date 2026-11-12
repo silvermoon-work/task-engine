@@ -5,7 +5,8 @@ import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { createServer, request } from "node:http";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { compareWaves, summarizeWindow } from "./memory.mjs";
+import { gzipSync } from "node:zlib";
+import { compareWaves, diagnoseMain, summarizeWindow } from "./memory.mjs";
 
 // 仅通过已安装包的公开入口、CLI 和 HTTP 验证；不导入源码或内部模块。
 const args = process.argv.slice(2);
@@ -62,10 +63,37 @@ if (option("load", "no") === "yes" && !memoryArm) {
   } catch (error) {
     failure = error;
   } finally {
-    if (option("report")) await writeFile(resolve(option("report")), `${JSON.stringify({
-      protocol: "paired-current-memory-v1", node: process.version, platform: process.platform,
-      passed: !failure, error: failure?.message, pairs, runs,
-    }, null, 2)}\n`);
+    if (option("report")) {
+      const raw = [];
+      for (const run of runs) {
+        const measurements = run.report.measurements;
+        for (const [wave, value] of (measurements.waves ?? []).entries()) {
+          for (const phase of ["quiet", "load", "drain"]) {
+            for (const [stream, window] of [["rss", value[phase]], ["main", value.mainDiagnostics[phase]]]) {
+              raw.push({ repetition: run.repetition, arm: run.arm, wave, phase, stream, samples: window.samples });
+              delete window.samples;
+              if (window.gapsMs) {
+                window.gapsOver250ms = window.gapsMs.filter(gap => gap > 250);
+                delete window.gapsMs;
+              }
+            }
+          }
+        }
+        if (measurements.pendingWindow) {
+          raw.push({ repetition: run.repetition, arm: run.arm, pendingWindow: measurements.pendingWindow });
+          delete measurements.pendingWindow;
+        }
+      }
+      const samplesPath = `${option("report")}.samples.json.gz`;
+      const compressed = gzipSync(JSON.stringify(raw));
+      await writeFile(resolve(samplesPath), compressed);
+      await writeFile(resolve(option("report")), `${JSON.stringify({
+        protocol: "paired-independent-rss-v2", node: process.version, platform: process.platform,
+        passed: !failure, error: failure?.message, pairs, runs,
+        rawSamples: { file: samplesPath, sha256: createHash("sha256").update(compressed).digest("hex"),
+          windows: raw.length, compression: "gzip", encoding: "utf8-json" },
+      }, null, 2)}\n`);
+    }
   }
   if (failure) throw failure;
   console.log(JSON.stringify({ passed: true, pairs }));
@@ -313,6 +341,7 @@ try {
     for (let wave = 0; wave < 3; wave++) {
       const beginning = await status();
       assert.ok(beginning.memory, "Installed CLI lacks current-memory sampling; publish a fresh package, never replace rc.5");
+      report.measurements.instrumentation = beginning.memory.instrumentation;
       await new Promise(done => setTimeout(done, 1000));
       const quietEnd = await status();
       const tasks = await waveTasks(memoryArm === "control" ? input : loadInput);
@@ -325,9 +354,14 @@ try {
       };
       const statuses = tasks.flatMap(result => result.statuses);
       waves.push({
-        quiet: summarizeWindow(beginning.memory, quietEnd.memory, 1000),
-        load: summarizeWindow(quietEnd.memory, loadEnd.memory),
-        drain: summarizeWindow(loadEnd.memory, drainEnd.memory, 1000),
+        quiet: summarizeWindow(beginning.memory.rss, quietEnd.memory.rss, 1000),
+        load: summarizeWindow(quietEnd.memory.rss, loadEnd.memory.rss),
+        drain: summarizeWindow(loadEnd.memory.rss, drainEnd.memory.rss, 1000),
+        mainDiagnostics: {
+          quiet: diagnoseMain(beginning.memory.main, quietEnd.memory.main),
+          load: diagnoseMain(quietEnd.memory.main, loadEnd.memory.main),
+          drain: diagnoseMain(loadEnd.memory.main, drainEnd.memory.main),
+        },
         latencies: tasks.map(result => result.latency), statuses,
         gateway: drainEnd.gateway, lifetimePeakRssDiagnosticOnly: drainEnd.peakRssBytes,
       });

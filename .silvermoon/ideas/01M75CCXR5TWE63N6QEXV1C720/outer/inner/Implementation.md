@@ -45,11 +45,16 @@
 control 每波0次。每波 quiet 1000ms、load 到8任务释放、drain 1000ms，
 由已有身份校验的 managed status 确认 phase 边界，禁止强制 GC。
 
-服务主线程每50ms采样 current rss/heapUsed/heapTotal/external/arrayBuffers，
-最多保留2048条（约102秒）；每阶段通过现有认证 status 取一次有界历史，无高频
-CLI采样进程、无新未认证路由。每个窗口至少2样本，quiet/drain至少1000ms，
+当前协议v2：独立、明确就绪且unref的1个采样Worker每50ms实际调用
+`process.memoryUsage.rss()`，与工作负载主事件循环独立；两臂均额外使用相同采样Worker，
+初始化完成后才预热/测量。服务主线程另每50ms采集heapUsed/heapTotal/external/
+arrayBuffers作为main-isolate诊断，不把采样Worker自身heap误称主线程heap。
+两流各最多保留2048条（约102秒）；每阶段通过现有认证status异步复制有界历史，
+无高频CLI采样进程、无新未认证路由。RSS每个窗口至少2样本，quiet/drain至少1000ms，
 样本覆盖至少750ms；任意相邻/边界间隙不得超过250ms，序号连续，数值有限正整数；
-缺失、覆盖不足或截断必须失败。原始窗口样本与每计数器 min/median/max/end 均留存。
+缺失、覆盖不足或截断必须失败。main流保留真实时间/间隙/缺失和非法样本诊断，
+不以主线程定时器的250ms覆盖作为RSS代理；不插值、不补造或借邻近数值填充。
+原始窗口样本与每计数器 min/median/max/end 均留存。
 RSS是进程（含全部Worker）指标，其余是调用主线程指标；arrayBuffers已包含在external，
 禁止叠加，lifetime maxRSS仅诊断。
 
@@ -58,6 +63,9 @@ RSS是进程（含全部Worker）指标，其余是调用主线程指标；array
 必须 ≤134217728 bytes；延迟逐波按对应control最大值判定原5倍/2000ms门限。
 报告所有配对值、quiet/drain平台与线程计数器；短期3波不是无泄漏证明，不要求
 RSS严格回到基线，GC/allocator及单机顺序偏差须明确。OS/container硬内存上限不在范围。
+采样Worker明确异步关闭并等待终止；报告初始化前后RSS和差值以描述其观察开销，
+该差值不是隔离归因。此v2在重测前同步；旧主线程RSS采样v1及其两次覆盖失败保留，
+它们是仪器与繁忙主线程耦合造成的测量阻塞，不是已证明的产品内存阻塞，不追溯改判。
 
 ## Node 22.13 发布检查补充
 

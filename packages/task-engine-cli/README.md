@@ -114,9 +114,13 @@ status 枚举为 `pending/running/succeeded/failed/timed_out/cancelled/rejected`
 运行随机身份、控制通道及进程出生证据核实归属，不只看 PID、端口或锁文件。
 本地控制通道以随机挑战和 HMAC 请求/响应证明实例身份，不把实例密钥发送给监听端。
 status 只读；未知身份返回错误，不把不可达当停止。
-认证 status 的 `memory` 提供主线程50ms周期、最多2048条的有界当前内存样本
-（单调毫秒时间和连续序号）。`rss` 为全进程含Worker的当前RSS；`heapUsed/heapTotal/
-external/arrayBuffers` 仅对应调用主线程，arrayBuffers包含在external内，不能求和。
+认证 status 的 `memory.rss` 由一个独立、启动就绪后unref的Worker每50ms采样
+`process.memoryUsage.rss()`，包含全进程及所有Worker；`memory.main` 的
+`heapUsed/heapTotal/external/arrayBuffers` 则由主线程50ms定时采样，仅描述主isolate。
+两流分别保留最多2048条真实时间/连续序号的样本，认证status异步复制有界历史；
+主线程阻塞可造成main流诊断间隙，不能伪装成RSS间隙或插值补齐。
+arrayBuffers包含在external内，不能求和。采样Worker随daemon关闭明确终止；
+`instrumentation`报告1个额外Worker及启动前后RSS差（诊断观察，不是精确独占开销）。
 `peakRssBytes` 是生命周期高水位，仅供诊断，不可减去阶段当前RSS来归因网关增长，
 也不是Node可强制执行的内存上限。采样缺口须由消费者验证，不能推断两采样点间峰值。
 stop 默认拒绝在途任务；`--cancel-running` 明确取消并等待释放。

@@ -1,0 +1,178 @@
+{
+  "phase": "deployment-planning-only",
+  "acceptedImplementationRevision": "de8464302233de4e449dd196096a458099470a70",
+  "acceptancePrimaryCommit": "ba86cecab380a3eca9076d495cabb265c46a09f3",
+  "eventDigestAtStart": "f9a38f8cb592217a3a49d9bd651da13457557094",
+  "publishedByThisTask": false,
+  "releaseTagsCreatedByThisTask": false,
+  "versionsModifiedByThisTask": false,
+  "remotePackagesInstalledByThisTask": false,
+  "localRegistry": "https://mirrors.cloud.tencent.com/npm/",
+  "officialRegistry": "https://registry.npmjs.org/",
+  "localOfficialRegistryFailures": {
+    "powershell": "Could not create SSL/TLS secure channel",
+    "curlExitCode": 35,
+    "curlReason": "schannel SEC_E_ILLEGAL_MESSAGE",
+    "treatedAs404": false,
+    "tlsVerificationDisabled": false
+  },
+  "remoteReadOnlyPreflight": {
+    "observedAt": "2026-11-12T05:06:24.539Z",
+    "target": "office-ubuntu",
+    "node": "v24.22.2",
+    "npm": "12.2.2",
+    "registry": "https://registry.npmjs.org/",
+    "existingGlobalTaskBuilder": true,
+    "existingGlobalTaskEngine": true,
+    "availableKiB": 1774376552,
+    "pathChange": "current SSH command only, existing NVM bin",
+    "filesWritten": false,
+    "servicesChanged": false,
+    "globalToolsChanged": false
+  },
+  "registryObservation": {
+    "transport": "existing Ubuntu Node, verified HTTPS, public official endpoints, no auth",
+    "metadataWindow": ["2026-11-12T05:06:25.479Z", "2026-11-12T05:06:31.453Z"],
+    "exactVersionWindow": [
+      "2026-11-12T05:08:52.914Z",
+      "2026-11-12T05:08:56.224Z"
+    ],
+    "candidateVersions": [
+      {
+        "order": 1,
+        "id": "task-protocol",
+        "name": "@silvermoon-work/task-protocol",
+        "version": "0.2.0-rc.1",
+        "exactStatus": 404,
+        "gitTag": "task-protocol-v0.2.0-rc.1",
+        "gitTagExists": false,
+        "latestBaseline": "0.1.0"
+      },
+      {
+        "order": 2,
+        "id": "task-sdk",
+        "name": "@silvermoon-work/task-sdk",
+        "version": "0.2.0-rc.1",
+        "exactStatus": 404,
+        "gitTag": "task-sdk-v0.2.0-rc.1",
+        "gitTagExists": false,
+        "latestBaseline": "0.1.0"
+      },
+      {
+        "order": 3,
+        "id": "task-content",
+        "name": "@silvermoon-work/task-content",
+        "version": "0.1.0-rc.0",
+        "packageStatus": 404,
+        "exactStatus": 404,
+        "gitTag": "task-content-v0.1.0-rc.0",
+        "gitTagExists": false,
+        "latestBaseline": null,
+        "ownerBinding": "unverified; public 404 does not rule out private or reserved owner state"
+      },
+      {
+        "order": 4,
+        "id": "task-builder",
+        "name": "@silvermoon-work/task-builder",
+        "version": "0.2.0-rc.2",
+        "exactStatus": 404,
+        "gitTag": "task-builder-v0.2.0-rc.2",
+        "gitTagExists": false,
+        "latestBaseline": "0.1.0"
+      },
+      {
+        "order": 5,
+        "id": "task-builder-cli",
+        "name": "@silvermoon-work/task-builder-cli",
+        "version": "0.2.0-rc.2",
+        "exactStatus": 404,
+        "gitTag": "task-builder-cli-v0.2.0-rc.2",
+        "gitTagExists": false,
+        "latestBaseline": "0.1.0"
+      },
+      {
+        "order": 6,
+        "id": "task-engine",
+        "name": "@silvermoon-work/task-engine",
+        "version": "0.2.0-rc.2",
+        "exactStatus": 404,
+        "gitTag": "task-engine-v0.2.0-rc.2",
+        "gitTagExists": false,
+        "latestBaseline": "0.1.0"
+      },
+      {
+        "order": 7,
+        "id": "task-engine-cli",
+        "name": "@silvermoon-work/task-engine-cli",
+        "version": "0.2.0-rc.10",
+        "exactStatus": 404,
+        "gitTag": "task-engine-cli-v0.2.0-rc.10",
+        "gitTagExists": false,
+        "latestBaseline": "0.1.0"
+      }
+    ],
+    "concurrentReservations": {
+      "sourceCommit": "b6044673239005bd219494972e9ca5822d31dd05",
+      "exactRecords": [
+        {
+          "id": "task-builder",
+          "version": "0.2.0-rc.1",
+          "status": 200,
+          "hasProvenance": true,
+          "wasTrustedPublisher": true
+        },
+        {
+          "id": "task-builder-cli",
+          "version": "0.2.0-rc.1",
+          "status": 200,
+          "hasProvenance": true,
+          "wasTrustedPublisher": true
+        },
+        {
+          "id": "task-engine",
+          "version": "0.2.0-rc.1",
+          "status": 200,
+          "hasProvenance": true,
+          "wasTrustedPublisher": true
+        },
+        { "id": "task-engine-cli", "version": "0.2.0-rc.9", "status": 404 }
+      ]
+    }
+  },
+  "githubEnvironment": {
+    "name": "npm",
+    "protectionRuleTypes": [],
+    "deploymentBranchPolicy": null,
+    "provesNpmBinding": false
+  },
+  "acceptedCodeCiObservation": {
+    "observedWithExactRecords": true,
+    "runId": 43158654344,
+    "url": "https://github.com/silvermoon-work/task-engine/actions/runs/43158654344",
+    "headSha": "ba86cecab380a3eca9076d495cabb265c46a09f3",
+    "event": "push",
+    "status": "in_progress",
+    "conclusion": null,
+    "jobs": [
+      {
+        "name": "Node.js 22.15.0",
+        "status": "in_progress",
+        "conclusion": null
+      },
+      { "name": "Node.js 24.11.1", "status": "in_progress", "conclusion": null }
+    ],
+    "permitsFutureReleaseCommit": false
+  },
+  "futureReleaseCommit": null,
+  "blockingPreconditions": [
+    "B1: npm owner must verify task-content package existence/provisioning and an unexpired exact Trusted Publisher allowing direct npm publish; no approved automatic bootstrap path is established",
+    "Parent review of the exact seven-package release plan is required before version/tag/publish actions",
+    "Concurrent reserved module RC chain must finish or be explicitly coordinated",
+    "Future version preparation commit V must be on main with its own successful exact-commit CI"
+  ],
+  "officialReferences": [
+    "https://docs.npmjs.com/cli/v11/commands/npm-trust/#prerequisites",
+    "https://docs.npmjs.com/trusted-publishers/",
+    "https://docs.npmjs.com/staged-publishing/"
+  ]
+}

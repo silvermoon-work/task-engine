@@ -28,9 +28,10 @@ Corrupt local content fails rather than silently fetching a replacement.
 `prepare(cid, { signal? })` verifies the complete linked DAG with unique-block,
 byte and depth limits. `block.get` and verified `put` support offline block
 transfer; CAR encoding, task manifests, imports, path policy and DAG grafting are
-not store responsibilities. `ContentBlocks` in `./dag` is the bounded in-memory
+not store responsibilities.
 Low-level verified blocks are SHA-256 codec-neutral (for example a raw gateway
-may retain DAG-CBOR); full UnixFS preparation still rejects unsupported DAG codecs. `ContentBlocks` in `./dag` is the bounded in-memory
+may retain DAG-CBOR); full UnixFS preparation still rejects unsupported DAG codecs.
+`ContentBlocks` in `./dag` is the bounded in-memory
 block primitive for such transfers, not another application-level acquisition API.
 
 `scope(limits?)` borrows the same backing store with an independent, no-larger

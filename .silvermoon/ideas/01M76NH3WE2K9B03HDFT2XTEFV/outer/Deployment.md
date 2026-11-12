@@ -2,9 +2,10 @@
 
 用户已授权本 idea 的 RC 发布及 scottwei@office-ubuntu 安装验证，并委托主 Agent 负责阶段门限审批。仅对本 idea 必需的包逐个发布 RC，不授权 stable 发布、改变 latest 或批量发布整个 workspace。审批与发布边界见[执行与门限分工](./inner/ideal/execution-and-gates.md)。
 
-以下是旧实施候选的历史验收，不覆盖新增 IpfsStore 重构：原准确修订为
-`de8464302233de4e449dd196096a458099470a70`，决定已同步 primary
-`ba86cecab380a3eca9076d495cabb265c46a09f3`。[旧逐包计划](./release-and-smoke-plan.md)及[只读快照](./release-preflight.json)保留为历史，不能直接执行。本轮仍处于 implementing：必须先重新完成准确 submitInner 并由父 Agent 审阅，再重查精确 RC 版本／tag 和新逐包计划。当前不发布、不 SSH、不记录 submitOuter。
+主 Agent 已接受准确 `implementationRevision=bbca358050dda9b26c645266dcca67a47197623b`，决定同步至 primary
+`f330abbc14f1900da33453c2d2f9d70976b241ac`，生命周期为 deploying。
+[更新后的七包计划](./release-and-smoke-plan.md)及[本轮只读预检](./release-preflight-ipfs-store.json)等待父 Agent 审阅；旧[预检快照](./release-preflight.json)仅为历史。
+本轮只准备和同步计划、只读核对 registry／Git／CI／SSH；不改包版本，不 tag／publish／install，不启动服务，也不记录 submitOuter。计划审阅不是 Outer 验收。
 
 ## Steps
 
@@ -16,12 +17,16 @@ Publishing 发布；禁止本地真实 npm
 publish、不覆盖既有版本或移动 tag。每个依赖的精确版本可查询后再发布依赖它的包，新增共享库先配置发布映射与 Trusted
 Publisher；外部配置不具备时明确阻塞，不绕过。
 
-旧七包精确版本、四类依赖字段与串行顺序不再直接生效，不自动扩展到未涉及的 HTTP
-/ Storage / Server 包。共享库最终名称为 `@silvermoon-work/ipfs-store`，用户已完成 `0.0.0-stage`
-占位与 Trusted Publisher 绑定；这解决了旧 task-content 首发初始化前置条件，不扩大发布授权。
-保留占位历史版本和 dist-tags，不将它作为运行依赖或 RC。未来须重新观察包版本／tag，
-核对 `publish-npm.yaml`、npm environment 的直接 publish 权限和 exact-commit CI，再交父 Agent
-审阅新逐包计划。不得用 stored token、本地 publish 或未经批准的工作流绕过。
+新候选按 `ipfs-store@0.1.0-rc.1`、Protocol／SDK `0.2.0-rc.1`、
+Builder／Builder CLI／Engine `0.2.0-rc.2`、Engine CLI `0.2.0-rc.10` 串行发布；完整四类依赖边和精确 tag 见计划。
+不扩展到 HTTP／Storage／Server。官方已存在 ipfs-store `0.0.0-stage` 和 `0.1.0-rc.0`；
+后者当前同时为 latest／rc，均须保留，不能覆盖或冒充本 idea 的产物。其余六包 latest 基线为 `0.1.0`。
+所有新发布只更新 rc；占位不作为运行依赖，新候选尚未授权执行。
+
+用户已确认新包 Trusted Publisher 配置完成，不再要求其重复证明其他六包绑定。只读预检确认仓库
+`publish-npm.yaml` 使用 `npm` environment、OIDC 与直接 publish；公开元数据不证明或否定当前 npm 私有配置。
+未来实际 OIDC／权限失败必须显式阻塞，不能改用 token、本地 publish、stage 或其他 workflow。
+真正发布前仍须核对未来版本提交 V 的精确 main push CI、占用状态及所有依赖可见性，不借用历史绿色。
 
 通过 SSH 在 scottwei@office-ubuntu 的独立测试目录安装真实已发布的精确 RC 包。遵守远端实际 registry 配置，不继承本机镜像要求。先检查现有工具与服务，避免替换共享全局安装、修改现有配置或重启其他服务。使用隔离 data
 dir 与测试配置，记录安装来源、版本、命令、CID 和可重现结果。

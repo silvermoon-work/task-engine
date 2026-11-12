@@ -4,14 +4,14 @@
 
 ## 基线与关联
 
-2026-11-12 只读检查了相邻 worktree `task-dependency-merkle-node-discussion`。
-它的 HEAD 为 `e0e4f0043fe9f77ff1335b41d9db3774001fcb20`，但以下 Store 重构属于未提交候选，不属于该提交的已发布能力，也不在当前独立 worktree 中。实施前必须重新核对其最终合入契约，不能复制或提交另一 session 的改动。
+2026-11-12 已核对合入 primary 的重构提交 `61b5661`（`refactor(ipfs): inject one content store into Builder and Engine`）；本次文档基线为 `b07a2b4eac0452ec69519bb80a1e5fcdf2f7f654`。Store 重构已完成合入，不再等待另一 worktree 的未提交代码；合入不等于已发布或已验证 Kubo。相邻 session 的后续发布改动不属于本 Idea，不复制或提交。
 
-- 候选 `packages/ipfs-store/src/store.ts`：构造 `SharedContent(dataDir, source)`，source 可为 Gateway；`put` 写当前 backend。`fromClient` 借用只读 `IpfsClient.block.get`，其 `put` 不会转发给注入客户端。
-- 候选 `packages/ipfs-store/src/storage.ts`：SharedContent 是自有磁盘块存储，校验读写，以临时完整文件和硬链接原子发布，并缓存 source 返回的块；当前无自动磁盘 GC。
-- 候选 `packages/ipfs-store/src/dag.ts` 与 `store.ts`：`limits.bytes` / `retainedBytes` 为进程内读取保留预算，不是磁盘配额。单块、唯一块数与深度限制已有独立含义。
-- 候选 `packages/ipfs-store/src/node.ts`：宿主显式调用配置 helper；公共配置只有 `dataDir` / `gateway`，缺省使用共享内容目录，不因 import 读取配置。
-- 候选 Builder 使用注入的 `content`；Engine 使用 `ipfsStore` 并借用 reader scope。Builder CLI 显式构建配置对象；Engine CLI 的 managed / data 层仍有本地目录与 source 包装假设。
+- [store.ts](../../../../../../packages/ipfs-store/src/store.ts)：构造 `SharedContent(dataDir, source)`，source 可为 Gateway；`put` 写当前 backend。`fromClient` 借用只读 `IpfsClient.block.get`，其 `put` 不会转发给注入客户端。当前尚无 Kubo 后端或 backend 判别字段。
+- [storage.ts](../../../../../../packages/ipfs-store/src/storage.ts)：SharedContent 是自有磁盘块存储，校验读写，以临时完整文件和硬链接原子发布，并缓存 source 返回的块；当前无自动磁盘 GC。
+- [dag.ts](../../../../../../packages/ipfs-store/src/dag.ts) 与 store.ts：`limits.bytes` / `retainedBytes` 为进程内读取保留预算，不是磁盘配额。单块、唯一块数与深度限制已有独立含义。
+- [node.ts](../../../../../../packages/ipfs-store/src/node.ts)：宿主显式调用配置 helper；公共配置只有 `dataDir` / `gateway`，缺省使用共享内容目录，不因 import 读取配置。
+- Builder 使用注入的 `content`；Engine 使用 `ipfsStore` 并借用 reader scope。已有 [跨调用者测试](../../../../../../packages/task-engine/test/ipfs-store.test.ts) 覆盖同一对象供 Builder 和两个 Engine 使用，以及 Engine 不关闭宿主对象。这里仅引用现有测试定义，不宣称本次重新执行。
+- [managed.ts](../../../../../../packages/task-engine-cli/src/managed.ts) 仍无条件读取 `shared.configuration.dataDir`，做数据库目录比较并写入实例元数据。[data.ts](../../../../../../packages/task-engine-cli/src/data.ts) 的 DiskContent 在普通 Store 分支使用 `source.scope()`；但 managed 实际提供 retained-block 回调，会走 `fromClient(..., directory)`，再次启用 SharedContent。只修改 Store 构造函数不足以消除该调用链的自有块副本。
 
 关联但不重复：现有 [任务依赖 Idea 的 Store 抽象要求](../../../../01M76NH3WE2K9B03HDFT2XTEFV/outer/inner/Implementation.md) 定义统一注入对象；[IPFS fetch Idea](../../../../01M76NXWH50ZXJBAN92MEH2ZAQ/outer/inner/ideal/Idea.md) 关注内容访问。本 Idea 单独讨论存储后端与持久保留，不扩展任务调度、DAG graft 或公开 Gateway 产品能力。
 
@@ -24,7 +24,7 @@
 
 ## 配置契约候选
 
-以 `backend: "local" | "kubo"` 为判别字段，公共 `limits` 与后端专属字段分离。基于当前命名的候选如下；最终声明与迁移细节在 Store 基线合入后复核：
+以 `backend: "local" | "kubo"` 为判别字段，公共 `limits` 与后端专属字段分离。基于已合入 Store 命名的候选如下；最终声明须在下述保留与联网决策后收口：
 
 ```ts
 type StoreConfiguration =
@@ -43,7 +43,7 @@ type StoreConfiguration =
 
 这不是最终完整 schema：联网、超时与保留策略的字段仍取决于下文决策。Kubo 分支拒绝 `dataDir` / `gateway` 及其他 local 专属字段；local 分支拒绝 Kubo RPC 字段。运行时 JSON 同样严格校验未知字段、类型、判别值、URL、正整数和跨字段组合，不能只依赖 TypeScript。
 
-宿主读取配置并显式注入；库 import 不读用户文件。建议仅在宿主的旧配置归一化入口把缺少 backend 的既有 `{ dataDir?, gateway? }` 识别为 local，再进入严格 union 校验。显式新 union 必须有判别字段；不要用宽松合并让跨后端字段泄漏，也不要猜测 Kubo。是否保留旧构造签名作为过渡，需要结合未发布 Store 候选决定。
+宿主读取配置并显式注入；库 import 不读用户文件。建议在旧配置及旧构造调用的兼容入口把缺少 backend 的既有 local 形状归一化，再进入严格 union 校验。显式新 union 必须有判别字段；不要用宽松合并让跨后端字段泄漏，也不要猜测 Kubo。已合入的 `new IpfsStore({ dataDir, gateway?, limits? })` 调用应保持行为兼容，不以“尚在 RC”为由顺带移除；具体兼容入口的类型组织属于实施细节，不增加待决的破坏性迁移。
 
 兼容核对范围：
 
@@ -79,14 +79,28 @@ partial DAG 或中断导入必须显式标为未完成，不作为完整保留�
 - 请求需要有界超时、调用方取消和 Store lifetime 取消；写入、读流、pin 等待均适用。保留缺块、校验失败、容量超限、不可达、超时和取消的可区分语义；无静默 local fallback。重试只适用于已定义的幂等动作，不能用重试掩盖副作用状态不明。
 - Store 借用外部 daemon；`close` 仅取消自身请求、等待自有资源收敛并释放有界内存，不调用 shutdown、不自动 unpin、不停止 Kubo。关闭单个 scope 不影响其他调用者。
 
-## 验证方向与需要决定的问题
+## 实施前阻塞评估
+
+结论：统一 Store 的代码前置依赖已解除，但尚不能开始 Kubo 产品实现。以下四项会改变公共行为或持久化责任，必须由用户明确选择；表中的建议均未获批准，构想验收也不自动批准建议。
+
+| ID | 必须决定的行为 | 建议供用户选择 | 未决定的影响 |
+| --- | --- | --- | --- |
+| B01 | 谁协调完整导入后的根递归保留，何时报告保留成功 | 宿主导入流程协调，Store 提供显式保留能力；`put` 仅确认单块写入，完整校验并确认递归 pin 后才报告根已保留 | 决定 Store 端口、导入成功边界和 partial DAG 恢复责任；不能把只读 `prepare` 暗改为 pin |
+| B02 | 首版是否包含自动释放及共享 pin 所有权管理 | 首版不自动 unpin；任务删除和 Store close 都不释放 pin，清理由外部管理员显式处理并接受磁盘增长 | 若要求自动释放，必须先确定跨进程、跨应用的所有权与协调契约，不能靠任务引用计数推断 |
+| B03 | Kubo 后端默认严格离线还是允许 daemon 联网 | 默认严格离线，联网必须显式允许；不增加独立 Gateway 补块路径 | 决定读取缺块的行为、配置字段与 hints 处理；本机 RPC 不能自动当作离线证明 |
+| B04 | 首版只支持本机受信 daemon，还是支持远程 RPC | 首版限定 loopback 的受信 daemon，远程 RPC 的认证与传输保护另行设计 | 决定 apiUrl 校验、信任边界与可部署范围；不得自动暴露管理 RPC |
+
+### 不需要额外人类决策，但必须验证的技术项
+
+- 选定受支持 Kubo 版本，验证原始块 RPC 的 codec、hash、CID 表示和离线机制。技术验证失败会形成明确阻塞；不得以静默联网、重编码或 local fallback 绕过，也不能提前宣称兼容所有版本。
+- 验证导入与 GC 并发、pin 结果不明及部分成功的恢复；根据 B01/B02 的选择设计有界临时保护，不自动撤销未知所有权的 pin。
+- 修改 managed / DiskContent 的目录假设及 retained-block 包装，覆盖 CAR 导入、普通内容读取与输出块写入路径；不能只绕过一个构造点。既有数据库业务持久化不在此处顺带重构，须明确区分业务记录与重复块缓存。
+- 配置默认、旧 local 调用、override 冲突、scope 所有权和资源预算属于已明确约束下的兼容工作，不应重复上升为产品选择。新增字段的具体命名、错误类型复用及测试组织属于实施细节。
+
+此外，当前 Idea 尚无 `acceptIdeal`；文档调整会使旧 `submitIdeal` 失效，必须针对新 revision 完成准备与同步后再提交。B01-B04 未收口前，本候选不宣称准备完成，不请求用旧 revision 验收，也不开始产品实现。
+
+## 验证方向
 
 后续实施应以同一 DAG 对照 local / Kubo 的块字节、根 CID、文件与目录读取，检查严格配置拒绝、限额、取消和异常传播；真实 Kubo 还须覆盖 daemon 重启、受控 GC、partial DAG、pin 失败及共享根。证明“无额外磁盘副本”须检查宿主测试目录读写，而非仅验证构造对象类型。
 
-需要在实施前确认：
-
-1. 选择 Store 协调根保留还是宿主管理；何时可以对调用者报告“完整导入且已保留”？
-2. 是否接受首版无自动 unpin；若需释放，采用什么跨调用者所有权契约？
-3. 默认严格离线还是显式允许 Kubo 联网；首版是否只支持本机受信 daemon？
-
-这些问题可以在构想评审时讨论；目前没有任何逐项批准、实现完成或外部验证证据。
+目前没有 B01-B04 的逐项批准、Kubo 实现完成或外部验证证据。

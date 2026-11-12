@@ -1,4 +1,4 @@
-# 实施阻塞：共享 Kubo 原生 pin 的所有权不可判定
+# 历史阻塞：共享 Kubo 原生 pin 的所有权不可判定
 
 本文是 [Implementation](./Implementation.md) 的同世界实施证据，不改变已接受的 Ideal，不表示功能完成或生命周期验收。
 
@@ -75,3 +75,9 @@ bafkreifpsfz57dbv6zpcsdegwdkefh7rg2orbtfpmynbsvrvpxmhhsncfy
 审查结论：实现尚不具备 `submitInner` 条件，不能记录 `acceptInner`，不能将现有包换号作为本 Idea 的新 RC 发布，也不能把 Ubuntu 基础连通性当成产品 smoke 通过。用户已授权父 Agent 审批门禁，但未授权擅自改变已接受的外部 pin 保护要求。
 
 最小待确认点是自动清除所依赖的管理边界：是否要求所有 pin 写入通过可强制执行的协调入口，还是允许专用 repo，或在非独占共享 repo 上保留无法证明归属的 pin 并显式报告未完成。第三项符合安全方向，但不能冒称此类 pin 已满足自动清除结果。只有 pin name 或参与 Engine 的锁不能解除本反例。
+
+## 用户澄清后的处理
+
+用户随后明确：可用 pin name 标记 `@silvermoon-work/task-engine` 来源，pin 只作为优化 hint，不保证外部不会清除此 pin；local 的 dataDir 缓存同样可被用户手工清空。此次需求澄清不否定上述反例，而是撤销“必须保证任意外部保留意图不受干预及内容绝对可用”的前提。
+
+因此不再要求专用 repo 或强制外部写入协调服务；按修订后的 Ideal 实施具名提示、参与 Engine 引用标记清除、未知可见名称保守跳过，以及外部清理后读取真实恢复或显式报错。pin name 仍不是所有者租约，RPC 和校验错误仍必须显式处理。本文保留历史阻塞证据，不再作为继续产品实现的未决需求；修订后的准确 Ideal 需重新提交并由获授权父 Agent 审查。

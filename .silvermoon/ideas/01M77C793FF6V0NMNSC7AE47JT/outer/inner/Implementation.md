@@ -1,16 +1,16 @@
 # Implementation
 
-实施已开始，但尚未完成，不具备提交 Inner 验收条件。Store 抽象已通过 `61b5661` 合入 primary；已接受 Ideal 保持不变。
+实施已开始，但尚未完成，不具备提交 Inner 验收条件。Store 抽象已通过 `61b5661` 合入 primary；用户进一步澄清 pin 为具名 best-effort hint，修订 Ideal 后按准确 revision 重新审查。
 
-2026-11-12 使用本机 Kubo 0.43.1 的独立离线 daemon 完成所有权可行性探针，复现核心阻塞：原生 pin 没有所有者租约、引用计数或条件删除；系统之外对同一 CID 的新增保留要求无法可靠识别，也无法与 unpin 原子协调。当前不能同时证明“最后系统引用后清除”和“保留未参与协调的人工／外部 pin”。详见 [实施阻塞与实测证据](./ownership-blocker.md) 及可重跑的 [真实 Kubo 探针](./ownership-probe.mjs)。未用不安全假设替代该约束；未添加不完整的产品后端，全部 I-* 保持未完成。
+2026-11-12 的真实 Kubo 0.43.1 探针证明原生 pin 不提供所有者租约、引用计数或条件删除。用户据此明确允许用 `@silvermoon-work/task-engine` pin name 作为提示，不要求抵御外部删除或覆盖；local 内容同样可被人工清空。原绝对所有权阻塞已按需求澄清解除，实测证据保留在 [历史阻塞与澄清](./ownership-blocker.md) 和 [探针](./ownership-probe.mjs)。产品实现仍未完成，全部 I-* 保持未完成。
 
 ## Steps
 
 ### I-S01: 收口配置与所有权契约
 
-基于已合入 Store 落实严格后端 union、旧 local 配置与构造调用兼容、统一 pin/unpin 及跨 Engine 引用所有权契约；Kubo 联网与部署访问保护由用户管理，Engine 不接管 daemon。
+基于已合入 Store 落实严格后端 union、旧 local 配置与构造调用兼容、统一 pin/unpin、具名提示及参与 Engine 的引用协调契约；Kubo 联网与部署访问保护由用户管理，Engine 不接管 daemon。
 
-先证明所有权边界可实现；仅有参与 Engine 的共享锁或持久化日志，不足以约束不参与协调的 RPC 调用方。当前此项被实测阻塞，不能据此进入自动清除实现。
+不要求部署独占 repo 或新的强制协调服务来约束外部调用方；名称不是安全隔离。只按当前可见本系统名称和协调引用做清除，异常或标记不完整时明确失败，不把 best effort 解释为吞错。
 
 ### I-S02: 接入可选块后端
 
@@ -32,4 +32,4 @@
 
 ### I-AC03: 故障与资源所有权明确
 
-通过持久化与重启、跨 Engine 共享根、prune 最后引用、外部 pin、并发新增引用和标记失败测试证明不误 unpin；取消、断连、partial DAG 及 pin/unpin 失败显式传播且可恢复，不回退 local。close 不终止外部 daemon 或释放持久 pin，scope 不干扰其他 reader。
+通过持久化与重启、参与 Engine 共享根、prune 最后引用、其他 pin name、已知并发新增引用和标记失败测试证明按提示契约清除；模拟人工删 local 块或 Kubo pin／块后依赖读取真实恢复或报错。取消、断连、partial DAG 及 pin/unpin 失败显式传播且可恢复，不回退 local。close 不终止外部 daemon 或因关闭释放 pin，scope 不干扰其他 reader。

@@ -374,6 +374,48 @@ Get-Content .\engine-data\daemon-diagnostic.json -Raw | ConvertFrom-Json
 都可能阻止诊断落盘。诊断失败时 stderr 也只是 best effort，不能保证后台可见。
 此新增通道不改变命令树、业务 stdout JSON 或退出码，尚未随上述 canary 发布。
 
+### 签名 IPNS record（迭代 7）
+
+只返回原始签名记录，不解析其指向内容，也不发布。沿用 gateway 默认 disabled、
+public/token、CORS、并发和超时策略；即使开启 recursive block 模式，也不会获取网络 IPNS
+或 DNSLink。独立客户端必须信任**请求 key**，自行验证 SignatureV2、名称绑定与到期，
+而不是信任服务端 value/解析 CID。
+
+standalone CLI 使用宿主拥有的离线导入；先建立并停止一个专用实例：
+
+```sh
+task-engine server start --data-dir ./ipns-instance --port 8788
+task-engine server stop --data-dir ./ipns-instance
+task-engine data import-ipns --data-dir ./ipns-instance --key k51... --record record.ipns-record
+task-engine config set server.rawGatewayAccess public
+task-engine server start --data-dir ./ipns-instance --port 8788
+curl 'http://127.0.0.1:8788/ipns/k51...?format=ipns-record'
+curl -H 'Accept: application/vnd.ipfs.ipns-record' 'http://127.0.0.1:8788/ipns/k51...'
+```
+
+`k51...` 须替换为调用方信任的完整 key，文件是已签好的原始二进制 record，不是 JSON、
+content CID 或私钥。只接受一个非软/硬链接 regular file，1–10240 bytes；运行中或资源释放
+未确认的实例拒绝 import。不提供公共 HTTP 上传、自动发现、DHT、DNSLink、发布或网络 IPNS acquisition。
+key 支持 libp2p-key CIDv1 base36/base32/base58btc 与 legacy base58 peer ID，输出规范 base36。
+命令返回标准单条 JSON，`data` 为 `{ key, sequence, changed }`，sequence 使用十进制字符串。
+
+原始 bytes 存于独立 `ipns.sqlite` schema 1，不进入 blockstore，不迁移 task DB；
+最多 1024 名称，满额不驱逐过期高水位。按最高 sequence、最长纳秒 EOL、原始 bytes 字典序
+选 winner；已见更新后旧记录不能覆盖，重启和新版过期后仍成立。损坏/未知库格式或不安全文件
+拒绝，不静默降级；`data prune --cache` 不清除该库。宿主须保护目录，恢复旧数据库备份不在网络防回滚保证内。
+
+仅 GET/HEAD 精确 `/ipns/{key}`，支持 `format=ipns-record`（优先）或相应 Accept；
+不支持子路径、其他 format/解析内容。成功返回 `application/vnd.ipfs.ipns-record`、
+attachment（可选 filename）、原始 bytes 的强 ETag 与 Content-Length；HEAD 无 body。
+If-Match 强比较，If-None-Match 可弱比较。缓存为 public/private、
+`max-age=floor(min(TTL, EOL-now)/1s), must-revalidate`；不足一秒为 0，绝不 immutable。
+过期/未知 404、only-if-cached 未命中 412，不产生 200/304 或 ETag；错误 key/path/query 400、
+不支持 format/Accept 406。不会把 record value 当成证明后的内容 CID。
+
+离线记录不能证明全局最新，也不能立即撤销客户端已缓存但仍有效的记录。规范固定、
+独立 Kubo/IPNS 验证、受控时间测试和可重复的 registry consumer 回放见
+[迭代 7 验证](../../.silvermoon/ideas/01M75CFCPV6VNKJRSYPF5VVQ1T/outer/inner/verification.md)。
+
 ### 显式离线清理
 
 `data prune` 必须离线取得同一实例锁，不自动停止服务或递归删除目录：

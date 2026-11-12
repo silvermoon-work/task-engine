@@ -28,6 +28,11 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "ipns": "catalog:",
+    "@libp2p/crypto": "catalog:",
+    "@libp2p/peer-id": "catalog:",
+    "timestamp-nano": "catalog:",
+    "protons-runtime": "catalog:",
     "@ipld/car": "catalog:",
     "@ipld/dag-pb": "catalog:",
     "@ipld/dag-cbor": "catalog:",

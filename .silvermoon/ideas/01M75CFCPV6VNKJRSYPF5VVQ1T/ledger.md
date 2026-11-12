@@ -4,15 +4,15 @@
 
 ### Implementation steps
 
-- [ ] **I-S01:** 建立签名记录来源与存储
-- [ ] **I-S02:** 实现 IPNS record HTTP 契约
-- [ ] **I-S03:** 验证更新和兼容性
+- [x] **I-S01:** 建立签名记录来源与存储
+- [x] **I-S02:** 实现 IPNS record HTTP 契约
+- [x] **I-S03:** 验证更新和兼容性
 
 ### Implementation acceptance criteria
 
-- [ ] **I-AC01:** 独立验签与名称绑定成立
-- [ ] **I-AC02:** 过期和回滚规则持久生效
-- [ ] **I-AC03:** HTTP 能力与原网关兼容
+- [x] **I-AC01:** 独立验签与名称绑定成立
+- [x] **I-AC02:** 过期和回滚规则持久生效
+- [x] **I-AC03:** HTTP 能力与原网关兼容
 
 ## Deployment
 

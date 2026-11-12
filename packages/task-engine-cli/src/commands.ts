@@ -29,6 +29,7 @@ import {
   type ResponseValue,
 } from "./managed.js";
 import { commandOf, leafHelp, parseArguments, startKeys } from "./usage.js";
+import { IpnsRecords, ipnsName, readIpnsFile } from "./ipns.js";
 function timestamp(value: string): string {
   const parts = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)/.exec(value);
   if (
@@ -155,6 +156,29 @@ export async function main(
     else if (command === "server stop") {
       controller.signal.throwIfAborted();
       response = await stopManaged(directory(), values.has("--cancel-running"), controller.signal);
+    } else if (command === "data import-ipns") {
+      if (!get("--key") || !get("--record"))
+        throw new TaskError("ARGUMENT_REQUIRED", leafHelp(command));
+      const name = ipnsName(get("--key")!).key;
+      const bytes = await readIpnsFile(resolve(get("--record")!), controller.signal);
+      const lock = await directoryLock(directory(), false);
+      let records: IpnsRecords | undefined;
+      try {
+        const instance = await readInstance(lock.directory);
+        if (!instance || (await instanceLiveness(instance)) !== "dead" || !instance.released)
+          throw new TaskError(
+            "DATA_IN_USE",
+            "Stop the dedicated managed instance and confirm release before importing.",
+          );
+        records = new IpnsRecords(lock.directory);
+        response = { ok: true, data: await records.import(name, bytes, controller.signal) };
+      } finally {
+        try {
+          records?.close();
+        } finally {
+          lock.close();
+        }
+      }
     } else if (command === "data prune") {
       if (
         (!values.has("--task") && !values.has("--before") && !values.has("--cache")) ||

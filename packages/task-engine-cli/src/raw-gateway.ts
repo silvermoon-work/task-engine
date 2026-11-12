@@ -4,6 +4,7 @@ import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
 import { TaskError } from "@silvermoon-work/task-protocol";
 import { CarRequestError, serveCar, wantsCar } from "./car-gateway.js";
+import { serveIpnsRecord, type IpnsRecordSource } from "./ipns-gateway.js";
 import {
   createRecursiveGateway,
   recursiveHopHeader,
@@ -26,7 +27,7 @@ export type LocalRead = (
   options: { signal: AbortSignal; maxBytes: number },
 ) => Promise<Uint8Array>;
 
-function acceptsRaw(value: string): boolean {
+export function acceptsMedia(value: string, media: string): boolean {
   let specificity = -1;
   let quality = 0;
   for (const range of value.split(",")) {
@@ -47,7 +48,7 @@ function acceptsRaw(value: string): boolean {
   }
   return quality > 0;
 }
-function matches(value: string | undefined, etag: string, weak: boolean): boolean {
+export function matches(value: string | undefined, etag: string, weak: boolean): boolean {
   return !!value?.split(",").some((part) => {
     const tag = part.trim();
     return tag === "*" || (weak ? tag.replace(/^W\//, "") : tag) === etag;
@@ -59,6 +60,7 @@ export function createRawGateway(
   options: RawGatewayOptions,
   local: LocalRead,
   persist?: (cid: CID, bytes: Uint8Array, signal: AbortSignal) => Promise<void>,
+  ipns?: IpnsRecordSource,
 ) {
   if (
     !["disabled", "public", "token"].includes(options.access) ||
@@ -223,6 +225,10 @@ export function createRawGateway(
     };
     try {
       const url = new URL(request.url ?? "/", "http://localhost");
+      if (url.pathname === "/ipns" || url.pathname.startsWith("/ipns/")) {
+        await serveIpnsRecord(request, response, url, options.access, controller.signal, ipns);
+        return;
+      }
       if (wantsCar(url, request.headers.accept ?? "")) {
         await serveCar(request, response, url, options, read, controller);
         return;
@@ -251,7 +257,7 @@ export function createRawGateway(
       if (formats.length > 1) return end(400);
       if (formats.length ? formats[0] !== "raw" : !request.headers.accept)
         return end(formats.length ? 406 : 400);
-      if (!formats.length && !acceptsRaw(request.headers.accept ?? "")) return end(406);
+      if (!formats.length && !acceptsMedia(request.headers.accept ?? "", media)) return end(406);
       if (cid.multihash.code !== 0 && cid.multihash.code !== sha256.code) return end(501);
       if (cid.multihash.code === sha256.code && cid.multihash.size !== 32) return end(400);
       let bytes: Uint8Array;

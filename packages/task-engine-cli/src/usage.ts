@@ -10,6 +10,7 @@ export const leaves = [
   "task logs",
   "task await",
   "data prune",
+  "data import-ipns",
   "config list",
   "config get",
   "config set",
@@ -23,6 +24,7 @@ Usage: task-engine <command>
   run --cid <cid>|--car <file> --input <file|-> [--async]
   task query|logs|await    Query persistent tasks, logs or final results
   data prune              Offline explicit history/cache cleanup
+  data import-ipns        Offline signed IPNS record provisioning
   config list|get|set|reset
 Business results: one stdout JSON. stderr: logging only. Exit 0 success, 1 failure, 130 interrupted.
 No automatic Server startup, interactive prompts, dry-run or format switches.
@@ -58,6 +60,7 @@ export const options: Record<string, string[]> = {
   "task logs": ["--engine", "--limit", "--cursor"],
   "task await": ["--engine"],
   "data prune": ["--task", "--before", "--cache", "--data-dir"],
+  "data import-ipns": ["--key", "--record", "--data-dir"],
   "config list": [],
   "config get": [],
   "config set": [],
@@ -81,6 +84,7 @@ export function leafHelp(command: string) {
     "task logs": "<task-id> [--engine <url>] [--limit <1-1000>] [--cursor <token>]",
     "task await": "<task-id> [--engine <url>]",
     "data prune": "[--task <task-id> ... | --before <time>] [--cache] [--data-dir <path>]",
+    "data import-ipns": "--key <ipns-key> --record <file> [--data-dir <path>]",
     "config list": "",
     "config get": "<key>",
     "config set": "<key> <value>",
@@ -171,6 +175,20 @@ ${engine}`,
 ${engine}
   Interrupting this command stops waiting; it does not cancel the task.`,
       examples: ["task await task-id"],
+    },
+    "data import-ipns": {
+      purpose:
+        "Validate and durably import one original signed IPNS record into a stopped dedicated instance.",
+      parameters: `  --key <ipns-key>  Required caller-trusted libp2p key (CIDv1/base36/base32/base58).
+  --record <file>  Required regular nonlinked binary record file, 1 to 10240 bytes.
+${directory}
+  First start then stop the dedicated instance. Import requires confirmed release.
+  No HTTP upload, key generation, publication, DHT, DNSLink or network acquisition.
+  Maximum 1024 names. Stored winners survive expiry/restart; rollback is rejected.
+  Gateway access remains disabled unless explicitly configured.`,
+      examples: [
+        "data import-ipns --key k51... --record record.ipns-record --data-dir ./engine-data",
+      ],
     },
     "data prune": {
       purpose:

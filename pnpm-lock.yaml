@@ -33,6 +33,12 @@ catalogs:
     '@ipld/dag-pb':
       specifier: 4.2.0
       version: 4.2.0
+    '@libp2p/crypto':
+      specifier: 5.2.0
+      version: 5.2.0
+    '@libp2p/peer-id':
+      specifier: 6.0.18
+      version: 6.0.18
     '@sinclair/typebox':
       specifier: 0.34.52
       version: 0.34.52
@@ -78,18 +84,27 @@ catalogs:
     ipfs-unixfs-importer:
       specifier: 17.1.1
       version: 17.1.1
+    ipns:
+      specifier: 11.0.1
+      version: 11.0.1
     multiformats:
       specifier: 14.0.5
       version: 14.0.5
     prettier:
       specifier: ^3.9.10
       version: 3.9.10
+    protons-runtime:
+      specifier: 7.1.2
+      version: 7.1.2
     publint:
       specifier: ^0.3.25
       version: 0.3.25
     semver:
       specifier: 7.8.5
       version: 7.8.5
+    timestamp-nano:
+      specifier: 1.0.1
+      version: 1.0.1
     tsx:
       specifier: 4.23.15
       version: 4.23.15
@@ -278,6 +293,12 @@ importers:
       '@ipld/dag-pb':
         specifier: 'catalog:'
         version: 4.2.0
+      '@libp2p/crypto':
+        specifier: 'catalog:'
+        version: 5.2.0
+      '@libp2p/peer-id':
+        specifier: 'catalog:'
+        version: 6.0.18
       '@silvermoon-work/task-engine':
         specifier: workspace:*
         version: link:../task-engine
@@ -296,9 +317,18 @@ importers:
       ipfs-unixfs-importer:
         specifier: 'catalog:'
         version: 17.1.1(supports-color@10.2.2)
+      ipns:
+        specifier: 'catalog:'
+        version: 11.0.1
       multiformats:
         specifier: 'catalog:'
         version: 14.0.5
+      protons-runtime:
+        specifier: 'catalog:'
+        version: 7.1.2
+      timestamp-nano:
+        specifier: 'catalog:'
+        version: 1.0.1
     devDependencies:
       '@silvermoon-work/task-builder':
         specifier: workspace:*
@@ -1595,6 +1625,9 @@ packages:
 
   ipns@10.1.6:
     resolution: {integrity: sha512-mTACIdTBBXY5kbCo3t/M3ycNWbjajLrSXhTvjD0MEGyOUaI3uMv94JbJSHGaJ2xxRlpOrRk1ifToOsyPZiglnA==}
+
+  ipns@11.0.1:
+    resolution: {integrity: sha512-e6moct6UhKSFIIPbBZnCQDZFDajRbL2yzV4V+hJaLZsb8q+QAkM5NveXN8qyZsRspFWg2vTPfkRe+N+nns8B/g==}
 
   is-extglob@2.1.1:
     resolution: {integrity: sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ==}
@@ -3682,6 +3715,19 @@ snapshots:
       timestamp-nano: 1.0.1
       uint8arraylist: 2.4.9
       uint8arrays: 5.1.1
+
+  ipns@11.0.1:
+    dependencies:
+      '@libp2p/crypto': 5.2.0
+      '@libp2p/interface': 3.4.0
+      '@libp2p/logger': 6.2.16
+      cborg: 6.2.1
+      interface-datastore: 10.0.1
+      multiformats: 14.0.5
+      protons-runtime: 7.1.2
+      timestamp-nano: 1.0.1
+      uint8arraylist: 3.0.2
+      uint8arrays: 6.1.1
 
   is-extglob@2.1.1: {}
 

@@ -31,6 +31,7 @@ import {
 import { executeTask, PreparationPool, PreparingCapacity } from "./execution.js";
 import { managedDiagnostics } from "./diagnostics.js";
 import { createRawGateway, type RawGatewayOptions } from "./raw-gateway.js";
+import { IpnsRecords } from "./ipns.js";
 import { createMemorySampler } from "./memory.js";
 
 const exec = promisify(execFile);
@@ -524,6 +525,7 @@ export async function serveManaged(
   const lock = await directoryLock(String(effective(config, "server.dataDir")), true);
   let repository: Repository | undefined;
   let content: DiskContent | undefined;
+  let ipns: IpnsRecords | undefined;
   let rawGateway: ReturnType<typeof createRawGateway> | undefined;
   let closing = false;
   let fatal: unknown;
@@ -629,6 +631,11 @@ export async function serveManaged(
         });
       try {
         repository?.close();
+      } catch (error) {
+        errors.push(error);
+      }
+      try {
+        ipns?.close();
       } catch (error) {
         errors.push(error);
       }
@@ -741,6 +748,7 @@ export async function serveManaged(
       const url = new URL(incoming.url ?? "/", "http://localhost");
       if (
         url.pathname === "/ipfs" ||
+        url.pathname === "/ipns" ||
         url.pathname.startsWith("/ipfs/") ||
         url.pathname.startsWith("/ipns/")
       ) {
@@ -1022,6 +1030,7 @@ export async function serveManaged(
     process.on("uncaughtExceptionMonitor", uncaught);
     notify({ type: "identity", instance });
     repository = new Repository(lock.directory, failStorage);
+    ipns = new IpnsRecords(lock.directory);
     for (const task of repository.all())
       if (!task.released) {
         task.status = "failed";
@@ -1076,6 +1085,7 @@ export async function serveManaged(
       },
       (cid, options) => content!.local(cid, options),
       (cid, bytes, signal) => content!.put(cid, bytes, signal),
+      { read: async (name) => (await ipns!.read(name))?.bytes },
     );
     startupSignal.throwIfAborted();
     server.maxConnections = Number(effective(config, "server.maxConnections"));

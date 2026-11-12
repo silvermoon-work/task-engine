@@ -37,6 +37,11 @@ catalog:
   ipfs-unixfs-exporter: 16.2.3
   ipfs-unixfs-importer: 17.1.1
   ipfs-unixfs: 13.1.2
+  ipns: 11.0.1
+  "@libp2p/crypto": 5.2.0
+  "@libp2p/peer-id": 6.0.18
+  timestamp-nano: 1.0.1
+  protons-runtime: 7.1.2
 
 allowBuilds:
   esbuild: false

@@ -89,6 +89,16 @@ Engine 在上述 Builder CLI 精确版本可见后才发布，包含 development
 
 finally 确认所有本轮 Engine 与 Source 关闭，未启动 CLI daemon。只将驱动该参数替换为 `--package-name`，所有功能断言、已发 RC、运行库、Inner／Ideal 保持不变。修订后语法检查退出 0，驱动 SHA-256=`ac03a9b8c092c581df490ea9d559fad8fabc9b035093f5b210d55fb153823c56`。再次同步并重观察后，将在第三个全新目录完整执行，保留前两轮失败，不复用暖缓存或选择性跳过。
 
+## Ubuntu 三轮：主体矩阵通过，缺文件断言使用错误文本
+
+在 primary `cf55f1f743dc779ac706e763909c1545f3a5d934`／Outer `31a88a502edf` 同步重观察后，用第三个全新 nonce 重新安装；[安装](./ubuntu-bootstrap-final.json)与[hash／所有权校验](./ubuntu-script-verification-final.json)均为真实结果。
+
+[ubuntu-third-result.json](./ubuntu-third-result.json) 退出 1，16 个已执行组中 15 组通过：包括 CLI init／标准共享配置／独立覆盖、冷 Engine 完整准备后首次子调用前断源、嵌套共享目标、动态外部成功与离线失败、丢 ACK／恢复、output／旧调用／超时拒绝、深度与字节／唯一块预算、原 schema 显式迁移、真实父子取消。目录搬运组也已完成无缓存离线 CAR、原根／元数据、CLI car、离线 library 执行和修改拒绝，随后库正确以 `ENOENT` 拒绝缺 sidecar，但驱动错误要求英文文本包含 missing／not found，所以整组仍记失败，最后一组尚未执行。
+
+把此检查改为更精确的 `{code:"ENOENT"}`，不接受成功或任意错误，不改库或任何已发版本。另只读测得实际 CAR 为 101263 字节、base64 最小 135020 字节，已超过 managed HTTP 默认 65536 帧上限；为最后的 CAR 上传实例明确配置公开选项 `--max-payload-bytes 262144`。这是足够的外层传输帧，不改变 task／文件／逻辑字节／唯一块预算或负面断言。
+
+finally 确认本轮所有自建 Engine、Source 与已启动 CLI daemon 已关闭。新驱动语法检查退出 0，SHA-256=`28c0665a32da661587e03757466e534e9ee117382dcfe6d36498c700e036cf57`。同步后再以第四个全新目录完整重跑；三轮失败保留，D-* 仍不勾选。
+
 ## 隔离消费驱动准备
 
 [registry-spaceref-smoke.mjs](./registry-spaceref-smoke.mjs) 是本计划的外部消费驱动，不包含产品实现。它先核对 ownership marker、精确 installed manifests、registry lock／tarball/integrity 和非 symlink 路径，再从这些已安装包加载公开 API／真实 CLI；不加载 workspace src／dist。

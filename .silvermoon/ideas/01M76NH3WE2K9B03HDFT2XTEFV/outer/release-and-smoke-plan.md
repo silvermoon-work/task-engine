@@ -15,7 +15,7 @@
 - 原始只读观察见 [release-preflight.json](./release-preflight.json)。匿名 HTTP
   404 只代表相应官方公开记录不可读，不证明 npm
   owner 的私有包、预留状态或 Trusted Publisher 配置不存在。
-- 发布计划目前有前置阻塞 B1；即使主 Agent 认可版本与测试矩阵，也不能跳过 B1 或精确提交 CI。
+- 发布计划目前有前置阻塞 B1、B2；即使主 Agent 认可版本与测试矩阵，也不能跳过这些阻塞或精确提交 CI。
 
 ## 精确七包、版本与标签
 
@@ -117,8 +117,10 @@ version 一致；catalog 缓存或某个 dist-tag 不是替代证据。
 
 已接受源码基线 `ba86cecab380a3eca9076d495cabb265c46a09f3` 的
 [main CI 43158654344](https://github.com/silvermoon-work/task-engine/actions/runs/43158654344)
-在 05:08 UTC 仍为 in_progress，两项 Node
-matrix 尚未完成；没有把它写成绿色。该信息也不是未来 `V` 的 CI 许可。
+在 05:08 UTC 仍为 in_progress；05:26 UTC 再查已为
+**success**，event=push、branch=main、headSha 完全一致，Node.js 22.15.0 /
+24.11.1、Release verification (v1) 及 Confirm required checks succeeded
+step 均为 success。该绿色仅属于已接受源码基线，不是未来 `V` 的 CI 许可。
 
 本机已接受实现的全仓结果为 44/44 Turbo
 tasks、678 通过、1 既有平台 skip；主 Agent另复跑 imports、content 和 composition 并接受了准确 inner。这些用于确认实施基线，不替代未来发布提交的精确 CI。
@@ -174,6 +176,24 @@ npm 官方支持先确认不引入未授权发布的 provision 方案，再交�
 绕过：官方说明它会为尚不存在的包公开生成 `0.0.0-stage`
 占位版本，超出本任务仅 RC、只经指定 Actions/tag 发布的授权。也不使用本地 publish、stored
 token、临时稳定版、移动 tag 或其他 workflow。
+
+## B2：同步契约后的 SSH 可达性阻塞
+
+计划契约先同步到 primary `33ebbcf2229a52237cda8273e558903a1f50d380`，重新观察为
+`deploymentRevision=0e943ff3fe365d3e7de619fe2f5fd580b6d0db4c`，再做只读前置复核。Git
+tag 查询确认本计划七个候选仍未占用；并发 Engine rc.1 / Engine CLI
+rc.9 的标签已出现，仍不替代 npm 精确版本记录。
+
+但对约定 Ubuntu 的 SSH 连接连续两次在 10 秒 connect
+timeout 后以 255 退出，第二次仅发送只读 READY 探针，没有扩大重试。没有安装包、启动服务或修改 SSH
+/ VPN / registry 配置；没有把连接失败写成 HTTP
+404，也没有伪造新的 registry 可见性或消费证明。05:06 /
+05:08 的官方 registry 与运行时信息是先前真实准备快照，不是这次失败的成功复核。
+
+恢复条件：现有网络 / VPN
+/ 路由及指定主机 SSH 服务恢复，原目标上的只读连接与现有 Node 再次正常；然后重查本计划七个官方 exact-version
+endpoint、完整 publisher 前置条件和远端 registry，再开始任何安装或发布。Agent 不自行更换主机、改访问控制、提权、重启未知服务或以本地 /
+workspace 测试代替指定远端。B1 与 B2 必须都恢复，并取得主 Agent 对本计划的允许，才能继续。
 
 ## office-ubuntu 隔离安装与运行方案
 

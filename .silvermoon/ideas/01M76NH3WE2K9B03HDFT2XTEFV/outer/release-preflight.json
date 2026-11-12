@@ -26,7 +26,7 @@
     "existingGlobalTaskEngine": true,
     "availableKiB": 1774376552,
     "pathChange": "current SSH command only, existing NVM bin",
-    "filesWritten": false,
+    "filesExplicitlyWrittenByObserver": false,
     "servicesChanged": false,
     "globalToolsChanged": false
   },
@@ -146,26 +146,70 @@
     "provesNpmBinding": false
   },
   "acceptedCodeCiObservation": {
-    "observedWithExactRecords": true,
+    "observedAt": "2026-11-12T05:26:14.0490765Z",
+    "earlierObservation": "in_progress during the 05:08 UTC exact-version observations",
     "runId": 43158654344,
     "url": "https://github.com/silvermoon-work/task-engine/actions/runs/43158654344",
     "headSha": "ba86cecab380a3eca9076d495cabb265c46a09f3",
     "event": "push",
-    "status": "in_progress",
-    "conclusion": null,
+    "branch": "main",
+    "status": "completed",
+    "conclusion": "success",
     "jobs": [
       {
         "name": "Node.js 22.15.0",
-        "status": "in_progress",
-        "conclusion": null
+        "status": "completed",
+        "conclusion": "success"
       },
-      { "name": "Node.js 24.11.1", "status": "in_progress", "conclusion": null }
+      {
+        "name": "Node.js 24.11.1",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "Release verification (v1)",
+        "status": "completed",
+        "conclusion": "success"
+      }
     ],
+    "aggregateStep": {
+      "name": "Confirm required checks succeeded",
+      "status": "completed",
+      "conclusion": "success"
+    },
     "permitsFutureReleaseCommit": false
+  },
+  "postContractSyncPreflight": {
+    "contractPrimary": "33ebbcf2229a52237cda8273e558903a1f50d380",
+    "observedDeploymentRevision": "0e943ff3fe365d3e7de619fe2f5fd580b6d0db4c",
+    "candidateGitTagsStillAbsent": true,
+    "concurrentGitTags": [
+      {
+        "tag": "task-engine-v0.2.0-rc.1",
+        "commit": "b6044673239005bd219494972e9ca5822d31dd05"
+      },
+      {
+        "tag": "task-engine-cli-v0.2.0-rc.9",
+        "commit": "b6044673239005bd219494972e9ca5822d31dd05"
+      }
+    ],
+    "sshRecheck": {
+      "status": "blocked_by_connection_timeout",
+      "attempts": 2,
+      "secondCommandConnectionAttempts": 1,
+      "connectTimeoutSeconds": 10,
+      "exitCode": 255,
+      "secondProbe": "read-only READY only",
+      "registryRevalidated": false,
+      "configurationChanged": false,
+      "packagesInstalled": false,
+      "servicesStarted": false
+    }
   },
   "futureReleaseCommit": null,
   "blockingPreconditions": [
     "B1: npm owner must verify task-content package existence/provisioning and an unexpired exact Trusted Publisher allowing direct npm publish; no approved automatic bootstrap path is established",
+    "B2: restore the specified Ubuntu SSH connectivity and revalidate official registry / remote readiness; two bounded read-only connections timed out",
     "Parent review of the exact seven-package release plan is required before version/tag/publish actions",
     "Concurrent reserved module RC chain must finish or be explicitly coordinated",
     "Future version preparation commit V must be on main with its own successful exact-commit CI"

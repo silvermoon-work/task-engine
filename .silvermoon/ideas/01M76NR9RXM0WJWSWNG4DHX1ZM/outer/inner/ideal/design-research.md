@@ -19,6 +19,7 @@
 - 两个本机版本的异步 hook 都能加载以 IPFS URL 为身份的 CJS 源码，内置模块可用；但实验中的 require.cache 和 require.resolve.paths 为 undefined。
 - 在 Node 24.11.1 上，同步 hook 配合 import(CJS) 的实验仍观察到受限 require；同步 hook 配合 bootstrap 的 CJS require 入口则保留 require.cache 与 require.resolve.paths，且非允许 IPFS 地址进入自定义拒绝路径。
 - 因而仅将 register 替换成 registerHooks 不足以证明 CJS 兼容；实施需同时验证入口调用方式。同步 CJS 入口是当前有依据的优先方案，不把它扩展成对作者暴露的通用 require("ipfs://...") API。
+- 优先由本地 bootstrap 的 URL 创建 createRequire，再 require 规范 IPFS 入口；不要对 IPFS URL 调用 createRequire。前者的本地基址只用于启动加载，不赋予 bundle 额外本地模块访问权限；hook 仍只从当前已验证的内存映射提供入口。最低版本验证须覆盖这一完整组合，而不是仅检测 registerHooks 存在。
 - [异步 load 的官方限制](https://nodejs.org/docs/latest-v22.x/api/module.html#caveat-in-the-asynchronous-load-hook) 明确说明提供 CJS source 时的 API 差异；createRequire 也不能被视为异步 hook 的统一拦截点。hook 不构成 Node 能力沙箱。
 
 ### Builder 地址语义

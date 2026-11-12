@@ -222,7 +222,8 @@ Cookie，也不向上游发送凭证。需 bearer 的上游不在本实现范围
 独立 acquisition 默认预算：`server.recursiveGatewayMaxConcurrent=2`（无排队，饱和 429）、
 `server.recursiveGatewayMaxBlockBytes=2097152`（一个获取跨所有尝试累计收到的 bytes 上限）、
 `server.recursiveGatewayTimeoutMs=5000`（含校验/持久化的总预算）、
-`server.recursiveGatewayAttemptTimeoutMs=2000`（单上游尝试）。
+`server.recursiveGatewayAttemptTimeoutMs=2000`（单上游传输与块校验）。
+块校验完成后结束单次尝试计时；本地持久化仍受 acquisition 总预算与取消信号约束。
 端点按配置顺序各至多一次；拒绝非 raw Content-Type、压缩、错误状态、超限及错误 CID，
 仅经 SHA2-256 验证且未取消的块原子持久化。网络流按 chunk 检查，至多额外持有一个
 transport chunk 以识别超限；并发内存按 slots × byte budget 有界，而非 RSS 硬上限。

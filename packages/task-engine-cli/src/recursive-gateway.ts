@@ -175,9 +175,10 @@ export function createRecursiveGateway(
           signal.throwIfAborted();
           await verifyBlock(cid, bytes);
           signal.throwIfAborted();
+          clearTimeout(timeout);
           persisting = true;
-          await persist(cid, bytes, signal);
-          signal.throwIfAborted();
+          await persist(cid, bytes, controller.signal);
+          controller.signal.throwIfAborted();
           metrics.fetched++;
           metrics.bytes += bytes.byteLength;
           return bytes;

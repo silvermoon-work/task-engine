@@ -11,11 +11,12 @@
 task.build.yaml 以 imports: Record<Path, CID> 引入文件或目录，不限于任务。build 获取完整静态闭包并交付自包含 task folder，car 离线打包并核对引入 CID。Builder 与 Engine 共用内容机制和独立公共默认配置，允许分别覆盖。
 
 设计取舍、调用示例与语义边界见[讨论细节](./dependency-and-invocation.md)。
+实施与部署由一个 subagent 执行、主 Agent 审批，授权范围见[执行与门限分工](./execution-and-gates.md)。
 
 ## 边界
 
 - 不设置子任务启动授权关口；权限约束位于具体资源访问，保留独立执行、校验和预算边界，不扩展通用 Node.js 权限系统。
-- 外部静态 Space 属于动态依赖，不承诺随父 bundle 预备完成；首版拒绝可写 output 引用。
+- 外部静态 Space 属于动态依赖，不承诺随父 bundle 预备完成；首版拒绝可写 output 引用。沿用当前 Task schema 标识，旧格式废弃并通过迁移配置、重新构建替换，不维护双协议。
 - 内容寻址复用不等于零传输、零内存或永久可用；准备须有界验证并保留所需内容。共享内容存储不强制共享客户端实例或 Engine 运行数据库。
 
 ## 验收标准

@@ -1,0 +1,46 @@
+# RC 发布证据与部署阻碍
+
+## 已完成：四个独立 RC 发布
+
+四包均固定在版本准备提交 `b6044673239005bd219494972e9ca5822d31dd05`；该提交 main 可达，[精确 main CI 43156103840](https://github.com/silvermoon-work/task-engine/actions/runs/43156103840) 的 Node 22.15.0 / 24.11.1 和 Release verification (v1) 全绿。没有借用其他提交的 CI，没有改 verifier v1。
+
+| package-id | 版本 | 不可变 tag | 成功 workflow | registry tarball |
+| --- | --- | --- | --- | --- |
+| task-builder | 0.2.0-rc.1 | task-builder-v0.2.0-rc.1 | [43157541848](https://github.com/silvermoon-work/task-engine/actions/runs/43157541848) | [tarball](https://registry.npmjs.org/@silvermoon-work/task-builder/-/task-builder-0.2.0-rc.1.tgz) |
+| task-builder-cli | 0.2.0-rc.1 | task-builder-cli-v0.2.0-rc.1 | [43158313932](https://github.com/silvermoon-work/task-engine/actions/runs/43158313932) | [tarball](https://registry.npmjs.org/@silvermoon-work/task-builder-cli/-/task-builder-cli-0.2.0-rc.1.tgz) |
+| task-engine | 0.2.0-rc.1 | task-engine-v0.2.0-rc.1 | [43159016455](https://github.com/silvermoon-work/task-engine/actions/runs/43159016455) | [tarball](https://registry.npmjs.org/@silvermoon-work/task-engine/-/task-engine-0.2.0-rc.1.tgz) |
+| task-engine-cli | 0.2.0-rc.9 | task-engine-cli-v0.2.0-rc.9 | [43159792724](https://github.com/silvermoon-work/task-engine/actions/runs/43159792724) | [tarball](https://registry.npmjs.org/@silvermoon-work/task-engine-cli/-/task-engine-cli-0.2.0-rc.9.tgz) |
+
+每次仅推一个 tag，等待对应 workflow 成功及官方 exact-version endpoint 可见，再处理下一包。每次 before 观察都确认版本不存在、latest 基线和全部内部 dependencies/devDependencies/peerDependencies/optionalDependencies 的精确版本可见。
+
+四个 workflow 均为 tag push，不是 workflow_dispatch；已逐项核对 Verify exact-commit main CI、Pack only the selected package、Verify artifact identity and published workspace dependencies、Publish selected package 都成功。只使用现有 npm environment / Trusted Publishing；每次选定包 pack 一次，artifact verifier、publint、npm publish 使用同一 PACKAGE_TARBALL，没有本地 npm publish、批量 workflow、tag 移动或认证绕过。
+
+完整 before/after、workflow 身份、全部内部依赖字段、tarball SHA-1/SHA-512 integrity 和 provenance endpoint 在 [registry-publication.json](registry-publication.json)。registry 的 gitHead 为 null，没有把它伪称为 source commit；源绑定由上述不可变 tag、workflow headSha、artifact 校验与 provenance 路径建立。
+
+| package-id | registry SHA-1 | 发布后官方 exact-version 观察 UTC |
+| --- | --- | --- |
+| task-builder | a3fd92f68a34ca97956e08e7db20a8636757a2ba | 2026-11-12T04:58:19.683Z |
+| task-builder-cli | c77464613dd13bd1c95c1ccae6fb670ad9267006 | 2026-11-12T05:05:14.070Z |
+| task-engine | 7ee9ad473e727122dfad790f9d0779994bf71b9e | 2026-11-12T05:12:03.457Z |
+| task-engine-cli | 5c69b0088421db3bb22c3de6e4ccf7128001c2ef | 2026-11-12T05:20:32.068Z |
+
+四个 latest 均从发布前 `0.1.0` 保持为 `0.1.0`，仅 rc 指向新版本。没有发布 stable、独立 Server、Protocol、SDK 或其他包，也没有删除历史版本或 legacy tags。部分精确 endpoint 在成功 publish 后仍暂时 404；例如 Builder 约六分钟后才可见，期间仅等待，未重复 publish、移 tag、换号或跳过依赖验证。
+
+随后 main 已并发集成其他 idea 的已验收 SpaceRef/content 变更；本工作区仅普通 fast-forward 保留这些历史，没有把新 workspace 代码冒充本次 registry 产物。四个 release tag 和实际已发布包仍固定在 b604467，metadata plan 也从该 Git 提交读取；本 idea 已验收 Inner World 仍为 `1adb16e34ee852991d84b8f3ea735bf5686803ac`。
+
+## 已完成：Ubuntu 只读预检与隔离目录准备
+
+确认现有 Node 24.22.2 / npm 12.2.2、原有官方 registry 与足够磁盘，没有改变全局 NVM、npm 配置、工具、项目或服务。只创建本操作私有目录 `task-engine-ipfs-rc-smoke-20261112-b6044673`，复制已冻结 replay；本地与远端 SHA-256 一致：
+
+- registry-smoke.mjs：`915fc7d7a824f4491875ca6a13492afd04abb2365c8d50ca8a350becdc4a8821`
+- registry-engine-probe.mjs：`eb43be31b2174366b7922bbf7fef8b6cf81bc7085941873d0c0e8815b94adfe9`
+
+仓库不保存 SSH 账户、主机或个人路径。
+
+## 阻碍：SSH 传输在 smoke 启动前不可用
+
+最后一次官方 registry 观察在 `2026-11-12T05:20:32.068Z` 通过既有 SSH 通道成功。随后启动独立安装/smoke 的连接在 login 前发生 banner exchange 中断，退出 255；只读目录状态探测也 banner 超时。第三次有界只读 SSH 诊断确认既有路径的端口 22 连接超时。
+
+没有禁用 hostkey/TLS 检查，没有修改 SSH、代理、路由、防火墙或密钥，也没有改用本机或 workspace dist 替代 Ubuntu 验证。**没有取得 Ubuntu 安装图、任务执行、取消/故障或退出结果，不能声称部署验收完成。** 目录中的 commands.jsonl、package-lock 与结果文件状态仍需恢复连接后只读确认。
+
+恢复条件为既有授权 SSH 通道重新可达。先确认本操作目录状态，再使用同一已冻结 replay、同一四个已发布 RC 继续；不重新发布、不换版本、不移动 tag，不影响其他目录或服务。D-S02/D-S03 与所有 D-AC 项保持未完成，不 append submitOuter，也不记录 acceptOuter。

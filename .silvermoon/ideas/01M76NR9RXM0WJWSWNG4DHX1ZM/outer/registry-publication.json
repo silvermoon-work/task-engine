@@ -1,0 +1,391 @@
+{
+  "sourceCommit": "b6044673239005bd219494972e9ca5822d31dd05",
+  "sourceCI": {
+    "id": 43156103840,
+    "url": "https://github.com/silvermoon-work/task-engine/actions/runs/43156103840",
+    "event": "push",
+    "headBranch": "main",
+    "headSha": "b6044673239005bd219494972e9ca5822d31dd05",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "Node.js 24.11.1",
+        "conclusion": "success"
+      },
+      {
+        "name": "Node.js 22.15.0",
+        "conclusion": "success"
+      },
+      {
+        "name": "Release verification (v1)",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "packages": [
+    {
+      "id": "task-builder",
+      "name": "@silvermoon-work/task-builder",
+      "version": "0.2.0-rc.1",
+      "tag": "task-builder-v0.2.0-rc.1",
+      "taggedCommit": "b6044673239005bd219494972e9ca5822d31dd05",
+      "workflow": {
+        "id": 43157541848,
+        "url": "https://github.com/silvermoon-work/task-engine/actions/runs/43157541848",
+        "event": "push",
+        "conclusion": "success",
+        "requiredSteps": [
+          {
+            "name": "Verify exact-commit main CI",
+            "conclusion": "success"
+          },
+          {
+            "name": "Pack only the selected package",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify artifact identity and published workspace dependencies",
+            "conclusion": "success"
+          },
+          {
+            "name": "Publish selected package",
+            "conclusion": "success"
+          }
+        ],
+        "headSha": "b6044673239005bd219494972e9ca5822d31dd05",
+        "headBranch": "task-builder-v0.2.0-rc.1"
+      },
+      "before": {
+        "observedAt": "2026-11-12T04:51:46.565Z",
+        "exists": false,
+        "latest": "0.1.0",
+        "dependencies": [
+          {
+            "field": "dependencies",
+            "name": "@silvermoon-work/task-protocol",
+            "version": "0.2.0-rc.0",
+            "visible": true
+          },
+          {
+            "field": "devDependencies",
+            "name": "@silvermoon-work/task-sdk",
+            "version": "0.2.0-rc.0",
+            "visible": true
+          }
+        ]
+      },
+      "after": {
+        "observedAt": "2026-11-12T04:58:19.683Z",
+        "exists": true,
+        "latest": "0.1.0",
+        "rc": "0.2.0-rc.1"
+      },
+      "registryGitHead": null,
+      "dist": {
+        "shasum": "a3fd92f68a34ca97956e08e7db20a8636757a2ba",
+        "tarball": "https://registry.npmjs.org/@silvermoon-work/task-builder/-/task-builder-0.2.0-rc.1.tgz",
+        "fileCount": 39,
+        "integrity": "sha512-UIuA13v2YaTvAKObJCAuAiHntN4ZKiI8OIj6LSihAxlwj34iZ4B+fu/SsNp3IBoEW98iix4wgQbybpIOfUFHsA==",
+        "signatures": [
+          {
+            "sig": "MEYCIQDsTJs+a5UqZd4hrWu0H3LfaYzO/9dA/io7Sh5HEVrUkAIhALmk/1rJSxheCxNO4jgeJuomjN414MSLMJaE+JrohIf3",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "sig": "MEUCICzLINa0Q8ZrXDSeKNNY8Wv4APUEk+4q+CbO2A52YOpgAiEA7LyZIxrylx+c29ux7e+/UG7BuuWrPFWX4QDo9ZkjKcA=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          }
+        ],
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-builder@0.2.0-rc.1",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        },
+        "unpackedSize": 169114
+      }
+    },
+    {
+      "id": "task-builder-cli",
+      "name": "@silvermoon-work/task-builder-cli",
+      "version": "0.2.0-rc.1",
+      "tag": "task-builder-cli-v0.2.0-rc.1",
+      "taggedCommit": "b6044673239005bd219494972e9ca5822d31dd05",
+      "workflow": {
+        "id": 43158313932,
+        "url": "https://github.com/silvermoon-work/task-engine/actions/runs/43158313932",
+        "event": "push",
+        "conclusion": "success",
+        "requiredSteps": [
+          {
+            "name": "Verify exact-commit main CI",
+            "conclusion": "success"
+          },
+          {
+            "name": "Pack only the selected package",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify artifact identity and published workspace dependencies",
+            "conclusion": "success"
+          },
+          {
+            "name": "Publish selected package",
+            "conclusion": "success"
+          }
+        ],
+        "headSha": "b6044673239005bd219494972e9ca5822d31dd05",
+        "headBranch": "task-builder-cli-v0.2.0-rc.1"
+      },
+      "before": {
+        "observedAt": "2026-11-12T04:59:06.465Z",
+        "exists": false,
+        "latest": "0.1.0",
+        "dependencies": [
+          {
+            "field": "dependencies",
+            "name": "@silvermoon-work/task-builder",
+            "version": "0.2.0-rc.1",
+            "visible": true
+          },
+          {
+            "field": "dependencies",
+            "name": "@silvermoon-work/task-protocol",
+            "version": "0.2.0-rc.0",
+            "visible": true
+          },
+          {
+            "field": "devDependencies",
+            "name": "@silvermoon-work/task-sdk",
+            "version": "0.2.0-rc.0",
+            "visible": true
+          }
+        ]
+      },
+      "after": {
+        "observedAt": "2026-11-12T05:05:14.070Z",
+        "exists": true,
+        "latest": "0.1.0",
+        "rc": "0.2.0-rc.1"
+      },
+      "registryGitHead": null,
+      "dist": {
+        "shasum": "c77464613dd13bd1c95c1ccae6fb670ad9267006",
+        "tarball": "https://registry.npmjs.org/@silvermoon-work/task-builder-cli/-/task-builder-cli-0.2.0-rc.1.tgz",
+        "fileCount": 23,
+        "integrity": "sha512-StHbtKvDUQWwyja1j842uWKqFzMRRvmAu1+fp3o8gRTfOiAHBvULWEaJi4m5f4WxMM9wFjLAQua0P6EEOgaj/w==",
+        "signatures": [
+          {
+            "sig": "MEUCIQDXBfSQeh08ZGXzr3ChNs8qXnYD5zilH6Wia0hRF2P3RQIgJUQYms3T5I7COhJn0W4YX2LKFi1LV0zYA/rjPSSCRUc=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "sig": "MEMCH0VGQKjQnnw5/Qavtv9NvM+8I9gyXHvDl6+bDITmxf4CIHstDavDjDMiFM9jfkoS9sdowS3it52eAA431k8cZ9aB",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          }
+        ],
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-builder-cli@0.2.0-rc.1",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        },
+        "unpackedSize": 87109
+      }
+    },
+    {
+      "id": "task-engine",
+      "name": "@silvermoon-work/task-engine",
+      "version": "0.2.0-rc.1",
+      "tag": "task-engine-v0.2.0-rc.1",
+      "taggedCommit": "b6044673239005bd219494972e9ca5822d31dd05",
+      "workflow": {
+        "id": 43159016455,
+        "url": "https://github.com/silvermoon-work/task-engine/actions/runs/43159016455",
+        "event": "push",
+        "conclusion": "success",
+        "requiredSteps": [
+          {
+            "name": "Verify exact-commit main CI",
+            "conclusion": "success"
+          },
+          {
+            "name": "Pack only the selected package",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify artifact identity and published workspace dependencies",
+            "conclusion": "success"
+          },
+          {
+            "name": "Publish selected package",
+            "conclusion": "success"
+          }
+        ],
+        "headSha": "b6044673239005bd219494972e9ca5822d31dd05",
+        "headBranch": "task-engine-v0.2.0-rc.1"
+      },
+      "before": {
+        "observedAt": "2026-11-12T05:05:19.490Z",
+        "exists": false,
+        "latest": "0.1.0",
+        "dependencies": [
+          {
+            "field": "dependencies",
+            "name": "@silvermoon-work/task-protocol",
+            "version": "0.2.0-rc.0",
+            "visible": true
+          },
+          {
+            "field": "devDependencies",
+            "name": "@silvermoon-work/task-sdk",
+            "version": "0.2.0-rc.0",
+            "visible": true
+          },
+          {
+            "field": "devDependencies",
+            "name": "@silvermoon-work/task-builder",
+            "version": "0.2.0-rc.1",
+            "visible": true
+          },
+          {
+            "field": "devDependencies",
+            "name": "@silvermoon-work/task-builder-cli",
+            "version": "0.2.0-rc.1",
+            "visible": true
+          }
+        ]
+      },
+      "after": {
+        "observedAt": "2026-11-12T05:12:03.457Z",
+        "exists": true,
+        "latest": "0.1.0",
+        "rc": "0.2.0-rc.1"
+      },
+      "registryGitHead": null,
+      "dist": {
+        "shasum": "7ee9ad473e727122dfad790f9d0779994bf71b9e",
+        "tarball": "https://registry.npmjs.org/@silvermoon-work/task-engine/-/task-engine-0.2.0-rc.1.tgz",
+        "fileCount": 75,
+        "integrity": "sha512-9MCGbhOC24HAdDXpSQkwKBKkY2KGNzO4qFPsP4jqAMut657QXpbemSNqO9H2lpS/xanfl+LtsJo5zokkFJfcfg==",
+        "signatures": [
+          {
+            "sig": "MEUCIBa6b8xziKVuWfqqxtqm/Bn8JEyGmVFPwTrNplFPY0LnAiEA7NKLltTo5Cx3FxkV/11tFBsI+Dm4eqfPLhJwvszsXk8=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "sig": "MEUCIQD0d1Ak9EFirjKrk6QyA9F4FoZfakTixLBEXynNbwSUHwIgJoygkzWm/CkCCFgbbSw9cnoU9SLy2wDRVAVV8vPITnc=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          }
+        ],
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-engine@0.2.0-rc.1",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        },
+        "unpackedSize": 632699
+      }
+    },
+    {
+      "id": "task-engine-cli",
+      "name": "@silvermoon-work/task-engine-cli",
+      "version": "0.2.0-rc.9",
+      "tag": "task-engine-cli-v0.2.0-rc.9",
+      "taggedCommit": "b6044673239005bd219494972e9ca5822d31dd05",
+      "workflow": {
+        "id": 43159792724,
+        "url": "https://github.com/silvermoon-work/task-engine/actions/runs/43159792724",
+        "event": "push",
+        "conclusion": "success",
+        "requiredSteps": [
+          {
+            "name": "Verify exact-commit main CI",
+            "conclusion": "success"
+          },
+          {
+            "name": "Pack only the selected package",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify artifact identity and published workspace dependencies",
+            "conclusion": "success"
+          },
+          {
+            "name": "Publish selected package",
+            "conclusion": "success"
+          }
+        ],
+        "headSha": "b6044673239005bd219494972e9ca5822d31dd05",
+        "headBranch": "task-engine-cli-v0.2.0-rc.9"
+      },
+      "before": {
+        "observedAt": "2026-11-12T05:12:09.171Z",
+        "exists": false,
+        "latest": "0.1.0",
+        "dependencies": [
+          {
+            "field": "dependencies",
+            "name": "@silvermoon-work/task-engine",
+            "version": "0.2.0-rc.1",
+            "visible": true
+          },
+          {
+            "field": "dependencies",
+            "name": "@silvermoon-work/task-protocol",
+            "version": "0.2.0-rc.0",
+            "visible": true
+          },
+          {
+            "field": "devDependencies",
+            "name": "@silvermoon-work/task-builder",
+            "version": "0.2.0-rc.1",
+            "visible": true
+          },
+          {
+            "field": "devDependencies",
+            "name": "@silvermoon-work/task-builder-cli",
+            "version": "0.2.0-rc.1",
+            "visible": true
+          },
+          {
+            "field": "devDependencies",
+            "name": "@silvermoon-work/task-sdk",
+            "version": "0.2.0-rc.0",
+            "visible": true
+          }
+        ]
+      },
+      "after": {
+        "observedAt": "2026-11-12T05:20:32.068Z",
+        "exists": true,
+        "latest": "0.1.0",
+        "rc": "0.2.0-rc.9"
+      },
+      "registryGitHead": null,
+      "dist": {
+        "shasum": "5c69b0088421db3bb22c3de6e4ccf7128001c2ef",
+        "tarball": "https://registry.npmjs.org/@silvermoon-work/task-engine-cli/-/task-engine-cli-0.2.0-rc.9.tgz",
+        "fileCount": 83,
+        "integrity": "sha512-tZ++H1bKs6r5Vd9AA3TeHZ1Om3wEdcxx9wgy+g/HS8vXtrRqNOF3E90/pNxAmkt/YPH7N2z4NAs4fXz3g16qSQ==",
+        "signatures": [
+          {
+            "sig": "MEUCIGrIfOxayEfNp10QOtzDwchoQYJ7lt79F7Z0JgIcqgRlAiEAyabsaudPCvQvGQgJbfFrpFXMsity0F5PUjuMOs3ssNA=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "sig": "MEYCIQDMmDljOpdxCJMJs7X4uCaR2isYRO3d/JZfAjSMltxeAQIhAPXucKhnhtkWDwjDCVW3Q3uWoeI5QAZe46dS939gVotb",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          }
+        ],
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-engine-cli@0.2.0-rc.9",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        },
+        "unpackedSize": 517816
+      }
+    }
+  ]
+}

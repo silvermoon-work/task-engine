@@ -7,6 +7,13 @@
   "releaseTagsCreatedByThisTask": false,
   "versionsModifiedByThisTask": false,
   "remotePackagesInstalledByThisTask": false,
+  "planApproval": {
+    "receivedAt": "2026-11-12T05:32:37.196Z",
+    "reviewedPlanPrimary": "d050691d185ea7b7976c431b8830e48ee3fc433f",
+    "status": "conditionally_approved",
+    "versionsAndOrderChanged": false,
+    "authorizesPublicationNow": false
+  },
   "localRegistry": "https://mirrors.cloud.tencent.com/npm/",
   "officialRegistry": "https://registry.npmjs.org/",
   "localOfficialRegistryFailures": {
@@ -207,11 +214,43 @@
     }
   },
   "futureReleaseCommit": null,
+  "readOnlyRecoveryObservation": {
+    "parentPrimaryAtStart": "988ace1e7c72ec22524af4399e55625724946b07",
+    "window": ["2026-11-12T05:55:48.766Z", "2026-11-12T05:55:53.189Z"],
+    "sshExitCode": 0,
+    "sshOutput": "SSH_READY",
+    "node": "v24.22.2",
+    "b2Status": "resolved",
+    "packageInstallPerformed": false,
+    "servicesChanged": false,
+    "otherSessionDirectoryAccessed": false,
+    "taskContentPublicPackageStatus": 404,
+    "taskContentOwnerExistenceAndBinding": "still unverified; public 404 does not prove true absence",
+    "candidateExactVersions": [
+      { "id": "task-protocol", "version": "0.2.0-rc.1", "status": 404 },
+      { "id": "task-sdk", "version": "0.2.0-rc.1", "status": 404 },
+      { "id": "task-content", "version": "0.1.0-rc.0", "status": 404 },
+      { "id": "task-builder", "version": "0.2.0-rc.2", "status": 404 },
+      { "id": "task-builder-cli", "version": "0.2.0-rc.2", "status": 404 },
+      { "id": "task-engine", "version": "0.2.0-rc.2", "status": 404 },
+      { "id": "task-engine-cli", "version": "0.2.0-rc.10", "status": 404 }
+    ],
+    "candidateGitTagsAbsent": true,
+    "concurrentPublicationChain": {
+      "sourceCommit": "b6044673239005bd219494972e9ca5822d31dd05",
+      "allFourExactRecords200": true,
+      "allFourTagsMatchSource": true,
+      "allFourHaveProvenanceAndTrustedPublisherMarker": true,
+      "anyHaveContentRuntimeDependency": false,
+      "containsThisIdeaImplementation": false,
+      "provesThisIdeaDeployment": false,
+      "remoteSmokeOwnedByOtherSession": true
+    }
+  },
   "blockingPreconditions": [
     "B1: npm owner must verify task-content package existence/provisioning and an unexpired exact Trusted Publisher allowing direct npm publish; no approved automatic bootstrap path is established",
-    "B2: restore the specified Ubuntu SSH connectivity and revalidate official registry / remote readiness; two bounded read-only connections timed out",
-    "Parent review of the exact seven-package release plan is required before version/tag/publish actions",
-    "Concurrent reserved module RC chain must finish or be explicitly coordinated",
+    "Conditional plan approval does not authorize publication now; wait for owner feedback and an explicit subsequent parent go-ahead",
+    "Recheck proposed version/tag occupancy without changing the approved version numbers or touching the other session's remote smoke",
     "Future version preparation commit V must be on main with its own successful exact-commit CI"
   ],
   "officialReferences": [

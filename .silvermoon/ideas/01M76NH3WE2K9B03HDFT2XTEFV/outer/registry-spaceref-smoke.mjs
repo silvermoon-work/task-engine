@@ -477,7 +477,7 @@ export default async(input,context)=>{
     await writeFile(join(moved, "resources", "model", "notes.txt"), "changed\n");
     await assert.rejects(encodeTaskBundleCar(await directoryTree(moved)), /Immutable import changed/);
     await rm(join(moved, ".task-imports.car"));
-    await assert.rejects(encodeTaskBundleCar(await directoryTree(moved)), /missing|not.found/i);
+    await assert.rejects(encodeTaskBundleCar(await directoryTree(moved)), { code: "ENOENT" });
     return { cid: parent.cid, uniqueBlocks: seen.size, bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex"), networkRequests: requests - before };
   });
   await checkCase("published offline CLI consumes the moved CAR in a fresh data domain", async () => {
@@ -492,7 +492,7 @@ export default async(input,context)=>{
     await new Promise(done => portSource.close(done));
     const data = join(work, "offline-cli-data");
     ownedCli = { data, env };
-    await command(process.execPath, [engineBin, "server", "start", "--data-dir", data, "--host", "127.0.0.1", "--port", String(port)], { env });
+    await command(process.execPath, [engineBin, "server", "start", "--data-dir", data, "--host", "127.0.0.1", "--port", String(port), "--max-payload-bytes", "262144"], { env });
     const identity = JSON.parse(await readFile(join(data, "instance.json"), "utf8"));
     assert.equal(identity.dataDir, data);
     ownedCli.identity = { pid: identity.pid, birth: identity.birth, instanceId: identity.instanceId };
@@ -509,7 +509,7 @@ export default async(input,context)=>{
     await until(() => ownedProcessExited(identity), "owned offline daemon exit");
     assert.equal(JSON.parse(await readFile(join(data, "instance.json"), "utf8")).released, true);
     ownedCli.stopped = true;
-    return { code: result.code, taskId: value.data.taskId, output: value.data.output, networkRequests: requests - before, identity: ownedCli.identity, stopped: true };
+    return { code: result.code, taskId: value.data.taskId, output: value.data.output, networkRequests: requests - before, identity: ownedCli.identity, transportMaxPayloadBytes: 262144, stopped: true };
   });
   report.binaries = { builder: relative(work, builderBin), engine: relative(work, engineBin) };
   report.outputs = outputs;

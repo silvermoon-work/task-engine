@@ -4,6 +4,8 @@
 
 本轮唯一新版本为 `@silvermoon-work/task-engine-cli@0.2.0-rc.7` / `task-engine-cli-v0.2.0-rc.7`，内部依赖仍为已发布 `0.2.0-rc.0`；版本/tag 已占用则停止。发布前 `latest=0.1.0`、`canary=0.2.0-canary-261111-1`、`rc=0.2.0-rc.6`。回放使用已同步的 [公共 CLI 验证脚本](inner/replay.mjs)，冻结profile/limits不随结果调整。
 
+实际发布身份、冷暖/等待者/回路/任务测量与精确清理记录见[部署验收证据](deployment-verification.md)，只归档已观察结果，不改变冻结要求。
+
 ## Steps
 
 ### D-S01: 配置可观测的受控上游

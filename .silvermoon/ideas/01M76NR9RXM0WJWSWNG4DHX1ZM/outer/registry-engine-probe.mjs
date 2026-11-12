@@ -29,7 +29,30 @@ async function until(read) {
 let badServer;
 let badRequests = 0;
 let selectedGateway = gateway;
-if (["missing", "corrupt"].includes(mode)) {
+if (mode === "startup") {
+  const helper = join(work, "consumer", "startup-car-reader.mjs");
+  await writeFile(helper, 'export {CarReader} from "@ipld/car/reader"; export {CID} from "multiformats/cid";\n');
+  const { CarReader, CID } = await import(pathToFileURL(helper).href);
+  const car = await CarReader.fromBytes(new Uint8Array(
+    await readFile(join(work, "author", "dist", "startup.car")),
+  ));
+  assert.equal((await car.getRoots())[0].toV1().toString(), cid);
+  const blocks = new Map();
+  for await (const block of car.blocks()) blocks.set(block.cid.toV1().toString(), block.bytes);
+  badServer = createServer((request, response) => {
+    badRequests++;
+    let bytes;
+    try {
+      const path = new URL(request.url, "http://127.0.0.1").pathname;
+      if (/^\/ipfs\/[^/]+$/.test(path))
+        bytes = blocks.get(CID.parse(path.slice(6)).toV1().toString());
+    } catch {}
+    response.writeHead(bytes ? 200 : 404, { "content-type": "application/vnd.ipld.raw" });
+    response.end(bytes);
+  });
+  await new Promise((done) => badServer.listen(0, "127.0.0.1", done));
+  selectedGateway = `http://127.0.0.1:${badServer.address().port}`;
+} else if (["missing", "corrupt"].includes(mode)) {
   badServer = createServer((_request, response) => {
     badRequests++;
     response.writeHead(mode === "missing" ? 404 : 200, {
@@ -101,7 +124,7 @@ function checkResult(result) {
 }
 await engine.start();
 try {
-  if (badServer) {
+  if (["missing", "corrupt"].includes(mode)) {
     const decision = await submit({ mode: "echo" });
     assert.equal(decision.status, "rejected");
     assert.equal(decision.error.code, "bundle_fetch_failed");
@@ -116,7 +139,9 @@ try {
       return task.stage === "failed" && task;
     });
     assert.ok(task.error.message.includes(`ipfs://${cid}/worker.cjs`));
+    assert.ok(badRequests > 0);
     facts.error = task.error;
+    facts.gatewayRequests = badRequests;
     facts.runs = Object.keys(store.read().facts.runs)
       .map((id) => snapshot(engine.getRun(id, caller)));
   } else if (mode === "isolation") {
@@ -155,7 +180,13 @@ try {
       facts.result = result;
     } else {
       await until(() => engine.getRun(id, caller).progress?.message === `ipfs-entry:${selectedMode}`);
-      engine.cancelTask(decision.taskId, caller);
+      const cancellation = engine.cancelTask(decision.taskId, caller);
+      assert.equal(cancellation.changed, true);
+      assert.ok(cancellation.canceledAt);
+      facts.cancellation = {
+        taskId: cancellation.taskId, changed: cancellation.changed,
+        stage: cancellation.stage, canceledAt: cancellation.canceledAt,
+      };
       await until(() => engine.getRun(id, caller).exit);
       if (mode === "cancel") {
         await until(() => engine.getRun(id, caller).reclaimedAt);

@@ -37,10 +37,18 @@
 
 仓库不保存 SSH 账户、主机或个人路径。
 
-## 阻碍：SSH 传输在 smoke 启动前不可用
+## 历史阻碍：SSH 传输（已恢复）
 
 最后一次官方 registry 观察在 `2026-11-12T05:20:32.068Z` 通过既有 SSH 通道成功。随后启动独立安装/smoke 的连接在 login 前发生 banner exchange 中断，退出 255；只读目录状态探测也 banner 超时。第三次有界只读 SSH 诊断确认既有路径的端口 22 连接超时。
 
-没有禁用 hostkey/TLS 检查，没有修改 SSH、代理、路由、防火墙或密钥，也没有改用本机或 workspace dist 替代 Ubuntu 验证。**没有取得 Ubuntu 安装图、任务执行、取消/故障或退出结果，不能声称部署验收完成。** 目录中的 commands.jsonl、package-lock 与结果文件状态仍需恢复连接后只读确认。
+没有禁用 hostkey/TLS 检查，没有修改 SSH、代理、路由、防火墙或密钥，也没有改用本机或 workspace dist 替代 Ubuntu 验证。当时没有取得安装或执行结果，因此未 submitOuter。用户通知连接恢复后，先有界只读验证：两个旧脚本 hash 仍匹配，commands.jsonl、package-lock 和结果文件均不存在，确认之前没有安装/执行。
 
-恢复条件为既有授权 SSH 通道重新可达。先确认本操作目录状态，再使用同一已冻结 replay、同一四个已发布 RC 继续；不重新发布、不换版本、不移动 tag，不影响其他目录或服务。D-S02/D-S03 与所有 D-AC 项保持未完成，不 append submitOuter，也不记录 acceptOuter。
+## 首轮真实 replay：功能通过但清理预期失败
+
+恢复后首次执行完成四包精确 registry 安装、真实双 Engine/Gateway CLI 成功与日志、7 个独立 Engine probe（并发隔离、16 类拒绝、启动失败、缺失、损坏、合作取消、强停），consumer 活跃任务取消关停也成功。实际结果见 [ubuntu-first-run.json](ubuntu-first-run.json)，该记录明确 `orchestratorSucceeded=false`，不把失败试跑称为全通过。
+
+原因是夹具在共享 publisher 上执行了故意抛错的 startup artifact；它按既有策略留下 release uncertainty，publisher stop 返回 `RESOURCE_RELEASE_UNCONFIRMED`。orchestrator 原本要求 stop=0，因此最后失败；不是 NPM 安装失败，也不是其 7 个 probe 失败。
+
+先按私有 instance PID、boot/starttime、安装目录 daemon cmdline 和无子进程校验所有权，再仅对该自建 publisher 发 SIGTERM 并确认物理退出。原 `released=false` 事实未改，没有伪造框架清理确认；consumer 已通过正常 authenticated stop 退出。
+
+为得到可重复的完整收尾，只调整 Outer replay：startup CAR 改由独立 probe 中的真实 raw-block HTTP Gateway 提供，不在共享 publisher 运行坏入口；取消同时保存实际 canceledAt/changed。产品源码、Inner World、包版本和 tag 不变。先同步这项实质夹具修订并观察新 outer revision，再在新的独立目录完整重跑；在重跑完成前 D-S02/D-S03 与所有 D-AC 项仍未勾选，不 submitOuter/acceptOuter。

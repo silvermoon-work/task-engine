@@ -35,6 +35,8 @@
 
 可重放入口为 [registry-smoke.mjs](registry-smoke.mjs) 与 [registry-engine-probe.mjs](registry-engine-probe.mjs)，只在本操作命名的空目录中运行。前者负责独立安装、Builder CLI 三种产物、两个受管 Engine/Gateway、CLI 执行/日志/活跃任务关停；后者由前者启动独立 Node 进程，验证公开 Engine API 的并发状态、16 类拒绝、启动失败、缺失/损坏内容、合作取消与保留 uncertainty 的强制退出。helper 必须自然退出，不用 process.exit 掩盖未结束 Worker。
 
+启动失败 fixture 的 CAR 由独立 probe 内的真实本地 raw-block HTTP Gateway 提供，仍使用实际内容客户端校验；不在共享发布端执行这个故意抛错的任务，以免其预期 release uncertainty 阻止发布端正常关停。probe 使用消费端已安装的公开 CAR reader，不引入 Builder 运行时依赖。合作取消与强停同时记录实际返回的 canceledAt/changed，不把 Run 的业务失败或 uncertainty 隐藏成成功。先前失败 replay 的进程仅在核对私有 instance PID、boot/starttime、安装目录 cmdline 与无子进程后按 PID 收尾，保留原 released=false 事实。
+
 本机到官方 npm 的 Node/curl TLS 握手预检失败时，不关闭 TLS 校验或改 registry。改用已有 Ubuntu Node 的正常 HTTPS 访问同一官方 verifier exact-version endpoint；[registry-network-observe.mjs](registry-network-observe.mjs) 的本地 plan 模式从实际 manifest 提取全部内部依赖字段，before/after 模式在可正常连接的验证端读取元数据。该纯读取过程没有 publish、tag 或配置写入；发布仍仅由 GitHub Actions 执行。
 
 ## 收尾

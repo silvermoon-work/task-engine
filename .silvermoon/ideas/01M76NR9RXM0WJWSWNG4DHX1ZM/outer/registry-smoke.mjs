@@ -288,17 +288,15 @@ try {
   await cli(["config", "set", "server.rawGatewayAccess", "public"]);
   const publisher = await start("publisher", `http://127.0.0.1:${upstream.address().port}`);
   await cli(["config", "reset", "server.rawGatewayAccess"]);
-  for (const name of ["main", "foreign", "startup"]) {
+  for (const name of ["main", "foreign"]) {
     const input = join(work, `${name}-prime.json`);
     await writeFile(input, JSON.stringify({ mode: "echo", nonce: `prime-${name}` }));
     const response = (await cli([
       "run", "--engine", publisher.url, "--car", builds[name].car.path, "--input", input,
-    ], { expectedCode: name === "startup" ? 1 : 0 })).json();
-    if (name !== "startup") {
-      assert.equal(response.data.status, "succeeded");
-      assert.equal(response.data.output.result.moduleURL, `ipfs://${builds[name].cid}/worker.cjs`);
-      assert.equal(response.data.output.result.bytes, 600_000);
-    }
+    ])).json();
+    assert.equal(response.data.status, "succeeded");
+    assert.equal(response.data.output.result.moduleURL, `ipfs://${builds[name].cid}/worker.cjs`);
+    assert.equal(response.data.output.result.bytes, 600_000);
   }
   const consumerServer = await start("consumer", publisher.url);
   const input = join(work, "consumer-input.json");

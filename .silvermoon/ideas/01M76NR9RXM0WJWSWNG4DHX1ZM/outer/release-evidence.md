@@ -52,3 +52,7 @@
 先按私有 instance PID、boot/starttime、安装目录 daemon cmdline 和无子进程校验所有权，再仅对该自建 publisher 发 SIGTERM 并确认物理退出。原 `released=false` 事实未改，没有伪造框架清理确认；consumer 已通过正常 authenticated stop 退出。
 
 为得到可重复的完整收尾，只调整 Outer replay：startup CAR 改由独立 probe 中的真实 raw-block HTTP Gateway 提供，不在共享 publisher 运行坏入口；取消同时保存实际 canceledAt/changed。产品源码、Inner World、包版本和 tag 不变。先同步这项实质夹具修订并观察新 outer revision，再在新的独立目录完整重跑；在重跑完成前 D-S02/D-S03 与所有 D-AC 项仍未勾选，不 submitOuter/acceptOuter。
+
+## 已完成：修订后的完整第二轮
+
+修订契约在 primary bc310275abcab9e12b29c75bb984503a10ef0772 / outer 25cad109cce2e01d17a536ba8a9cb2c707505210 同步并重观察后，第二轮在新私有目录完整重跑，退出 0；四包 registry 锁定、真实 Gateway/CID/CJS、日志、七项成功/故障 probe、活跃任务关停、无临时 bundle 入口源码文件及所有自建进程退出均取得证据。见 [ubuntu-evidence.md](ubuntu-evidence.md)、[ubuntu-result.json](ubuntu-result.json) 与 [ubuntu-postcheck.json](ubuntu-postcheck.json)。首轮失败与 uncertainty 仍保留，不把它们抹成成功。

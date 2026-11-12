@@ -1,0 +1,52 @@
+﻿{
+  "ok": true,
+  "observedAt": "2026-11-12T15:57:12.526Z",
+  "releaseCommit": "95b1cdbf76c70faf550b174fff97ca7df4d830cb",
+  "node": "v24.11.1",
+  "registry": "https://registry.npmjs.org/",
+  "consumer": "/home/scottwei/.cache/task-engine-kubo-rc-smoke-wSwuvIsF/consumer",
+  "records": {
+    "@silvermoon-work/ipfs-store": {
+      "version": "0.1.0-rc.2",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/ipfs-store/-/ipfs-store-0.1.0-rc.2.tgz",
+      "integrity": "sha512-IjI7gH/F1vj5a5/TVXsQwjg9j3rOr2ymw/XrRaC89o7eacax4lIjnkGnYW3ZQ2rHxCx3mwYEKezv4NpXZxh+VA=="
+    },
+    "@silvermoon-work/task-builder": {
+      "version": "0.2.0-rc.3",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-builder/-/task-builder-0.2.0-rc.3.tgz",
+      "integrity": "sha512-sGrBGFGzDENwtW+of2zPa5j7s8XfJK0k871M2n7KwJs+zPbobEyZ5tfaxgYsyPJ4juI/XSitBAe/ZBqSY8OoOA=="
+    },
+    "@silvermoon-work/task-builder-cli": {
+      "version": "0.2.0-rc.3",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-builder-cli/-/task-builder-cli-0.2.0-rc.3.tgz",
+      "integrity": "sha512-U3HMuaKJKVkFzYvIcIC05YhPlBpMh81utsccCtnVP7FzRLb+TsCKBmt9jNtSbPoLgn1vlBmJz0FyR8zdb2Wp+g=="
+    },
+    "@silvermoon-work/task-engine": {
+      "version": "0.2.0-rc.3",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-engine/-/task-engine-0.2.0-rc.3.tgz",
+      "integrity": "sha512-wiqPkcs8mPauLAVmuY4/eoeyO2MrBiYayWOwtiHcx4sj53fF+w3Mq/s9sR7OLjlrhZn2wr/U0xRt7Uvvq4GkDw=="
+    },
+    "@silvermoon-work/task-engine-cli": {
+      "version": "0.2.0-rc.11",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-engine-cli/-/task-engine-cli-0.2.0-rc.11.tgz",
+      "integrity": "sha512-Ui3f/3elxSRQ8Pbb+No9BYjynP6uzwHH0V5fzTTOYr23DGI+zfirk7ydYCeZkOIjbl4QV6w0AQRx5jlKpltAng=="
+    },
+    "@silvermoon-work/task-protocol": {
+      "version": "0.2.0-rc.1",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-protocol/-/task-protocol-0.2.0-rc.1.tgz",
+      "integrity": "sha512-P0Z+wh0zutMr+ss8Zv9E2+QJyCdstPy7Gjg0JJ8DtKB0fflTW+p4OPGDnuO8SxogFu7z52wOEFN++8cjRBi6KQ=="
+    },
+    "@silvermoon-work/task-sdk": {
+      "version": "0.2.0-rc.1",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-sdk/-/task-sdk-0.2.0-rc.1.tgz",
+      "integrity": "sha512-en6ZJRj4K0hei0w6z58Pk0vrSbQ7C+faCigino+U3zvwRVlmpD+GZHJkz2G8tMjtUZanE8wLXm49u/QlHWVL0w=="
+    },
+    "@silvermoon-work/task-engine-storage": {
+      "version": "0.2.0-rc.0",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-engine-storage/-/task-engine-storage-0.2.0-rc.0.tgz",
+      "integrity": "sha512-S9EYzuOVl40jZwWhhmesmJaTGctGAGMAxIgAwTi4DOTshJ5uCdSWvva0zX6Eqju62hNPII17p21CE802PUtR0Q=="
+    }
+  },
+  "installLogSha256": "009808687c077e983b7f49bc7daa3721e980277309f75a0f8e95e3509b11e0a0",
+  "lockSha256": "07326d1f238bb5eb520960b5d97d6c8daa1b7b235bc61e08d7fac339b071d454"
+}

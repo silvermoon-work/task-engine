@@ -85,4 +85,24 @@ Smoke 驱动在实际执行前增加 PeerID 与本次 repo 配置一致的检查
 [prepare-consumer.mjs](./prepare-consumer.mjs)
 只从 registry 安装精确包并核对 lock／路径。两者语法检查通过，待同步本次 Outer
 revision 后才执行。源码验证、下载工具和五包发布均不替代 registry
-smoke；D-S03、D-AC* 此刻仍未完成。
+smoke；该准备点的 D-S03、D-AC* 仍未完成。
+
+## Ubuntu 首轮：安装通过，ESM 驱动入口错误
+
+在 primary `dc95ea2f08fb25f35afe1decc964a7b114d95055`、Outer `71c328c338eb`
+同步重观察后，实际执行新 consumer 安装。见
+[ubuntu-bootstrap.json](./ubuntu-bootstrap.json)：五个新 RC、既有 Protocol／SDK／Storage 的精确版本、registry
+URL、lock
+integrity 和非 symlink 路径核对通过。没有 workspace、源码或本地 tarball 替代；包安装没有修改真实 HOME／registry。
+
+首轮驱动退出 1，原始 [stderr](./ubuntu-first-error.txt) 和
+[状态回执](./ubuntu-first-result.json) 保留。原因是验证驱动用 CommonJS
+`require.resolve` 去解析只声明 ESM import 条件的入口，触发
+`ERR_PACKAGE_PATH_NOT_EXPORTED`；这不构成已发布 ESM
+API 不可用的证据。失败发生在 fixture 初始化之前，远端确认 `work`
+目录不存在，没有启动本轮 Kubo 或 Engine。
+
+只修正 Outer 驱动：将其复制到 consumer 内，以标准 ESM `import()`
+解析公开包和已安装依赖；增加实际执行位置断言。所有版本、运行代码、功能断言和已接受 Inner／Ideal 不变。先同步新的 Outer
+revision，再在全新 nonce
+consumer 中重装相同精确版本并完整重跑，不复用失败目录的暖缓存。D-AC01 的发布／安装来源证明已满足；D-S03、D-AC02/03 不勾选。

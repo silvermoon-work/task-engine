@@ -24,6 +24,6 @@
 
 ### Deployment acceptance criteria
 
-- [ ] **D-AC01:** 精确 RC 与来源可复核
+- [x] **D-AC01:** 精确 RC 与来源可复核
 - [ ] **D-AC02:** 可选部署与内容保真
 - [ ] **D-AC03:** 保留与故障可复核

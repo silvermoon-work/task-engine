@@ -56,6 +56,9 @@ URL、精确版本、包 SHA-1/SHA-512、实际 tarball 摘要、公开 provenan
 
 ## 必须观察的结果
 
+Smoke 驱动须复制到新 consumer 内执行，使用标准 ESM `import()`
+解析已安装包，不用 CommonJS `require.resolve` 解析仅声明 import 条件的公开入口。
+
 1. registry 包版本、实际模块路径、lock/integrity 和来源一致；默认 local 无 Kubo 可用，Builder/Engine 共用新 Store 的同一构造身份。
 2. 真实块和 DAG 保真，父节点先到的暂存导入可完成；Kubo 内容路径无应用
    `blocks`、SQLite 块载荷和 CAR 影子副本。作者产生的测试 CAR 是输入夹具，不计作 Store 缓存。

@@ -9,11 +9,10 @@ import {
   realpath,
   writeFile,
 } from "node:fs/promises";
-import { createRequire } from "node:module";
 import { createServer } from "node:net";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { promisify } from "node:util";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 import { DatabaseSync } from "node:sqlite";
 
@@ -23,7 +22,11 @@ assert.equal(owner.session, "a1b35ae0-90d2-428a-8d9f-c868f5c1247c");
 assert.equal(owner.uid, process.getuid());
 assert.equal(process.version, "v24.11.1");
 const consumer = join(root, "consumer");
-const require = createRequire(join(consumer, "package.json"));
+assert.equal(
+  dirname(fileURLToPath(import.meta.url)),
+  consumer,
+  "Run this driver inside its registry consumer.",
+);
 const expected = {
   "ipfs-store": "0.1.0-rc.2",
   "task-builder": "0.2.0-rc.3",
@@ -58,7 +61,7 @@ for (const [id, version] of Object.entries(expected)) {
   assert.match(entry.integrity, /^sha512-/);
   paths[id] = directory;
 }
-const load = (name) => import(pathToFileURL(require.resolve(name)).href);
+const load = (name) => import(name);
 const { IpfsStore } = await load("@silvermoon-work/ipfs-store");
 const { ContentBlocks } = await load("@silvermoon-work/ipfs-store/dag");
 const { buildTaskBundle } = await load("@silvermoon-work/task-builder");
@@ -76,13 +79,8 @@ const {
 } = await load("@silvermoon-work/task-engine");
 const { openSqliteStore } = await load("@silvermoon-work/task-engine-storage");
 assert.equal(EngineStore, IpfsStore);
-const storeRequire = createRequire(join(paths["ipfs-store"], "package.json"));
-const { CID } = await import(
-  pathToFileURL(storeRequire.resolve("multiformats/cid")).href
-);
-const { sha256 } = await import(
-  pathToFileURL(storeRequire.resolve("multiformats/hashes/sha2")).href
-);
+const { CID } = await load("multiformats/cid");
+const { sha256 } = await load("multiformats/hashes/sha2");
 checks.push({
   id: "registry-identity",
   passed: true,

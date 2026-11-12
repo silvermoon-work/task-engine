@@ -1,0 +1,11 @@
+﻿{
+  "ok": false,
+  "phase": "driver-module-resolution",
+  "observedAt": "2026-11-12T15:59:20.169Z",
+  "node": "v24.11.1",
+  "errorCode": "ERR_PACKAGE_PATH_NOT_EXPORTED",
+  "consumerInstalled": true,
+  "fixtureWorkCreated": false,
+  "stderrSha256": "213c5dd0fc1c5d6066c1a2ba7c27bf47ee569b6e619afb25b7b7a3b3cbc0daf3",
+  "runtimeProductChanged": false
+}

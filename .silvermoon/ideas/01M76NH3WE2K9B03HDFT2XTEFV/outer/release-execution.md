@@ -27,6 +27,27 @@ Git 与 primary 在准备前为 `b07a2b4eac0452ec69519bb80a1e5fcdf2f7f654`，ahe
 
 下一步冻结并同步版本提交 V；精确 V main push CI 尚未完成，仍不能打 tag。本地通过不替代 Actions CI 或真实发布验证。
 
+## 固定 V 与精确 main CI：已通过
+
+版本提交 **V=`bbc504364514ef91edbd28e3a4a7f61d828cb58b`** 已普通 push 同步 main。其 Inner／Ideal 树仍分别为已接受的 bbca358050dd／edbb07ccf316。
+[main push CI 43192357661](https://github.com/silvermoon-work/task-engine/actions/runs/43192357661) 的 headSha 完全等于 V，Node.js 22.15.0、24.11.1 和 `Release verification (v1)` 均 success，`Confirm required checks succeeded` 已成功。
+
+本机另实际执行仓库 `github-ci-verify`：显式 repository=`silvermoon-work/task-engine`、sha=V、branch=main、workflow=ci.yaml、准确 job／step，返回 `ok:true`、runId=43192357661、runAttempt=1。本机无 Actions 的 repository／summary 环境，先前缺环境参数的两次 CLI usage error 不算验证结果；最终调用显式 repository 且省略仅渲染用的 summary，未弱化任何 CI 条件。
+
+后续 primary 并发推进到 `4a0e0904df8e80aff84454f307ae697f55c1cb6a`，只有另一个 idea 的设计元数据，无 package／运行代码变化。V 仍为 main 祖先，全部 release tag 固定 V，绝不追移动 HEAD。
+
+## 首包发布：已成功且精确版本可见
+
+2026-11-12 09:44:49.366 UTC 的发布前官方复核确认 ipfs-store `0.1.0-rc.1` 及其余六候选仍未占用，所有候选 Git tag 均不存在，ipfs-store stage／rc.0 仍保留且 latest／rc 都为 rc.0。未发现依赖前置边（首包无内部依赖）。
+
+随后只创建并普通 push **ipfs-store-v0.1.0-rc.1 → V**，
+触发 [publish run 43194287700](https://github.com/silvermoon-work/task-engine/actions/runs/43194287700)。其 event=push、headBranch 为该 tag、headSha 为 V；精确 CI 校验、单包 pack、artifact 全字段校验、publint、直接 publish 步骤均 success。没有使用本地 publish、token 或 stage；新包真实 Trusted Publishing 路径已成功，不再是初始化／认证阻塞。
+
+09:49:03.764 UTC 官方 exact record 为 `@silvermoon-work/ipfs-store@0.1.0-rc.1`，rc 已指向它，latest 仍为 `0.1.0-rc.0`；stage 和旧 rc.0 都保留。只读下载公开 tarball（没有安装或执行）得到 23605 字节，SHA-1=`c0e3158b7c613897812a0335865441c044883215`，SHA-512 与 registry integrity 一致。
+公开 Trusted Publisher 标记为 true；SLSA v1 声明的 repository／workflow／ref 分别对应本仓库、`publish-npm.yaml` 和该 tag，resolved gitCommit=V，subject SHA-512 与实际 tarball 匹配。registry `gitHead` 为 null，未把它伪称为源提交。
+
+首包完整 before／after、Actions steps、tarball hashes／integrity 和公开 provenance 在 [registry-publication.json](./registry-publication.json)。此刻其余六包仍未发布，D-* 与 remote smoke 尚未完成。后续只按单包顺序继续：`publish-authorized-one.mjs` 每次只接受一个批准 ID，检查所有先前成功收据、V 的精确 CI、剩余 tag／版本及全部内部依赖，再推一个 tag；不支持批量发布或自动换号。registry 可见性仅对明确的缓存延迟作有上限等待，其他失败立即停止。
+
 ## 隔离消费驱动准备
 
 [registry-spaceref-smoke.mjs](./registry-spaceref-smoke.mjs) 是本计划的外部消费驱动，不包含产品实现。它先核对 ownership marker、精确 installed manifests、registry lock／tarball/integrity 和非 symlink 路径，再从这些已安装包加载公开 API／真实 CLI；不加载 workspace src／dist。

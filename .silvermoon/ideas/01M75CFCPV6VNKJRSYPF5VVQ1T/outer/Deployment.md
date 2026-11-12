@@ -2,6 +2,8 @@
 
 用户已授权顺序完成剩余迭代：本轮新subagent实施，主Agent独立审批impl/deploy、发布RC并连接指定Ubuntu验证、清理自有测试资源。仅本地host-owned签名记录输入与HTTP读取，不授权公开IPNS发布、DHT发现、DNSLink或公共上传。使用临时测试密钥，私钥与凭据不得进入仓库或报告。
 
+本轮唯一新版本为`@silvermoon-work/task-engine-cli@0.2.0-rc.8` / `task-engine-cli-v0.2.0-rc.8`；内部依赖沿用已发布`0.2.0-rc.0`，新增外部依赖使用catalog固定版本，不重发其他workspace。发布前latest=`0.1.0`、canary=`0.2.0-canary-261111-1`、rc=`0.2.0-rc.7`。同版本/tag已占用则停止。独立consumer执行先同步的[公开回放](inner/replay.mjs)，冻结15秒短生命周期、20秒等待上限和5秒HTTP时限不变；Kubo结果须检查`Validation.Valid`而非exit0。
+
 ## Steps
 
 ### D-S01: 配置可控记录及独立客户端

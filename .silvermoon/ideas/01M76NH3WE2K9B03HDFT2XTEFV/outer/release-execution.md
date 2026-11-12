@@ -81,6 +81,14 @@ Engine 在上述 Builder CLI 精确版本可见后才发布，包含 development
 
 先同步这项驱动修订并观察新 Outer，再创建新的 nonce 目录，重新安装同七个精确 RC 并完整重跑；不复用首轮暖缓存，不删除失败记录，也不以局部通过替代最终结果。
 
+## Ubuntu 二轮：CLI 参数夹具错误，保留失败
+
+修订在 primary `6b395da39202337becf1f058c454ce27390af558`／Outer `6af93be51953` 同步重观察后，创建第二个独立 nonce consumer，重新从 registry 安装同七包，见 [ubuntu-bootstrap-replay.json](./ubuntu-bootstrap-replay.json) 与[驱动 hash 校验](./ubuntu-script-verification-replay.json)。
+
+[ubuntu-second-result.json](./ubuntu-second-result.json) 真实退出 1：前三组对象／原 DAG／冷 hint 拒绝通过，全部四个 task folder／CAR 的构建已完成；CLI init 拒绝驱动误写的 `--name`。只读调用已发布 CLI 的 `init --help` 明确列出正确选项 `--package-name`，与源码公开定义一致，不能把这个调用方错误归咎产品。
+
+finally 确认所有本轮 Engine 与 Source 关闭，未启动 CLI daemon。只将驱动该参数替换为 `--package-name`，所有功能断言、已发 RC、运行库、Inner／Ideal 保持不变。修订后语法检查退出 0，驱动 SHA-256=`ac03a9b8c092c581df490ea9d559fad8fabc9b035093f5b210d55fb153823c56`。再次同步并重观察后，将在第三个全新目录完整执行，保留前两轮失败，不复用暖缓存或选择性跳过。
+
 ## 隔离消费驱动准备
 
 [registry-spaceref-smoke.mjs](./registry-spaceref-smoke.mjs) 是本计划的外部消费驱动，不包含产品实现。它先核对 ownership marker、精确 installed manifests、registry lock／tarball/integrity 和非 symlink 路径，再从这些已安装包加载公开 API／真实 CLI；不加载 workspace src／dist。

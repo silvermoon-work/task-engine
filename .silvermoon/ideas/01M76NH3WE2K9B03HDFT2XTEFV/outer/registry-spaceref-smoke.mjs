@@ -265,7 +265,7 @@ export default async(input,context)=>{
   });
   await checkCase("published init, default shared config and independent Builder/Engine overrides", async () => {
     const project = join(consumer, "initialized-author");
-    await command(process.execPath, [builderBin, "init", project, "--name", "registry-spaceref-author"]);
+    await command(process.execPath, [builderBin, "init", project, "--package-name", "registry-spaceref-author"]);
     const generated = JSON.parse(await readFile(join(project, "package.json"), "utf8"));
     await command("npm", ["--cache", join(work, "npm-cache"), "--prefix", project, "install", "--ignore-scripts", "--include=optional", "--no-audit", "--no-fund", "--save-exact", "@silvermoon-work/task-sdk@0.2.0-rc.1", "@silvermoon-work/task-builder@0.2.0-rc.2", "@silvermoon-work/task-builder-cli@0.2.0-rc.2"], { timeout: 600_000 });
     const authorManifest = JSON.parse(await readFile(join(project, "package.json"), "utf8"));

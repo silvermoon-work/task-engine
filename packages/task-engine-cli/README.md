@@ -65,12 +65,14 @@ task-engine config reset task.timeoutMs
 成功完成的新版 Run 使用统一的 `output: {cid, result}`，`run`、`task await`
 和 `task query --id` 均可取得；普通列表仅包含 `output.cid`，不展开业务结果。
 顶层不再返回 `outputCid` 或 `result`，业务 `result` 本身不被改写。
-输出文件块及保留根存入实例的 SQLite，
-重启后仍可被后续任务通过 `context.space(cid)` 读取。离线 `data prune --cache`
-同时标记文件缓存和 SQLite 输出块，只删除不再被保留任务引用的内容。
+输出文件块写入所选 IpfsStore，业务事实与保留根关联存入实例的 SQLite；
+既有 SQLite 输出块仍可由 local 宿主读取适配器获取。重启后内容可通过
+`context.space(cid)` 读取，前提是所选后端仍有内容或可从显式来源获取。
+离线 `data prune --cache` 标记保留引用，并按后端清除本系统提示及允许清理的 local 缓存。
 这是 breaking change；旧开发数据库不迁移，请使用新的数据目录，并重启新版 Server。
-`output.cid` 是内容标识，不代表内容已上传或公开；本地输出不会自动发布到
-Pinboard、Kubo 或公共 Gateway，其他实例不能仅凭 CID 保证读取到这些块。
+`output.cid` 是内容标识，不代表内容已公开；默认 local 不会自动上传到
+Pinboard、Kubo 或公共 Gateway。显式选择 Kubo 后端才向配置的 daemon 写块并设置具名提示，
+其他实例仍不能仅凭 CID 保证读取到这些块。
 
 失败为 `{"ok":false,"error":{"code":"…","message":"…"}}`。
 有可信任务结果或已完成的部分清理时，同一对象保留 `data`，不伪称回滚。

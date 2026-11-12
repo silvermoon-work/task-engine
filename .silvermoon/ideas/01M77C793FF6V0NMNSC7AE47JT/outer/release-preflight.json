@@ -1,0 +1,57 @@
+﻿{
+  "observedAt": "2026-11-12T14:59:27.853Z",
+  "registry": "https://registry.npmjs.org/",
+  "scope": "five-explicit-package-specific-RCs",
+  "candidates": [
+    {
+      "id": "ipfs-store",
+      "version": "0.1.0-rc.2",
+      "exactStatus": 404,
+      "beforeTags": {
+        "rc": "0.1.0-rc.1",
+        "latest": "0.1.0-rc.0"
+      }
+    },
+    {
+      "id": "task-builder",
+      "version": "0.2.0-rc.3",
+      "exactStatus": 404,
+      "beforeTags": {
+        "latest": "0.1.0",
+        "canary": "0.2.0-canary-261111-1",
+        "rc": "0.2.0-rc.2"
+      }
+    },
+    {
+      "id": "task-builder-cli",
+      "version": "0.2.0-rc.3",
+      "exactStatus": 404,
+      "beforeTags": {
+        "latest": "0.1.0",
+        "canary": "0.2.0-canary-261111-1",
+        "rc": "0.2.0-rc.2"
+      }
+    },
+    {
+      "id": "task-engine",
+      "version": "0.2.0-rc.3",
+      "exactStatus": 404,
+      "beforeTags": {
+        "latest": "0.1.0",
+        "canary": "0.2.0-canary-261111-1",
+        "rc": "0.2.0-rc.2"
+      }
+    },
+    {
+      "id": "task-engine-cli",
+      "version": "0.2.0-rc.11",
+      "exactStatus": 404,
+      "beforeTags": {
+        "latest": "0.1.0",
+        "canary": "0.2.0-canary-261111-1",
+        "rc": "0.2.0-rc.10"
+      }
+    }
+  ],
+  "unchangedDependenciesAvailable": true
+}

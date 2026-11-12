@@ -78,7 +78,8 @@ Engine 只借用对象并创建独立有界 reader scope，close 不关闭调用
 `IpfsStore`，不再由 Engine 拼装下载、缓存和 DAG 读取函数；不能同时传两个入口。
 `@silvermoon-work/ipfs-store` 的 `read()` 返回文件流／目录节点，`prepare()`
 完成有界静态闭包。公共配置仍由 CLI／宿主显式解析，默认及覆盖见该包说明。
-输出内容由 Store 的内容块存储和 Run 保留引用管理，不修改外部节点的 pin。
+输出内容由所选 IpfsStore 和持久化 Run 引用管理；具备保留能力的 Store
+可设置和清理本系统具名 pin 提示，不接管外部 daemon 的进程或全局 GC。
 `bundleLimits.retainedBytes` 默认 256 MiB，是所有内存保留块的总量预算；超限明确拒绝。
 IpfsStore 验证并复用块，官方 UnixFS 解析路径及提供字节流；Engine 只保留 Task 准入、
 逻辑容量与租约边界，不承担打包的 graft 或任务之外的内容路径策略。
@@ -146,7 +147,9 @@ Task/Run 列表摘要仅带 `output.cid`，不展开业务结果。
 该输出封装是 breaking change，旧开发数据不迁移；Worker 的业务返回值和 Bundle 无需改动。
 读取及导入的静态 Space 入口另记录为 Run 的 `contentAccess`，不等同于永久 pin。
 失败／取消暂不发布部分产物 CID。第一版不自动回收内容块或 Run 保留根；
-`MemoryStore` 的内容只在该 Store 实例存活期间保留，SQLite Store 在重启后保留。
+只读源适配路径的业务块仍由 `MemoryStore`／SQLite Store 按原生命周期保留；
+注入具备保留能力的 IpfsStore 时，块生命周期由所选后端承担，业务 Store 保存引用。
+无论 local 还是 Kubo，人工删除缓存或块后都不承诺内容绝对可用。
 自定义 Store 必须实现内容块写入和 Run 保留能力，不能默默退回非持久内存。
 
 公开 Context 移除 `generation` 和 `checkpoint`；内部代际隔离不变。

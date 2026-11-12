@@ -6,6 +6,8 @@
 
 真实浏览器独立origin验证使用[有界浏览器回放](verify-browser.mjs)：两独立public/token实例，120秒后停止自有服务并删除临时目录；只有公开测试token与签名记录进入页面，生成私钥仅留进程内。通过绑定loopback的临时SSH tunnel运行，不开放公网端口。
 
+实际发布、独立JS/Kubo验签、真实到期/重启回滚、真实浏览器与前序回归及清理结果见[部署验收证据](deployment-verification.md)。仅归档已经观察的结果，不改变冻结要求。
+
 ## Steps
 
 ### D-S01: 配置可控记录及独立客户端

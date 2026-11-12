@@ -99,6 +99,25 @@ finally 确认所有本轮 Engine 与 Source 关闭，未启动 CLI daemon。只
 
 finally 确认本轮所有自建 Engine、Source 与已启动 CLI daemon 已关闭。新驱动语法检查退出 0，SHA-256=`28c0665a32da661587e03757466e534e9ee117382dcfe6d36498c700e036cf57`。同步后再以第四个全新目录完整重跑；三轮失败保留，D-* 仍不勾选。
 
+## Ubuntu 第四轮：完整主矩阵通过
+
+在 primary `532f0146c273ee252746b7d13983e0f93308278a`／Outer `f7e77b9de0ef` 同步重观察后，创建第四个全新 consumer `task-engine-spaceref-smoke/bbc504364514-93c45d97-0ccb-45ce-99fa-914b756158d1`，没有复用前三轮缓存。
+[ubuntu-bootstrap-complete.json](./ubuntu-bootstrap-complete.json) 与[驱动校验](./ubuntu-script-verification-complete.json)证明实际安装同七个精确 registry RC，V 仍固定，驱动 hash 为 28c0665a32da。
+
+**2026-11-12T10:48:08.674Z–10:48:49.340Z 实际退出 0，17/17 组全通过。** 原始结果为 [ubuntu-result.json](./ubuntu-result.json)，脱敏逐命令证据为 [ubuntu-commands.jsonl](./ubuntu-commands.jsonl)。没有 skip、关闭原根校验、绕过断源或用 workspace 替代：
+
+- 原始资源 CID `bafybeiebhzeaiuldkqbkqadzxxqdrleo6puiuc3wdpadlnimq5g4mpuvam` 保留 777 字节非 raw leaves、mode／mtime／CRLF；导入、流读、本地零网络、无 gateway 缺块、取消一个 reader 不影响另一 reader，均直接使用已发 IpfsStore。
+- 父根 `bafybeib3wgickzpucn3b4gkezmafm6ozktn7pygceeyf5fn4n7r37g45bq` 在全新 Engine cache 完整冷准备；第一次子调用前关来源，随后 A／C／两个共享 B 共四个独立 Run 成功，来源无新增请求，固定 B CID 相同。import.meta.url 为规范 IPFS 入口。
+- 父 DAG 外的 D 离线调用明确失败，恢复来源后完整获取并独立执行；真实丢 ACK／同 key 与恢复保留一个固定 targetCid／child requestId／deadline。可写目标、旧形式、超时、深度配额、唯一块与逻辑预算、旧 imports 格式都明确拒绝；真实父子取消后回收。
+- 已发 CLI init 后显式安装准确迁移 SDK；默认公共配置确实复用 Builder 缓存，独立 gateway／dataDir 覆盖不改默认目录，disabled raw gateway 不开放已缓存 CID。
+- 搬运包含隐藏 sidecar 的完整目录，删除自己的原作者源和所有相关内容缓存，断来源、坏配置下 library／真实 CLI 离线 CAR 同根、唯一 CID 去重、原文件元数据与字节保持；修改／缺 sidecar 失败；全新 managed dataDir 实际消费该 CAR，独立子 Run 成功并正常停止。
+
+10:49:09.682 UTC 的独立 [ubuntu-postcheck.json](./ubuntu-postcheck.json)再核对原始结果 SHA-256=`1f016a17aefc831f5cddef5eeebbb723666aa1633855149efa7c5779351cbd39`、17 组完整性及 default／override／offline 三个实例的 PID／birth，确认全部原进程物理退出、state=stopped／released=true，所有自建 Engine／Source 关闭；没有操作其他会话资源。
+
+10:50:01.385 UTC 的 [registry-final-state.json](./registry-final-state.json)再次确认七个 exact 200、所有公开 Trusted Publisher 标记为 true；六包 latest／canary 不变，ipfs-store latest rc.0 与历史 stage／rc.0 保留，只有 rc 指向批准版本。
+
+为逐一覆盖计划里“CID 错误、缺后继原块、单文件 CID 与第二分块 profile、额外 import 文件及 Engine 逻辑容量”的更细颗粒观测，另准备 `registry-edge-probe.mjs`；它只使用同一已验证 consumer 的真实安装包，并为每个负面路径创建新的自有冷缓存，不修改主矩阵结果或已发产品。先同步这项补充驱动，再执行并单独记录结果，尚不把补充项宣称通过。
+
 ## 隔离消费驱动准备
 
 [registry-spaceref-smoke.mjs](./registry-spaceref-smoke.mjs) 是本计划的外部消费驱动，不包含产品实现。它先核对 ownership marker、精确 installed manifests、registry lock／tarball/integrity 和非 symlink 路径，再从这些已安装包加载公开 API／真实 CLI；不加载 workspace src／dist。

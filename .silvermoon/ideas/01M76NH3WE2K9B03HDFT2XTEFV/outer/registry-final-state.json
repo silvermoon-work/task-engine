@@ -1,0 +1,91 @@
+{
+  "checkedAt": "2026-11-12T10:50:01.385Z",
+  "versionCommit": "bbc504364514ef91edbd28e3a4a7f61d828cb58b",
+  "packages": [
+    {
+      "name": "@silvermoon-work/ipfs-store",
+      "version": "0.1.0-rc.1",
+      "status": 200,
+      "distTags": {
+        "rc": "0.1.0-rc.1",
+        "latest": "0.1.0-rc.0"
+      },
+      "integrity": "sha512-HjnM41SQG8LO+imSiZsDvQmycXfAmttgYOGUsH8Nh/AvRCiWMjKaQuMPD2Ef/3enB8yeIDww+GqzglyLYhux3g==",
+      "wasTrustedPublisher": true
+    },
+    {
+      "name": "@silvermoon-work/task-protocol",
+      "version": "0.2.0-rc.1",
+      "status": 200,
+      "distTags": {
+        "latest": "0.1.0",
+        "canary": "0.2.0-canary-261111-1",
+        "rc": "0.2.0-rc.1"
+      },
+      "integrity": "sha512-P0Z+wh0zutMr+ss8Zv9E2+QJyCdstPy7Gjg0JJ8DtKB0fflTW+p4OPGDnuO8SxogFu7z52wOEFN++8cjRBi6KQ==",
+      "wasTrustedPublisher": true
+    },
+    {
+      "name": "@silvermoon-work/task-sdk",
+      "version": "0.2.0-rc.1",
+      "status": 200,
+      "distTags": {
+        "latest": "0.1.0",
+        "canary": "0.2.0-canary-261111-1",
+        "rc": "0.2.0-rc.1"
+      },
+      "integrity": "sha512-en6ZJRj4K0hei0w6z58Pk0vrSbQ7C+faCigino+U3zvwRVlmpD+GZHJkz2G8tMjtUZanE8wLXm49u/QlHWVL0w==",
+      "wasTrustedPublisher": true
+    },
+    {
+      "name": "@silvermoon-work/task-builder",
+      "version": "0.2.0-rc.2",
+      "status": 200,
+      "distTags": {
+        "latest": "0.1.0",
+        "canary": "0.2.0-canary-261111-1",
+        "rc": "0.2.0-rc.2"
+      },
+      "integrity": "sha512-2m5tXKvDTbuQfkYuUMQr8yqYpKTmXrtRd6HbRsoxQvTSXYBPbpa8IAaW2oJPNIHgBOVq6/re+H3HewmACyaRaw==",
+      "wasTrustedPublisher": true
+    },
+    {
+      "name": "@silvermoon-work/task-builder-cli",
+      "version": "0.2.0-rc.2",
+      "status": 200,
+      "distTags": {
+        "latest": "0.1.0",
+        "canary": "0.2.0-canary-261111-1",
+        "rc": "0.2.0-rc.2"
+      },
+      "integrity": "sha512-no9aQXF9fpwBau3B/lSaVOyRARUSRgBaeQEJiRPn5CpiBOVpc52cHYsrh64UUpUyQBzaPxQbggRGu5gR50MBbg==",
+      "wasTrustedPublisher": true
+    },
+    {
+      "name": "@silvermoon-work/task-engine",
+      "version": "0.2.0-rc.2",
+      "status": 200,
+      "distTags": {
+        "latest": "0.1.0",
+        "canary": "0.2.0-canary-261111-1",
+        "rc": "0.2.0-rc.2"
+      },
+      "integrity": "sha512-p5jpsnAowAg0FTGWzxc6TSCYvLJ+WPhoedoktHjjqZe4IJkQWf2klAuHh4c0i1dRkLTqZYn/CXDaWN4bjJ8Qmw==",
+      "wasTrustedPublisher": true
+    },
+    {
+      "name": "@silvermoon-work/task-engine-cli",
+      "version": "0.2.0-rc.10",
+      "status": 200,
+      "distTags": {
+        "latest": "0.1.0",
+        "canary": "0.2.0-canary-261111-1",
+        "rc": "0.2.0-rc.10"
+      },
+      "integrity": "sha512-p4z5lREnF1rIImq0Mjok/veq8BiRnszRQ+gTdpQUUNhMyen0WyFm0NHtpopIvWrVq31T7FLQ8375otcnATDIbg==",
+      "wasTrustedPublisher": true
+    }
+  ],
+  "allLatestAndHistoricalTagsPreserved": true,
+  "allSevenExactVersionsVisible": true
+}

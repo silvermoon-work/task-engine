@@ -134,12 +134,19 @@ let daemon;
 let daemonExited;
 let log = "";
 let expectedPeer;
+const daemonRecords = [];
 async function startKubo() {
   daemon = spawn(binary, ["--offline", "daemon", "--routing=none"], {
     env: ipfsEnv,
     stdio: ["ignore", "pipe", "pipe"],
   });
   daemonExited = once(daemon, "exit");
+  const record = { pid: daemon.pid };
+  daemonRecords.push(record);
+  daemon.once("exit", (code, signal) => {
+    record.code = code;
+    record.signal = signal;
+  });
   daemon.stdout.on("data", (chunk) => {
     log = (log + chunk).slice(-16_384);
   });
@@ -294,7 +301,7 @@ try {
     source: {
       entry: "author/main.ts",
       mode: "callback",
-      contract: { input: true, result: true, message: false },
+      contract: { input: { type: "object" }, result: true, message: false },
     },
     imports: { "resources/external.txt": localCid.toString() },
     content,
@@ -633,6 +640,7 @@ const result = {
   ...(failure ? { failure } : {}),
   cleanup: {
     ok: !cleanupError,
+    daemons: daemonRecords,
     ...(cleanupError ? { error: cleanupError } : {}),
   },
 };

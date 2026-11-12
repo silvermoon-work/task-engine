@@ -1,0 +1,45 @@
+﻿{
+  "ok": false,
+  "observedAt": "2026-11-12T16:01:42.918Z",
+  "node": "v24.11.1",
+  "kubo": "0.43.1",
+  "source": "exact registry-installed packages",
+  "checks": [
+    {
+      "id": "registry-identity",
+      "passed": true,
+      "versions": {
+        "ipfs-store": "0.1.0-rc.2",
+        "task-builder": "0.2.0-rc.3",
+        "task-builder-cli": "0.2.0-rc.3",
+        "task-engine": "0.2.0-rc.3",
+        "task-engine-cli": "0.2.0-rc.11",
+        "task-protocol": "0.2.0-rc.1",
+        "task-sdk": "0.2.0-rc.1",
+        "task-engine-storage": "0.2.0-rc.0"
+      },
+      "paths": {
+        "ipfs-store": "/home/scottwei/.cache/task-engine-kubo-rc-replay-cAsRDpFk/consumer/node_modules/@silvermoon-work/ipfs-store",
+        "task-builder": "/home/scottwei/.cache/task-engine-kubo-rc-replay-cAsRDpFk/consumer/node_modules/@silvermoon-work/task-builder",
+        "task-builder-cli": "/home/scottwei/.cache/task-engine-kubo-rc-replay-cAsRDpFk/consumer/node_modules/@silvermoon-work/task-builder-cli",
+        "task-engine": "/home/scottwei/.cache/task-engine-kubo-rc-replay-cAsRDpFk/consumer/node_modules/@silvermoon-work/task-engine",
+        "task-engine-cli": "/home/scottwei/.cache/task-engine-kubo-rc-replay-cAsRDpFk/consumer/node_modules/@silvermoon-work/task-engine-cli",
+        "task-protocol": "/home/scottwei/.cache/task-engine-kubo-rc-replay-cAsRDpFk/consumer/node_modules/@silvermoon-work/task-protocol",
+        "task-sdk": "/home/scottwei/.cache/task-engine-kubo-rc-replay-cAsRDpFk/consumer/node_modules/@silvermoon-work/task-sdk",
+        "task-engine-storage": "/home/scottwei/.cache/task-engine-kubo-rc-replay-cAsRDpFk/consumer/node_modules/@silvermoon-work/task-engine-storage"
+      }
+    },
+    {
+      "id": "local-default",
+      "passed": true,
+      "daemonStarted": false
+    }
+  ],
+  "failure": {
+    "message": "Task input Schema must be an object.",
+    "stack": "Error: Task input Schema must be an object.\n    at file:///home/scottwei/.cache/task-engine-kubo-rc-replay-cAsRDpFk/consumer/node_modules/@silvermoon-work/task-builder/dist/contract.js:129:23\n    at Array.map (<anonymous>)\n    at contractSchemas (file:///home/scottwei/.cache/task-engine-kubo-rc-replay-cAsRDpFk/consumer/node_modules/@silvermoon-work/task-builder/dist/contract.js:124:20)\n    at buildTaskBundle (file:///home/scottwei/.cache/task-engine-kubo-rc-replay-cAsRDpFk/consumer/node_modules/@silvermoon-work/task-builder/dist/index.js:143:34)\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)\n    at async file:///home/scottwei/.cache/task-engine-kubo-rc-replay-cAsRDpFk/consumer/registry-kubo-smoke.mjs:291:16"
+  },
+  "cleanup": {
+    "ok": true
+  }
+}

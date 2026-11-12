@@ -106,3 +106,18 @@ API 不可用的证据。失败发生在 fixture 初始化之前，远端确认 
 解析公开包和已安装依赖；增加实际执行位置断言。所有版本、运行代码、功能断言和已接受 Inner／Ideal 不变。先同步新的 Outer
 revision，再在全新 nonce
 consumer 中重装相同精确版本并完整重跑，不复用失败目录的暖缓存。D-AC01 的发布／安装来源证明已满足；D-S03、D-AC02/03 不勾选。
+
+## Ubuntu 二轮：Builder 正确拒绝无效输入 Schema
+
+在 primary `99019900ee5809ad869d1c33702bbfab7ef422b3`、Outer `9264a2abe7c5`
+同步重观察后，创建新的 nonce consumer，重装相同八个精确版本，见
+[ubuntu-bootstrap-replay.json](./ubuntu-bootstrap-replay.json)。实际 ESM 加载及 Store 构造身份核对通过，默认 local 在 daemon 启动前读写成功。
+
+[ubuntu-second-result.json](./ubuntu-second-result.json)
+退出 1：驱动错误地把 Task input Schema 写为布尔
+`true`，Builder 按既有公开契约返回
+`Task input Schema must be an object.`。不修改 Builder 或弱化校验，仅将夹具输入 Schema 改为
+`{ type: "object" }`，与既有真实调用一致。二轮 finally 确认自建 Kubo 已退出，尚未运行 Engine 或 managed
+CLI。
+
+本次还增加自建 daemon 的 PID／退出码记录，便于后续明确核对资源释放。所有功能目标、包版本、运行源码和已接受 Inner／Ideal 不变；再次同步新 Outer 后在第三个全新 consumer 完整重跑。此刻只有已观察的两组检查通过，不勾选剩余部署标准。

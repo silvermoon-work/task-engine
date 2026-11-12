@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-engine",
-  "version": "0.2.0-rc.1",
+  "version": "0.2.0-rc.2",
   "description": "Embedded generic task engine and bounded executor pool.",
   "type": "module",
   "sideEffects": false,

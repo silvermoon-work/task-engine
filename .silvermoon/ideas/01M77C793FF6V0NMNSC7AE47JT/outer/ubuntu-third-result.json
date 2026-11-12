@@ -1,0 +1,116 @@
+﻿{
+  "ok": true,
+  "observedAt": "2026-11-12T16:05:45.884Z",
+  "node": "v24.11.1",
+  "kubo": "0.43.1",
+  "source": "exact registry-installed packages",
+  "checks": [
+    {
+      "id": "registry-identity",
+      "passed": true,
+      "versions": {
+        "ipfs-store": "0.1.0-rc.2",
+        "task-builder": "0.2.0-rc.3",
+        "task-builder-cli": "0.2.0-rc.3",
+        "task-engine": "0.2.0-rc.3",
+        "task-engine-cli": "0.2.0-rc.11",
+        "task-protocol": "0.2.0-rc.1",
+        "task-sdk": "0.2.0-rc.1",
+        "task-engine-storage": "0.2.0-rc.0"
+      },
+      "paths": {
+        "ipfs-store": "/home/scottwei/.cache/task-engine-kubo-rc-complete-8vCOynZz/consumer/node_modules/@silvermoon-work/ipfs-store",
+        "task-builder": "/home/scottwei/.cache/task-engine-kubo-rc-complete-8vCOynZz/consumer/node_modules/@silvermoon-work/task-builder",
+        "task-builder-cli": "/home/scottwei/.cache/task-engine-kubo-rc-complete-8vCOynZz/consumer/node_modules/@silvermoon-work/task-builder-cli",
+        "task-engine": "/home/scottwei/.cache/task-engine-kubo-rc-complete-8vCOynZz/consumer/node_modules/@silvermoon-work/task-engine",
+        "task-engine-cli": "/home/scottwei/.cache/task-engine-kubo-rc-complete-8vCOynZz/consumer/node_modules/@silvermoon-work/task-engine-cli",
+        "task-protocol": "/home/scottwei/.cache/task-engine-kubo-rc-complete-8vCOynZz/consumer/node_modules/@silvermoon-work/task-protocol",
+        "task-sdk": "/home/scottwei/.cache/task-engine-kubo-rc-complete-8vCOynZz/consumer/node_modules/@silvermoon-work/task-sdk",
+        "task-engine-storage": "/home/scottwei/.cache/task-engine-kubo-rc-complete-8vCOynZz/consumer/node_modules/@silvermoon-work/task-engine-storage"
+      }
+    },
+    {
+      "id": "local-default",
+      "passed": true,
+      "daemonStarted": false
+    },
+    {
+      "id": "raw-dag-fidelity",
+      "passed": true,
+      "cid": "bafybeidi2n5ke7toxiv3vfciypvepuzrymcvvgjy2ltp4r2zziig32l2si",
+      "blocks": 9
+    },
+    {
+      "id": "persistent-roots-restart-gc",
+      "passed": true,
+      "output": "bafybeiapmiv5tgt7eqbbwpcaari7fyiuzsqjfifcyh2i2xqr55agfdv6ce"
+    },
+    {
+      "id": "manual-pin-removal",
+      "passed": true,
+      "restoredExplicitly": true
+    },
+    {
+      "id": "rpc-failure-db-independent",
+      "passed": true
+    },
+    {
+      "id": "last-reference-prune",
+      "passed": true
+    },
+    {
+      "id": "foreign-pin-name",
+      "passed": true
+    },
+    {
+      "id": "registry-managed-cli",
+      "passed": true,
+      "output": "bafybeiapmiv5tgt7eqbbwpcaari7fyiuzsqjfifcyh2i2xqr55agfdv6ce",
+      "counts": {
+        "dataDir": "/home/scottwei/.cache/task-engine-kubo-rc-complete-8vCOynZz/work/managed",
+        "selection": {
+          "taskIds": ["01M7883J1N01GE03NDF6SG95GA"],
+          "cache": true
+        },
+        "deletedTasks": 1,
+        "deletedLogs": 0,
+        "unpinnedRoots": 15,
+        "deletedCacheBlocks": 0,
+        "deletedCacheBytes": 0
+      }
+    },
+    {
+      "id": "external-clearing-errors",
+      "passed": true
+    },
+    {
+      "id": "store-close-borrows-daemon",
+      "passed": true
+    }
+  ],
+  "cleanup": {
+    "ok": true,
+    "daemons": [
+      {
+        "pid": 3122116,
+        "code": 0,
+        "signal": null
+      },
+      {
+        "pid": 3122436,
+        "code": 0,
+        "signal": null
+      },
+      {
+        "pid": 3122539,
+        "code": 0,
+        "signal": null
+      },
+      {
+        "pid": 3122975,
+        "code": 0,
+        "signal": null
+      }
+    ]
+  }
+}

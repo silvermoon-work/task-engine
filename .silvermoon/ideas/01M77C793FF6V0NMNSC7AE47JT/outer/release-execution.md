@@ -4,7 +4,45 @@
 [Deployment](./Deployment.md)。用户授权父 Agent 审批门禁、发布新 RC 及隔离 smoke；不从 Git、测试或 Agent 叙述推断验收。已接受 Inner 固定为
 `c76d42ef88ea485d2a198c4e9852c93cf5ca6b3c`。
 
-## 发布准备：已验证，尚未发布
+## 最终部署结果：完整通过
+
+在 primary `efcacc16b3f466c3f5b0c26545178d1b49bc9eb5`、Outer `7eb6629982fa`
+同步重观察后，创建第三个完全独立 consumer，从 registry 重装相同精确版本；见
+[安装回执](./ubuntu-bootstrap-complete.json)。已提交驱动 SHA-256
+`0e9cbeb5cdad2ec191e2023566b64d544fd207e802ecbfe52ab3a0eb037f615f`
+与远端实际执行文件一致。
+
+**完整 smoke 退出 0，11/11 检查通过**，不是局部替代或 mock：见
+[ubuntu-third-result.json](./ubuntu-third-result.json)。使用实际 registry 包和真实 Kubo
+0.43.1，Node.js 固定 24.11.1：
+
+- 八个精确包的真实安装路径／lock／integrity、同一 Store 构造身份，以及 daemon 启动前默认 local 读写通过。
+- Builder 通过同一 Kubo
+  Store 获取实际 imports；原始 DAG 每块字节和根 CID 对照通过，父节点优先暂存导入完成。
+- 两个实际 SQLite Engine 生成相同的 **2 MiB**
+  output，校验长度及 SHA-256；业务块表为 0。Store
+  close 不改变 pin 列表，专用 Kubo 重启和正常 GC 后仍可读取原输出。
+- 手工 unpin／GC 后，新的 Store 对缺块明确报错；显式恢复原块后可重新协调。Kubo 停止时依赖读取／协调失败，已有 Task 数据库查询仍可用。
+- 先 prune 一个参与者时保留另一方输出；最后引用清除后原根不再 pin。可见
+  `external/manual` 名称始终未被清除。
+- 已发布 managed
+  CLI 完成 CAR 上传、实际 Worker 输出、SQLite 无块/CAR 副本、停止／重启／查询、RPC 断连依赖请求失败和离线 prune；随后 GC 的新读取明确缺块，Store
+  close 后 daemon 仍响应。
+
+独立 [资源后检](./ubuntu-postcheck.json)
+确认四次自建 Kubo 都正常退出码 0，四个 PID 的 `/proc`
+项均不存在；managed 实例状态 stopped、released=true，其 PID 亦不存在。未停止或重配任何其他 daemon，未修改用户真实 HOME／registry。完整结果原始 SHA-256 为
+`15f56929eb745eab2a9138226562dde43847e1ed2d0cbb42ace15aa44b36cd0c`。
+
+[最终 registry 状态](./registry-final-state.json) 再次确认五个 exact
+record 可见、rc 为本轮版本、latest／历史 canary 未变，五个 Git
+tag 仍准确指向 V。两轮纯驱动错误及原始失败均保留在下文，不重发已发布版本、不移动 tag、不弱化产品断言。
+
+本轮未验证任意远程认证代理／跨独立文件系统协调，也不宣称先前出现既有问题的 Node
+24.22.2 或 Windows 全量环境通过；准确发布 V 的 Node 22.15.0／24.11.1 main
+CI 和上述固定运行时部署结果已验证。D-* 据此完成，准确 Outer 仍以单独 submit／审批事件为准。
+
+## 发布准备（历史记录）
 
 [发布计划](./release-plan.md)
 明确五包和顺序，[发布前观察](./release-preflight.json)

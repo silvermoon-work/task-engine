@@ -1,0 +1,57 @@
+﻿{
+  "ok": true,
+  "observedAt": "2026-11-12T16:07:00.732Z",
+  "commit": "95b1cdbf76c70faf550b174fff97ca7df4d830cb",
+  "allFiveTagsAtCommit": true,
+  "records": [
+    {
+      "id": "ipfs-store",
+      "version": "0.1.0-rc.2",
+      "tags": {
+        "latest": "0.1.0-rc.0",
+        "rc": "0.1.0-rc.2"
+      },
+      "exactVisible": true
+    },
+    {
+      "id": "task-builder",
+      "version": "0.2.0-rc.3",
+      "tags": {
+        "latest": "0.1.0",
+        "canary": "0.2.0-canary-261111-1",
+        "rc": "0.2.0-rc.3"
+      },
+      "exactVisible": true
+    },
+    {
+      "id": "task-builder-cli",
+      "version": "0.2.0-rc.3",
+      "tags": {
+        "latest": "0.1.0",
+        "canary": "0.2.0-canary-261111-1",
+        "rc": "0.2.0-rc.3"
+      },
+      "exactVisible": true
+    },
+    {
+      "id": "task-engine",
+      "version": "0.2.0-rc.3",
+      "tags": {
+        "latest": "0.1.0",
+        "canary": "0.2.0-canary-261111-1",
+        "rc": "0.2.0-rc.3"
+      },
+      "exactVisible": true
+    },
+    {
+      "id": "task-engine-cli",
+      "version": "0.2.0-rc.11",
+      "tags": {
+        "latest": "0.1.0",
+        "canary": "0.2.0-canary-261111-1",
+        "rc": "0.2.0-rc.11"
+      },
+      "exactVisible": true
+    }
+  ]
+}

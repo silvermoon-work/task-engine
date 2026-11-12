@@ -38,3 +38,14 @@ metadata、实际下载 tarball 摘要及公开 provenance 与版本和 V 一致
 ### D-AC03: 保留与故障可复核
 
 在专用测试 repo 证明无外部干预时 Task/Run 的 bundle/output 在重启和正常 GC 后可读，最后一个协调引用被 prune 后清除本系统具名 pin，其他可见名称及标记失败不会主动清除；人工删 pin／块后依赖读取真实恢复或报错，记录部分成功恢复而不承诺绝对保留。关闭 Store 后 daemon 仍响应，RPC 不可达使依赖请求报错，联网模式由用户启动 daemon 时配置。
+
+结果：五包 tag
+Actions、精确 registry/tarball/provenance 与未变历史渠道均已核对；新 Ubuntu
+consumer 的完整真实 smoke **11/11** 通过，两个前置驱动错误保留。使用 Node.js
+24.11.1／Kubo
+0.43.1，不宣称覆盖未测试运行时或任意远程认证代理。四次自建 Kubo 及 managed
+PID 均已物理退出；详见
+[执行证据](./release-execution.md)、[完整结果](./ubuntu-third-result.json)、[资源后检](./ubuntu-postcheck.json)
+和
+[最终 registry 状态](./registry-final-state.json)。这些结果仍需父 Agent 对准确 Outer
+revision 记录审批，不从 ledger 勾选推断验收。

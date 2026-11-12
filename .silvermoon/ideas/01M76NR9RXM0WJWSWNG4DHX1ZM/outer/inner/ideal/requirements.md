@@ -32,4 +32,4 @@
 
 成功场景覆盖实际 bundle 入口、内置模块及并发 Run；拒绝场景覆盖非法/编码路径、缺失或损坏内容、跨 CID、网关策略限制、容量限制及中途取消；兼容性场景覆盖现有任务生命周期和宿主加载行为。
 
-本 idea 不改变 bundle 协议和 Builder 打包策略，不实现任意远程依赖安装，不提供 fetch API，不引入可变 IPNS 寻址，也不要求发布 npm 包。fetch idea 可独立推进，二者的共同约束是复用现有 IPFS 内容能力而非相互依赖功能完成。
+本 idea 不改变 bundle 协议和 Builder 打包策略，不实现任意远程依赖安装，不提供 fetch API，不引入可变 IPNS 寻址，也不要求发布 npm 包。[IPFS fetch idea](../../../../01M76NXWH50ZXJBAN92MEH2ZAQ/outer/inner/ideal/Idea.md) 可独立推进，二者的共同约束是复用现有 IPFS 内容能力而非相互依赖功能完成。

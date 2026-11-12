@@ -26,12 +26,14 @@
 ## Ubuntu 独立消费验证
 
 - 先只读确认 Node/npm 路径和版本、磁盘、现有 registry 配置；不改变 NVM 全局选择、registry 或已有服务。所有新目录使用本操作独立名称，仓库证据不保存 SSH 账户、主机或个人路径。
-- 作者环境只安装精确 registry Builder CLI rc.1、SDK rc.0 及 fixture 所需已发布依赖；确认实际 Builder 为 rc.1。独立运行环境仅安装 Engine CLI rc.9，其传递 Engine 必须为 rc.1，安装图不得出现 Builder/Builder CLI；不通过 file:/link:/workspace 或工作树 dist 供包。
+- 作者环境安装精确 registry Builder rc.1、Builder CLI rc.1、SDK rc.0；独立运行环境安装 Engine rc.1 与 Engine CLI rc.9。安装图不得出现 Builder/Builder CLI/SDK 的消费端运行时依赖；不通过 file:/link:/workspace 或工作树 dist 供包。以 registry tarball URL/integrity、package-lock 和真实安装目录共同确认身份。
 - 新 Builder 构建 fixture 为 task.yaml、worker.cjs 与 CAR；可以保留作者构建输出，但 Worker 加载不得产生额外 bundle 入口源码文件。
 - 以本操作自建、仅本地监听的 Gateway/发布端提供真实 CID 多块内容，消费端使用实际内容客户端获取并验证；运行 CLI/Engine 并保存 CID、入口 URL、CJS/cache、业务结果、日志、进度及 Run 退出信息。运行中的 Node、包和 lockfile 路径必须来自独立 registry 安装。
-- fixture 同时验证 require.cache、require.resolve 内置模块、require.resolve.paths，self require/import 复用；明确不承诺 require.resolve(ipfsURL)，其既有 MODULE_NOT_FOUND 不是回退。宿主本地模块导入仍可用。
+- fixture 同时验证 require.cache、require.resolve 内置模块、require.resolve.paths 与 self require 复用；明确不承诺 require.resolve(ipfsURL)，记录当前实际 Node 的原生返回，不以其既有 MODULE_NOT_FOUND 作回退。宿主本地模块导入仍可用。
 - 非入口/跨 CID/编码越界/query/hash/凭据请求拒绝，错误保留规范入口而不回显凭据；内容缺失或损坏不可静默执行；合作取消、阻塞 Worker 强停及关闭有物理退出证据。独立清理证明不足时保留 reclamation_unknown，不伪造完成。
 - 所有自建进程最终按本操作持有的 PID/句柄或 authenticated managed stop 关闭，确认退出；不使用按名称杀进程或影响已有服务。证据保留可重放脚本、脱敏输出与 registry 锁定信息。
+
+可重放入口为 [registry-smoke.mjs](registry-smoke.mjs) 与 [registry-engine-probe.mjs](registry-engine-probe.mjs)，只在本操作命名的空目录中运行。前者负责独立安装、Builder CLI 三种产物、两个受管 Engine/Gateway、CLI 执行/日志/活跃任务关停；后者由前者启动独立 Node 进程，验证公开 Engine API 的并发状态、16 类拒绝、启动失败、缺失/损坏内容、合作取消与保留 uncertainty 的强制退出。helper 必须自然退出，不用 process.exit 掩盖未结束 Worker。
 
 ## 收尾
 

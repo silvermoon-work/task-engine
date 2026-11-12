@@ -4,6 +4,8 @@
 
 本轮唯一新版本为`@silvermoon-work/task-engine-cli@0.2.0-rc.8` / `task-engine-cli-v0.2.0-rc.8`；内部依赖沿用已发布`0.2.0-rc.0`，新增外部依赖使用catalog固定版本，不重发其他workspace。发布前latest=`0.1.0`、canary=`0.2.0-canary-261111-1`、rc=`0.2.0-rc.7`。同版本/tag已占用则停止。独立consumer执行先同步的[公开回放](inner/replay.mjs)，冻结15秒短生命周期、20秒等待上限和5秒HTTP时限不变；Kubo结果须检查`Validation.Valid`而非exit0。
 
+真实浏览器独立origin验证使用[有界浏览器回放](verify-browser.mjs)：两独立public/token实例，120秒后停止自有服务并删除临时目录；只有公开测试token与签名记录进入页面，生成私钥仅留进程内。通过绑定loopback的临时SSH tunnel运行，不开放公网端口。
+
 ## Steps
 
 ### D-S01: 配置可控记录及独立客户端

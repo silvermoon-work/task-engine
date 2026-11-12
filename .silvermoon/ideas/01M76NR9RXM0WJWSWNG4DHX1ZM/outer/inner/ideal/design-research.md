@@ -2,7 +2,7 @@
 
 ## 已确认的范围
 
-2026-11-12，用户对三个设计选择的明确答复为：仅当前 bundle 的入口；允许最低 Node 提高到至少 22.15，优先保留 CJS 行为；新加载机制要求重建旧 bundle。后续对 schema 归属的明确答复为由 task-engine 仓库维护并版本化，不依赖修改 potential-guide。这些答复是设计选择，不是构想验收。
+2026-11-12，用户对三个设计选择的明确答复为：仅当前 bundle 的入口；允许最低 Node 提高到至少 22.15，优先保留 CJS 行为；新加载机制要求重建旧 bundle。随后用户明确指出本次目标只是改变加载模块的方式，因此重建不能被扩大解释为必须引入新产物版本并识别、拒绝所有旧产物。这些讨论不是构想验收。
 
 由此不需要在首期引入运行时模块图、跨 CID 下载、额外的源码网络通道或旧产物 eval 兼容分支。具体需求由 [需求说明](requirements.md) 统一约束。
 
@@ -27,17 +27,15 @@
 - 对真实 Builder 生成的 26,295 字节 SDK bundle，在 Node 22.13.0 的异步入口、24.11.1 的异步入口和同步入口上均完成 SDK ready 与 callback complete。回调中的 __filename 是 IPFS URL，但 import.meta.url 是错误的 file:///.../ipfs:/... 地址，证明仅改引擎不足以闭合地址语义。
 - 新产物必须直接保留逻辑 IPFS 模块 URL；已确认重建要求，因此无需通过源码替换或全局 URL API monkey-patch 修复旧产物。
 
-## 迁移必须可识别
+## 重建不等于升级产物协议
 
-当前 [产物 schema](../../../../../../packages/task-protocol/src/task-schema-uri.ts) 使用外部 v1 schema URL，[声明验证](../../../../../../packages/task-protocol/src/bundle.ts) 对字段有严格约束。本次实际读取 [公开 v1 JSON Schema](https://shazhou-ww.github.io/potential-guide/schemas/artifacts/task/v1.json)，其注释仍描述 Git SHA-256 身份，而且未定义当前本仓库要求的 include 与 binary；外部文档不能直接证明当前产物契约，更不能默认为新加载契约已经发布。
+当前 [产物 schema](../../../../../../packages/task-protocol/src/task-schema-uri.ts) 使用外部 v1 schema URL，[声明验证](../../../../../../packages/task-protocol/src/bundle.ts) 对字段有严格约束。入口仍为 worker.cjs，声明字段与 SDK 握手不因模块加载方式变化而改变，因此本次不需要新 schema、loaderVersion 或能力标识。
 
-Node 最低版本是运行时要求，不是产物加载版本；旧 Builder 允许作者设置较高 minVersion，不能据此辨识重建产物。
+Node 最低版本是运行时要求；如需改变产物的要求，已有 runtime.minVersion 足以表达。旧 Builder 同样允许较高 minVersion，不能把它当作构建器版本识别，但本次也不引入这种识别要求。
 
-实施必须定义明确的产物加载契约版本或能力标识，并同步 Builder、Protocol、SDK 及引擎的检查。旧产物须在作者代码执行前拒绝，旧引擎也应明确拒绝新产物；不能等 SDK ready 再发现版本不匹配，也不能复用 Space 协议号。
+重建用于获得修正后的模块地址生成代码及新 CID，而非变更 task.yaml 的结构。保持 taskSchemaUri、SDK 握手、Space 协议、业务 schema、JSON Schema draft 与 task-build 配置版本，不提供源码改写或 eval 回退。
 
-新版本权威 schema 已确认由本仓库维护；精确字段、标识和可验证分发方式属于实施设计。保留历史 v1，不修改外部仓库来冒充本次交付，不把尚未部署的公开 URL 视为已完成分发。
-
-升级对象是产物 task.yaml 与 Worker 握手共享的 taskSchemaUri，而不是业务 schema、Space 协议号或 JSON Schema draft。当前 [Protocol 文档](../../../../../../packages/task-protocol/README.md) 还明确记载了已移除的历史 Task v2；新标识须使用本仓库清晰的新身份，不与历史标识混淆。精确 URI 尚未确定，不把旧地址简单替换为 v2.json 作为已完成方案。构建配置 task-build/v1 若字段语义不变不需要随之升级，新的产物 $schema 身份也不需要再叠加含义重复的 loaderVersion。
+本次实际读取 [公开 v1 JSON Schema](https://shazhou-ww.github.io/potential-guide/schemas/artifacts/task/v1.json)，其注释仍描述 Git SHA-256 身份，而且未定义当前本仓库要求的 include 与 binary。这是既有文档差异，不是本次加载变更的阻碍，也不在本次修复。用户关于未来新 schema 由本仓库维护的方向，仅在真正需要升级协议时适用，不据此扩大当前范围。
 
 ## 当前可闭合的加载责任
 

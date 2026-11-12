@@ -782,7 +782,7 @@ key:"child",cid:${JSON.stringify(built.cid)},path:"resources/child",input,timeou
       effectiveValue: unknown;
       source: string;
     }[];
-    assert.equal(items.length, 22);
+    assert.equal(items.length, 28);
     assert.deepEqual(
       items.map((item) => item.key),
       items.map((item) => item.key).sort(),

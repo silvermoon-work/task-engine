@@ -600,6 +600,10 @@ export async function serveManaged(
       }
       try {
         await rawGateway?.close();
+      } catch (error) {
+        errors.push(error);
+      }
+      try {
         await content?.close();
       } catch (error) {
         errors.push(error);
@@ -1054,8 +1058,24 @@ export async function serveManaged(
         timeoutMs: Number(effective(config, "server.rawGatewayTimeoutMs")),
         maxTraversalBlocks: Number(effective(config, "server.carGatewayMaxBlocks")),
         maxCarBytes: Number(effective(config, "server.carGatewayMaxBytes")),
+        ...(effective(config, "server.gatewayMode") === "recursive"
+          ? {
+              recursive: {
+                upstreams: String(
+                  effective(config, "server.recursiveGatewayUpstreams") ?? "",
+                ).split(","),
+                maxConcurrent: Number(effective(config, "server.recursiveGatewayMaxConcurrent")),
+                maxBlockBytes: Number(effective(config, "server.recursiveGatewayMaxBlockBytes")),
+                timeoutMs: Number(effective(config, "server.recursiveGatewayTimeoutMs")),
+                attemptTimeoutMs: Number(
+                  effective(config, "server.recursiveGatewayAttemptTimeoutMs"),
+                ),
+              },
+            }
+          : {}),
       },
       (cid, options) => content!.local(cid, options),
+      (cid, bytes, signal) => content!.put(cid, bytes, signal),
     );
     startupSignal.throwIfAborted();
     server.maxConnections = Number(effective(config, "server.maxConnections"));

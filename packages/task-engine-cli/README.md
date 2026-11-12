@@ -137,11 +137,11 @@ stop 默认拒绝在途任务；`--cancel-running` 明确取消并等待释放�
 实际磁盘不足是 Server 致命故障，停止接收任务、处理自有资源并以失败退出；
 不能落盘或无法确认释放时如实报告，不把退出当释放证据。
 
-### 本地 raw/CAR gateway（当前源码新增，默认禁用）
+### raw/CAR gateway（默认禁用、本地模式）
 
 Engine 核心不提供 HTTP 分发；受管 CLI 宿主在同一监听地址提供可选
-`GET/HEAD /ipfs/{cid}?format=raw` 和下述 CAR 路径路由。仅从实例文件缓存及持久输出块读取，
-**从不调用回源入口**；即使配置 `server.ipfsGateway`，该路由也不联网。
+`GET/HEAD /ipfs/{cid}?format=raw` 和下述 CAR 路径路由。默认 `server.gatewayMode=local`，
+仅从实例文件缓存及持久输出块读取；即使配置任务用的 `server.ipfsGateway`，该路由也不联网。
 CID 只标识内容，不是访问凭证。开启 `public` 会允许所有可连接监听地址的
 客户端读取全部已缓存块，包含其他任务的包和输出；不得在不可信网络直接开放。
 任务 API 的现有可信网络边界不因此改变，gateway token 不保护任务 API。
@@ -168,12 +168,12 @@ loopback/可信网络使用显式 public，或由授权反向代理处理访问�
 支持范围：CIDv0/v1（同 block 归一化为 CIDv1 缓存键）、SHA2-256 和
 identity（包括空探测 `bafkqaaa`），不解释 codec、不重编码 block。
 其他 hash 明确 501。raw 表示只提供根 block，不解析 UnixFS 路径，
-不支持上传、pin、递归回源或局部读取。无 format 且无 Accept 为 400；
+不支持上传、pin 或局部读取；受控递归须按下节单独启用。无 format 且无 Accept 为 400；
 Accept 可选择 `application/vnd.ipld.raw` 或匹配通配符，质量值/排除项生效，
 不支持表示为 406，`format=raw` 优先于 Accept。重复 format/filename、
 非法 CID、raw 路径、raw 的 dag-scope/entity-bytes 为 400。Range 忽略并返回完整已验证
 block（200，`Accept-Ranges: none`），不能将片段当 raw block。
-普通缺块 404，`Cache-Control: only-if-cached` 缺块 412，损坏和存储错误
+本地模式普通缺块 404，`Cache-Control: only-if-cached` 缺块 412，损坏和存储错误
 500，不伪装成未命中。所有错误无内容 body，HEAD 永远无 body。
 
 成功响应含 raw Content-Type、attachment（可安全指定 filename）、
@@ -194,6 +194,54 @@ HTTP listener、连接上限 `server.maxConnections` 和事件循环仍由宿主
 
 完整规范固定版本、适用矩阵及双节点命令见
 [本轮验证依据](../../.silvermoon/ideas/01M75C5K29RZDCXJEPDRADFAW3/outer/inner/verification.md)。
+
+### 显式受控递归回源（迭代 6）
+
+```powershell
+task-engine config set server.rawGatewayAccess public
+task-engine config set server.gatewayMode recursive
+task-engine config set server.recursiveGatewayUpstreams http://127.0.0.1:8080,https://approved.example
+# 重启后生效；上述地址是运维明确批准的完整 origin，而非请求者提供的目标。
+task-engine server start --data-dir .\recursive-engine --port 8787
+# 回到严格本地：
+task-engine config reset server.gatewayMode
+```
+
+允许列表独立于任务 acquisition：必须显式配置 1–2 个固定 HTTP(S) origin（无路径、
+凭证、query、fragment、转义主机名或尾点），归一化后不得重复。loopback/LAN 不自动豁免，
+只有明确列出的 origin 才可访问；批准域名同时信任其 DNS 解析结果，应由运维控制 DNS/
+出口防火墙。普通域名解析不是 DNSLink；不做 DNSLink、DHT、Bitswap、上游发现、
+用户 URL/代理或 gateway hints。所有重定向拒绝，既不转发入站 Authorization、
+Cookie，也不向上游发送凭证。需 bearer 的上游不在本实现范围。
+
+先读并校验本地块，只有真实 ENOENT 才回源，损坏/权限/存储错误不回退。
+`Cache-Control: only-if-cached` 的 GET、HEAD、CAR 每个后代读取**始终直接本地**，
+不会加入或等待进行中的获取；缺失仍 412（已开始 CAR 则断流，不能声称完整成功）。
+禁用/未授权/默认本地请求零回源。raw/CAR 原有范围、条件、CORS 和 token 策略不变。
+
+独立 acquisition 默认预算：`server.recursiveGatewayMaxConcurrent=2`（无排队，饱和 429）、
+`server.recursiveGatewayMaxBlockBytes=2097152`（一个获取跨所有尝试累计收到的 bytes 上限）、
+`server.recursiveGatewayTimeoutMs=5000`（含校验/持久化的总预算）、
+`server.recursiveGatewayAttemptTimeoutMs=2000`（单上游尝试）。
+端点按配置顺序各至多一次；拒绝非 raw Content-Type、压缩、错误状态、超限及错误 CID，
+仅经 SHA2-256 验证且未取消的块原子持久化。网络流按 chunk 检查，至多额外持有一个
+transport chunk 以识别超限；并发内存按 slots × byte budget 有界，而非 RSS 硬上限。
+这些预算不替代 raw/CAR 总请求时限、遍历/输出 bytes、HTTP 连接上限和任务配额。
+
+CIDv0/v1 按 CIDv1 singleflight，最后等待者取消才终止共享获取；独立等待者取消不影响其他人。
+不同 hop 限制的请求不加入同一获取，避免放宽限制。内部 `X-Task-Engine-Gateway-Hops`
+使用每实例随机 ID，最多四跳；无效、重复、自身 ID 或耗尽的 header 只会拒绝递归，
+不会授权/扩展目标。自身环与 A/B 环先检查 hop 再 join，因此不会互等。
+单请求至多 2 个端点、深度至多 4 的独立预算也限制不遵守协议的拓扑。
+上游失败/环边界为 502，总预算耗尽 504，持久化错误 500；单次超时后允许在剩余总预算内
+尝试下一端点，全部失败为 502。关闭拒绝新读、取消全部获取并等待 transport 释放；
+清理失败或在一个 acquisition 总预算内仍无法确认释放则明确报错，不挂起关闭或隐藏失败。
+
+`server status` 的 `gateway.recursive` 提供 acquisitions、attempts、joined、fetched、
+failures、rejected、loops、cancellations、timeouts、bytes、active 和 peakActive。
+它与本地 storageErrors 及现有独立 RSS sampler 分开；不改变遥测架构或任务执行预算。
+冷/暖、取消、恶意上游、环路与真实任务公开 CLI 回放见
+[迭代 6 验证](../../.silvermoon/ideas/01M75CE60FWGBEZMDK23AMAFW1/outer/inner/verification.md)。
 
 ### 本地 CAR 路径、字节范围与表示协商（迭代 4）
 
@@ -218,7 +266,7 @@ murmur3-128 的 HAMT；symlink/metadata 只作为自身 entity，不跟随 symli
 复用维护中的 DAG-PB/DAG-CBOR/UnixFS codecs 与 exporter/walkPath，
 保留原始 bytes。支持 CIDv0/v1、SHA2-256/identity；identity 的 links 仍被校验与遍历，
 但虚拟 block 不写入 CAR 数据段。未知 codec/hash 明确 501，不跳过缺块。
-不支持 IPNS、上传、pin 或回源。
+不支持 IPNS、上传或 pin；回源仅限上节显式启用的受控模式。
 UnixFS 路径中间节点必须是目录，不把文件后的多余路径悄悄忽略；
 DAG-CBOR 可以经 map/array 内的 IPLD link 解析 CAR 路径。
 损坏 codec 数据或 hash 失败；非 UnixFS DAG-PB Data 可作为通用 IPLD 数据。
@@ -253,7 +301,7 @@ GET 逐 block 校验 CID 后发送原始 bytes，不重新编码内容。
 IPFS 路径/URI、Accept-Ranges: none 和绑定根/规范路径/有效 scope/请求范围/版本/顺序/dups 的强 ETag。
 HEAD 与命中 If-None-Match 在发 headers 前验证所选范围的必要集合，不要求文件完整 DAG；不发送 body 或虚构
 Content-Length。If-Match 使用强比较，If-None-Match 可弱比较。
-根缺失普通 404、only-if-cached 412；损坏 500、预算超限 413。
+本地模式根缺失普通 404、only-if-cached 412；损坏 500、预算超限 413。
 GET 发 headers 后遇到缺失路径 link，可正常结束包含父节点的有效部分 CAR，
 用于证明该路径不存在；HEAD/条件请求仍在 headers 前返回 404。
 缺失必要后代 block、损坏、预算或超时则直接断开传输，不伪装成完整成功。
@@ -274,7 +322,8 @@ HAMT 路径证明的父分片/解码状态仍可能存活到路径解析完成�
 [迭代 4 实现证据及独立范围复核输入](../../.silvermoon/ideas/01M75CBPP3TFRS1N6K71W1WRYJ/outer/inner/verification.md)。
 
 读取一致性采用逐块、非快照语义：已校验的当前块可继续发出，后续必需块被并发
-prune 删除时检索失败，不重新回源、不静默省略。已读取块之后被删除不影响该响应；
+prune 删除时，本地模式与 only-if-cached 检索失败、不回源；显式递归模式仅可按独立预算
+重新获取并验证缺块，失败则断流，不静默省略。已读取块之后被删除不影响该响应；
 HEAD/304 仅证明本次检查时完整，不保证下一次 GET 或本地 pin。
 
 ### HTTP、浏览器与运行观测（迭代 5）

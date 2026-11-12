@@ -7,6 +7,7 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { compareWaves, diagnoseMain, summarizeWindow } from "./memory.mjs";
+import { replayPolicy } from "./replay-policy.mjs";
 
 // 仅通过已安装包的公开入口、CLI 和 HTTP 验证；不导入源码或内部模块。
 const args = process.argv.slice(2);
@@ -15,6 +16,8 @@ const option = (name, fallback) => {
   return index < 0 ? fallback : args[index + 1];
 };
 const consumer = resolve(option("consumer", "."));
+const fixtures = option("fixtures");
+const policy = replayPolicy(fixtures, option("load", "no") === "yes");
 const memoryArm = option("memory-arm");
 if (option("load", "no") === "yes" && !memoryArm) {
   const runs = [];
@@ -123,7 +126,6 @@ const data = join(work, "data");
 const reportPath = option("report");
 const port = Number(option("port", "0"));
 const holdMs = Number(option("hold-ms", "0"));
-const fixtures = option("fixtures");
 const token = option("token");
 const sourceName = option("source-name", `.gateway-load-${randomUUID()}.mjs`);
 const sourcePath = join(consumer, sourceName);
@@ -177,13 +179,7 @@ try {
     token ? "token" : "public",
   );
   if (token) await command("config", "set", "server.rawGatewayToken", token);
-  for (const [key, value] of Object.entries({
-    rawGatewayMaxConcurrent: 2,
-    rawGatewayMaxBlockBytes: 2097152,
-    rawGatewayTimeoutMs: 1000,
-    carGatewayMaxBytes: 8388608,
-    carGatewayMaxBlocks: fixtures ? 4096 : 128,
-  }))
+  for (const [key, value] of Object.entries(policy))
     await command("config", "set", `server.${key}`, String(value));
   let listenPort = port;
   if (!listenPort) {

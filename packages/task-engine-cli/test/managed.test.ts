@@ -18,6 +18,25 @@ import { encodeTaskBundleCar } from "@silvermoon-work/task-builder/car";
 import { memoryTree } from "@silvermoon-work/task-builder/tree";
 import { createMemorySampler, sampleMemory } from "../src/memory.js";
 
+test("replay purpose separates conformance capacity from pressure and refuses combined arms", async () => {
+  const helper = new URL(
+    "../../../.silvermoon/ideas/01M75CCXR5TWE63N6QEXV1C720/outer/inner/replay-policy.mjs",
+    import.meta.url,
+  ).href;
+  const { replayPolicy } = await import(helper);
+  const protocol = replayPolicy("fixed-fixtures", false);
+  const pressure = replayPolicy(undefined, true);
+  assert.equal(protocol.rawGatewayMaxConcurrent, 16);
+  assert.equal(protocol.carGatewayMaxBlocks, 4096);
+  assert.equal(pressure.rawGatewayMaxConcurrent, 2);
+  assert.equal(pressure.carGatewayMaxBlocks, 128);
+  const { rawGatewayMaxConcurrent: _pc, carGatewayMaxBlocks: _pb, ...protocolBudgets } = protocol;
+  const { rawGatewayMaxConcurrent: _lc, carGatewayMaxBlocks: _lb, ...pressureBudgets } = pressure;
+  assert.deepEqual(protocolBudgets, pressureBudgets);
+  assert.deepEqual(replayPolicy(undefined, false), pressure);
+  assert.throws(() => replayPolicy("fixed-fixtures", true), /separate conformance and load/);
+});
+
 test("independent process RSS sampling survives busy main isolate and closes after readiness", async (t) => {
   const sampler = await createMemorySampler();
   t.after(() => sampler.close());

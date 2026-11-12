@@ -30,6 +30,20 @@
   不在失败后放宽门限；真实浏览器由父级使用同一 fixture 独立验证。
 - HTTP listener、连接总额和事件循环仍共享；此预算不是恶意租户的硬隔离。
 
+### 用户批准的协议与压力实例分离
+
+用户明确批准：固定外部协议suite实例采用并发16及原有4096-block fixture预算；
+资源/内存压力实例仍并发2及128 blocks，其他2 MiB block/8 MiB CAR/1000ms门限不变。
+`replay.mjs`只在`--fixtures`时选择16，不带fixtures始终2；禁止fixtures与load yes
+组合，防止把协议容量误用于压力。选择器、默认runner并发、测试和超时均不改变，
+不跳过适用失败。新协议16的外部结果尚待父级实际执行，不能预写通过。
+
+此前并发2的429均保留为该配置失败。已定位固定upstream最后两个header-only
+CAR案例没有消费/关闭body，第三个请求可在两次流式遍历尚未finish时到达；
+本地精确fixture三轮均200/200/429，正常finish后0.05ms内释放，30个完整消费
+控制请求均200且active归零，未发现slot泄漏。新分离是用户批准的验证方法修订，
+不是生产优化或追溯改判。原有并发2内存配对源码/配置未变，证据继续有效，无须重测。
+
 ### 修订后的内存实验协议（执行前冻结）
 
 旧 `lifetime maxRSS - phase current RSS` 混合不同时间范围，也包含 Worker 启动，
@@ -100,6 +114,7 @@ Node24通过。仅补齐两个故意失败的证明断言消息，避免Node22�
 全部逐项检查、30份内嵌 CAR 的 SHA256、原始失败项和复查过程见
 [verification.md](verification.md) 与 [evidence.json](evidence.json)。
 完整 HAMT fixture 使用已有可配置的4096-block预算；默认/共载128-block门限未提高。
+以上是历史配置结果；用户批准的协议16实例尚未取得外部结果，待父级独立部署验证。
 
 ### I-AC02: HTTP 与浏览器行为可重现
 

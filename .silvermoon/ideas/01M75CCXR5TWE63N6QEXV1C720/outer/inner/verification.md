@@ -75,8 +75,10 @@ node replay.mjs --consumer . --work .gateway-load-owned --load yes --report gate
 node replay.mjs --consumer . --work .gateway-suite-owned --fixtures FIXED_CHECKOUT_FIXTURES --port 18785 --hold-ms 600000 --report gateway-fixtures-report.json
 ```
 
-Suite 配置自动选 4096 blocks；负载配置始终 128
-blocks。两类验证应使用不同自有实例。fixture
+按用户明确批准的目的分离，Suite配置自动选并发16及4096 blocks；负载配置始终
+并发2及128 blocks。没有并发override入口；`--fixtures`与`--load yes`组合明确拒绝，
+不能借fixture参数放宽压力预算。其他block/CAR/timeout门限和原选择器均不变。
+两类验证应使用不同自有实例。fixture
 provisioning 对每块 SHA2-256 验证后写入自有实例缓存；实际被测服务器始终是真实 CLI 受管服务器，不存在 fixture
 HTTP 代理。准备好后输出 `ready`；hold 期间监听和任务服务继续响应，600000
 ms 后自动停止并清理。若需要提前结束，先用同一 HOME/LOCALAPPDATA 配置下的 CLI
@@ -130,6 +132,48 @@ return await page.evaluate(
 
 函数会检查真实浏览器 body、状态和可见 headers，并在失败时抛错，不只是展示结果。fixture
 `/ipfs/bafkqabtimvwgy3yk?format=raw` 是 identity，无需从外部注入数据。
+
+## 协议容量分离的已批准修订与诊断
+
+rc.6的外部并发2 suite在完整执行及一次原样复查都于format precedence产生429；
+这两次仍是失败，未跳过或改为通过。用户随后明确批准协议suite专用并发16，
+资源/内存压力专用并发2，不更改timeout、selector、runner并发或生产默认配置。
+与既有fixture4096/压力128 blocks类似，两实例用途不同；只修订replay方法，
+没有生产代码变更、版本提升或发布要求。协议16外部验证尚待父级实际执行，
+本节不声称其通过，也不将已有rc.6九对压力、浏览器或TLS结果冒充协议16结果。
+
+固定upstream `011d20bd61c4736e3301d35e8fe388773e492511`：
+
+- `tests/trustless_gateway_car_test.go` 中OrderAndDuplicates末尾
+  `?car-order=dfs`与`?car-dups=y`两个案例仅检查status/headers；紧接着进入
+  FormatPrecedence。`tooling/test/test.go`是顺序t.Run，未t.Parallel，但仅在
+  enclosing run结束才defer cancel。
+- `tooling/test/validate.go`仅在`expected.Body_ != nil`时ReadAll/Close；
+  header-only响应没有被消费或关闭，HTTP返回headers不代表服务端CAR遍历/发送完成。
+- 产品`raw-gateway.ts`在整个CAR操作完成后的finally释放controller；
+  `car-gateway.ts`先await writer.close和pump，再await response.end callback，
+  没有昂贵的正常finish后清理。
+
+本地使用真实DiskContent、原fixture `dir-with-duplicate-files.car`（1939 bytes，
+SHA-256 `52ba43df5a78d92b9ca006832e8425085c00b4e268b16cf049e54ba9dbd1b0db`）
+与并发2/1000ms/2 MiB block/8 MiB CAR/4096 blocks，三次发送相同两种header-only
+请求后立即发第三CAR，结果均 **200/200/429**。第三请求到达时两个前序响应均无
+finish事件，active=2；正常finish后约0.01–0.05ms内handler结束并active归零。
+每轮随后10次完整消费CAR均200且active=0，合计30/30。该第三请求使用同fixture
+root以单独重现容量，不冒充upstream FormatPrecedence的另一fixture root。
+这是实际尚未完成的流式工作引起的瞬时3请求重叠，不是已完成响应长期占槽或容量泄漏。
+
+因此不能在headers返回时提前释放slot以迎合suite，否则破坏压力并发预算。
+用户已选择分离验证目的而非改变生产实现；未反复重试挑通过。原诊断fixture、
+服务器与脚本已清理；本节保留精简结果，不新增临时工具或重复大份JSON。
+内存采样生产源码与压力配置均未改变，既有v2本地九对证据仍适用，不重新运行压力。
+新增focused回归验证purpose路由与组合拒绝，避免fixture路径静默提升压力并发。
+本次验证：`node --check` replay与policy模块通过；
+`pnpm --filter @silvermoon-work/task-engine-cli exec tsx --test --test-name-pattern "replay purpose|paired replay" test\managed.test.ts`
+为2/2通过；实际CLI组合`--fixtures .does-not-exist-owned --load yes`在任何
+import解析、实例或负载启动前明确退出1，无fixture副作用；完整`pnpm check`
+通过（40/40任务、测试类型检查与包检查）。没有重跑未变的九对压力，也没有
+运行协议16的外部suite；后者由父级在本次修订同步和验收后独立执行。
 
 ## 固定预算下的实测
 

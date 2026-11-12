@@ -5,7 +5,7 @@
 本文件服务于 [Deployment.md](./Deployment.md)，不是第二份契约或发布完成证明。
 
 - 主 Agent 已接受准确 Inner `bbca358050dda9b26c645266dcca67a47197623b`，决定 commit 为 `f330abbc14f1900da33453c2d2f9d70976b241ac`，事件 digest 为 `766cc41afb0f2c71654b2e7a4e53086b6ccfadc2`。Inner／Ideal 不改。
-- 本版取代旧 task-content 七包草案，**等待父 Agent 对新版本、顺序及隔离矩阵的审阅**。旧条件批准不自动覆盖它。本轮没有修改 manifest 版本、创建 tag、publish／stage、安装包、复制远端脚本或启动服务。
+- 本版取代旧 task-content 七包草案，父 Agent 已在 2026-11-12 08:51 UTC 明确批准本表七版本、顺序与隔离矩阵执行。批准对应计划 commit `b07a2b4eac0452ec69519bb80a1e5fcdf2f7f654`；不能自动扩展或改号。计划阶段没有发布或安装；后续实际动作见 [release-execution.md](./release-execution.md)。
 - 新预检见 [release-preflight-ipfs-store.json](./release-preflight-ipfs-store.json)；[旧快照](./release-preflight.json)仅为历史，旧 B1 不再是初始化阻塞。用户已确认新包占位和 Trusted Publisher 配置完成，不再要求其重复证明其他六包绑定。
 - 既有四包 `b6044673239005bd219494972e9ca5822d31dd05` 发布及 Ubuntu smoke 已由另一 idea 完成，见其[发布与 smoke 证据](../../01M76NR9RXM0WJWSWNG4DHX1ZM/outer/release-evidence.md)。这些是旧模块加载产物，不冒充本七包的消费验证；不复用、删除或重启该会话的目录／服务。
 
@@ -13,7 +13,7 @@
 
 scope 均为 `@silvermoon-work/`，映射沿用 `scripts/release-packages.js`。未来全部 tag 固定同一个版本准备提交 **V**，逐包推送；V 尚未创建。
 
-| 顺序 | package ID | 当前 manifest | 本次候选 | 不可变 tag |
+| 顺序 | package ID | 准备前 manifest | 本次候选 | 不可变 tag |
 | --- | --- | --- | --- | --- |
 | 1 | ipfs-store | 0.1.0-rc.0 | 0.1.0-rc.1 | ipfs-store-v0.1.0-rc.1 |
 | 2 | task-protocol | 0.2.0-rc.0 | 0.2.0-rc.1 | task-protocol-v0.2.0-rc.1 |
@@ -52,7 +52,7 @@ IpfsStore 已无 Protocol 依赖，因此可先发；优先验证新包真实 OI
 
 ## CI、Trusted Publishing 与逐包执行
 
-1. **先等父 Agent 审阅本版计划。** 当前只读预检完成，不授权版本修改或首个 tag。
+1. 父 Agent 对本版的明确批准已具备；先准备固定 V，不得在其完整检查和精确 CI 成功之前推送首个 tag。
 2. 执行前刷新 main，重查七包 exact endpoint、所有相关 tags、全部 dist-tags 和四类依赖。保留并发历史，普通 merge／push，不 rebase／force。
 3. 仅调整这七包 version 到本表候选，保留 `workspace:*`、catalog 和其他包版本，创建未来 V。核对 Inner 仍为 `bbca358050dda9b26c645266dcca67a47197623b`，Ideal 仍为 `edbb07ccf3167af68b321bbcb458fce6b19eac15`。产品实质改动先报告并重验，不能在版本准备时绕过实施门限。
 4. manifest 改变后才按需恢复依赖；本机安装前核对 NRM 的腾讯 registry，不传 `--registry`，不扩散到 CI／SSH。执行 `pnpm check`、Silvermoon worktree／staged 检查，普通提交并同步 main，冻结 V。
@@ -103,6 +103,6 @@ IpfsStore 已无 Protocol 依赖，因此可先发；优先验证新包真实 OI
 本轮只修改 Outer 计划／预检和用户指定的 README 重复残句，没有运行代码、manifest、lockfile 或 Inner／Ideal 变化。
 候选版本／tag 映射和全部四类依赖边已由脚本与实际七包 manifest 逐项核对通过；`pnpm format:check`、`pnpm test:release`（21/21）和 Silvermoon worktree 检查已退出 0。文档修正不冒充重新执行实现全仓验证；实施验证沿用准确已验收修订的真实证据。
 
-本轮只交接计划，不 tag／publish／install，不启动 remote smoke，不改变任何 dist-tag；D-* 尚未完成，不 submitOuter／accept*。
-父 Agent 审阅后才进入版本准备；届时若预检或 OIDC 出现明确失败就报告恢复条件，不无限重试或绕过。
+现按明确授权进入版本准备；D-* 在真实证据完成前保持未完成，不提前 submitOuter／accept*。
+预检、版本占用、并发冲突或 OIDC 出现明确失败就报告恢复条件，不无限重试、自动改号或绕过。
 真实 smoke 失败涉及产品代码时先报告并重新验证实施；若需新产物，另选经审阅的新不可变 RC。全部 D-* 和真实外部证据完成、同步准确 Outer 后，才可 submitOuter 并交父 Agent 验收。

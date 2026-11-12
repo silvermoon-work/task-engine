@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/ipfs-store",
-  "version": "0.1.0-rc.0",
+  "version": "0.1.0-rc.1",
   "description": "Verified bounded UnixFS content acquisition and shared block storage.",
   "type": "module",
   "sideEffects": false,

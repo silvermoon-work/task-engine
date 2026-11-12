@@ -4,8 +4,9 @@
 
 主 Agent 已接受准确 `implementationRevision=bbca358050dda9b26c645266dcca67a47197623b`，决定同步至 primary
 `f330abbc14f1900da33453c2d2f9d70976b241ac`，生命周期为 deploying。
-[更新后的七包计划](./release-and-smoke-plan.md)及[本轮只读预检](./release-preflight-ipfs-store.json)等待父 Agent 审阅；旧[预检快照](./release-preflight.json)仅为历史。
-本轮只准备和同步计划、只读核对 registry／Git／CI／SSH；不改包版本，不 tag／publish／install，不启动服务，也不记录 submitOuter。计划审阅不是 Outer 验收。
+[七包计划](./release-and-smoke-plan.md)已由父 Agent 在 2026-11-12 08:51 UTC 明确批准执行，范围固定为七个精确 RC 及隔离 office-ubuntu 矩阵。
+[计划预检](./release-preflight-ipfs-store.json)和旧[快照](./release-preflight.json)仍保留为各自时点的历史；实际执行见[发布与 smoke 证据](./release-execution.md)。
+先完成固定版本提交 V 的完整检查与精确 main CI，再按批准顺序逐 tag 发布、逐项核对可见性，最后隔离安装验证。批准计划不是 Outer 验收，不能提前 submitOuter／accept。
 
 ## Steps
 
@@ -21,7 +22,7 @@ Publisher；外部配置不具备时明确阻塞，不绕过。
 Builder／Builder CLI／Engine `0.2.0-rc.2`、Engine CLI `0.2.0-rc.10` 串行发布；完整四类依赖边和精确 tag 见计划。
 不扩展到 HTTP／Storage／Server。官方已存在 ipfs-store `0.0.0-stage` 和 `0.1.0-rc.0`；
 后者当前同时为 latest／rc，均须保留，不能覆盖或冒充本 idea 的产物。其余六包 latest 基线为 `0.1.0`。
-所有新发布只更新 rc；占位不作为运行依赖，新候选尚未授权执行。
+所有新发布只更新 rc；占位不作为运行依赖。授权不允许自动改号、覆盖、绕过认证或扩大包范围。
 
 用户已确认新包 Trusted Publisher 配置完成，不再要求其重复证明其他六包绑定。只读预检确认仓库
 `publish-npm.yaml` 使用 `npm` environment、OIDC 与直接 publish；公开元数据不证明或否定当前 npm 私有配置。

@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-protocol",
-  "version": "0.2.0-rc.0",
+  "version": "0.2.0-rc.1",
   "description": "Pure generic task facts, projections and extension ports.",
   "type": "module",
   "sideEffects": false,

@@ -6,6 +6,5 @@
     "outDir": "dist",
     "tsBuildInfoFile": "./.cache/tsconfig.tsbuildinfo"
   },
-  "references": [{ "path": "../task-protocol" }],
   "include": ["src/**/*.ts"]
 }

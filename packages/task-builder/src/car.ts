@@ -7,7 +7,7 @@ import { importer, type WritableStorage } from "ipfs-unixfs-importer";
 import { fixedSize } from "ipfs-unixfs-importer/chunker";
 import { balanced } from "ipfs-unixfs-importer/layout";
 import { exporter } from "ipfs-unixfs-exporter";
-import { ContentBlocks } from "@silvermoon-work/task-content/dag";
+import { ContentBlocks } from "@silvermoon-work/ipfs-store/dag";
 import { graftImports, importSidecar, loadImportBlocks, validateImports } from "./imports.js";
 import {
   createTaskTextNormalizer,

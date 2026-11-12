@@ -2,15 +2,17 @@ import { trustlessGateway } from "@helia/block-brokers";
 import { createHeliaHTTP } from "@helia/http";
 import { httpGatewayRouting } from "@helia/routers";
 import { unixfs } from "@helia/unixfs";
-import { TaskError } from "@silvermoon-work/task-protocol";
+import { ContentError } from "./errors.js";
 import { MemoryBlockstore } from "blockstore-core";
 import { type ExportContentOptions, exporter, type UnixFSEntry } from "ipfs-unixfs-exporter";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
 import * as dagPb from "@ipld/dag-pb";
 import { acquireBlock } from "./dag.js";
+export { ContentError } from "./errors.js";
+export { IpfsStore, type IpfsStoreOptions, type IpfsReadOptions, type IpfsNode } from "./store.js";
 
-class GatewayCleanupError extends TaskError {
+class GatewayCleanupError extends ContentError {
   constructor() {
     super("reclamation_unknown", "IPFS Gateway resource cleanup is unconfirmed.");
   }
@@ -323,9 +325,10 @@ export interface ContentAccessOptions {
   retentionBudget: { bytes: number; limit: number };
   maxBlockBytes: number;
   maxDagBlocks: number;
+  depth?: number;
 }
 
-/** Bundle-owned accounting only. Helia verifies blocks; UnixFS resolves paths and content. */
+/** Reader-owned unique-block accounting; no task or logical-path policy. */
 export function contentStore(client: IpfsClient, options: ContentAccessOptions) {
   return Object.assign(new MemoryBlockstore(), {
     get: async function* (cid: CID) {
@@ -333,50 +336,13 @@ export function contentStore(client: IpfsClient, options: ContentAccessOptions) 
       const key = cid.toV1().toString();
       const retained = options.retainedBlocks.get(key);
       if (retained) {
-        yield retained;
+        yield Uint8Array.from(retained);
         return;
       }
-      let acquisitionFailure: unknown;
-      const node = await createHeliaHTTP({
-        ...isolatedNodeOptions(),
-        blockBrokers: [
-          () => ({
-            name: "caller-read-port",
-            retrieve: async (target, request) => {
-              let bytes: Uint8Array;
-              try {
-                bytes = await acquireBlock(client, CID.parse(target.toString()), {
-                  signal: options.signal,
-                  blockBytes: options.maxBlockBytes,
-                });
-              } catch (error) {
-                acquisitionFailure = error;
-                throw error;
-              }
-              if (bytes.byteLength > options.maxBlockBytes)
-                throw new Error("IPFS block capacity exceeded.");
-              await request?.validateFn?.(bytes);
-              return bytes;
-            },
-          }),
-        ],
+      const bytes = await acquireBlock(client, cid, {
+        signal: options.signal,
+        blockBytes: options.maxBlockBytes,
       });
-      let bytes: Uint8Array;
-      try {
-        const parts: Uint8Array[] = [];
-        for await (const part of node.blockstore.get(cid, { signal: options.signal }))
-          parts.push(part);
-        bytes = Buffer.concat(parts);
-      } catch (error) {
-        if (
-          acquisitionFailure instanceof GatewayReadError ||
-          acquisitionFailure instanceof TaskError
-        )
-          throw acquisitionFailure;
-        throw error;
-      } finally {
-        await stopOwnedNode(node);
-      }
       options.signal.throwIfAborted();
       // Another concurrent read may have retained this block during the await.
       if (options.cacheBlocks !== false && !options.retainedBlocks.has(key)) {
@@ -384,11 +350,11 @@ export function contentStore(client: IpfsClient, options: ContentAccessOptions) 
           options.retainedBlocks.size >= options.maxDagBlocks ||
           options.retentionBudget.bytes + bytes.byteLength > options.retentionBudget.limit
         )
-          throw new Error("IPFS retention capacity exceeded.");
+          throw new ContentError("capacity_exceeded", "IPFS retention capacity exceeded.");
         options.retentionBudget.bytes += bytes.byteLength;
         options.retainedBlocks.set(key, bytes);
       }
-      yield bytes;
+      yield Uint8Array.from(bytes);
     },
   });
 }
@@ -451,7 +417,7 @@ export async function prepareContent(
   const seen = new Set<string>();
   const walk = async (cid: CID, depth: number): Promise<void> => {
     options.signal.throwIfAborted();
-    if (depth > 64) throw new Error("IPFS DAG depth capacity exceeded.");
+    if (depth > (options.depth ?? 64)) throw new Error("IPFS DAG depth capacity exceeded.");
     const key = cid.toV1().toString();
     if (seen.has(key)) return;
     seen.add(key);

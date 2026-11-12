@@ -1,7 +1,10 @@
 import { CarBlockIterator } from "@ipld/car/iterator";
 import { blockLength, createWriter, headerLength } from "@ipld/car/buffer-writer";
 import { CID } from "multiformats/cid";
-import { ContentBlocks, expandContent, linkContent } from "@silvermoon-work/task-content/dag";
+import { ContentBlocks } from "@silvermoon-work/ipfs-store/dag";
+import { IpfsStore } from "@silvermoon-work/ipfs-store";
+import { expandContent } from "./content.js";
+import { linkContent } from "./dag.js";
 import { exporter } from "ipfs-unixfs-exporter";
 import {
   listTree,
@@ -77,7 +80,7 @@ export async function validateImports(
   options: ReadOptions,
 ): Promise<void> {
   for (const [destination, cid] of Object.entries(imports)) {
-    const expanded = await expandContent(CID.parse(cid), blocks, options);
+    const expanded = await expandContent(CID.parse(cid), IpfsStore.fromClient(blocks), options);
     const expected = new Set(
       expanded.map((file) => (file.path ? `${destination}/${file.path}` : destination)),
     );

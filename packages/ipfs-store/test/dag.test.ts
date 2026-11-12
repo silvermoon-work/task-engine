@@ -4,7 +4,7 @@ import { importer } from "ipfs-unixfs-importer";
 import { fixedSize } from "ipfs-unixfs-importer/chunker";
 import { exporter } from "ipfs-unixfs-exporter";
 import { CID } from "multiformats/cid";
-import { acquireBlock, ContentBlocks, expandContent, linkContent } from "../src/dag.js";
+import { acquireBlock, ContentBlocks } from "../src/dag.js";
 
 test("nondefault UnixFS file chunks and directory metadata survive a fresh-store transfer", async () => {
   const original = new ContentBlocks();
@@ -25,51 +25,27 @@ test("nondefault UnixFS file chunks and directory metadata survive a fresh-store
   ))
     imported = entry.cid;
   assert.ok(imported);
-  const files = await expandContent(imported, original);
-  assert.deepEqual(files.find((file) => file.path === "model.bin")?.bytes, Buffer.from(payload));
-
-  const parent = new ContentBlocks();
-  let root: CID | undefined;
-  for await (const entry of importer(
-    [
-      { path: "worker.cjs", content: Buffer.from("/* worker */") },
-      { path: "resources/import/model.bin", content: payload },
-      { path: "resources/import/nested/notes.txt", content: Buffer.from("original\r\nbytes\r\n") },
-    ],
-    parent,
-    { wrapWithDirectory: true, cidVersion: 1, rawLeaves: true },
-  ))
-    root = entry.cid;
-  assert.ok(root);
-  for (const [cid, bytes] of original.blocks) {
-    await parent.put(CID.parse(cid), bytes);
-  }
-  root = await linkContent(root, "resources/import", imported, parent);
-  const resolved = await exporter(`${root}/resources/import`, parent);
-  assert.ok(resolved.cid.equals(imported));
   const restored = new ContentBlocks();
   // Transfer only reachable blocks into a new store with no source or original cache.
-  const reachable = new ContentBlocks(parent);
-  await reachable.prepare(root);
+  const reachable = new ContentBlocks(original);
+  await reachable.prepare(imported);
   for (const [cid, bytes] of reachable.blocks) await restored.put(CID.parse(cid), bytes);
-  const expanded = await expandContent(root, restored);
-  assert.deepEqual(
-    expanded.find((file) => file.path === "resources/import/model.bin")?.bytes,
-    Buffer.from(payload),
-  );
-  const file = await exporter(`${root}/resources/import/model.bin`, restored);
+  const file = await exporter(`${imported}/model.bin`, restored);
   assert.equal(file.type, "file");
   if (file.type === "file") {
     assert.equal(file.unixfs.mode, 0o640);
     assert.deepEqual(file.unixfs.mtime, { secs: 123n, nsecs: 456 });
+    const parts: Uint8Array[] = [];
+    for await (const part of file.content()) parts.push(part);
+    assert.deepEqual(Buffer.concat(parts), Buffer.from(payload));
   }
   const bad = new ContentBlocks();
   await assert.rejects(bad.put(imported, Buffer.from("corrupt")), /verification/);
   const missing = new ContentBlocks();
-  await missing.put(root, await restored.block.get(root.toString()));
-  await assert.rejects(missing.prepare(root), /Missing local content/);
+  await missing.put(imported, await restored.block.get(imported.toString()));
+  await assert.rejects(missing.prepare(imported), /Missing local content/);
   const limited = new ContentBlocks(restored, { blocks: 1 });
-  await assert.rejects(limited.prepare(root), /capacity/);
+  await assert.rejects(limited.prepare(imported), /capacity/);
 });
 
 test("injected uncooperative content ports cannot defeat cancellation or acquisition timeouts", async () => {

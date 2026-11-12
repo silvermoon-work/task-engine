@@ -14,6 +14,8 @@ export {
   type GatewayClientOptions,
   GatewayReadError,
   type IpfsClient,
+  IpfsStore,
+  type IpfsStoreOptions,
 } from "./content.js";
 export { newId } from "./identity.js";
 export { MemoryStore } from "./memory-store.js";

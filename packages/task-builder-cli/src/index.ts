@@ -5,7 +5,7 @@ import { Command, CommanderError, InvalidArgumentError, Option } from "commander
 import {
   createConfiguredContent,
   type ContentConfiguration,
-} from "@silvermoon-work/task-content/node";
+} from "@silvermoon-work/ipfs-store/node";
 import type { ReadOptions, ReadonlyFileTree } from "@silvermoon-work/task-builder/tree";
 import { directoryTree, writeDirectory } from "./node.js";
 import { cliVersion, createCliTaskProject } from "./project.js";

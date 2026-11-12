@@ -30,8 +30,12 @@ imports:
 Imports support regular UnixFS files and nonempty directories, not only tasks.
 Only executing targets must satisfy the Task contract. Paths are portable,
 confined to `resources/`, and cannot overlap each other or includes. The library
-requires `content: IpfsClient` when missing blocks must be acquired; hosts can
-inject verified CAR/local ports or configured gateways.
+requires `content: IpfsStore`. Inject the same store object into Engine as
+`ipfsStore`, or construct independent instances with shared or separate dataDirs.
+`new IpfsStore({dataDir, gateway?})` is local-only without a gateway; the library
+does not read public configuration. CLI hosts explicitly resolve it before
+construction. See [IPFS store](../ipfs-store/README.md) for node streaming,
+budgets, ownership and the explicit `fromClient` adapter for CAR/block sources.
 
 Build fetches and verifies the complete static DAG. The task folder contains
 expanded bytes plus `.task-imports.car`, a bounded archive of the original
@@ -47,6 +51,10 @@ contains only reachable blocks, once per CID. No original project, machine
 cache or gateway is consulted. Missing sidecars/blocks and modified imports fail.
 To edit an imported resource, remove its import, move it to local resources and
 rebuild under a new CID. No old CID is rewritten.
+Portable task-path validation and import materialization belong to Builder/
+Protocol. The packaging-only ancestor reconstruction lives in Builder's `./dag`
+subpath, never in the store. Engine CLI validates the canonical non-import
+complement without installing Builder or grafting nodes.
 
 The existing v1 schema URI/version is retained with the updated definition;
 it does **not** imply dual-protocol compatibility. Replace old `{cid,path}`

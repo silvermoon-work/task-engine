@@ -4,13 +4,15 @@ import { importer } from "ipfs-unixfs-importer";
 import { fixedSize } from "ipfs-unixfs-importer/chunker";
 import { exporter } from "ipfs-unixfs-exporter";
 import type { CID } from "multiformats/cid";
-import { ContentBlocks } from "@silvermoon-work/task-content/dag";
+import { ContentBlocks } from "@silvermoon-work/ipfs-store/dag";
+import { IpfsStore } from "@silvermoon-work/ipfs-store";
 import { buildTaskBundle } from "../src/index.js";
 import { encodeTaskBundleCar, readTaskBundleCar } from "../src/car.js";
 import { listTree, memoryFile, memoryTree, readBytes } from "../src/tree.js";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { linkContent } from "../src/dag.js";
 
 test("build ships noncanonical imports for offline CAR without the source or a machine cache", async () => {
   const source = new ContentBlocks();
@@ -44,7 +46,7 @@ test("build ships noncanonical imports for offline CAR without the source or a m
         contract: { input: { type: "object" }, result: true, message: false },
       },
       imports: { "resources/dir": directory.toString(), "resources/shared.bin": file.toString() },
-      content: source,
+      content: IpfsStore.fromClient(source),
     },
   );
   const folder = join(process.cwd(), `.imports-proof-${randomUUID()}`);
@@ -99,6 +101,39 @@ test("build ships noncanonical imports for offline CAR without the source or a m
   }
 });
 
+test("task portability and graft destinations are Builder policy, not IPFS node policy", async () => {
+  const blocks = new ContentBlocks();
+  let root: CID | undefined;
+  for await (const entry of importer(
+    [{ path: "CON", content: Buffer.from("valid UnixFS, invalid portable task") }],
+    blocks,
+    { wrapWithDirectory: true, cidVersion: 1, rawLeaves: true },
+  ))
+    root = entry.cid;
+  assert.ok(root);
+  const store = IpfsStore.fromClient(blocks);
+  try {
+    assert.equal((await store.read(root)).type, "directory");
+    await assert.rejects(
+      buildTaskBundle(
+        memoryTree(new Map([["main.ts", Buffer.from("export default () => null;")]])),
+        {
+          name: "portable",
+          runtime: { minVersion: "22.15.0" },
+          source: { entry: "main.ts", contract: { input: true, result: true, message: false } },
+          imports: { "resources/import": root.toString() },
+          content: store,
+        },
+      ),
+      /Unsafe or ambiguous/,
+    );
+    for (const path of ["../escape", "resources/CON", "resources\\escape"])
+      await assert.rejects(linkContent(root, path, root, blocks), /Unsafe import destination/);
+  } finally {
+    await store.close();
+  }
+});
+
 test("imports reject include conflicts, overlapping destinations, missing content and logical overflow", async () => {
   const content = new ContentBlocks();
   let cid: CID | undefined;
@@ -120,7 +155,7 @@ test("imports reject include conflicts, overlapping destinations, missing conten
   await assert.rejects(
     buildTaskBundle(input, {
       ...options,
-      content,
+      content: IpfsStore.fromClient(content),
       include: [{ from: "asset.txt", to: "resources/" }],
       imports: { "resources/asset.txt": cid.toString() },
     }),
@@ -129,7 +164,7 @@ test("imports reject include conflicts, overlapping destinations, missing conten
   await assert.rejects(
     buildTaskBundle(input, {
       ...options,
-      content,
+      content: IpfsStore.fromClient(content),
       imports: { "resources/tree": cid.toString(), "resources/tree/child": cid.toString() },
     }),
     /overlap/,
@@ -139,12 +174,12 @@ test("imports reject include conflicts, overlapping destinations, missing conten
       ...options,
       imports: { "resources/file.bin": cid.toString() },
     }),
-    /Missing local content/,
+    /IpfsStore/,
   );
   await assert.rejects(
     buildTaskBundle(input, {
       ...options,
-      content,
+      content: IpfsStore.fromClient(content),
       imports: { "resources/file.bin": cid.toString(), "resources/shared.bin": cid.toString() },
       limits: { bytes: 3000 },
     }),

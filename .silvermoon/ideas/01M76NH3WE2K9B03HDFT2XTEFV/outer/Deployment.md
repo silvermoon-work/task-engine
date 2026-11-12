@@ -2,10 +2,9 @@
 
 用户已授权本 idea 的 RC 发布及 scottwei@office-ubuntu 安装验证，并委托主 Agent 负责阶段门限审批。仅对本 idea 必需的包逐个发布 RC，不授权 stable 发布、改变 latest 或批量发布整个 workspace。审批与发布边界见[执行与门限分工](./inner/ideal/execution-and-gates.md)。
 
-实施已由主 Agent 接受，准确修订为
+以下是旧实施候选的历史验收，不覆盖新增 IpfsStore 重构：原准确修订为
 `de8464302233de4e449dd196096a458099470a70`，决定已同步 primary
-`ba86cecab380a3eca9076d495cabb265c46a09f3`。本轮仅准备并同步[逐包发布与远端 smoke 计划](./release-and-smoke-plan.md)及[只读预检快照](./release-preflight.json)，等待主 Agent 审阅后才允许真实发布；不修改已验收 Inner
-/ Ideal World，也不提前记录 submitOuter。
+`ba86cecab380a3eca9076d495cabb265c46a09f3`。[旧逐包计划](./release-and-smoke-plan.md)及[只读快照](./release-preflight.json)保留为历史，不能直接执行。本轮仍处于 implementing：必须先重新完成准确 submitInner 并由父 Agent 审阅，再重查精确 RC 版本／tag 和新逐包计划。当前不发布、不 SSH、不记录 submitOuter。
 
 ## Steps
 
@@ -17,11 +16,12 @@ Publishing 发布；禁止本地真实 npm
 publish、不覆盖既有版本或移动 tag。每个依赖的精确版本可查询后再发布依赖它的包，新增共享库先配置发布映射与 Trusted
 Publisher；外部配置不具备时明确阻塞，不绕过。
 
-当前拟用七包的精确版本、四类依赖字段和串行顺序以发布计划为准，不自动扩展到未涉及的 HTTP
-/ Storage / Server 包。公开 registry 当前无法读取 `task-content`，且官方 npm
-trust 文档要求包先存在；须先由 npm
-owner 核实包与授权状态、解决首发/绑定前置条件，再开始整个发布链。不得用 stage 自动生成的非 RC 占位版本、stored
-token、本地 publish 或未经批准的工作流绕过。
+旧七包精确版本、四类依赖字段与串行顺序不再直接生效，不自动扩展到未涉及的 HTTP
+/ Storage / Server 包。共享库最终名称为 `@silvermoon-work/ipfs-store`，用户已完成 `0.0.0-stage`
+占位与 Trusted Publisher 绑定；这解决了旧 task-content 首发初始化前置条件，不扩大发布授权。
+保留占位历史版本和 dist-tags，不将它作为运行依赖或 RC。未来须重新观察包版本／tag，
+核对 `publish-npm.yaml`、npm environment 的直接 publish 权限和 exact-commit CI，再交父 Agent
+审阅新逐包计划。不得用 stored token、本地 publish 或未经批准的工作流绕过。
 
 通过 SSH 在 scottwei@office-ubuntu 的独立测试目录安装真实已发布的精确 RC 包。遵守远端实际 registry 配置，不继承本机镜像要求。先检查现有工具与服务，避免替换共享全局安装、修改现有配置或重启其他服务。使用隔离 data
 dir 与测试配置，记录安装来源、版本、命令、CID 和可重现结果。

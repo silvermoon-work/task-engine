@@ -10,6 +10,7 @@ import { sha256 } from "multiformats/hashes/sha2";
 import { DiskContent, Repository, pruneData, type TaskRecord } from "../src/data.js";
 import { managedDiagnostics } from "../src/diagnostics.js";
 import type { RunLogEntry } from "@silvermoon-work/task-protocol";
+import { IpfsStore } from "@silvermoon-work/ipfs-store";
 
 test("durable log snapshots are atomic and replay without new disk writes or cursor positions", async (t) => {
   const directory = resolve(".cache", `log-snapshots-${randomUUID()}`);
@@ -205,6 +206,40 @@ test("disk content validates hashes, never falls back to network, and propagates
   assert.equal((fatal as NodeJS.ErrnoException).code, "ENOSPC");
   await missing.close();
   await disk.close();
+});
+
+test("the host adapts retained output into IpfsStore without network or transferring source ownership", async () => {
+  const directory = resolve(".cache", `retained-store-${randomUUID()}`);
+  const bytes = Buffer.from("retained output");
+  const cid = CID.createV1(0x55, await sha256.digest(bytes));
+  let upstream = 0;
+  const source = IpfsStore.fromClient(
+    {
+      block: {
+        get: async () => {
+          upstream++;
+          throw new Error("not available upstream");
+        },
+      },
+    },
+    {},
+    directory,
+  );
+  const content = new DiskContent(directory, source, undefined, undefined, (value) =>
+    value === cid.toString() ? bytes : undefined,
+  );
+  try {
+    const node = await content.ipfsStore.read(cid);
+    assert.equal(node.type, "raw");
+    assert.equal(upstream, 0);
+    await content.close();
+    assert.deepEqual(Buffer.from(await source.block.get(cid.toString())), bytes);
+    assert.equal(upstream, 0);
+  } finally {
+    await content.close();
+    await source.close();
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test("offline cache cleanup preserves retained SQLite output graphs until their tasks are removed", async (t) => {

@@ -233,7 +233,7 @@ export async function executeTask(
     const maximum = Number.MAX_SAFE_INTEGER;
     engine = createTaskEngine({
       store: domain,
-      ipfsClient: content,
+      ipfsStore: content.ipfsStore,
       persistentContent: true,
       executionBudgetFromWorker: true,
       requestInputEnvelope: true,

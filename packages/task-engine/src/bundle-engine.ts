@@ -25,7 +25,7 @@ import {
 } from "@silvermoon-work/task-protocol";
 import { BundleCache, type BundleLimits, type BundleCacheOptions } from "./bundle.js";
 import { bundleModuleURL } from "./bundle-module.js";
-import type { IpfsClient } from "./content.js";
+import type { IpfsClient, IpfsStore } from "./content.js";
 import { TaskEngine as Coordinator, type EngineOptions as CoordinatorOptions } from "./engine.js";
 import { newId } from "./identity.js";
 import { createRunSpaceHost, type RunSpaceHostOptions } from "./spaces.js";
@@ -45,7 +45,9 @@ export interface EngineOptions
     | "invokeTask"
     | "confirmChildRelease"
   > {
-  ipfsClient: IpfsClient;
+  ipfsStore?: IpfsStore;
+  /** @deprecated Prefer an explicit, caller-owned IpfsStore. */
+  ipfsClient?: IpfsClient;
   persistentContent?: boolean;
   confirmBundleRelease?: (context: RunResourceContext) => Promise<void>;
   preparingCapacity?: { enter(): (() => void) | undefined };
@@ -146,7 +148,8 @@ export class TaskEngine implements TaskService {
       if (typeof options.store[method] !== "function")
         throw new TaskError("invalid_config", `Store must implement ${method} for Run content.`);
     this.cache = new BundleCache({
-      ipfsClient: options.ipfsClient,
+      ...(options.ipfsStore ? { ipfsStore: options.ipfsStore } : {}),
+      ...(options.ipfsClient ? { ipfsClient: options.ipfsClient } : {}),
       ...(options.persistentContent ? { persistentContent: true } : {}),
       ...(options.bundlePreparation ? { preparation: options.bundlePreparation } : {}),
       ...(options.bundleConcurrency !== undefined

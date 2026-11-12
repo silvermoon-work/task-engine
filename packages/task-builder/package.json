@@ -22,6 +22,10 @@
     "./car": {
       "types": "./dist/car.d.ts",
       "import": "./dist/car.js"
+    },
+    "./dag": {
+      "types": "./dist/dag.d.ts",
+      "import": "./dist/dag.js"
     }
   },
   "files": [
@@ -48,7 +52,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@silvermoon-work/task-content": "workspace:*",
+    "@silvermoon-work/ipfs-store": "workspace:*",
     "@ipld/car": "catalog:",
     "@ipld/dag-pb": "catalog:",
     "multiformats": "catalog:",

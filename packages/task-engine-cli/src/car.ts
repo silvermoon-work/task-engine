@@ -14,7 +14,7 @@ import {
   type TaskBundleFileLimits,
 } from "@silvermoon-work/task-protocol";
 import type { IpfsClient } from "@silvermoon-work/task-engine";
-import { ContentBlocks, linkContent } from "@silvermoon-work/task-content/dag";
+import { ContentBlocks } from "@silvermoon-work/ipfs-store/dag";
 
 interface ReadOptions {
   readonly signal?: AbortSignal;
@@ -213,14 +213,11 @@ export async function openCarSource(
     await walk(root, "");
     const checked = readTaskBundle(files, filesLimit);
     const imports = checked.declaration.imports ?? {};
-    const graph = new ContentBlocks({
-      block: { get: (cid, request) => read(CID.parse(cid), request) },
-    });
+    const graph = new ContentBlocks();
     for (const [path, cid] of Object.entries(imports)) {
       const actual = await exporter(`${root}/${path}`, blocks, options);
       if (!actual.cid.toV1().equals(CID.parse(cid).toV1()))
         throw new Error(`Import path CID mismatch: ${path}`);
-      await graph.prepare(cid, options);
     }
     async function* candidates() {
       for (const path of [...files.keys()].sort()) {
@@ -257,10 +254,58 @@ export async function openCarSource(
       },
     ))
       canonical = entry.cid;
-    if (canonical)
-      for (const [path, cid] of Object.entries(imports))
-        canonical = await linkContent(canonical, path, CID.parse(cid), graph, options);
-    if (!canonical?.toV1().equals(root.toV1()))
+    if (canonical && Object.keys(imports).length) {
+      // Validate the canonical complement, without grafting or re-encoding imported roots.
+      const sizes = new Map<string, number>();
+      const size = async (cid: CID, depth = 0): Promise<number> => {
+        if (depth > 64) throw new Error("CAR DAG exceeds depth capacity.");
+        const key = cid.toString(),
+          cached = sizes.get(key);
+        if (cached !== undefined) return cached;
+        const bytes = await read(cid);
+        let total = bytes.byteLength;
+        if (cid.code === dagPb.code)
+          for (const link of dagPb.decode(bytes).Links) total += await size(link.Hash, depth + 1);
+        if (!Number.isSafeInteger(total)) throw new Error("CAR DAG exceeds size capacity.");
+        sizes.set(key, total);
+        return total;
+      };
+      const validate = async (actual: CID, expected: CID, path: string): Promise<void> => {
+        check();
+        if (Object.hasOwn(imports, path)) {
+          if (!actual.equals(CID.parse(imports[path]!)))
+            throw new Error(`Import path CID mismatch: ${path}`);
+          return;
+        }
+        const node = await exporter(expected, graph, options);
+        if (node.type !== "directory") {
+          if (!actual.equals(expected)) throw new Error("CAR file is not canonical.");
+          return;
+        }
+        if (actual.code !== dagPb.code) throw new Error("CAR directory is not canonical.");
+        const bytes = await read(actual),
+          directory = dagPb.decode(bytes);
+        if (
+          !Buffer.from(directory.Data ?? []).equals(Buffer.from(node.node.Data ?? [])) ||
+          directory.Links.length !== node.node.Links.length ||
+          !Buffer.from(bytes).equals(Buffer.from(dagPb.encode(dagPb.prepare(directory))))
+        )
+          throw new Error("CAR directory is not canonical.");
+        for (let index = 0; index < directory.Links.length; index++) {
+          const child = directory.Links[index]!,
+            other = node.node.Links[index]!;
+          const childPath = path ? `${path}/${child.Name}` : child.Name!;
+          if (
+            child.Name !== other.Name ||
+            child.Tsize !== (await size(child.Hash)) ||
+            (!Object.hasOwn(imports, childPath) && child.Hash.version !== other.Hash.version)
+          )
+            throw new Error("CAR directory links are not canonical.");
+          await validate(child.Hash, other.Hash, childPath);
+        }
+      };
+      await validate(root, canonical, "");
+    } else if (!canonical?.toV1().equals(root.toV1()))
       throw new Error("CAR root is not a canonical Bundle file tree.");
     files.clear();
     check();

@@ -1,5 +1,12 @@
 # SpaceRef / imports 逐包 RC 与远端 smoke 计划
 
+> 历史计划，当前不可执行。实施层新增 IpfsStore 对象要求且共享库最终更名为
+> `@silvermoon-work/ipfs-store`；用户已完成 `0.0.0-stage` 占位和 Trusted Publisher 绑定。
+> 下文旧 task-content 名称、B1 观察及已条件审阅的版本／顺序均仅保留为历史。
+> 新实施须先重新准确 submitInner 并经父 Agent 审阅；之后重新观察 npm 版本与 Git tag、
+> 核对 publish 工作流／environment 权限和 CI，再制定、审阅新逐包 RC 计划。
+> 当前不发布、不 SSH、不改历史版本或 dist-tags；占位不是运行依赖或 RC 版本。
+
 ## 当前边界与状态
 
 本文件服务于

@@ -175,11 +175,23 @@ async function execute(
   const contentConfig = join(directory, "content-config.json");
   await writeFile(contentConfig, JSON.stringify({ dataDir: join(directory, "shared-content") }));
   const began = performance.now();
+  // Interrupt a run after its acknowledgement, not during the independent submission boundary.
   const script =
     interruptMs === undefined
       ? undefined
       : `import {main} from ${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)};
-const timer=setTimeout(()=>process.emit("SIGINT"),${interruptMs});process.exitCode=await main(process.argv.slice(1));clearTimeout(timer);`;
+let timer;
+const arm=()=>{timer??=setTimeout(()=>process.emit("SIGINT"),${interruptMs});};
+if(process.argv[1]==="run"){
+  const originalFetch=globalThis.fetch;
+  globalThis.fetch=async(...request)=>{
+    const response=await originalFetch(...request);
+    const target=request[0] instanceof Request?request[0].url:request[0];
+    if(new URL(target).pathname==="/cli/run"&&response.ok&&(await response.clone().json()).ok)arm();
+    return response;
+  };
+}else arm();
+process.exitCode=await main(process.argv.slice(1));clearTimeout(timer);`;
   const child = spawn(
     process.execPath,
     script ? ["--input-type=module", "-e", script, ...args] : [bin, ...args],

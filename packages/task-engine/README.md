@@ -14,9 +14,10 @@ import { newId } from "@silvermoon-work/task-engine/identity";
 避免为身份生成导入整个宿主入口，使类型守护启动不承担无关内容后端的初始化成本。
 
 ```ts
+const ipfsStore = new IpfsStore({ dataDir: contentDirectory, gateway });
 const engine = createTaskEngine({
   store,
-  ipfsClient, // caller 创建的通用 IPFS client，连接独立本地 Kubo endpoint
+  ipfsStore, // 与 Builder 的 content 使用同一对象类型，可共享实例
   authorize: (caller, _operation, scope) => caller.scope === scope,
 });
 await engine.start();
@@ -63,18 +64,24 @@ drain 开始后该方法与 `collect()` 一样返回明确的 `engine_draining` 
 `@silvermoon-work/task-protocol` 的独立实现，与作者工具共用。
 Node runtime 版本比较直接使用 `semver`；
 生产依赖闭包不包含 `artifact-files`、Check 制品或运行时包，
-缓存保留/hint/DAG 预算仍由 Engine 管理。
+任务逻辑路径、文件与执行预算仍由 Engine 管理。
 默认文本资源在准入前完整验证 UTF-8/LF；最终 manifest 必须包含准确的 `binary` 清单，
 空清单也显式为 `[]`。所有静态 DAG 块（包括 binary 后继块及通用 imports）
 在准入前完整获取并验证；缺块或超限明确失败，不降级懒加载。
 `bundlePrefetch` 已移除；准备后的静态闭包可在断源后执行。
 task.yaml 的 imports 路径必须解析到声明的精确原始 CID。旧声明和不规范文本不被改写或兼容。
 内部内存复用使用有界 verified blocks 及租约保护在途准备/运行，不提供公开缓存管理 API；
-库通过注入端口访问内容，不隐式加载配置。Builder 和 Engine 共同使用
-`@silvermoon-work/task-content`；CLI 默认配置及独立覆盖见该包说明。
+库通过 `ipfsStore: IpfsStore` 注入内容对象，不隐式加载配置。Builder 的 `content`
+接收同一类型，允许共享对象或分别创建指向同一／不同目录的对象。
+Engine 只借用对象并创建独立有界 reader scope，close 不关闭调用者的 store。
+旧低层 `ipfsClient` 注入保留为 deprecated 宿主适配入口，内部一次性转换为同一
+`IpfsStore`，不再由 Engine 拼装下载、缓存和 DAG 读取函数；不能同时传两个入口。
+`@silvermoon-work/ipfs-store` 的 `read()` 返回文件流／目录节点，`prepare()`
+完成有界静态闭包。公共配置仍由 CLI／宿主显式解析，默认及覆盖见该包说明。
 输出内容由 Store 的内容块存储和 Run 保留引用管理，不修改外部节点的 pin。
 `bundleLimits.retainedBytes` 默认 256 MiB，是所有内存保留块的总量预算；超限明确拒绝。
-Helia 验证块，官方 UnixFS 解析路径及提供字节流；本地只保留 Task 准入、容量与租约边界。
+IpfsStore 验证并复用块，官方 UnixFS 解析路径及提供字节流；Engine 只保留 Task 准入、
+逻辑容量与租约边界，不承担打包的 graft 或任务之外的内容路径策略。
 每次拉取使用至多 256 KiB 的 UnixFS 范围，避免官方 exporter 的整文件预读队列。
 旧 `protectedBytes` 已改名为 `retainedBytes`，内存保留/租约不是持久 IPFS pin。
 Engine 入口只重导出 `createIpfsGatewayClient`，不再暴露 RPC 工厂；
@@ -149,7 +156,7 @@ Task/Run 列表摘要仅带 `output.cid`，不展开业务结果。
 
 ```ts
 const store = new MemoryStore();
-const engine = createTaskEngine({ store, ipfsClient, authorize });
+const engine = createTaskEngine({ store, ipfsStore, authorize });
 await engine.start();
 await engine.submit(request, caller);
 const execution = await engine.drain({ signal });

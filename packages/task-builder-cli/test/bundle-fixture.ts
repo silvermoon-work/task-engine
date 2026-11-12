@@ -12,8 +12,8 @@ import {
   validateTaskBundle,
 } from "@silvermoon-work/task-protocol";
 import { directoryTree, writeDirectory, writeStreamFile } from "../src/node.js";
-import type { IpfsClient } from "@silvermoon-work/task-content";
-import { ContentBlocks } from "@silvermoon-work/task-content/dag";
+import { IpfsStore, type IpfsClient } from "@silvermoon-work/ipfs-store";
+import { ContentBlocks } from "@silvermoon-work/ipfs-store/dag";
 
 export interface BundleFixtureOptions {
   declaration: unknown;
@@ -63,7 +63,14 @@ export async function buildBundleFixture(options: BundleFixtureOptions) {
       : [],
     binary: contract.binary,
     ...(options.imports ? { imports: options.imports } : {}),
-    ...(options.content ? { content: options.content } : {}),
+    ...(options.content
+      ? {
+          content:
+            options.content instanceof IpfsStore
+              ? options.content
+              : IpfsStore.fromClient(options.content),
+        }
+      : {}),
   });
   const paths = await writeDirectory(output, directory);
   const encoded = await encodeTaskBundleCar(await directoryTree(directory));

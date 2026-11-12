@@ -7,7 +7,7 @@
     "tsBuildInfoFile": "./.cache/tsconfig.tsbuildinfo"
   },
   "references": [
-    { "path": "../task-content" },
+    { "path": "../ipfs-store" },
     {
       "path": "../task-protocol"
     }

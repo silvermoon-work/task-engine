@@ -601,7 +601,7 @@ test("release artifact discovery supports library-only repositories and fails on
 
 test("the release registry contains the core packages, builder CLI and finite execution CLI", () => {
   const expected = [
-    "task-content",
+    "ipfs-store",
     "task-builder-cli",
     "task-builder",
     "task-protocol",

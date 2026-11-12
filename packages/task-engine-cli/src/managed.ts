@@ -8,7 +8,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { newId } from "@silvermoon-work/task-engine";
-import { createConfiguredContent } from "@silvermoon-work/task-content/node";
+import { createConfiguredContent } from "@silvermoon-work/ipfs-store/node";
 import {
   canonical,
   object,
@@ -526,6 +526,7 @@ export async function serveManaged(
   const lock = await directoryLock(String(effective(config, "server.dataDir")), true);
   let repository: Repository | undefined;
   let content: DiskContent | undefined;
+  let shared: Awaited<ReturnType<typeof createConfiguredContent>> | undefined;
   let ipns: IpnsRecords | undefined;
   let rawGateway: ReturnType<typeof createRawGateway> | undefined;
   let closing = false;
@@ -608,6 +609,7 @@ export async function serveManaged(
       }
       try {
         await content?.close();
+        await shared?.close();
       } catch (error) {
         errors.push(error);
       }
@@ -1050,7 +1052,7 @@ export async function serveManaged(
         repository.put(task);
       }
     repository.write(() => repository!.db.exec("UPDATE tasks SET car=NULL"));
-    const shared = await createConfiguredContent({
+    shared = await createConfiguredContent({
       ...(effective(config, "server.ipfsGateway")
         ? { gateway: String(effective(config, "server.ipfsGateway")) }
         : {}),

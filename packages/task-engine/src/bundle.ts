@@ -11,14 +11,7 @@ import {
   validateBundleReference,
 } from "@silvermoon-work/task-protocol";
 import { gte, satisfies } from "semver";
-import { CID } from "multiformats/cid";
-import {
-  GatewayReadError,
-  type IpfsClient,
-  openContent,
-  prepareContent,
-  withGatewayHints,
-} from "./content.js";
+import { GatewayReadError, ContentError, IpfsStore, type IpfsClient } from "./content.js";
 
 export type BundleLimits = TaskBundleFileLimits & {
   hints: number;
@@ -66,7 +59,9 @@ export function inspectTaskBundle(
 export interface BundleCacheOptions {
   persistentContent?: boolean;
   preparation?: { acquire(signal: AbortSignal): Promise<() => void> };
-  ipfsClient: IpfsClient;
+  ipfsStore?: IpfsStore;
+  /** @deprecated Adapt block ports at the host with IpfsStore.fromClient. */
+  ipfsClient?: IpfsClient;
   concurrency?: number;
   limits?: Partial<BundleLimits>;
   allowGateway?: (url: URL) => boolean;
@@ -79,23 +74,31 @@ export class BundleCache {
   private readonly prepared = new Map<string, VerifiedBundle>();
   private readonly leases = new Map<string, number>();
   private readonly lifetime = new AbortController();
-  private readonly retentionBudget = { bytes: 0, limit: 0 };
-  private readonly retainedBlocks = new Map<string, Uint8Array>();
+  private readonly content: IpfsStore;
+  private readonly ownedAdapter?: IpfsStore;
   readonly block = {
     get: async (value: string, options: { signal?: AbortSignal } = {}): Promise<Uint8Array> => {
       options.signal?.throwIfAborted();
       this.lifetime.signal.throwIfAborted();
-      const retained = this.retainedBlocks.get(CID.parse(value).toV1().toString());
-      return retained
-        ? Uint8Array.from(retained)
-        : this.options.ipfsClient.block.get(value, options);
+      try {
+        return await this.content.block.get(value, options);
+      } catch (error) {
+        if (error instanceof ContentError && error.code !== "missing_block")
+          throw new TaskError(error.code, error.message);
+        throw error;
+      }
     },
   };
   private readonly concurrency: number;
   private occupied = 0;
   private readonly waiting: { enter(): void; reject(error: unknown): void }[] = [];
   constructor(private readonly options: BundleCacheOptions) {
-    if (typeof options.ipfsClient?.block?.get !== "function")
+    if (
+      (options.ipfsStore !== undefined && !(options.ipfsStore instanceof IpfsStore)) ||
+      (options.ipfsStore && options.ipfsClient)
+    )
+      throw new TaskError("invalid_config", "Inject one IpfsStore, not competing content sources.");
+    if (!options.ipfsStore && typeof options.ipfsClient?.block?.get !== "function")
       throw new TaskError("invalid_config", "A caller-owned IPFS content client is required.");
     if (options.allowGateway !== undefined && typeof options.allowGateway !== "function")
       throw new TaskError("invalid_config", "Invalid IPFS gateway access policy or transport.");
@@ -103,10 +106,12 @@ export class BundleCache {
     if (!Number.isSafeInteger(this.concurrency) || this.concurrency <= 0)
       throw new TaskError("invalid_config", "Invalid Bundle preparation concurrency.");
     this.limits = { ...defaultBundleLimits, ...options.limits };
-    this.retentionBudget.limit = this.limits.retainedBytes;
     for (const [key, value] of Object.entries(this.limits))
       if (!Object.hasOwn(defaultBundleLimits, key) || !Number.isSafeInteger(value) || value <= 0)
         throw new TaskError("invalid_config", "Invalid Bundle capacity.");
+    const limits = { bytes: this.limits.retainedBytes, blocks: this.limits.blocks };
+    if (!options.ipfsStore) this.ownedAdapter = IpfsStore.fromClient(options.ipfsClient!, limits);
+    this.content = (options.ipfsStore ?? this.ownedAdapter!).scope(limits);
   }
   async available(cid: string): Promise<boolean> {
     cid = bundleCid(validateBundleReference(cid));
@@ -117,14 +122,10 @@ export class BundleCache {
     const relative = path.replace(/^\//, "");
     if (relative && !safePath(relative))
       throw new TaskError("invalid_space", "Unsafe child SpaceRef path.");
-    let entry: Awaited<ReturnType<typeof openContent>>;
+    let entry: Awaited<ReturnType<IpfsStore["read"]>>;
     try {
-      entry = await openContent(this.options.ipfsClient, relative ? `${cid}/${relative}` : cid, {
+      entry = await this.content.read(relative ? `${cid}/${relative}` : cid, {
         signal: AbortSignal.any([signal, this.lifetime.signal]),
-        maxBlockBytes: 2 * 1024 * 1024,
-        maxDagBlocks: this.limits.blocks,
-        retentionBudget: this.retentionBudget,
-        retainedBlocks: this.retainedBlocks,
       });
     } catch (error) {
       signal.throwIfAborted();
@@ -206,31 +207,27 @@ export class BundleCache {
     }
   }
   private async prepare(reference: BundleReference): Promise<VerifiedBundle> {
+    const content = this.content;
     const cid = bundleCid(reference);
     const cached = this.prepared.get(cid);
     if (cached) return cached;
-    const retainedBlocks = this.retainedBlocks;
     const gateways =
       typeof reference === "string"
         ? []
         : typeof reference.hint === "string"
           ? [reference.hint]
           : reference.hint;
-    const client = withGatewayHints(this.options.ipfsClient, gateways, this.options.allowGateway);
     const access = (signal: AbortSignal) => ({
       signal: AbortSignal.any([signal, this.lifetime.signal]),
-      maxBlockBytes: 2 * 1024 * 1024,
-      retainedBlocks,
-      retentionBudget: this.retentionBudget,
-      maxDagBlocks: this.limits.blocks,
-      cacheBlocks: true,
+      hints: gateways,
+      ...(this.options.allowGateway ? { allowGateway: this.options.allowGateway } : {}),
     });
     const files = new Map<string, Buffer>();
     const logicalPaths = new Set<string>();
     let total = 0;
     let paths = 0;
     const walk = async (
-      entry: Awaited<ReturnType<typeof openContent>>,
+      entry: Awaited<ReturnType<IpfsStore["read"]>>,
       path: string,
     ): Promise<void> => {
       if (path && ++paths > this.limits.paths)
@@ -251,7 +248,7 @@ export class BundleCache {
           if (!child.name || child.name.includes("/") || child.name.includes("\\"))
             throw new TaskError("invalid_bundle", "Unsafe IPFS directory name.");
           await walk(
-            await openContent(client, child.cid.toString(), access(this.lifetime.signal)),
+            await this.content.read(child.cid.toString(), access(this.lifetime.signal)),
             path ? `${path}/${child.name}` : child.name,
           );
         }
@@ -282,14 +279,14 @@ export class BundleCache {
         throw new TaskError("invalid_bundle", "Bundle requires regular UnixFS files/directories.");
     };
     try {
-      await prepareContent(client, cid, access(this.lifetime.signal));
-      const root = await openContent(client, cid, access(this.lifetime.signal));
+      await this.content.prepare(cid, access(this.lifetime.signal));
+      const root = await this.content.read(cid, access(this.lifetime.signal));
       if (root.type !== "directory")
         throw new TaskError("invalid_bundle", "Bundle CID must identify a directory.");
       await walk(root, "");
       const inspected = inspectTaskBundle(files, this.limits);
       for (const [path, expected] of Object.entries(inspected.declaration.imports ?? {})) {
-        const entry = await openContent(client, `${cid}/${path}`, access(this.lifetime.signal));
+        const entry = await this.content.read(`${cid}/${path}`, access(this.lifetime.signal));
         if (entry.cid.toV1().toString() !== bundleCid(validateBundleReference(expected)))
           throw new TaskError("invalid_bundle", `Import path CID mismatch: ${path}`);
       }
@@ -306,18 +303,18 @@ export class BundleCache {
             ![...allowed].some((file) => file.startsWith(`${path}/`))
           )
             throw new TaskError("invalid_bundle", "Child path is outside the verified parent DAG.");
-          const entry = await openContent(client, `${cid}/${path}`, access(signal));
+          const entry = await this.content.read(`${cid}/${path}`, access(signal));
           if (entry.type !== "directory")
             throw new TaskError("invalid_bundle", "Child Task root must be a directory.");
           return entry.cid.toString();
         },
         get retainedBytes() {
-          return [...retainedBlocks.values()].reduce((sum, block) => sum + block.length, 0);
+          return content.retainedBytes;
         },
         read: async (path, signal) => {
           if (!safePath(path) || !allowed.has(path))
             throw new TaskError("invalid_bundle", "Bundle path is absent or outside its root.");
-          const entry = await openContent(client, `${cid}/${path}`, access(signal));
+          const entry = await this.content.read(`${cid}/${path}`, access(signal));
           if (entry.type !== "file" && entry.type !== "raw")
             throw new TaskError("invalid_bundle", "Bundle path is not a regular file.");
           const combined = access(signal).signal;
@@ -334,6 +331,10 @@ export class BundleCache {
     } catch (error) {
       if (this.lifetime.signal.aborted) throw this.lifetime.signal.reason;
       if (error instanceof TaskError) throw error;
+      if (error instanceof ContentError && error.code === "unsupported_content")
+        throw new TaskError("invalid_bundle", error.message);
+      if (error instanceof ContentError && error.code !== "missing_block")
+        throw new TaskError(error.code, error.message);
       if (error instanceof Error && /^IPFS .*capacity exceeded\.$/.test(error.message))
         throw new TaskError("capacity_exceeded", "IPFS acquisition exceeds host capacity.");
       throw new TaskError(
@@ -355,7 +356,7 @@ export class BundleCache {
     for (const waiting of this.waiting.splice(0)) waiting.reject(this.lifetime.signal.reason);
     await Promise.allSettled([...this.fetching.values()]);
     this.prepared.clear();
-    this.retainedBlocks.clear();
-    this.retentionBudget.bytes = 0;
+    await this.content.close();
+    await this.ownedAdapter?.close();
   }
 }

@@ -6,7 +6,8 @@ import { existsSync, lstatSync } from "node:fs";
 import * as dagPb from "@ipld/dag-pb";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
-import { createIpfsGatewayClient, type GatewayClient } from "@silvermoon-work/task-engine";
+import { IpfsStore, type GatewayClient } from "@silvermoon-work/task-engine";
+import { ContentError } from "@silvermoon-work/ipfs-store";
 import {
   type ErrorFact,
   type Json,
@@ -362,22 +363,44 @@ export async function verifyBlock(cid: CID, bytes: Uint8Array): Promise<void> {
     throw new TaskError("INVALID_CONTENT", `CID verification failed: ${cid}.`);
 }
 export class DiskContent implements GatewayClient {
-  private readonly gateway: GatewayClient | undefined;
-  private readonly lifetime = new AbortController();
-  private readonly active = new Set<Promise<Uint8Array>>();
+  readonly ipfsStore: IpfsStore;
+  private readonly ownedSource: IpfsStore | undefined;
   constructor(
     readonly directory: string,
-    gateway?: string | GatewayClient,
+    gateway?: string | GatewayClient | IpfsStore,
     private readonly failed: (error: unknown) => void = () => {},
     private readonly beforeWrite?: () => void,
     private readonly retainedBlock?: (cid: string, maxBytes?: number) => Uint8Array | undefined,
   ) {
     this.checkDirectory();
-    if (gateway)
-      this.gateway =
-        typeof gateway === "string"
-          ? createIpfsGatewayClient(gateway, { allowPath: true })
-          : gateway;
+    this.ownedSource =
+      typeof gateway === "string" ? new IpfsStore({ dataDir: directory, gateway }) : undefined;
+    const source = typeof gateway === "string" ? this.ownedSource : gateway;
+    if (retainedBlock) {
+      // The host exposes retained output as a read port; the IPFS store never knows SQLite.
+      this.ipfsStore = IpfsStore.fromClient(
+        {
+          block: {
+            get: async (value, options = {}) => {
+              options.signal?.throwIfAborted();
+              const retained = retainedBlock(CID.parse(value).toV1().toString(), 2 * 1024 * 1024);
+              if (retained) return retained;
+              if (!source) throw new ContentError("missing_block", "Missing local content block.");
+              return source.block.get(value, options);
+            },
+          },
+        },
+        {},
+        directory,
+      );
+    } else {
+      this.ipfsStore =
+        source instanceof IpfsStore
+          ? source.scope()
+          : source
+            ? IpfsStore.fromClient(source, {}, directory)
+            : new IpfsStore({ dataDir: directory });
+    }
   }
   private checkDirectory() {
     const path = join(this.directory, "blocks");
@@ -404,8 +427,7 @@ export class DiskContent implements GatewayClient {
       this.beforeWrite?.();
       signal?.throwIfAborted();
       this.checkDirectory();
-      await mkdir(join(this.directory, "blocks"), { recursive: true });
-      await atomicFile(join(this.directory, "blocks", cid.toV1().toString()), snapshot, signal);
+      await this.ipfsStore.put(cid, snapshot, signal ? { signal } : {});
     } catch (error) {
       if (signal?.aborted && error === signal.reason) throw error;
       this.failed(error);
@@ -467,38 +489,19 @@ export class DiskContent implements GatewayClient {
     return bytes;
   }
   readonly block = {
-    get: (value: string, options: { signal?: AbortSignal } = {}): Promise<Uint8Array> => {
-      const operation = this.read(value, options.signal);
-      this.active.add(operation);
-      void operation.then(
-        () => this.active.delete(operation),
-        () => this.active.delete(operation),
-      );
-      return operation;
+    get: async (value: string, options: { signal?: AbortSignal } = {}): Promise<Uint8Array> => {
+      try {
+        return await this.ipfsStore.block.get(value, options);
+      } catch (error) {
+        if (error instanceof ContentError && error.code === "missing_block")
+          throw new TaskError("CONTENT_NOT_CACHED", error.message);
+        throw error;
+      }
     },
   };
-  private async read(value: string, signal?: AbortSignal): Promise<Uint8Array> {
-    const combined = AbortSignal.any([this.lifetime.signal, ...(signal ? [signal] : [])]);
-    combined.throwIfAborted();
-    const cid = CID.parse(value);
-    try {
-      return await this.local(cid);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    }
-    if (!this.gateway)
-      throw new TaskError(
-        "CONTENT_NOT_CACHED",
-        "Content is not cached and no IPFS Gateway is configured.",
-      );
-    const bytes = await this.gateway.block.get(value, { signal: combined });
-    await this.put(cid, bytes);
-    return bytes;
-  }
   async close() {
-    this.lifetime.abort(new TaskError("ENGINE_CLOSING", "Content reads are closing."));
-    await this.gateway?.close();
-    await Promise.allSettled([...this.active]);
+    await this.ipfsStore.close();
+    await this.ownedSource?.close();
   }
 }
 export interface PruneSelection {

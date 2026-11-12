@@ -26,6 +26,12 @@ store 拥有 CID 校验、本地存储、获取去重、有界遍历、超时/�
 
 本要求属于实施层收紧，不修改已验收 Ideal World。原 implementationRevision 的通过不能作为新修订的验收；重新完成相关验证、pnpm check 和准确 submitInner，经主 Agent 审批后才能恢复 RC 部署。原始验证证据作为历史保留，不冒充本次对象重构结果。
 
+实施将未发布的 task-content 更名为用户指定的 `@silvermoon-work/ipfs-store`，提供 `IpfsStore({dataDir, gateway?, limits?})`，不保留兼容包或扩大发布范围。`read(CID | CID/path, {signal?})` 返回区分文件与目录的 UnixFS 节点，提供 `content()` 字节流与 `entries()` 遍历；`prepare()` 验证完整闭包，`block.get` / `put` 支持原块搬运。`scope()` 借用相同存储，提供不高于父级的独立 reader 预算与生命周期；reader 的关闭与取消不拥有公共获取。显式 `fromClient()` 仅适配调用者拥有的低层块源，不关闭该源。
+
+Builder 的 `content` 与 Engine／Server 的 `ipfsStore` 接收这一对象类型，CLI 显式解析公共配置后创建对象。旧 Engine `ipfsClient` 仅保留为 deprecated 低层宿主适配，内部一次转换为同一对象，不能与 `ipfsStore` 同传；不形成第二套任务或内容读取协议。Engine 的任务准入、逻辑容量与租约仍留在 Engine；Run output 的可写版本和持久引用仍属于资源域，不进入内容 store。
+
+可移植任务路径校验和 import 展开在 Builder／Protocol，`linkContent` 的祖先重建位于 Builder `./dag`。Engine CLI 的离线 CAR reader 只校验 import 原根与规范非 import 补集，不嫁接节点、不依赖 Builder 生产包，保留无编译器运行闭包；维护新包名对应的发布映射与内部依赖；不改版本、不扩大未经审阅的发布计划。用户已完成 `@silvermoon-work/ipfs-store@0.0.0-stage` 占位和 Trusted Publisher 绑定；这只是外部配置证据，不是运行依赖、RC 版本选择或发布授权。保留该历史版本及 dist-tags，未来须重新核对包版本／tag、`publish-npm.yaml`、npm environment 的直接 publish 权限和精确 CI，经新实施门限与父 Agent 逐包计划审阅后才能发布。
+
 ### I-S03: 更新验证与作者文档
 
 覆盖嵌套与共享依赖、离线准备、固定身份、动态引用和拒绝路径，更新 SDK、构建器与 Engine 的相关文档和示例。不引入循环 Merkle 依赖，也不把子调用合并为父 Run。

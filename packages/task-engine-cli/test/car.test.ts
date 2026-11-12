@@ -3,13 +3,16 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import { CarReader } from "@ipld/car/reader";
 import { CarWriter } from "@ipld/car/writer";
+import * as dagPb from "@ipld/dag-pb";
+import { UnixFS } from "ipfs-unixfs";
 import { CID } from "multiformats/cid";
 import { sha256, sha512 } from "multiformats/hashes/sha2";
 import { importer } from "ipfs-unixfs-importer";
 import { fixedSize } from "ipfs-unixfs-importer/chunker";
 import { balanced } from "ipfs-unixfs-importer/layout";
 import { exporter } from "ipfs-unixfs-exporter";
-import { ContentBlocks, linkContent } from "@silvermoon-work/task-content/dag";
+import { ContentBlocks } from "@silvermoon-work/ipfs-store/dag";
+import { linkContent } from "@silvermoon-work/task-builder/dag";
 import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { encodeTaskBundleCar, readTaskBundleCar } from "@silvermoon-work/task-builder/car";
 import { memoryFile, memoryTree } from "@silvermoon-work/task-builder/tree";
@@ -76,6 +79,28 @@ test("both offline consumers retain imported file and directory roots with nonde
     } finally {
       await source.close();
     }
+  }
+  const parent = dagPb.decode(await graph.block.get(root.toString()));
+  const invalidParents = [
+    { ...parent, Data: new UnixFS({ type: "directory", mode: 0o700 }).marshal() },
+    {
+      ...parent,
+      Links: parent.Links.map((link, index) =>
+        index ? link : { ...link, Tsize: (link.Tsize ?? 0) + 1 },
+      ),
+    },
+  ];
+  for (const node of invalidParents) {
+    const bytes = dagPb.encode(dagPb.prepare(node));
+    const changed = CID.createV1(dagPb.code, await sha256.digest(bytes));
+    await graph.put(changed, bytes);
+    const closure = new ContentBlocks(graph);
+    await closure.prepare(changed);
+    const malformed = await archive(
+      [changed],
+      [...closure.blocks].map(([cid, bytes]) => ({ cid: CID.parse(cid), bytes })),
+    );
+    for (const read of readers) await assert.rejects(read(memoryFile(malformed)), /canonical/);
   }
 });
 function bundle(extra: Record<string, Uint8Array> = {}, binary: string[] = []) {

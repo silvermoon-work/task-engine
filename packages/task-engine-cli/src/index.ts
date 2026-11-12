@@ -7,6 +7,7 @@ import {
   type GatewayClient,
   type IpfsClient,
   MemoryStore,
+  IpfsStore,
   newId,
 } from "@silvermoon-work/task-engine";
 import {
@@ -16,7 +17,7 @@ import {
   TaskError,
   validateBundleReference,
 } from "@silvermoon-work/task-protocol";
-import { createConfiguredContent } from "@silvermoon-work/task-content/node";
+import { createConfiguredContent } from "@silvermoon-work/ipfs-store/node";
 export { main, help } from "./entry.js";
 
 export const exitCodes = {
@@ -41,7 +42,8 @@ export interface ExecutionResult {
 export interface RunBundleOptions {
   cid: string;
   input: unknown;
-  ipfsClient: IpfsClient;
+  ipfsStore?: IpfsStore;
+  ipfsClient?: IpfsClient;
   timeoutMs?: number;
   maxRuntimeMs?: number;
   signal?: AbortSignal;
@@ -131,7 +133,8 @@ export async function runBundle(options: RunBundleOptions): Promise<ExecutionRes
     signal.throwIfAborted();
     engine = createTaskEngine({
       store,
-      ipfsClient: options.ipfsClient,
+      ...(options.ipfsStore ? { ipfsStore: options.ipfsStore } : {}),
+      ...(options.ipfsClient ? { ipfsClient: options.ipfsClient } : {}),
       authorize: (identity) =>
         identity.scope === caller.scope && identity.subject === caller.subject,
     });
@@ -251,6 +254,7 @@ export async function legacyMain(argv: readonly string[] = process.argv.slice(2)
   let execution: ExecutionResult;
   let ipfsClient: GatewayClient | undefined;
   let car: CarSource | undefined;
+  let carStore: IpfsStore | undefined;
   let carFile: Awaited<ReturnType<typeof open>> | undefined;
   let carTimer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -360,10 +364,11 @@ export async function legacyMain(argv: readonly string[] = process.argv.slice(2)
     const rootCid = car?.cid ?? cid;
     if (!source || !rootCid)
       throw new TaskError("invalid_config", "Execution content source is unavailable.");
+    if (!(source instanceof IpfsStore)) carStore = IpfsStore.fromClient(source);
     execution = await runBundle({
       cid: rootCid,
       input,
-      ipfsClient: source,
+      ipfsStore: source instanceof IpfsStore ? source : carStore!,
       ...(timeoutMs !== undefined ? { timeoutMs } : {}),
       ...(!carPath && maxRuntimeMs !== undefined ? { maxRuntimeMs } : {}),
       signal: controller.signal,
@@ -383,6 +388,7 @@ export async function legacyMain(argv: readonly string[] = process.argv.slice(2)
     try {
       const closed = await Promise.allSettled([
         ipfsClient?.close(),
+        carStore?.close(),
         car?.close(),
         carFile?.close(),
       ]);

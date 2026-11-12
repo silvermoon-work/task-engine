@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import test from "node:test";
 import { encodeTaskBundleCar, readTaskBundleCar } from "@silvermoon-work/task-builder/car";
 import { memoryFile, memoryTree } from "@silvermoon-work/task-builder/tree";
-import { ContentBlocks } from "@silvermoon-work/task-content/dag";
+import { ContentBlocks } from "@silvermoon-work/ipfs-store/dag";
 import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { runTaskBuilderCli } from "../src/index.js";
 

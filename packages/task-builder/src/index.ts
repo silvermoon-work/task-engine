@@ -11,8 +11,9 @@ import {
   validateTaskBundle,
   validateTaskImports,
 } from "@silvermoon-work/task-protocol";
-import type { IpfsClient } from "@silvermoon-work/task-content";
-import { ContentBlocks, expandContent } from "@silvermoon-work/task-content/dag";
+import type { IpfsStore } from "@silvermoon-work/ipfs-store";
+import { ContentBlocks } from "@silvermoon-work/ipfs-store/dag";
+import { expandContent } from "./content.js";
 import { CID } from "multiformats/cid";
 import { importSidecar, encodeImportBlocks } from "./imports.js";
 import { stringify } from "yaml";
@@ -72,7 +73,7 @@ export interface TaskBuildOptions extends ReadOptions {
   readonly include?: readonly { readonly from: string; readonly to: string }[];
   readonly binary?: readonly string[];
   readonly imports?: Readonly<Record<string, string>>;
-  readonly content?: IpfsClient;
+  readonly content?: IpfsStore;
   readonly allowContractExecution?: boolean;
   readonly limits?: Partial<BuilderLimits>;
 }
@@ -179,6 +180,7 @@ export async function buildTaskBundle(
   let importedBytes = 0;
   const blocks = new ContentBlocks(options.content);
   for (const [destination, cid] of Object.entries(imports)) {
+    if (!options.content) throw new Error("Imports require an IpfsStore content object.");
     for (const local of resources.keys())
       if (
         local.toLowerCase() === destination.toLowerCase() ||
@@ -186,7 +188,7 @@ export async function buildTaskBundle(
         destination.toLowerCase().startsWith(`${local.toLowerCase()}/`)
       )
         throw new Error(`Import/include collision: ${destination}`);
-    const files = await expandContent(CID.parse(cid), blocks, {
+    const files = await expandContent(CID.parse(cid), options.content, {
       ...options,
       files: taskBundleLimits.files - imported.size,
       paths: limits.traversalPaths,

@@ -12,7 +12,8 @@ import { positive, type Store, TaskError } from "@silvermoon-work/task-protocol"
 
 export interface ServerOptions {
   logs?: EngineOptions["logs"];
-  ipfsClient: EngineOptions["ipfsClient"];
+  ipfsStore?: EngineOptions["ipfsStore"];
+  ipfsClient?: EngineOptions["ipfsClient"];
   allowGateway?: EngineOptions["allowGateway"];
   bundleLimits?: EngineOptions["bundleLimits"];
   bundleConcurrency?: number;
@@ -172,7 +173,8 @@ export async function startTaskServer(options: ServerOptions): Promise<TaskServe
     };
     engine = createTaskEngine({
       store: lease,
-      ipfsClient: options.ipfsClient,
+      ...(options.ipfsStore ? { ipfsStore: options.ipfsStore } : {}),
+      ...(options.ipfsClient ? { ipfsClient: options.ipfsClient } : {}),
       ...(options.allowGateway ? { allowGateway: options.allowGateway } : {}),
       ...(options.bundleConcurrency !== undefined
         ? { bundleConcurrency: options.bundleConcurrency }

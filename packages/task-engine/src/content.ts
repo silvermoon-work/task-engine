@@ -1,1 +1,1 @@
-export * from "@silvermoon-work/task-content";
+export * from "@silvermoon-work/ipfs-store";

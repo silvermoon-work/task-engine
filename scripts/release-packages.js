@@ -1,8 +1,8 @@
 export const releasePackages = [
   {
-    id: "task-content",
-    directory: "packages/task-content",
-    name: "@silvermoon-work/task-content",
+    id: "ipfs-store",
+    directory: "packages/ipfs-store",
+    name: "@silvermoon-work/ipfs-store",
   },
   {
     id: "task-builder-cli",

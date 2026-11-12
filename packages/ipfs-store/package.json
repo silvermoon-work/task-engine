@@ -1,5 +1,5 @@
 {
-  "name": "@silvermoon-work/task-content",
+  "name": "@silvermoon-work/ipfs-store",
   "version": "0.1.0-rc.0",
   "description": "Verified bounded UnixFS content acquisition and shared block storage.",
   "type": "module",
@@ -40,8 +40,7 @@
     "@ipld/dag-pb": "catalog:",
     "blockstore-core": "catalog:",
     "multiformats": "catalog:",
-    "ipfs-unixfs-exporter": "catalog:",
-    "@silvermoon-work/task-protocol": "workspace:*"
+    "ipfs-unixfs-exporter": "catalog:"
   },
   "devDependencies": {
     "ipfs-unixfs-importer": "catalog:"
@@ -57,9 +56,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/silvermoon-work/task-engine.git",
-    "directory": "packages/task-content"
+    "directory": "packages/ipfs-store"
   },
-  "homepage": "https://github.com/silvermoon-work/task-engine/tree/main/packages/task-content#readme",
+  "homepage": "https://github.com/silvermoon-work/task-engine/tree/main/packages/ipfs-store#readme",
   "bugs": {
     "url": "https://github.com/silvermoon-work/task-engine/issues"
   }

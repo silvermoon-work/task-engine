@@ -1,0 +1,70 @@
+{
+  "startedAt": "2026-11-12T10:55:37.036Z",
+  "versionCommit": "bbc504364514ef91edbd28e3a4a7f61d828cb58b",
+  "cases": [
+    {
+      "name": "wrong CID cannot become a verified cache hit",
+      "passed": true,
+      "evidence": {
+        "rejectedCid": "bafkreifqgik5dfdahpkwiqkrgm7jffjrrdvphp5kou72dpzzzdtgpn5juq",
+        "corruptRequests": 1,
+        "cached": false
+      }
+    },
+    {
+      "name": "full preparation rejects a missing descendant instead of returning a lazy graph",
+      "passed": true,
+      "evidence": {
+        "root": "bafybeienxyzfz4tmuwbic4fyw3p2ap6pjld4h32j7mtms326dkyxfnawj4",
+        "attemptedRootAndDescendant": [
+          "bafybeienxyzfz4tmuwbic4fyw3p2ap6pjld4h32j7mtms326dkyxfnawj4",
+          "bafkreiavp5we2arwiryhz3lvk5bul5viplbplknhdb6ijs6vrwcyapiuaa"
+        ]
+      }
+    },
+    {
+      "name": "standalone file CID and second directory chunk profile survive cache-free offline CAR",
+      "passed": true,
+      "evidence": {
+        "root": "bafybeifmzhusdusg7wryjepoguej5uc4sr6bognf3fb7zhe74b6pzvuzhi",
+        "standaloneFile": "bafybeie56bnju75smukncjxiexezk46zil67hpkjjnb6bnhfzczshjrqsy",
+        "directory": "bafybeifky2247vd2hxerzkapcab67qgfdytccpzxxy6uwieuncyj5sst7y",
+        "fileChunkBytes": 777,
+        "directoryChunkBytes": 1024,
+        "mode": "0640",
+        "mtime": "321s+12ns",
+        "networkRequests": 0,
+        "carSha256": "49d60c570b82de364fbdc73f190776ee6580103452069e3a711ea9c611446108"
+      }
+    },
+    {
+      "name": "sidecar missing one reachable original block and added imported files both fail offline",
+      "passed": true,
+      "evidence": {
+        "missingOriginalBlock": "bafybeibyz4oumf4ddma5t6okmmztmpn7mc3nug2zu3vu4qhpotokpwkwqy",
+        "addedImportFileRejected": true,
+        "networkRequests": 0
+      }
+    },
+    {
+      "name": "Engine logical file capacity rejects an otherwise complete local DAG",
+      "passed": true,
+      "evidence": {
+        "fileLimit": 1,
+        "rejectedBeforeTask": true,
+        "error": {
+          "code": "capacity_exceeded",
+          "message": "Bundle file capacity exceeded."
+        }
+      }
+    }
+  ],
+  "productCodeOrPackagesModified": false,
+  "ok": true,
+  "cleanup": {
+    "allOwnedEnginesClosed": true,
+    "allOwnedStoresClosed": true,
+    "sourceClosed": true
+  },
+  "finishedAt": "2026-11-12T10:55:38.570Z"
+}

@@ -118,6 +118,28 @@ finally 确认本轮所有自建 Engine、Source 与已启动 CLI daemon 已关�
 
 为逐一覆盖计划里“CID 错误、缺后继原块、单文件 CID 与第二分块 profile、额外 import 文件及 Engine 逻辑容量”的更细颗粒观测，另准备 `registry-edge-probe.mjs`；它只使用同一已验证 consumer 的真实安装包，并为每个负面路径创建新的自有冷缓存，不修改主矩阵结果或已发产品。先同步这项补充驱动，再执行并单独记录结果，尚不把补充项宣称通过。
 
+## 补充边界与最终收尾：5/5，通过
+
+在 primary `97bcef4d61e8da5a5e6d2bfba9e2af4a8978c6b3`／Outer `6d2084bf4a45` 同步重观察后，只把补充驱动复制到第四个已验证 consumer，远端 hash 与本地 `3df54e863fc8bd3eeb638b2d643affb5378fdf59d4a3631f71141b8364fd5e74` 一致。没有重装、替换或改写七包；每项创建新的自有 cache／fixture。
+
+**2026-11-12T10:55:37.036Z–10:55:38.570Z 实际退出 0，5/5 全通过**，见 [ubuntu-edge-result.json](./ubuntu-edge-result.json)：
+
+1. 故意返回错误 CID 字节，经过真实 gateway 的读取被拒绝，缓存目标不存在。
+2. 只提供目录根，不提供其后继，完整 prepare 实际尝试根与后继并失败，不返回可懒取的成功图。
+3. 以 standalone 文件 CID 和目录 CID 两种 imports，777 字节非 raw leaves 与 1024 字节 raw leaves profile 保真；删除新 cache 与原作者源、断源后 CAR 根和字节相同，mode `0640`／mtime `321s+12ns` 保持，零网络。
+4. sidecar 删除一个可达原块、恢复后再新增未声明 import 文件，两者都离线失败，零网络；不是只测缺整个 sidecar。
+5. 已有完整本地 CAR 的 Engine 在 `files=1` 下准入拒绝 `capacity_exceeded`，Task 尚未创建，逻辑预算独立于已准备块。
+
+补充探针 finally 的 `allOwnedEnginesClosed`／`allOwnedStoresClosed`／`sourceClosed` 全为 true。10:55:59.759 UTC 的再次独立 [ubuntu-postcheck-final.json](./ubuntu-postcheck-final.json)确认主结果 hash 未变、七包真实安装及三个原 PID／birth 均仍已退出。所有测试源、Engine、CLI daemon 已关闭；只保留带 ownership marker 的本任务目录与证据供复核，没有改全局工具、用户配置、未知进程或其他会话目录。
+
+## 最终候选与门限
+
+七个授权 RC、精确 V CI、全部依赖字段、不可变 tags、registry／provenance／dist-tags 与真实 Ubuntu 消费证据已齐备。主 17/17 + 补充 5/5，合计 **22/22**，无 skip。前三轮驱动失败真实保留；仅修 Outer 的目录准备、公开 CLI 参数、原生 ENOENT 断言，并为已测 CAR 配置足够的外层 HTTP 帧，没有改产品代码、已发 RC、语义断言或逻辑预算，也没有重发包或移动 tag。
+
+全部 D-* 现已按证据完成并镜像 ledger。下一步只做候选验证、普通同步、准确 submitOuter，交父 Agent 验收；本 Agent 不写 accept。剩余一般边界仍为受支持 UnixFS profile、无自动 GC／跨进程下载去重、Worker 非 OS 沙箱；初始化器模板默认 SDK 仍按公开行为记录，本次迁移明确选择已批准的 SDK rc.1，不伪称自动升级。
+
+最终交叉校验已实际通过：七个 before／after 的非 rc dist-tags 相同；真实安装七包 version／integrity 与已发记录一致；主 17／补充 5 全通过；结果和驱动 hash 与独立后检一致；所有自建 daemon 已退出。再次 Git 只读查询七个 tag，全部仍指向 V。`pnpm format:check`、`pnpm test:release`（21/21）与 `git diff --check` 均退出 0。除 V 的七个已批准 version 字段外没有产品／workflow／发布脚本／Inner／Ideal 改动；后续只更新 Outer 支持文件，完整本地及精确 V CI 证据仍为前述真实结果，不冒称在移动 HEAD 上重新验证或发布。
+
 ## 隔离消费驱动准备
 
 [registry-spaceref-smoke.mjs](./registry-spaceref-smoke.mjs) 是本计划的外部消费驱动，不包含产品实现。它先核对 ownership marker、精确 installed manifests、registry lock／tarball/integrity 和非 symlink 路径，再从这些已安装包加载公开 API／真实 CLI；不加载 workspace src／dist。

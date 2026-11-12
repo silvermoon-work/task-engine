@@ -57,8 +57,12 @@ publish 成功即判部署完成。只清理本次拥有的临时路径；保留
 run、不可变 tag 和精确版本可见性证据；证明 latest 未被本次发布改变，并在指定远端安装该精确 RC 完成 smoke
 test。
 
+实际结果：七包已逐个从固定 V `bbc504364514ef91edbd28e3a4a7f61d828cb58b` 经成功精确 main CI 和指定 Actions／OIDC 发布；所有内部依赖字段精确可见，公开 tarball integrity 与 SLSA 来源／摘要匹配，latest／canary／历史占位保留。Ubuntu 第四个全新 registry consumer 完整主矩阵 17/17 通过，独立 PID／birth 后检确认三个自建 daemon 物理退出；证据及前三轮驱动失败全部见 [release-execution.md](./release-execution.md)。
+
 ### D-AC02: 准备承诺可复现
 
 以断源后的成功结果及缺块、修改、超限和受控资源拒绝记录证明完整准备不静默降级、CID 校验有效且资源边界保留，用户文档足以重现验证。
 
 记录旧格式失败与显式迁移后成功的对应结果，证明不依赖隐式兼容、不改写既有 CID 或旧数据域。
+
+实际结果：主矩阵通过后又以同一真实安装包运行补充 5/5，包括错误 CID 不入缓存、缺后继完整准备失败、单文件原 CID 与 777／1024 两种分块的无缓存离线 CAR、缺原块／额外 import 文件拒绝及 Engine 逻辑文件预算。合计 22/22，无 workspace 替代、无断言跳过或逻辑预算降级；运行库与已接受 Inner／Ideal 没有修改，原有域与其他会话资源未动。

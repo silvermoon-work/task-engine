@@ -36,6 +36,53 @@ SHA-256 为 `401be144c38fb8d0c77c85bdc3ecbc49974556c4ef8b57c9edebc88448178052`�
   0.43.1，覆盖文件字节、两个 SQLite
   Engine、重启／GC／prune、外部清理、断连和 managed CLI。
 
-两份驱动目前仅完成语法及审阅准备，**尚未执行 registry RC
-smoke**。发布提交 V、准确 main
-CI、逐包 Actions 及 Ubuntu 实测将在实际发生后追加；当前 D-* 不勾选，不推断 Outer 完成。
+初始准备时，两份驱动仅完成语法及审阅，尚未执行 registry RC
+smoke；当时不勾选 D-* 或推断 Outer 完成。以下追加实际发生的结果。
+
+## 固定 V 与准确 main CI：通过
+
+V 固定为 `95b1cdbf76c70faf550b174fff97ca7df4d830cb`，普通 push 到 main。其
+[CI 43246255308](https://github.com/silvermoon-work/task-engine/actions/runs/43246255308)
+的 SHA／push 事件／main 分支和两个 Node
+job、版本化 aggregate 及准确 step 均成功，完整结构见
+[release-ci.json](./release-ci.json)。每次创建 tag 前刷新 primary 并证明 V 为其祖先，不追移动 HEAD。
+
+## 五包逐一发布：全部通过
+
+| 顺序 | 包与精确版本                | tag Actions                                                                            |
+| ---- | --------------------------- | -------------------------------------------------------------------------------------- |
+| 1    | ipfs-store 0.1.0-rc.2       | [43248509677](https://github.com/silvermoon-work/task-engine/actions/runs/43248509677) |
+| 2    | task-builder 0.2.0-rc.3     | [43249395260](https://github.com/silvermoon-work/task-engine/actions/runs/43249395260) |
+| 3    | task-builder-cli 0.2.0-rc.3 | [43250436919](https://github.com/silvermoon-work/task-engine/actions/runs/43250436919) |
+| 4    | task-engine 0.2.0-rc.3      | [43251106592](https://github.com/silvermoon-work/task-engine/actions/runs/43251106592) |
+| 5    | task-engine-cli 0.2.0-rc.11 | [43252118292](https://github.com/silvermoon-work/task-engine/actions/runs/43252118292) |
+
+五次均为固定 V、唯一 package-specific tag、push 事件的成功 Actions，汇总见
+[publication-actions.json](./publication-actions.json)。每次前一包 exact
+record 和 artifact 来源已核对后才推下一 tag，包含 Engine 的 Builder CLI
+development-only 前置边；未自动发布计划外依赖。
+
+逐包原始 registry／实际 tarball 摘要／公开 SLSA 字段回执：
+[Store](./ipfs-store-publication.json)、
+[Builder](./task-builder-publication.json)、
+[Builder CLI](./task-builder-cli-publication.json)、
+[Engine](./task-engine-publication.json)、
+[Engine CLI](./task-engine-cli-publication.json)。所有 tarball
+SHA-1／SHA-512 与 registry 相符，Trusted
+Publisher 标记存在，公开 SLSA 的精确仓库／workflow／tag／gitCommit=V 及 subject 摘要匹配；不把字段核对描述为自行验证了完整签名信任链。全部 latest 和历史 canary 未变，仅 rc 推进。
+
+首包 Actions 成功先于 registry exact
+record／rc 元数据可见：首个两分钟观察窗口返回 propagation
+pending 后停止，随后同一精确 endpoint 已为 200，来源核对通过。没有重发包、rerun
+publish 或移动 tag；后续观察只作有界只读等待。
+
+## Ubuntu 消费准备：待执行
+
+在远端已创建带 session／uid／V marker 的独立目录，Kubo
+0.43.1 压缩包 SHA-256 与官方 asset digest 一致，仅解压，没有启动任何 daemon。
+
+Smoke 驱动在实际执行前增加 PeerID 与本次 repo 配置一致的检查，防止随机端口争用时误操作其他服务；不是产品改动。新
+[prepare-consumer.mjs](./prepare-consumer.mjs)
+只从 registry 安装精确包并核对 lock／路径。两者语法检查通过，待同步本次 Outer
+revision 后才执行。源码验证、下载工具和五包发布均不替代 registry
+smoke；D-S03、D-AC* 此刻仍未完成。

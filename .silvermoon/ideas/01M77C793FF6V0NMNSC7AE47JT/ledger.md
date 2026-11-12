@@ -18,8 +18,8 @@
 
 ### Deployment steps
 
-- [ ] **D-S01:** 准备受控 daemon 环境
-- [ ] **D-S02:** 逐包发布授权 RC
+- [x] **D-S01:** 准备受控 daemon 环境
+- [x] **D-S02:** 逐包发布授权 RC
 - [ ] **D-S03:** 隔离消费与故障验证
 
 ### Deployment acceptance criteria

@@ -49,6 +49,11 @@ URL、精确版本、包 SHA-1/SHA-512、实际 tarball 摘要、公开 provenan
   Server 和 Kubo
   PID。CLI 可使用仅子进程生效的 HOME／内容配置隔离，包安装仍使用原 HOME／registry；不编辑用户真实配置。
 
+- [prepare-consumer.mjs](./prepare-consumer.mjs)
+  在写 consumer 前要求五个新 RC 和既有精确依赖全部可见；安装后核对实际路径、lock 和 integrity。[registry-kubo-smoke.mjs](./registry-kubo-smoke.mjs)
+  在任何变更 RPC 前核对 daemon
+  PeerID 与本次空 repo 配置一致，不能仅凭端口可达或无 swarm 地址就操作 GC。
+
 ## 必须观察的结果
 
 1. registry 包版本、实际模块路径、lock/integrity 和来源一致；默认 local 无 Kubo 可用，Builder/Engine 共用新 Store 的同一构造身份。

@@ -1,0 +1,89 @@
+﻿{
+  "observedAt": "2026-11-12T15:40:33.844Z",
+  "mode": "after",
+  "id": "task-builder",
+  "name": "@silvermoon-work/task-builder",
+  "version": "0.2.0-rc.3",
+  "commit": "95b1cdbf76c70faf550b174fff97ca7df4d830cb",
+  "tags": {
+    "latest": "0.1.0",
+    "canary": "0.2.0-canary-261111-1",
+    "rc": "0.2.0-rc.3"
+  },
+  "exactExists": true,
+  "dependencies": [
+    {
+      "field": "dependencies",
+      "name": "@silvermoon-work/ipfs-store",
+      "version": "0.1.0-rc.2"
+    },
+    {
+      "field": "dependencies",
+      "name": "@silvermoon-work/task-protocol",
+      "version": "0.2.0-rc.1"
+    },
+    {
+      "field": "devDependencies",
+      "name": "@silvermoon-work/task-sdk",
+      "version": "0.2.0-rc.1"
+    }
+  ],
+  "tarball": {
+    "url": "https://registry.npmjs.org/@silvermoon-work/task-builder/-/task-builder-0.2.0-rc.3.tgz",
+    "bytes": 50268,
+    "sha1": "2bfbc536cc318d848b3dd0264c727d51eb92ff0e",
+    "sha512": "b06ac11851b30c4370b56fa87f6ccf6b98fbb3c5df24ad24f3bd4cda7ecac09b3eccf6e86c4c99e6d7dac6062cc8f2788ee23f5d28ad0407bf641a9263c3a838",
+    "integrity": "sha512-sGrBGFGzDENwtW+of2zPa5j7s8XfJK0k871M2n7KwJs+zPbobEyZ5tfaxgYsyPJ4juI/XSitBAe/ZBqSY8OoOA=="
+  },
+  "provenance": {
+    "verifiedFields": true,
+    "statement": {
+      "_type": "https://in-toto.io/Statement/v1",
+      "subject": [
+        {
+          "name": "pkg:npm/%40silvermoon-work/task-builder@0.2.0-rc.3",
+          "digest": {
+            "sha512": "b06ac11851b30c4370b56fa87f6ccf6b98fbb3c5df24ad24f3bd4cda7ecac09b3eccf6e86c4c99e6d7dac6062cc8f2788ee23f5d28ad0407bf641a9263c3a838"
+          }
+        }
+      ],
+      "predicateType": "https://slsa.dev/provenance/v1",
+      "predicate": {
+        "buildDefinition": {
+          "buildType": "https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1",
+          "externalParameters": {
+            "workflow": {
+              "ref": "refs/tags/task-builder-v0.2.0-rc.3",
+              "repository": "https://github.com/silvermoon-work/task-engine",
+              "path": ".github/workflows/publish-npm.yaml"
+            }
+          },
+          "internalParameters": {
+            "github": {
+              "event_name": "push",
+              "repository_id": "1450208672",
+              "repository_owner_id": "354036529"
+            }
+          },
+          "resolvedDependencies": [
+            {
+              "uri": "git+https://github.com/silvermoon-work/task-engine@refs/tags/task-builder-v0.2.0-rc.3",
+              "digest": {
+                "gitCommit": "95b1cdbf76c70faf550b174fff97ca7df4d830cb"
+              }
+            }
+          ]
+        },
+        "runDetails": {
+          "builder": {
+            "id": "https://github.com/actions/runner/github-hosted"
+          },
+          "metadata": {
+            "invocationId": "https://github.com/silvermoon-work/task-engine/actions/runs/43249395260/attempts/1"
+          }
+        }
+      }
+    }
+  },
+  "trustedPublisher": true
+}

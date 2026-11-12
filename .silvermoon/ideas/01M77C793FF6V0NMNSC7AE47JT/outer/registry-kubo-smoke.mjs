@@ -135,6 +135,7 @@ async function rpc(command, args = {}) {
 let daemon;
 let daemonExited;
 let log = "";
+let expectedPeer;
 async function startKubo() {
   daemon = spawn(binary, ["--offline", "daemon", "--routing=none"], {
     env: ipfsEnv,
@@ -153,6 +154,11 @@ async function startKubo() {
     assert.equal(daemon.exitCode, null, log);
     try {
       const [identity] = await rpc("id");
+      assert.equal(
+        identity.ID,
+        expectedPeer,
+        "RPC must belong to this isolated repo.",
+      );
       assert.deepEqual(identity.Addresses ?? [], []);
       return identity.ID;
     } catch (error) {
@@ -263,6 +269,8 @@ try {
 
   await mkdir(repo);
   ipfs("init", "--profile=test", "--empty-repo");
+  expectedPeer = JSON.parse(await readFile(join(repo, "config"), "utf8"))
+    .Identity.PeerID;
   ipfs("config", "Addresses.API", `/ip4/127.0.0.1/tcp/${apiPort}`);
   ipfs("config", "Addresses.Gateway", "/ip4/127.0.0.1/tcp/0");
   ipfs("config", "--json", "Bootstrap", "[]");

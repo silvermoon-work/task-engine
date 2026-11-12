@@ -32,7 +32,7 @@ pnpm --filter @silvermoon-work/task-engine-cli build
 pnpm check
 ```
 
-聚焦 runner 38 项通过；完整 `pnpm check` 通过（Turbo 40/40、CLI 87 项中 86 pass/0 fail/1 已有 Linux-only zombie skip，测试类型检查与 package lint 通过）。IPNS 覆盖字段/签名/名称、RSA、公有 V2、全排序与纳秒 tie、逆序并发更新、重开、过期高水位、配额和损坏。Linux-only 软链接用例需由父任务 Ubuntu runner 执行，未计作 Windows 已测。测试时间依赖注入，不修改 Date.now，也不等待到期。
+聚焦 runner 38 项通过；完整 `pnpm check` 通过，非重写合并 concurrent main 后再次全部通过（Turbo 40/40、CLI 90 项中 89 pass/0 fail/1 已有 Linux-only zombie skip，测试类型检查与 package lint 通过；合并前 CLI 为 87 项）。IPNS 覆盖字段/签名/名称、RSA、公有 V2、全排序与纳秒 tie、逆序并发更新、重开、过期高水位、配额和损坏。Linux-only 软链接用例需由父任务 Ubuntu runner 执行，未计作 Windows 已测。测试时间依赖注入，不修改 Date.now，也不等待到期。
 
 本地源码回放：
 
@@ -47,6 +47,8 @@ pnpm --filter @silvermoon-work/task-engine-cli exec node ..\..\.silvermoon\ideas
 ## 父任务的公开 registry / Ubuntu 回放
 
 发布候选版本由父任务决定。下面 `0.2.0-rc.8` 是本轮预期独立 CLI RC，**仅在父任务实际发布该准确版本后**执行；不是发布授权或已经发布的声明。不需要发布其他 workspace：新增依赖为外部 catalog，现有 runtime Engine/Protocol 和 dev Builder/Builder CLI/SDK 的已发布版本仍受 release verifier 检查。
+
+本轮只修改 publishable `task-engine-cli`，不改版本。按所有 dependency 字段计算前置顺序：`task-protocol → task-sdk → task-builder → task-builder-cli → task-engine → task-engine-cli`；前五者均为 `0.2.0-rc.0`，CLI 源码 manifest 保持 `0.2.0-rc.7`。CLI 的 runtime 是 Engine/Protocol，dev 是 Builder/Builder CLI/SDK；Engine 的 dev edge 也要求 Builder CLI 先可用。父任务只需验证这些准确前置版本已在 registry，不能自动重发它们。
 
 Ubuntu consumer（在新建的自有目录运行；Kubo 路径替换为已核实的 `0.43.1` executable）：
 

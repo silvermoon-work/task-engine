@@ -163,7 +163,7 @@ callback、workspace 目录树边界）不计为测量或通过，自有失败�
 bytes，不是客户端确认交付量。宿主共享 listener/连接限制/事件循环；不承诺恶意客户端的硬 CPU/内存/网络隔离。精确的1000ms读取超时、413预算、断连、慢消费者 backpressure、缺块/损坏及逐块删除/GC 行为同时由 focused
 regression 测试验证；外层公网TLS/HTTP2仍属部署。
 
-## 修订后的当前内存实验：未通过采样覆盖门禁
+## 历史v1当前内存实验：主线程仪器覆盖失败
 
 协议先于测量同步到 primary：`3e99e433bbf693cd47ff8018157931877ddb54b1`；
 两臂等量冷缓存预热补充同步到 `25a2a69`。没有修改 Ideal、128 MiB 数值、
@@ -194,8 +194,8 @@ node .silvermoon\ideas\01M75CCXR5TWE63N6QEXV1C720\outer\inner\replay.mjs --consu
 
 第三次尚未进行 treatment，也没有任何有效匹配对，因此 **128 MiB 增量与成对延迟
 均未判定**。不能把 control 当前RSS变化说成网关增量，不能宣称平台稳定、无泄漏、
-RSS回到基线、故障演练或整体通过。I-S03/I-AC03保持未完成，D仍全部未完成，
-不提交 submitInner，也不进入下一轮。主线程在此负载下的采样间隙是当前实际阻塞；
+RSS回到基线、故障演练或整体通过。当时I-S03/I-AC03保持未完成，D仍全部未完成，
+该次未提交 submitInner，也未进入下一轮。主线程在此负载下的采样间隙是当时的仪器阻塞，不是产品内存超标的证明；
 不通过提高覆盖阈值、RSS预算或减少8任务/32读取使其通过。
 
 第三次诊断值（**覆盖无效，仅描述实际收到的样本，非阶段真实峰值或门禁证据**）。
@@ -215,6 +215,81 @@ rss包括全部Worker；其他计数器仅为服务主线程，arrayBuffers属�
 不能据此作泄漏结论或归因。每次失败均在finally停止自有daemon、等待并发CLI结束、
 移除源fixture/CAR/工作目录；第三次诊断增强保证写报告失败也不跳过停止清理。
 
+## v2独立RSS采样与匹配实验
+
+在父级明确批准独立RSS仪器修正后，先将v2源码/计数器/覆盖语义同步至primary
+`3e08aef6d3975abe8711109fc8a0754ca9545f5b`，再测量；不是追溯将v1失败改为通过。
+固定50ms、2048条、RSS最大间隙250ms、128 MiB增量、8任务/32读取及其他门限均未放宽。
+独立采样Worker就绪后才开始两臂相同预热，status异步读取有界历史；RSS为全进程，
+heap/external/arrayBuffers仅来自服务主isolate。main诊断间隙如实报告，不插值、
+不借Worker的heap填补主isolate样本。所有自有daemon退出时等待采样Worker终止。
+
+本地环境仍为Windows、Node `v26.13.0`；6个独立受管实例，顺序C/T、T/C、C/T，
+每实例3个测量波，合计18波144个成功测量任务。三组全部使用同一个任务CAR：
+`17809d6b4201279686774d0ad2dd75c2dc134990d4895dad155d947a5ad111d3`。
+它们是workspace已构建公开入口测量，不冒充registry安装或独立Ubuntu部署证据；
+只有CLI受影响，发布仍由父级另行决定，未改版本或tag。
+
+```powershell
+node .silvermoon\ideas\01M75CCXR5TWE63N6QEXV1C720\outer\inner\replay.mjs --consumer packages\task-engine-cli --tree-root . --work .gateway-rss-owned --load yes --report .silvermoon\ideas\01M75CCXR5TWE63N6QEXV1C720\outer\inner\independent-memory-evidence.json
+```
+
+完整描述性统计、scope/source、每阶段起止和故障结果见
+[independent-memory-evidence.json](independent-memory-evidence.json)。
+原始样本只保存一份在同名 `.samples.json.gz`（gzip/UTF-8 JSON，108个窗口，
+其中54个RSS窗口共3946样本）；压缩文件105311 bytes，SHA-256：
+`84a03bf97d16588160f88cab9e386f7ef98063517a69827f0fc2c30784b37bf2`。
+可用Node内置`zlib.gunzipSync(readFileSync(path))`读取；无需额外工具或解压到临时目录。
+报告与原始样本关联由 repetition/arm/wave/phase/stream 字段标识，不重复保存大份原始JSON。
+
+所有RSS窗口均通过至少2样本、真实连续序号、边界/相邻最大250ms以及quiet/drain覆盖检查；
+实际最坏间隙（含窗口边界）**65.377197265625ms**。main诊断无缺失/非法计数器，
+但load间隙最高 **1141.34375ms**，说明不能用繁忙主事件循环定时器作RSS覆盖代理。
+arrayBuffers已包含在external，不求和。lifetime maxRSS只留诊断，未参与预算计算。
+
+以下保留全部9个配对（bytes；C/T增长是各自load/drain峰值减quiet中位数，不截零）。
+全部差值≤134217728；全部延迟≤max(对应C最大延迟×5,2000ms)，没有挑最好轮次：
+
+| 重复/波 | C增长 | T增长 | T−C | T最大延迟ms | 配对延迟门限ms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 0/0 | 372736 | 67227648 | 66854912 | 7713.259 | 47874.767 |
+| 0/1 | 2842624 | 35360768 | 32518144 | 8624.851 | 46700.476 |
+| 0/2 | 163840 | 53334016 | 53170176 | 8838.320 | 43407.323 |
+| 1/0 | 688128 | 42778624 | 42090496 | 7574.913 | 46951.486 |
+| 1/1 | 93609984 | 56004608 | -37605376 | 7679.230 | 49807.859 |
+| 1/2 | 20746240 | 41504768 | 20758528 | 9491.397 | 51854.954 |
+| 2/0 | 5914624 | 48025600 | 42110976 | 9091.378 | 46196.753 |
+| 2/1 | 91189248 | 37507072 | -53682176 | 10096.109 | 56381.357 |
+| 2/2 | 21635072 | 23625728 | 1990656 | 9801.131 | 45160.682 |
+
+每臂三个波次的quiet RSS中位数及drain结束值如下（MiB；精确bytes见报告）：
+
+| 重复/臂 | quiet 0/1/2 | drain end 0/1/2 |
+| --- | --- | --- |
+| 0/C | 241.31 / 229.20 / 222.18 | 229.12 / 222.04 / 202.61 |
+| 0/T | 219.74 / 219.23 / 227.70 | 219.11 / 227.23 / 231.30 |
+| 1/T | 222.01 / 224.37 / 228.71 | 224.20 / 228.57 / 238.42 |
+| 1/C | 239.18 / 115.55 / 198.26 | 148.74 / 198.11 / 211.81 |
+| 2/C | 220.99 / 113.01 / 190.75 | 218.92 / 192.31 / 203.38 |
+| 2/T | 222.32 / 237.20 / 232.34 | 237.04 / 253.16 / 223.64 |
+
+这些窗口有可观察的平台，也有GC/allocator阶跃与波间波动；不要求严格回到基线，
+不以三波宣称“平台已稳定”或“无泄漏”。负差值原样保留，其本身不证明gateway节省内存。
+顺序交替只能缓解而不能消除单机调度/GC顺序偏差。128 MiB只是本有限负载统计回归预算，
+不是Node可强制执行的RSS天花板；OS/container硬限额仍在范围外。
+
+两臂都增加相同1个采样Worker。6个实例启动前后观察RSS差为：
+C0=9211904、T0=9256960、T1=9527296、C1=9216000、C2=9023488、
+T2=9367552 bytes（约8.61–9.09 MiB）；该差值包括初始化期间其他进程分配波动，
+不是采样Worker独占内存估算。仪器在quiet基线前已就绪，测量未强制GC。
+
+9个T波均8/8任务成功且32次读取，200/429次数依次为：
+24/8、27/5、25/7、28/4、24/8、26/6、27/5、25/7、26/6；
+所有实例peakActive=2，C测量任务均0次读取（等量gateway预热不计入测量）。
+6个实例abort恢复742.13–810.86ms、带活跃消费者shutdown1021.92–1069.40ms；
+缺块/损坏分类、在线GC拒绝、故障后真实任务及离线回收8块/7340312 bytes全部通过。
+所有自有工作目录、源fixture、daemon和监听已清理；既有历史v1/Ubuntu证据未删改。
+
 ## 仓库验证
 
 本次修订新增内存采样生命周期、有界历史、旧高水位反例、配对数学、真实差值超预算、
@@ -222,10 +297,14 @@ rss包括全部Worker；其他计数器仅为服务主线程，arrayBuffers属�
 未认证请求不能读取遥测。focused命令：
 
 ```powershell
-pnpm --filter @silvermoon-work/task-engine-cli exec tsx --test --test-name-pattern "memory sampler|paired replay|managed installed entry" test\managed.test.ts
+pnpm --filter @silvermoon-work/task-engine-cli exec tsx --test --test-name-pattern "memory sampler|paired replay|independent process RSS|managed installed entry" test\managed.test.ts
 ```
 
-结果9/9通过，0 fail/skip；这只证明工具行为，不把失效的本地压力采样判成通过。
+结果10/10通过，0 fail/skip；包括独立RSS在主线程450ms忙等期间仍实际采样、
+主isolate真实诊断间隙、就绪/幂等关闭和scope错误拒绝，不把历史失效采样判成通过。
+曾在完整检查中发现Worker继承`--input-type=module`时CommonJS require失败，
+改为兼容两种入口的动态import后，既有真实Worker清理失败/受控ENOSPC与独立采样
+3项focused复查全部通过，未改测试预期。
 最终完整`pnpm check`通过（40/40任务、测试类型检查、格式、包检查），两份replay模块
 `node --check`通过；曾在新增认证测试的类型检查阶段发现`json()`为unknown，
 补齐测试响应类型后重新运行，不忽略类型错误。

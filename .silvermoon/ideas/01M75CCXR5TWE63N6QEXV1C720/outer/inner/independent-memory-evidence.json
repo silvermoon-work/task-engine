@@ -1,0 +1,4565 @@
+{
+  "protocol": "paired-independent-rss-v2",
+  "node": "v26.13.0",
+  "platform": "win32",
+  "passed": true,
+  "pairs": [
+    {
+      "repetition": 0,
+      "wave": 0,
+      "controlGrowth": 372736,
+      "treatmentGrowth": 67227648,
+      "differential": 66854912,
+      "budgetBytes": 134217728,
+      "passed": true,
+      "controlMaxLatency": 9574.953400000002,
+      "treatmentMaxLatency": 7713.258900000001,
+      "latencyBudget": 47874.76700000001
+    },
+    {
+      "repetition": 0,
+      "wave": 1,
+      "controlGrowth": 2842624,
+      "treatmentGrowth": 35360768,
+      "differential": 32518144,
+      "budgetBytes": 134217728,
+      "passed": true,
+      "controlMaxLatency": 9340.095200000003,
+      "treatmentMaxLatency": 8624.850899999998,
+      "latencyBudget": 46700.47600000002
+    },
+    {
+      "repetition": 0,
+      "wave": 2,
+      "controlGrowth": 163840,
+      "treatmentGrowth": 53334016,
+      "differential": 53170176,
+      "budgetBytes": 134217728,
+      "passed": true,
+      "controlMaxLatency": 8681.464699999997,
+      "treatmentMaxLatency": 8838.320399999997,
+      "latencyBudget": 43407.323499999984
+    },
+    {
+      "repetition": 1,
+      "wave": 0,
+      "controlGrowth": 688128,
+      "treatmentGrowth": 42778624,
+      "differential": 42090496,
+      "budgetBytes": 134217728,
+      "passed": true,
+      "controlMaxLatency": 9390.297299999998,
+      "treatmentMaxLatency": 7574.912799999998,
+      "latencyBudget": 46951.48649999999
+    },
+    {
+      "repetition": 1,
+      "wave": 1,
+      "controlGrowth": 93609984,
+      "treatmentGrowth": 56004608,
+      "differential": -37605376,
+      "budgetBytes": 134217728,
+      "passed": true,
+      "controlMaxLatency": 9961.571799999998,
+      "treatmentMaxLatency": 7679.229599999999,
+      "latencyBudget": 49807.85899999999
+    },
+    {
+      "repetition": 1,
+      "wave": 2,
+      "controlGrowth": 20746240,
+      "treatmentGrowth": 41504768,
+      "differential": 20758528,
+      "budgetBytes": 134217728,
+      "passed": true,
+      "controlMaxLatency": 10370.9908,
+      "treatmentMaxLatency": 9491.397099999995,
+      "latencyBudget": 51854.954
+    },
+    {
+      "repetition": 2,
+      "wave": 0,
+      "controlGrowth": 5914624,
+      "treatmentGrowth": 48025600,
+      "differential": 42110976,
+      "budgetBytes": 134217728,
+      "passed": true,
+      "controlMaxLatency": 9239.350599999998,
+      "treatmentMaxLatency": 9091.378100000002,
+      "latencyBudget": 46196.75299999999
+    },
+    {
+      "repetition": 2,
+      "wave": 1,
+      "controlGrowth": 91189248,
+      "treatmentGrowth": 37507072,
+      "differential": -53682176,
+      "budgetBytes": 134217728,
+      "passed": true,
+      "controlMaxLatency": 11276.271399999998,
+      "treatmentMaxLatency": 10096.108800000002,
+      "latencyBudget": 56381.35699999999
+    },
+    {
+      "repetition": 2,
+      "wave": 2,
+      "controlGrowth": 21635072,
+      "treatmentGrowth": 23625728,
+      "differential": 1990656,
+      "budgetBytes": 134217728,
+      "passed": true,
+      "controlMaxLatency": 9032.136300000006,
+      "treatmentMaxLatency": 9801.131200000003,
+      "latencyBudget": 45160.68150000003
+    }
+  ],
+  "runs": [
+    {
+      "repetition": 0,
+      "arm": "control",
+      "report": {
+        "commands": [
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "server start",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "data prune",
+          "server status",
+          "run --engine",
+          "server stop",
+          "data prune"
+        ],
+        "fixtures": [],
+        "measurements": {
+          "waves": [
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442781880.0889,
+                "endMs": 1794442783684.5884,
+                "summary": {
+                  "rss": {
+                    "min": 253030400,
+                    "median": 253030400,
+                    "max": 253030400,
+                    "end": 253030400
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442783684.5884,
+                "endMs": 1794442794054.7341,
+                "summary": {
+                  "rss": {
+                    "min": 213569536,
+                    "median": 239783936,
+                    "max": 253403136,
+                    "end": 239783936
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442794054.7341,
+                "endMs": 1794442795870.1511,
+                "summary": {
+                  "rss": {
+                    "min": 239947776,
+                    "median": 240128000,
+                    "max": 240246784,
+                    "end": 240246784
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442781881.4456,
+                  "endMs": 1794442783684.8179,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 72607104,
+                      "median": 72619488,
+                      "max": 72631584,
+                      "end": 72631584
+                    },
+                    "heapTotal": {
+                      "min": 116019200,
+                      "median": 116019200,
+                      "max": 116019200,
+                      "end": 116019200
+                    },
+                    "external": {
+                      "min": 24147374,
+                      "median": 24147374,
+                      "max": 24147374,
+                      "end": 24147374
+                    },
+                    "arrayBuffers": {
+                      "min": 19491520,
+                      "median": 19491520,
+                      "max": 19491520,
+                      "end": 19491520
+                    }
+                  },
+                  "maxGapMs": 63.28662109375,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442783684.8179,
+                  "endMs": 1794442794055.691,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 51316496,
+                      "median": 72973376,
+                      "max": 96887040,
+                      "end": 84948640
+                    },
+                    "heapTotal": {
+                      "min": 116019200,
+                      "median": 128077824,
+                      "max": 136466432,
+                      "end": 136466432
+                    },
+                    "external": {
+                      "min": 8714226,
+                      "median": 12220467,
+                      "max": 24148489,
+                      "end": 14213697
+                    },
+                    "arrayBuffers": {
+                      "min": 4058372,
+                      "median": 7564101,
+                      "max": 19492635,
+                      "end": 9557843
+                    }
+                  },
+                  "maxGapMs": 607.978271484375,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    361.6455078125,
+                    607.978271484375,
+                    459.79248046875,
+                    292.7158203125,
+                    288.215087890625,
+                    266.849609375
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442794055.691,
+                  "endMs": 1794442795870.541,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 85469248,
+                      "median": 85481776,
+                      "max": 85496736,
+                      "end": 85496736
+                    },
+                    "heapTotal": {
+                      "min": 136466432,
+                      "median": 136466432,
+                      "max": 136466432,
+                      "end": 136466432
+                    },
+                    "external": {
+                      "min": 14215596,
+                      "median": 14215596,
+                      "max": 14215596,
+                      "end": 14215596
+                    },
+                    "arrayBuffers": {
+                      "min": 9559742,
+                      "median": 9559742,
+                      "max": 9559742,
+                      "end": 9559742
+                    }
+                  },
+                  "maxGapMs": 63.28955078125,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                7796.447899999999,
+                9505.680499999999,
+                7569.5014999999985,
+                7691.958299999998,
+                9514.6771,
+                9574.953400000002,
+                7745.858899999999,
+                9470.812399999999
+              ],
+              "statuses": [],
+              "gateway": {
+                "requests": 38,
+                "hits": 30,
+                "misses": 0,
+                "outputBytes": 31457286,
+                "failures": 7,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 7,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 285941760
+            },
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442796624.0398,
+                "endMs": 1794442798396.8635,
+                "summary": {
+                  "rss": {
+                    "min": 240271360,
+                    "median": 240332800,
+                    "max": 240340992,
+                    "end": 240340992
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442798396.8635,
+                "endMs": 1794442808532.4102,
+                "summary": {
+                  "rss": {
+                    "min": 229474304,
+                    "median": 233789440,
+                    "max": 243175424,
+                    "end": 232665088
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442808532.4102,
+                "endMs": 1794442810328.617,
+                "summary": {
+                  "rss": {
+                    "min": 232828928,
+                    "median": 232828928,
+                    "max": 232828928,
+                    "end": 232828928
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442796624.409,
+                  "endMs": 1794442798397.2004,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 86536144,
+                      "median": 86552856,
+                      "max": 86568768,
+                      "end": 86568768
+                    },
+                    "heapTotal": {
+                      "min": 136466432,
+                      "median": 136466432,
+                      "max": 136466432,
+                      "end": 136466432
+                    },
+                    "external": {
+                      "min": 14219394,
+                      "median": 14219394,
+                      "max": 14219394,
+                      "end": 14219394
+                    },
+                    "arrayBuffers": {
+                      "min": 9563540,
+                      "median": 9563540,
+                      "max": 9563540,
+                      "end": 9563540
+                    }
+                  },
+                  "maxGapMs": 63.677978515625,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442798397.2004,
+                  "endMs": 1794442808532.8274,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 34357776,
+                      "median": 72878408,
+                      "max": 107031920,
+                      "end": 34368120
+                    },
+                    "heapTotal": {
+                      "min": 116019200,
+                      "median": 138039296,
+                      "max": 148000768,
+                      "end": 116019200
+                    },
+                    "external": {
+                      "min": 5592849,
+                      "median": 7255966,
+                      "max": 17958576,
+                      "end": 6056195
+                    },
+                    "arrayBuffers": {
+                      "min": 936963,
+                      "median": 2600096,
+                      "max": 13302706,
+                      "end": 1411732
+                    }
+                  },
+                  "maxGapMs": 625.82421875,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    538.27685546875,
+                    277.5380859375,
+                    340.243896484375,
+                    625.82421875,
+                    256.455322265625,
+                    297.121826171875,
+                    311.6826171875
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442808532.8274,
+                  "endMs": 1794442810329.0173,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 35100408,
+                      "median": 35112872,
+                      "max": 35140256,
+                      "end": 35140256
+                    },
+                    "heapTotal": {
+                      "min": 116019200,
+                      "median": 116019200,
+                      "max": 116019200,
+                      "end": 116019200
+                    },
+                    "external": {
+                      "min": 6058878,
+                      "median": 6058878,
+                      "max": 6058878,
+                      "end": 6058878
+                    },
+                    "arrayBuffers": {
+                      "min": 1414415,
+                      "median": 1414415,
+                      "max": 1414415,
+                      "end": 1414415
+                    }
+                  },
+                  "maxGapMs": 64.223876953125,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                7624.742100000003,
+                9340.095200000003,
+                7613.328699999998,
+                9291.728000000003,
+                9204.1941,
+                7814.961200000005,
+                7881.719499999999,
+                9187.714499999995
+              ],
+              "statuses": [],
+              "gateway": {
+                "requests": 38,
+                "hits": 30,
+                "misses": 0,
+                "outputBytes": 31457286,
+                "failures": 7,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 7,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 285941760
+            },
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442811055.091,
+                "endMs": 1794442812838.8867,
+                "summary": {
+                  "rss": {
+                    "min": 232964096,
+                    "median": 232968192,
+                    "max": 232968192,
+                    "end": 232968192
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442812838.8867,
+                "endMs": 1794442822352.8652,
+                "summary": {
+                  "rss": {
+                    "min": 196935680,
+                    "median": 200847360,
+                    "max": 233132032,
+                    "end": 211681280
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442822352.8652,
+                "endMs": 1794442824144.3933,
+                "summary": {
+                  "rss": {
+                    "min": 212447232,
+                    "median": 212447232,
+                    "max": 212447232,
+                    "end": 212447232
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442811055.5012,
+                  "endMs": 1794442812839.9302,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 36709880,
+                      "median": 36719120,
+                      "max": 36739904,
+                      "end": 36739904
+                    },
+                    "heapTotal": {
+                      "min": 116019200,
+                      "median": 116019200,
+                      "max": 116019200,
+                      "end": 116019200
+                    },
+                    "external": {
+                      "min": 6064244,
+                      "median": 6064244,
+                      "max": 6064244,
+                      "end": 6064244
+                    },
+                    "arrayBuffers": {
+                      "min": 1419781,
+                      "median": 1419781,
+                      "max": 1419781,
+                      "end": 1419781
+                    }
+                  },
+                  "maxGapMs": 63.2099609375,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442812839.9302,
+                  "endMs": 1794442822353.8257,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 36791000,
+                      "median": 50092288,
+                      "max": 73788624,
+                      "end": 46861664
+                    },
+                    "heapTotal": {
+                      "min": 113135616,
+                      "median": 115494912,
+                      "max": 116281344,
+                      "end": 115494912
+                    },
+                    "external": {
+                      "min": 6066927,
+                      "median": 7730704,
+                      "max": 9477378,
+                      "end": 8426711
+                    },
+                    "arrayBuffers": {
+                      "min": 1422464,
+                      "median": 3086093,
+                      "max": 4832899,
+                      "end": 3782756
+                    }
+                  },
+                  "maxGapMs": 716.4052734375,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    332.171875,
+                    716.4052734375,
+                    354.388916015625
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442822353.8257,
+                  "endMs": 1794442824146.5916,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 47819552,
+                      "median": 47830528,
+                      "max": 47839712,
+                      "end": 47839712
+                    },
+                    "heapTotal": {
+                      "min": 115912704,
+                      "median": 115912704,
+                      "max": 115912704,
+                      "end": 115912704
+                    },
+                    "external": {
+                      "min": 8430178,
+                      "median": 8430178,
+                      "max": 8430178,
+                      "end": 8430178
+                    },
+                    "arrayBuffers": {
+                      "min": 3786223,
+                      "median": 3786223,
+                      "max": 3786223,
+                      "end": 3786223
+                    }
+                  },
+                  "maxGapMs": 63.79345703125,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                7265.330600000001,
+                8512.703800000003,
+                7300.731899999999,
+                8671.846299999997,
+                7325.871400000004,
+                7319.797600000005,
+                8643.6273,
+                8681.464699999997
+              ],
+              "statuses": [],
+              "gateway": {
+                "requests": 38,
+                "hits": 30,
+                "misses": 0,
+                "outputBytes": 31457286,
+                "failures": 7,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 7,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 285941760
+            }
+          ],
+          "instrumentation": {
+            "workers": 1,
+            "startupRssBefore": 118951936,
+            "startupRssAfter": 128163840,
+            "observedStartupRssDelta": 9211904
+          },
+          "recovered": {
+            "requests": 41,
+            "hits": 34,
+            "misses": 0,
+            "outputBytes": 33555270,
+            "failures": 10,
+            "storageErrors": 0,
+            "cancellations": 2,
+            "timeouts": 0,
+            "rejected": 8,
+            "peakActive": 2,
+            "active": 0
+          },
+          "recoveryMs": 810.8621999999959,
+          "faultMetrics": {
+            "requests": 44,
+            "hits": 34,
+            "misses": 2,
+            "outputBytes": 33555270,
+            "failures": 13,
+            "storageErrors": 1,
+            "cancellations": 2,
+            "timeouts": 0,
+            "rejected": 8,
+            "peakActive": 2,
+            "active": 0
+          },
+          "shutdownMs": 1069.3993999999948,
+          "gc": {
+            "dataDir": "D:\\Code\\task-engine\\.gateway-rss-owned-0-control\\data",
+            "selection": {
+              "cache": true
+            },
+            "deletedTasks": 0,
+            "deletedLogs": 0,
+            "deletedCacheBlocks": 8,
+            "deletedCacheBytes": 7340312
+          }
+        },
+        "node": "v26.13.0",
+        "arm": "control",
+        "url": "http://127.0.0.1:51836",
+        "taskCarSha256": "17809d6b4201279686774d0ad2dd75c2dc134990d4895dad155d947a5ad111d3"
+      }
+    },
+    {
+      "repetition": 0,
+      "arm": "treatment",
+      "report": {
+        "commands": [
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "server start",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "data prune",
+          "server status",
+          "run --engine",
+          "server stop",
+          "data prune"
+        ],
+        "fixtures": [],
+        "measurements": {
+          "waves": [
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442850846.3123,
+                "endMs": 1794442852634.2278,
+                "summary": {
+                  "rss": {
+                    "min": 230416384,
+                    "median": 230416384,
+                    "max": 230416384,
+                    "end": 230416384
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442852634.2278,
+                "endMs": 1794442861122.2393,
+                "summary": {
+                  "rss": {
+                    "min": 229564416,
+                    "median": 233396224,
+                    "max": 297644032,
+                    "end": 229564416
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442861122.2393,
+                "endMs": 1794442862922.7507,
+                "summary": {
+                  "rss": {
+                    "min": 229572608,
+                    "median": 229748736,
+                    "max": 229748736,
+                    "end": 229748736
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442850846.678,
+                  "endMs": 1794442852634.4692,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 42205296,
+                      "median": 42217560,
+                      "max": 42229656,
+                      "end": 42229656
+                    },
+                    "heapTotal": {
+                      "min": 109989888,
+                      "median": 109989888,
+                      "max": 109989888,
+                      "end": 109989888
+                    },
+                    "external": {
+                      "min": 7199831,
+                      "median": 7199831,
+                      "max": 7199831,
+                      "end": 7199831
+                    },
+                    "arrayBuffers": {
+                      "min": 2543977,
+                      "median": 2543977,
+                      "max": 2543977,
+                      "end": 2543977
+                    }
+                  },
+                  "maxGapMs": 63.9609375,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442852634.4692,
+                  "endMs": 1794442861122.6038,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 42561992,
+                      "median": 65410640,
+                      "max": 86501728,
+                      "end": 68537360
+                    },
+                    "heapTotal": {
+                      "min": 109989888,
+                      "median": 120475648,
+                      "max": 130699264,
+                      "end": 130699264
+                    },
+                    "external": {
+                      "min": 7200946,
+                      "median": 10964060,
+                      "max": 27663975,
+                      "end": 14025919
+                    },
+                    "arrayBuffers": {
+                      "min": 2545092,
+                      "median": 6308126,
+                      "max": 23008121,
+                      "end": 9370065
+                    }
+                  },
+                  "maxGapMs": 849.60009765625,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    279.217529296875,
+                    332.314453125,
+                    849.60009765625,
+                    304.43505859375,
+                    279.599365234375
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442861122.6038,
+                  "endMs": 1794442862923.0752,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 69016304,
+                      "median": 69028568,
+                      "max": 69042120,
+                      "end": 69042120
+                    },
+                    "heapTotal": {
+                      "min": 130699264,
+                      "median": 130699264,
+                      "max": 130699264,
+                      "end": 130699264
+                    },
+                    "external": {
+                      "min": 14027938,
+                      "median": 14027938,
+                      "max": 14027938,
+                      "end": 14027938
+                    },
+                    "arrayBuffers": {
+                      "min": 9372084,
+                      "median": 9372084,
+                      "max": 9372084,
+                      "end": 9372084
+                    }
+                  },
+                  "maxGapMs": 63.6953125,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                6784.428500000002,
+                6941.861699999998,
+                7703.480600000003,
+                6851.127199999999,
+                6741.442899999998,
+                7618.819499999998,
+                7599.251799999998,
+                7713.258900000001
+              ],
+              "statuses": [
+                200,
+                429,
+                429,
+                200,
+                200,
+                429,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                429,
+                200,
+                429,
+                200,
+                200,
+                429,
+                429,
+                200,
+                200,
+                200,
+                200,
+                429,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200
+              ],
+              "gateway": {
+                "requests": 70,
+                "hits": 54,
+                "misses": 0,
+                "outputBytes": 56623110,
+                "failures": 15,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 15,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 298741760
+            },
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442863692.5178,
+                "endMs": 1794442865495.1482,
+                "summary": {
+                  "rss": {
+                    "min": 229875712,
+                    "median": 229875712,
+                    "max": 230129664,
+                    "end": 230129664
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442865495.1482,
+                "endMs": 1794442874924.299,
+                "summary": {
+                  "rss": {
+                    "min": 146292736,
+                    "median": 156545024,
+                    "max": 265236480,
+                    "end": 238018560
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442874924.299,
+                "endMs": 1794442876711.4895,
+                "summary": {
+                  "rss": {
+                    "min": 238256128,
+                    "median": 238260224,
+                    "max": 238264320,
+                    "end": 238264320
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442863692.889,
+                  "endMs": 1794442865496.8877,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 70077784,
+                      "median": 70090048,
+                      "max": 70106592,
+                      "end": 70106592
+                    },
+                    "heapTotal": {
+                      "min": 130699264,
+                      "median": 130699264,
+                      "max": 130699264,
+                      "end": 130699264
+                    },
+                    "external": {
+                      "min": 14031976,
+                      "median": 14031976,
+                      "max": 14031976,
+                      "end": 14031976
+                    },
+                    "arrayBuffers": {
+                      "min": 9376122,
+                      "median": 9376122,
+                      "max": 9376122,
+                      "end": 9376122
+                    }
+                  },
+                  "maxGapMs": 63.634765625,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442865496.8877,
+                  "endMs": 1794442874924.7805,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 30627160,
+                      "median": 45285172,
+                      "max": 70691640,
+                      "end": 61131912
+                    },
+                    "heapTotal": {
+                      "min": 55463936,
+                      "median": 109203456,
+                      "max": 130699264,
+                      "end": 114446336
+                    },
+                    "external": {
+                      "min": 5004352,
+                      "median": 6510272.5,
+                      "max": 24101878,
+                      "end": 9428890
+                    },
+                    "arrayBuffers": {
+                      "min": 348498,
+                      "median": 1865957.5,
+                      "max": 19457923,
+                      "end": 4784935
+                    }
+                  },
+                  "maxGapMs": 559.42041015625,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    515.251220703125,
+                    401.397216796875,
+                    559.42041015625,
+                    320.20361328125,
+                    282.749267578125,
+                    390.00244140625,
+                    395.401611328125
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442874924.7805,
+                  "endMs": 1794442876712.855,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 61869328,
+                      "median": 61881368,
+                      "max": 61897008,
+                      "end": 61897008
+                    },
+                    "heapTotal": {
+                      "min": 114446336,
+                      "median": 114446336,
+                      "max": 114446336,
+                      "end": 114446336
+                    },
+                    "external": {
+                      "min": 9431813,
+                      "median": 9431813,
+                      "max": 9431813,
+                      "end": 9431813
+                    },
+                    "arrayBuffers": {
+                      "min": 4787858,
+                      "median": 4787858,
+                      "max": 4787858,
+                      "end": 4787858
+                    }
+                  },
+                  "maxGapMs": 63.984375,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                7668.989600000001,
+                8577.3756,
+                8072.863699999994,
+                8599.111399999994,
+                8052.971400000002,
+                8624.850899999998,
+                8543.904600000002,
+                7833.227900000005
+              ],
+              "statuses": [
+                200,
+                429,
+                429,
+                429,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                429,
+                200,
+                429,
+                200
+              ],
+              "gateway": {
+                "requests": 102,
+                "hits": 81,
+                "misses": 0,
+                "outputBytes": 84934662,
+                "failures": 20,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 20,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 298741760
+            },
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442877456.5037,
+                "endMs": 1794442879242.4553,
+                "summary": {
+                  "rss": {
+                    "min": 238694400,
+                    "median": 238764032,
+                    "max": 238764032,
+                    "end": 238764032
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442879242.4553,
+                "endMs": 1794442888895.9248,
+                "summary": {
+                  "rss": {
+                    "min": 197197824,
+                    "median": 235610112,
+                    "max": 292098048,
+                    "end": 241815552
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442888895.9248,
+                "endMs": 1794442890666.352,
+                "summary": {
+                  "rss": {
+                    "min": 242536448,
+                    "median": 242536448,
+                    "max": 242536448,
+                    "end": 242536448
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442877456.9304,
+                  "endMs": 1794442879242.844,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 63467392,
+                      "median": 63487784,
+                      "max": 63496968,
+                      "end": 63496968
+                    },
+                    "heapTotal": {
+                      "min": 114446336,
+                      "median": 114446336,
+                      "max": 114446336,
+                      "end": 114446336
+                    },
+                    "external": {
+                      "min": 9437659,
+                      "median": 9437659,
+                      "max": 9437659,
+                      "end": 9437659
+                    },
+                    "arrayBuffers": {
+                      "min": 4793704,
+                      "median": 4793704,
+                      "max": 4793704,
+                      "end": 4793704
+                    }
+                  },
+                  "maxGapMs": 63.30078125,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442879242.844,
+                  "endMs": 1794442888897.052,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 32001056,
+                      "median": 54318808,
+                      "max": 74300328,
+                      "end": 66859872
+                    },
+                    "heapTotal": {
+                      "min": 106582016,
+                      "median": 111038464,
+                      "max": 118116352,
+                      "end": 118116352
+                    },
+                    "external": {
+                      "min": 5935633,
+                      "median": 7464501,
+                      "max": 21871382,
+                      "end": 8255058
+                    },
+                    "arrayBuffers": {
+                      "min": 1291662,
+                      "median": 2820442,
+                      "max": 17227427,
+                      "end": 3611103
+                    }
+                  },
+                  "maxGapMs": 400.58349609375,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    303.50927734375,
+                    330.238525390625,
+                    400.58349609375,
+                    392.031982421875,
+                    300.483154296875
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442888897.052,
+                  "endMs": 1794442890668.8113,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 67446504,
+                      "median": 67455528,
+                      "max": 67464384,
+                      "end": 67464384
+                    },
+                    "heapTotal": {
+                      "min": 118521856,
+                      "median": 118521856,
+                      "max": 118521856,
+                      "end": 118521856
+                    },
+                    "external": {
+                      "min": 8255058,
+                      "median": 8255058,
+                      "max": 8255058,
+                      "end": 8255058
+                    },
+                    "arrayBuffers": {
+                      "min": 3611103,
+                      "median": 3611103,
+                      "max": 3611103,
+                      "end": 3611103
+                    }
+                  },
+                  "maxGapMs": 64.1123046875,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                7550.221299999997,
+                7684.729999999996,
+                7602.751199999999,
+                8721.036699999997,
+                8734.940199999997,
+                8838.320399999997,
+                7440.064199999993,
+                8695.791899999997
+              ],
+              "statuses": [
+                200,
+                429,
+                200,
+                429,
+                200,
+                429,
+                200,
+                200,
+                200,
+                429,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                429,
+                429,
+                200,
+                429,
+                200,
+                200,
+                200,
+                200
+              ],
+              "gateway": {
+                "requests": 134,
+                "hits": 106,
+                "misses": 0,
+                "outputBytes": 111149062,
+                "failures": 27,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 27,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 298741760
+            }
+          ],
+          "instrumentation": {
+            "workers": 1,
+            "startupRssBefore": 118878208,
+            "startupRssAfter": 128135168,
+            "observedStartupRssDelta": 9256960
+          },
+          "recovered": {
+            "requests": 137,
+            "hits": 110,
+            "misses": 0,
+            "outputBytes": 113247046,
+            "failures": 30,
+            "storageErrors": 0,
+            "cancellations": 2,
+            "timeouts": 0,
+            "rejected": 28,
+            "peakActive": 2,
+            "active": 0
+          },
+          "recoveryMs": 787.2059000000008,
+          "faultMetrics": {
+            "requests": 140,
+            "hits": 110,
+            "misses": 2,
+            "outputBytes": 113247046,
+            "failures": 33,
+            "storageErrors": 1,
+            "cancellations": 2,
+            "timeouts": 0,
+            "rejected": 28,
+            "peakActive": 2,
+            "active": 0
+          },
+          "shutdownMs": 1033.2068999999974,
+          "gc": {
+            "dataDir": "D:\\Code\\task-engine\\.gateway-rss-owned-0-treatment\\data",
+            "selection": {
+              "cache": true
+            },
+            "deletedTasks": 0,
+            "deletedLogs": 0,
+            "deletedCacheBlocks": 8,
+            "deletedCacheBytes": 7340312
+          }
+        },
+        "node": "v26.13.0",
+        "arm": "treatment",
+        "url": "http://127.0.0.1:51836",
+        "taskCarSha256": "17809d6b4201279686774d0ad2dd75c2dc134990d4895dad155d947a5ad111d3"
+      }
+    },
+    {
+      "repetition": 1,
+      "arm": "treatment",
+      "report": {
+        "commands": [
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "server start",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "data prune",
+          "server status",
+          "run --engine",
+          "server stop",
+          "data prune"
+        ],
+        "fixtures": [],
+        "measurements": {
+          "waves": [
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442913452.3599,
+                "endMs": 1794442915243.347,
+                "summary": {
+                  "rss": {
+                    "min": 232763392,
+                    "median": 232792064,
+                    "max": 232792064,
+                    "end": 232792064
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442915243.347,
+                "endMs": 1794442923609.05,
+                "summary": {
+                  "rss": {
+                    "min": 192061440,
+                    "median": 194547712,
+                    "max": 275570688,
+                    "end": 234967040
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442923609.05,
+                "endMs": 1794442925392.3357,
+                "summary": {
+                  "rss": {
+                    "min": 235085824,
+                    "median": 235085824,
+                    "max": 235085824,
+                    "end": 235085824
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442913452.6135,
+                  "endMs": 1794442915243.547,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 37882168,
+                      "median": 37894696,
+                      "max": 37911040,
+                      "end": 37911040
+                    },
+                    "heapTotal": {
+                      "min": 112611328,
+                      "median": 112611328,
+                      "max": 112611328,
+                      "end": 112611328
+                    },
+                    "external": {
+                      "min": 6309661,
+                      "median": 6309661,
+                      "max": 6309661,
+                      "end": 6309661
+                    },
+                    "arrayBuffers": {
+                      "min": 1653807,
+                      "median": 1653807,
+                      "max": 1653807,
+                      "end": 1653807
+                    }
+                  },
+                  "maxGapMs": 63.756103515625,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442915243.547,
+                  "endMs": 1794442923609.2024,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 33947048,
+                      "median": 51526160,
+                      "max": 70326216,
+                      "end": 52076064
+                    },
+                    "heapTotal": {
+                      "min": 106844160,
+                      "median": 112087040,
+                      "max": 113397760,
+                      "end": 112087040
+                    },
+                    "external": {
+                      "min": 5487346,
+                      "median": 6811032,
+                      "max": 21900255,
+                      "end": 6541510
+                    },
+                    "arrayBuffers": {
+                      "min": 843391,
+                      "median": 2166569,
+                      "max": 17256300,
+                      "end": 1897555
+                    }
+                  },
+                  "maxGapMs": 436.697998046875,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    436.697998046875,
+                    336.414306640625,
+                    390.42431640625,
+                    273.432861328125,
+                    256.76806640625,
+                    292.034912109375
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442923609.2024,
+                  "endMs": 1794442925392.4758,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 52553048,
+                      "median": 52565144,
+                      "max": 52577240,
+                      "end": 52577240
+                    },
+                    "heapTotal": {
+                      "min": 112087040,
+                      "median": 112087040,
+                      "max": 112087040,
+                      "end": 112087040
+                    },
+                    "external": {
+                      "min": 6543529,
+                      "median": 6543529,
+                      "max": 6543529,
+                      "end": 6543529
+                    },
+                    "arrayBuffers": {
+                      "min": 1899574,
+                      "median": 1899574,
+                      "max": 1899574,
+                      "end": 1899574
+                    }
+                  },
+                  "maxGapMs": 64.11572265625,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                6652.825199999999,
+                6746.2359,
+                6446.744200000001,
+                7574.912799999998,
+                7428.659,
+                7466.919599999997,
+                7476.303499999998,
+                6462.357400000001
+              ],
+              "statuses": [
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                429,
+                429,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                429,
+                429,
+                200
+              ],
+              "gateway": {
+                "requests": 70,
+                "hits": 58,
+                "misses": 0,
+                "outputBytes": 60817414,
+                "failures": 11,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 11,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 281149440
+            },
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442926173.1367,
+                "endMs": 1794442927991.3704,
+                "summary": {
+                  "rss": {
+                    "min": 235245568,
+                    "median": 235266048,
+                    "max": 235372544,
+                    "end": 235372544
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442927991.3704,
+                "endMs": 1794442936488.5894,
+                "summary": {
+                  "rss": {
+                    "min": 193892352,
+                    "median": 196243456,
+                    "max": 291270656,
+                    "end": 239349760
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442936488.5894,
+                "endMs": 1794442938281.6033,
+                "summary": {
+                  "rss": {
+                    "min": 239673344,
+                    "median": 239673344,
+                    "max": 239673344,
+                    "end": 239673344
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442926174.2388,
+                  "endMs": 1794442927991.7458,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 53631776,
+                      "median": 53644472,
+                      "max": 53657000,
+                      "end": 53657000
+                    },
+                    "heapTotal": {
+                      "min": 112087040,
+                      "median": 112087040,
+                      "max": 112087040,
+                      "end": 112087040
+                    },
+                    "external": {
+                      "min": 6547567,
+                      "median": 6547567,
+                      "max": 6547567,
+                      "end": 6547567
+                    },
+                    "arrayBuffers": {
+                      "min": 1903612,
+                      "median": 1903612,
+                      "max": 1903612,
+                      "end": 1903612
+                    }
+                  },
+                  "maxGapMs": 63.559326171875,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442927991.7458,
+                  "endMs": 1794442936490.1387,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 36156656,
+                      "median": 52054672,
+                      "max": 78457544,
+                      "end": 46982216
+                    },
+                    "heapTotal": {
+                      "min": 111038464,
+                      "median": 113266688,
+                      "max": 117067776,
+                      "end": 116281344
+                    },
+                    "external": {
+                      "min": 5727793,
+                      "median": 7346105,
+                      "max": 22929354,
+                      "end": 8244341
+                    },
+                    "arrayBuffers": {
+                      "min": 1083838,
+                      "median": 2701990,
+                      "max": 18285399,
+                      "end": 3600386
+                    }
+                  },
+                  "maxGapMs": 735.075927734375,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    735.075927734375,
+                    298.381103515625,
+                    313.5087890625,
+                    411.328125
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442936490.1387,
+                  "endMs": 1794442938282.762,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 47462400,
+                      "median": 47474440,
+                      "max": 47490128,
+                      "end": 47490128
+                    },
+                    "heapTotal": {
+                      "min": 116281344,
+                      "median": 116281344,
+                      "max": 116281344,
+                      "end": 116281344
+                    },
+                    "external": {
+                      "min": 8244341,
+                      "median": 8244341,
+                      "max": 8244341,
+                      "end": 8244341
+                    },
+                    "arrayBuffers": {
+                      "min": 3600386,
+                      "median": 3600386,
+                      "max": 3600386,
+                      "end": 3600386
+                    }
+                  },
+                  "maxGapMs": 63.676513671875,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                7651.762899999998,
+                6810.763799999997,
+                6764.525599999997,
+                7601.034199999998,
+                6576.8943,
+                6544.433699999998,
+                7679.229599999999,
+                7601.335999999996
+              ],
+              "statuses": [
+                200,
+                200,
+                200,
+                200,
+                429,
+                200,
+                200,
+                200,
+                200,
+                429,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                429,
+                429,
+                429,
+                200,
+                200,
+                429,
+                429,
+                429,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200
+              ],
+              "gateway": {
+                "requests": 102,
+                "hits": 82,
+                "misses": 0,
+                "outputBytes": 85983238,
+                "failures": 19,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 19,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 291495936
+            },
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442939010.2925,
+                "endMs": 1794442940806.1543,
+                "summary": {
+                  "rss": {
+                    "min": 239816704,
+                    "median": 239816704,
+                    "max": 239816704,
+                    "end": 239816704
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442940806.1543,
+                "endMs": 1794442951077.0295,
+                "summary": {
+                  "rss": {
+                    "min": 199188480,
+                    "median": 206274560,
+                    "max": 281321472,
+                    "end": 249741312
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442951077.0295,
+                "endMs": 1794442952871.8318,
+                "summary": {
+                  "rss": {
+                    "min": 250003456,
+                    "median": 250003456,
+                    "max": 250003456,
+                    "end": 250003456
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442939011.2378,
+                  "endMs": 1794442940806.5073,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 48975720,
+                      "median": 48987648,
+                      "max": 49003336,
+                      "end": 49003336
+                    },
+                    "heapTotal": {
+                      "min": 116281344,
+                      "median": 116281344,
+                      "max": 116281344,
+                      "end": 116281344
+                    },
+                    "external": {
+                      "min": 8250187,
+                      "median": 8250187,
+                      "max": 8250187,
+                      "end": 8250187
+                    },
+                    "arrayBuffers": {
+                      "min": 3606232,
+                      "median": 3606232,
+                      "max": 3606232,
+                      "end": 3606232
+                    }
+                  },
+                  "maxGapMs": 63.9228515625,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442940806.5073,
+                  "endMs": 1794442951077.8022,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 38759016,
+                      "median": 56414472,
+                      "max": 85259408,
+                      "end": 56416600
+                    },
+                    "heapTotal": {
+                      "min": 114708480,
+                      "median": 116543488,
+                      "max": 125194240,
+                      "end": 114708480
+                    },
+                    "external": {
+                      "min": 6059847,
+                      "median": 9761464,
+                      "max": 20823181,
+                      "end": 9761464
+                    },
+                    "arrayBuffers": {
+                      "min": 1415876,
+                      "median": 5117509,
+                      "max": 16179226,
+                      "end": 5117509
+                    }
+                  },
+                  "maxGapMs": 440.483154296875,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    291.512451171875,
+                    267.6611328125,
+                    353.171142578125,
+                    372.616455078125,
+                    377.776123046875,
+                    272.70556640625,
+                    440.483154296875,
+                    263.29931640625,
+                    351.514404296875,
+                    386.676025390625
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442951077.8022,
+                  "endMs": 1794442952873.4285,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 57470384,
+                      "median": 57479568,
+                      "max": 57488920,
+                      "end": 57488920
+                    },
+                    "heapTotal": {
+                      "min": 114708480,
+                      "median": 114708480,
+                      "max": 114708480,
+                      "end": 114708480
+                    },
+                    "external": {
+                      "min": 9765291,
+                      "median": 9765291,
+                      "max": 9765291,
+                      "end": 9765291
+                    },
+                    "arrayBuffers": {
+                      "min": 5121336,
+                      "median": 5121336,
+                      "max": 5121336,
+                      "end": 5121336
+                    }
+                  },
+                  "maxGapMs": 63.201904296875,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                9474.862800000003,
+                8223.460299999999,
+                8362.531799999997,
+                8215.859200000006,
+                9453.719599999997,
+                9491.397099999995,
+                8324.115000000005,
+                9395.936199999996
+              ],
+              "statuses": [
+                200,
+                200,
+                200,
+                200,
+                429,
+                200,
+                429,
+                200,
+                200,
+                200,
+                429,
+                200,
+                200,
+                429,
+                200,
+                429,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                429,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200
+              ],
+              "gateway": {
+                "requests": 134,
+                "hits": 108,
+                "misses": 0,
+                "outputBytes": 113246214,
+                "failures": 25,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 25,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 294789120
+            }
+          ],
+          "instrumentation": {
+            "workers": 1,
+            "startupRssBefore": 118992896,
+            "startupRssAfter": 128520192,
+            "observedStartupRssDelta": 9527296
+          },
+          "recovered": {
+            "requests": 137,
+            "hits": 113,
+            "misses": 0,
+            "outputBytes": 116392813,
+            "failures": 28,
+            "storageErrors": 0,
+            "cancellations": 2,
+            "timeouts": 0,
+            "rejected": 26,
+            "peakActive": 2,
+            "active": 0
+          },
+          "recoveryMs": 750.8179999999993,
+          "faultMetrics": {
+            "requests": 140,
+            "hits": 113,
+            "misses": 2,
+            "outputBytes": 116392813,
+            "failures": 31,
+            "storageErrors": 1,
+            "cancellations": 2,
+            "timeouts": 0,
+            "rejected": 26,
+            "peakActive": 2,
+            "active": 0
+          },
+          "shutdownMs": 1031.5320999999967,
+          "gc": {
+            "dataDir": "D:\\Code\\task-engine\\.gateway-rss-owned-1-treatment\\data",
+            "selection": {
+              "cache": true
+            },
+            "deletedTasks": 0,
+            "deletedLogs": 0,
+            "deletedCacheBlocks": 8,
+            "deletedCacheBytes": 7340312
+          }
+        },
+        "node": "v26.13.0",
+        "arm": "treatment",
+        "url": "http://127.0.0.1:51836",
+        "taskCarSha256": "17809d6b4201279686774d0ad2dd75c2dc134990d4895dad155d947a5ad111d3"
+      }
+    },
+    {
+      "repetition": 1,
+      "arm": "control",
+      "report": {
+        "commands": [
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "server start",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "data prune",
+          "server status",
+          "run --engine",
+          "server stop",
+          "data prune"
+        ],
+        "fixtures": [],
+        "measurements": {
+          "waves": [
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442980642.557,
+                "endMs": 1794442982448.387,
+                "summary": {
+                  "rss": {
+                    "min": 250793984,
+                    "median": 250793984,
+                    "max": 250793984,
+                    "end": 250793984
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442982448.387,
+                "endMs": 1794442992647.8328,
+                "summary": {
+                  "rss": {
+                    "min": 212086784,
+                    "median": 238280704,
+                    "max": 251482112,
+                    "end": 238522368
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442992647.8328,
+                "endMs": 1794442994443.9644,
+                "summary": {
+                  "rss": {
+                    "min": 155967488,
+                    "median": 238931968,
+                    "max": 238972928,
+                    "end": 155967488
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442980643.8555,
+                  "endMs": 1794442982448.6172,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 70778072,
+                      "median": 70790384,
+                      "max": 70802480,
+                      "end": 70802480
+                    },
+                    "heapTotal": {
+                      "min": 114446336,
+                      "median": 114446336,
+                      "max": 114446336,
+                      "end": 114446336
+                    },
+                    "external": {
+                      "min": 23072707,
+                      "median": 23072707,
+                      "max": 23072707,
+                      "end": 23072707
+                    },
+                    "arrayBuffers": {
+                      "min": 18416853,
+                      "median": 18416853,
+                      "max": 18416853,
+                      "end": 18416853
+                    }
+                  },
+                  "maxGapMs": 63.9921875,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442982448.6172,
+                  "endMs": 1794442992648.015,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 50335512,
+                      "median": 71119776,
+                      "max": 95623128,
+                      "end": 93480552
+                    },
+                    "heapTotal": {
+                      "min": 114446336,
+                      "median": 125718528,
+                      "max": 135680000,
+                      "end": 135680000
+                    },
+                    "external": {
+                      "min": 8623075,
+                      "median": 12043209.5,
+                      "max": 23073822,
+                      "end": 14057084
+                    },
+                    "arrayBuffers": {
+                      "min": 3967221,
+                      "median": 7387147.5,
+                      "max": 18417968,
+                      "end": 9401230
+                    }
+                  },
+                  "maxGapMs": 355.698486328125,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    344.1982421875,
+                    343.91259765625,
+                    355.48583984375,
+                    335.3466796875,
+                    355.698486328125,
+                    262.35107421875
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442992648.015,
+                  "endMs": 1794442994444.3662,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 31271280,
+                      "median": 67271432,
+                      "max": 67283528,
+                      "end": 31295792
+                    },
+                    "heapTotal": {
+                      "min": 60706816,
+                      "median": 135680000,
+                      "max": 135680000,
+                      "end": 60706816
+                    },
+                    "external": {
+                      "min": 5004352,
+                      "median": 14058983,
+                      "max": 14058983,
+                      "end": 5004352
+                    },
+                    "arrayBuffers": {
+                      "min": 348498,
+                      "median": 9390552,
+                      "max": 9390552,
+                      "end": 348498
+                    }
+                  },
+                  "maxGapMs": 78.615966796875,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                7377.893200000002,
+                7505.1937,
+                7522.4653,
+                7547.471400000002,
+                9299.836800000001,
+                9259.1165,
+                9390.297299999998,
+                9244.816299999999
+              ],
+              "statuses": [],
+              "gateway": {
+                "requests": 38,
+                "hits": 30,
+                "misses": 0,
+                "outputBytes": 31457286,
+                "failures": 7,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 7,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 272441344
+            },
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442995187.812,
+                "endMs": 1794442996982.5625,
+                "summary": {
+                  "rss": {
+                    "min": 121028608,
+                    "median": 121167872,
+                    "max": 121212928,
+                    "end": 121212928
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794442996982.5625,
+                "endMs": 1794443007776.5022,
+                "summary": {
+                  "rss": {
+                    "min": 121221120,
+                    "median": 187494400,
+                    "max": 214777856,
+                    "end": 207519744
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443007776.5022,
+                "endMs": 1794443009604.332,
+                "summary": {
+                  "rss": {
+                    "min": 207683584,
+                    "median": 207732736,
+                    "max": 207732736,
+                    "end": 207732736
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442995188.1877,
+                  "endMs": 1794442996984.3247,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 29037392,
+                      "median": 29049656,
+                      "max": 29065584,
+                      "end": 29065584
+                    },
+                    "heapTotal": {
+                      "min": 33181696,
+                      "median": 33181696,
+                      "max": 33181696,
+                      "end": 33181696
+                    },
+                    "external": {
+                      "min": 4994844,
+                      "median": 4994844,
+                      "max": 4994844,
+                      "end": 4994844
+                    },
+                    "arrayBuffers": {
+                      "min": 350397,
+                      "median": 350397,
+                      "max": 350397,
+                      "end": 350397
+                    }
+                  },
+                  "maxGapMs": 64.2294921875,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794442996984.3247,
+                  "endMs": 1794443007778.2961,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 28859064,
+                      "median": 38053792,
+                      "max": 66269200,
+                      "end": 34219768
+                    },
+                    "heapTotal": {
+                      "min": 33968128,
+                      "median": 105795584,
+                      "max": 111038464,
+                      "end": 110514176
+                    },
+                    "external": {
+                      "min": 4996743,
+                      "median": 6165126,
+                      "max": 7784508,
+                      "end": 6152244
+                    },
+                    "arrayBuffers": {
+                      "min": 348498,
+                      "median": 1521091,
+                      "max": 3140553,
+                      "end": 1508289
+                    }
+                  },
+                  "maxGapMs": 747.681884765625,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    747.681884765625,
+                    268.32177734375,
+                    256.277587890625,
+                    318.360107421875,
+                    344.2451171875,
+                    277.716796875,
+                    351.479248046875,
+                    268.406494140625,
+                    292.423828125,
+                    309.93701171875
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443007778.2961,
+                  "endMs": 1794443009606.4673,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 34970040,
+                      "median": 34996032,
+                      "max": 35005544,
+                      "end": 35005544
+                    },
+                    "heapTotal": {
+                      "min": 110514176,
+                      "median": 110514176,
+                      "max": 110514176,
+                      "end": 110514176
+                    },
+                    "external": {
+                      "min": 6154927,
+                      "median": 6154927,
+                      "max": 6154927,
+                      "end": 6154927
+                    },
+                    "arrayBuffers": {
+                      "min": 1510972,
+                      "median": 1510972,
+                      "max": 1510972,
+                      "end": 1510972
+                    }
+                  },
+                  "maxGapMs": 64.288818359375,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                8102.179200000006,
+                8150.278299999998,
+                8080.353500000005,
+                9912.5913,
+                9900.965100000001,
+                8126.6263000000035,
+                9945.132899999997,
+                9961.571799999998
+              ],
+              "statuses": [],
+              "gateway": {
+                "requests": 38,
+                "hits": 30,
+                "misses": 0,
+                "outputBytes": 31457286,
+                "failures": 7,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 7,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 272441344
+            },
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443010403.4785,
+                "endMs": 1794443012230.156,
+                "summary": {
+                  "rss": {
+                    "min": 207736832,
+                    "median": 207888384,
+                    "max": 207888384,
+                    "end": 207888384
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443012230.156,
+                "endMs": 1794443023425.1792,
+                "summary": {
+                  "rss": {
+                    "min": 194392064,
+                    "median": 198082560,
+                    "max": 228634624,
+                    "end": 221552640
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443023425.1792,
+                "endMs": 1794443025227.9712,
+                "summary": {
+                  "rss": {
+                    "min": 222085120,
+                    "median": 222093312,
+                    "max": 222146560,
+                    "end": 222097408
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443010405.749,
+                  "endMs": 1794443012230.3865,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 36581512,
+                      "median": 36590696,
+                      "max": 36606680,
+                      "end": 36606680
+                    },
+                    "heapTotal": {
+                      "min": 110514176,
+                      "median": 110514176,
+                      "max": 110514176,
+                      "end": 110514176
+                    },
+                    "external": {
+                      "min": 6160293,
+                      "median": 6160293,
+                      "max": 6160293,
+                      "end": 6160293
+                    },
+                    "arrayBuffers": {
+                      "min": 1516338,
+                      "median": 1516338,
+                      "max": 1516338,
+                      "end": 1516338
+                    }
+                  },
+                  "maxGapMs": 63.608642578125,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443012230.3865,
+                  "endMs": 1794443023425.7998,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 37380040,
+                      "median": 58295636,
+                      "max": 79921888,
+                      "end": 59834552
+                    },
+                    "heapTotal": {
+                      "min": 110514176,
+                      "median": 111693824,
+                      "max": 122572800,
+                      "end": 122572800
+                    },
+                    "external": {
+                      "min": 6162976,
+                      "median": 9725742.5,
+                      "max": 12086804,
+                      "end": 12086804
+                    },
+                    "arrayBuffers": {
+                      "min": 1519021,
+                      "median": 5081771.5,
+                      "max": 7442849,
+                      "end": 7442849
+                    }
+                  },
+                  "maxGapMs": 848.806396484375,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    459.343017578125,
+                    848.806396484375,
+                    362.129150390625,
+                    418.78369140625,
+                    390.6044921875,
+                    260.47216796875,
+                    288.695068359375,
+                    364.184326171875
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443023425.7998,
+                  "endMs": 1794443025228.2761,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 60774760,
+                      "median": 60784112,
+                      "max": 60793512,
+                      "end": 60793512
+                    },
+                    "heapTotal": {
+                      "min": 123002880,
+                      "median": 123002880,
+                      "max": 123002880,
+                      "end": 123002880
+                    },
+                    "external": {
+                      "min": 12090271,
+                      "median": 12090271,
+                      "max": 12090271,
+                      "end": 12090271
+                    },
+                    "arrayBuffers": {
+                      "min": 7446316,
+                      "median": 7446316,
+                      "max": 7446316,
+                      "end": 7446316
+                    }
+                  },
+                  "maxGapMs": 64.658447265625,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                8570.9836,
+                10370.9908,
+                8427.086300000003,
+                8388.907299999999,
+                10289.330300000001,
+                10313.276299999998,
+                8571.432999999997,
+                10360.984099999994
+              ],
+              "statuses": [],
+              "gateway": {
+                "requests": 38,
+                "hits": 30,
+                "misses": 0,
+                "outputBytes": 31457286,
+                "failures": 7,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 7,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 272441344
+            }
+          ],
+          "instrumentation": {
+            "workers": 1,
+            "startupRssBefore": 118878208,
+            "startupRssAfter": 128094208,
+            "observedStartupRssDelta": 9216000
+          },
+          "recovered": {
+            "requests": 41,
+            "hits": 36,
+            "misses": 0,
+            "outputBytes": 35652500,
+            "failures": 10,
+            "storageErrors": 0,
+            "cancellations": 2,
+            "timeouts": 0,
+            "rejected": 8,
+            "peakActive": 2,
+            "active": 0
+          },
+          "recoveryMs": 742.1340999999957,
+          "faultMetrics": {
+            "requests": 44,
+            "hits": 36,
+            "misses": 2,
+            "outputBytes": 35652500,
+            "failures": 13,
+            "storageErrors": 1,
+            "cancellations": 2,
+            "timeouts": 0,
+            "rejected": 8,
+            "peakActive": 2,
+            "active": 0
+          },
+          "shutdownMs": 1021.9177000000054,
+          "gc": {
+            "dataDir": "D:\\Code\\task-engine\\.gateway-rss-owned-1-control\\data",
+            "selection": {
+              "cache": true
+            },
+            "deletedTasks": 0,
+            "deletedLogs": 0,
+            "deletedCacheBlocks": 8,
+            "deletedCacheBytes": 7340312
+          }
+        },
+        "node": "v26.13.0",
+        "arm": "control",
+        "url": "http://127.0.0.1:51836",
+        "taskCarSha256": "17809d6b4201279686774d0ad2dd75c2dc134990d4895dad155d947a5ad111d3"
+      }
+    },
+    {
+      "repetition": 2,
+      "arm": "control",
+      "report": {
+        "commands": [
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "server start",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "data prune",
+          "server status",
+          "run --engine",
+          "server stop",
+          "data prune"
+        ],
+        "fixtures": [],
+        "measurements": {
+          "waves": [
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443053005.833,
+                "endMs": 1794443054805.3281,
+                "summary": {
+                  "rss": {
+                    "min": 231723008,
+                    "median": 231727104,
+                    "max": 231727104,
+                    "end": 231727104
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443054805.3281,
+                "endMs": 1794443064819.8176,
+                "summary": {
+                  "rss": {
+                    "min": 204124160,
+                    "median": 231391232,
+                    "max": 237641728,
+                    "end": 228999168
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443064819.8176,
+                "endMs": 1794443066585.72,
+                "summary": {
+                  "rss": {
+                    "min": 229163008,
+                    "median": 229163008,
+                    "max": 229552128,
+                    "end": 229552128
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443053006.1714,
+                  "endMs": 1794443054806.4265,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 54471472,
+                      "median": 54487120,
+                      "max": 54499384,
+                      "end": 54499384
+                    },
+                    "heapTotal": {
+                      "min": 104747008,
+                      "median": 104747008,
+                      "max": 104747008,
+                      "end": 104747008
+                    },
+                    "external": {
+                      "min": 7653612,
+                      "median": 7653612,
+                      "max": 7653612,
+                      "end": 7653612
+                    },
+                    "arrayBuffers": {
+                      "min": 3009657,
+                      "median": 3009657,
+                      "max": 3009657,
+                      "end": 3009657
+                    }
+                  },
+                  "maxGapMs": 63.283935546875,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443054806.4265,
+                  "endMs": 1794443064821.6143,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 34507544,
+                      "median": 60898440,
+                      "max": 90789640,
+                      "end": 61110256
+                    },
+                    "heapTotal": {
+                      "min": 104747008,
+                      "median": 120737792,
+                      "max": 130437120,
+                      "end": 130437120
+                    },
+                    "external": {
+                      "min": 6017427,
+                      "median": 8263494.5,
+                      "max": 9953323,
+                      "end": 9324518
+                    },
+                    "arrayBuffers": {
+                      "min": 1373456,
+                      "median": 3619531.5,
+                      "max": 5309352,
+                      "end": 4680563
+                    }
+                  },
+                  "maxGapMs": 612.5068359375,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    612.5068359375,
+                    274.20751953125,
+                    588.913330078125,
+                    435.042236328125,
+                    333.544921875
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443064821.6143,
+                  "endMs": 1794443066586.1152,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 61630680,
+                      "median": 61642512,
+                      "max": 61654176,
+                      "end": 61654176
+                    },
+                    "heapTotal": {
+                      "min": 130437120,
+                      "median": 130437120,
+                      "max": 130437120,
+                      "end": 130437120
+                    },
+                    "external": {
+                      "min": 9326417,
+                      "median": 9326417,
+                      "max": 9326417,
+                      "end": 9326417
+                    },
+                    "arrayBuffers": {
+                      "min": 4682462,
+                      "median": 4682462,
+                      "max": 4682462,
+                      "end": 4682462
+                    }
+                  },
+                  "maxGapMs": 64.085693359375,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                9239.350599999998,
+                7604.289799999999,
+                7525.663400000001,
+                7508.572899999999,
+                9162.942,
+                9161.330399999999,
+                7542.585800000001,
+                9219.861499999999
+              ],
+              "statuses": [],
+              "gateway": {
+                "requests": 38,
+                "hits": 31,
+                "misses": 0,
+                "outputBytes": 32505862,
+                "failures": 6,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 6,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 278351872
+            },
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443067325.5085,
+                "endMs": 1794443069108.808,
+                "summary": {
+                  "rss": {
+                    "min": 118489088,
+                    "median": 118497280,
+                    "max": 146800640,
+                    "end": 118611968
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443069108.808,
+                "endMs": 1794443081166.7854,
+                "summary": {
+                  "rss": {
+                    "min": 118697984,
+                    "median": 188934144,
+                    "max": 209686528,
+                    "end": 201375744
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443081166.7854,
+                "endMs": 1794443082968.568,
+                "summary": {
+                  "rss": {
+                    "min": 201461760,
+                    "median": 201641984,
+                    "max": 201650176,
+                    "end": 201650176
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443067325.9807,
+                  "endMs": 1794443069110.249,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 28174480,
+                      "median": 28191248,
+                      "max": 30738968,
+                      "end": 28200752
+                    },
+                    "heapTotal": {
+                      "min": 32133120,
+                      "median": 32133120,
+                      "max": 50745344,
+                      "end": 32133120
+                    },
+                    "external": {
+                      "min": 4992453,
+                      "median": 4992453,
+                      "max": 4994352,
+                      "end": 4992453
+                    },
+                    "arrayBuffers": {
+                      "min": 348498,
+                      "median": 348498,
+                      "max": 350397,
+                      "end": 348498
+                    }
+                  },
+                  "maxGapMs": 63.53857421875,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443069110.249,
+                  "endMs": 1794443081167.935,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 28835736,
+                      "median": 38464020,
+                      "max": 63741128,
+                      "end": 33847824
+                    },
+                    "heapTotal": {
+                      "min": 32657408,
+                      "median": 106844160,
+                      "max": 108941312,
+                      "end": 107892736
+                    },
+                    "external": {
+                      "min": 4994352,
+                      "median": 6149715,
+                      "max": 7362256,
+                      "end": 6149715
+                    },
+                    "arrayBuffers": {
+                      "min": 350397,
+                      "median": 1505760,
+                      "max": 2718253,
+                      "end": 1505760
+                    }
+                  },
+                  "maxGapMs": 1141.34375,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    623.151611328125,
+                    331.44921875,
+                    414.987060546875,
+                    1141.34375,
+                    372.19091796875,
+                    615.49951171875,
+                    515.842041015625,
+                    364.835693359375,
+                    270.477783203125
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443081167.935,
+                  "endMs": 1794443082968.974,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 34630296,
+                      "median": 34644240,
+                      "max": 34664136,
+                      "end": 34664136
+                    },
+                    "heapTotal": {
+                      "min": 107892736,
+                      "median": 107892736,
+                      "max": 107892736,
+                      "end": 107892736
+                    },
+                    "external": {
+                      "min": 6152398,
+                      "median": 6152398,
+                      "max": 6152398,
+                      "end": 6152398
+                    },
+                    "arrayBuffers": {
+                      "min": 1508443,
+                      "median": 1508443,
+                      "max": 1508443,
+                      "end": 1508443
+                    }
+                  },
+                  "maxGapMs": 64.404296875,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                11270.515999999996,
+                9254.527399999999,
+                9251.370900000002,
+                11276.271399999998,
+                11175.024399999995,
+                9290.381200000003,
+                9226.958399999996,
+                11193.931799999998
+              ],
+              "statuses": [],
+              "gateway": {
+                "requests": 38,
+                "hits": 31,
+                "misses": 0,
+                "outputBytes": 32505862,
+                "failures": 6,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 6,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 278351872
+            },
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443083714.9907,
+                "endMs": 1794443085512.163,
+                "summary": {
+                  "rss": {
+                    "min": 200011776,
+                    "median": 200011776,
+                    "max": 200011776,
+                    "end": 200011776
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443085512.163,
+                "endMs": 1794443095353.5554,
+                "summary": {
+                  "rss": {
+                    "min": 190521344,
+                    "median": 197861376,
+                    "max": 221646848,
+                    "end": 212537344
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443095353.5554,
+                "endMs": 1794443097165.192,
+                "summary": {
+                  "rss": {
+                    "min": 213262336,
+                    "median": 213319680,
+                    "max": 213319680,
+                    "end": 213262336
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443083715.642,
+                  "endMs": 1794443085512.6003,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 36256736,
+                      "median": 36266088,
+                      "max": 36279040,
+                      "end": 36279040
+                    },
+                    "heapTotal": {
+                      "min": 107892736,
+                      "median": 107892736,
+                      "max": 107892736,
+                      "end": 107892736
+                    },
+                    "external": {
+                      "min": 6157764,
+                      "median": 6157764,
+                      "max": 6157764,
+                      "end": 6157764
+                    },
+                    "arrayBuffers": {
+                      "min": 1513809,
+                      "median": 1513809,
+                      "max": 1513809,
+                      "end": 1513809
+                    }
+                  },
+                  "maxGapMs": 63.424560546875,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443085512.6003,
+                  "endMs": 1794443095356.2112,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 37061296,
+                      "median": 53058876,
+                      "max": 71263104,
+                      "end": 54639968
+                    },
+                    "heapTotal": {
+                      "min": 107892736,
+                      "median": 111824896,
+                      "max": 113135616,
+                      "end": 113135616
+                    },
+                    "external": {
+                      "min": 5709200,
+                      "median": 6749278,
+                      "max": 9597754,
+                      "end": 5845236
+                    },
+                    "arrayBuffers": {
+                      "min": 1065245,
+                      "median": 2105291,
+                      "max": 4953783,
+                      "end": 1201281
+                    }
+                  },
+                  "maxGapMs": 848.959228515625,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    335.80078125,
+                    390.419189453125,
+                    444.162353515625,
+                    401.736572265625,
+                    848.959228515625,
+                    314.099365234375,
+                    554.21826171875
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443095356.2112,
+                  "endMs": 1794443097168.0408,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 55594440,
+                      "median": 55603680,
+                      "max": 55613360,
+                      "end": 55613360
+                    },
+                    "heapTotal": {
+                      "min": 113553408,
+                      "median": 113553408,
+                      "max": 113553408,
+                      "end": 113553408
+                    },
+                    "external": {
+                      "min": 5848703,
+                      "median": 5848703,
+                      "max": 5848703,
+                      "end": 5848703
+                    },
+                    "arrayBuffers": {
+                      "min": 1204748,
+                      "median": 1204748,
+                      "max": 1204748,
+                      "end": 1204748
+                    }
+                  },
+                  "maxGapMs": 64.28955078125,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                7189.358700000004,
+                7151.223600000005,
+                7208.0766,
+                7129.4467,
+                9032.136300000006,
+                8974.861600000004,
+                8999.821499999998,
+                9028.8131
+              ],
+              "statuses": [],
+              "gateway": {
+                "requests": 38,
+                "hits": 31,
+                "misses": 0,
+                "outputBytes": 32505862,
+                "failures": 6,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 6,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 278351872
+            }
+          ],
+          "instrumentation": {
+            "workers": 1,
+            "startupRssBefore": 119255040,
+            "startupRssAfter": 128278528,
+            "observedStartupRssDelta": 9023488
+          },
+          "recovered": {
+            "requests": 41,
+            "hits": 37,
+            "misses": 0,
+            "outputBytes": 36701076,
+            "failures": 9,
+            "storageErrors": 0,
+            "cancellations": 2,
+            "timeouts": 0,
+            "rejected": 7,
+            "peakActive": 2,
+            "active": 0
+          },
+          "recoveryMs": 763.1188000000038,
+          "faultMetrics": {
+            "requests": 44,
+            "hits": 37,
+            "misses": 2,
+            "outputBytes": 36701076,
+            "failures": 12,
+            "storageErrors": 1,
+            "cancellations": 2,
+            "timeouts": 0,
+            "rejected": 7,
+            "peakActive": 2,
+            "active": 0
+          },
+          "shutdownMs": 1049.8620000000083,
+          "gc": {
+            "dataDir": "D:\\Code\\task-engine\\.gateway-rss-owned-2-control\\data",
+            "selection": {
+              "cache": true
+            },
+            "deletedTasks": 0,
+            "deletedLogs": 0,
+            "deletedCacheBlocks": 8,
+            "deletedCacheBytes": 7340312
+          }
+        },
+        "node": "v26.13.0",
+        "arm": "control",
+        "url": "http://127.0.0.1:51836",
+        "taskCarSha256": "17809d6b4201279686774d0ad2dd75c2dc134990d4895dad155d947a5ad111d3"
+      }
+    },
+    {
+      "repetition": 2,
+      "arm": "treatment",
+      "report": {
+        "commands": [
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "server start",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server status",
+          "run --engine",
+          "data prune",
+          "server status",
+          "run --engine",
+          "server stop",
+          "data prune"
+        ],
+        "fixtures": [],
+        "measurements": {
+          "waves": [
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443126184.1409,
+                "endMs": 1794443127989.823,
+                "summary": {
+                  "rss": {
+                    "min": 233119744,
+                    "median": 233119744,
+                    "max": 233185280,
+                    "end": 233185280
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443127989.823,
+                "endMs": 1794443137866.018,
+                "summary": {
+                  "rss": {
+                    "min": 205275136,
+                    "median": 236408832,
+                    "max": 281145344,
+                    "end": 248000512
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443137866.018,
+                "endMs": 1794443139660.031,
+                "summary": {
+                  "rss": {
+                    "min": 248172544,
+                    "median": 248557568,
+                    "max": 248557568,
+                    "end": 248557568
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443126184.4238,
+                  "endMs": 1794443127990.0657,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 44688736,
+                      "median": 44701000,
+                      "max": 44713096,
+                      "end": 44713096
+                    },
+                    "heapTotal": {
+                      "min": 113135616,
+                      "median": 113135616,
+                      "max": 113135616,
+                      "end": 113135616
+                    },
+                    "external": {
+                      "min": 7386035,
+                      "median": 7386035,
+                      "max": 7386035,
+                      "end": 7386035
+                    },
+                    "arrayBuffers": {
+                      "min": 2730181,
+                      "median": 2730181,
+                      "max": 2730181,
+                      "end": 2730181
+                    }
+                  },
+                  "maxGapMs": 63.774658203125,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443127990.0657,
+                  "endMs": 1794443137866.3496,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 31382168,
+                      "median": 56636868,
+                      "max": 87142640,
+                      "end": 49928048
+                    },
+                    "heapTotal": {
+                      "min": 105795584,
+                      "median": 116281344,
+                      "max": 125718528,
+                      "end": 105795584
+                    },
+                    "external": {
+                      "min": 7387150,
+                      "median": 9753334,
+                      "max": 16038566,
+                      "end": 9755353
+                    },
+                    "arrayBuffers": {
+                      "min": 2731296,
+                      "median": 5109379,
+                      "max": 11394119,
+                      "end": 5111398
+                    }
+                  },
+                  "maxGapMs": 523.28369140625,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    268.421142578125,
+                    523.28369140625,
+                    338.38232421875,
+                    290.851806640625,
+                    312.599853515625,
+                    333.911376953125,
+                    404.754638671875
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443137866.3496,
+                  "endMs": 1794443139661.6514,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 50246704,
+                      "median": 50259784,
+                      "max": 50276504,
+                      "end": 50276504
+                    },
+                    "heapTotal": {
+                      "min": 105795584,
+                      "median": 105795584,
+                      "max": 105795584,
+                      "end": 105795584
+                    },
+                    "external": {
+                      "min": 9755353,
+                      "median": 9755353,
+                      "max": 9755353,
+                      "end": 9755353
+                    },
+                    "arrayBuffers": {
+                      "min": 5111398,
+                      "median": 5111398,
+                      "max": 5111398,
+                      "end": 5111398
+                    }
+                  },
+                  "maxGapMs": 63.2939453125,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                8405.004699999998,
+                9064.275099999999,
+                9026.149300000001,
+                7769.328799999999,
+                8137.174600000002,
+                8082.809300000001,
+                9032.342,
+                9091.378100000002
+              ],
+              "statuses": [
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                429,
+                429,
+                429,
+                429,
+                200,
+                200,
+                200,
+                200,
+                429,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200
+              ],
+              "gateway": {
+                "requests": 70,
+                "hits": 59,
+                "misses": 0,
+                "outputBytes": 61865990,
+                "failures": 10,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 10,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 284725248
+            },
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443140419.8743,
+                "endMs": 1794443142172.2585,
+                "summary": {
+                  "rss": {
+                    "min": 248684544,
+                    "median": 248721408,
+                    "max": 248721408,
+                    "end": 248721408
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443142172.2585,
+                "endMs": 1794443153035.4097,
+                "summary": {
+                  "rss": {
+                    "min": 191508480,
+                    "median": 233664512,
+                    "max": 286228480,
+                    "end": 265052160
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443153035.4097,
+                "endMs": 1794443154807.714,
+                "summary": {
+                  "rss": {
+                    "min": 265121792,
+                    "median": 265453568,
+                    "max": 265453568,
+                    "end": 265453568
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443140420.2983,
+                  "endMs": 1794443142172.6824,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 51340120,
+                      "median": 51351784,
+                      "max": 51363456,
+                      "end": 51363456
+                    },
+                    "heapTotal": {
+                      "min": 105795584,
+                      "median": 105795584,
+                      "max": 105795584,
+                      "end": 105795584
+                    },
+                    "external": {
+                      "min": 9759391,
+                      "median": 9759391,
+                      "max": 9759391,
+                      "end": 9759391
+                    },
+                    "arrayBuffers": {
+                      "min": 5115436,
+                      "median": 5115436,
+                      "max": 5115436,
+                      "end": 5115436
+                    }
+                  },
+                  "maxGapMs": 63.65771484375,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443142172.6824,
+                  "endMs": 1794443153035.6372,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 35258120,
+                      "median": 55343136,
+                      "max": 80253936,
+                      "end": 80253936
+                    },
+                    "heapTotal": {
+                      "min": 105795584,
+                      "median": 115757056,
+                      "max": 125980672,
+                      "end": 125980672
+                    },
+                    "external": {
+                      "min": 6016917,
+                      "median": 9634805,
+                      "max": 26123075,
+                      "end": 26123075
+                    },
+                    "arrayBuffers": {
+                      "min": 1372962,
+                      "median": 4990786,
+                      "max": 21479120,
+                      "end": 21479120
+                    }
+                  },
+                  "maxGapMs": 594.15966796875,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    526.958251953125,
+                    388.055419921875,
+                    255.9453125,
+                    546.313720703125,
+                    303.754638671875,
+                    334.65576171875,
+                    594.15966796875,
+                    305.427734375,
+                    279.418701171875,
+                    338.698974609375
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443153035.6372,
+                  "endMs": 1794443154809.298,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 81114504,
+                      "median": 81132912,
+                      "max": 81141936,
+                      "end": 81141936
+                    },
+                    "heapTotal": {
+                      "min": 125980672,
+                      "median": 125980672,
+                      "max": 125980672,
+                      "end": 125980672
+                    },
+                    "external": {
+                      "min": 26125998,
+                      "median": 26125998,
+                      "max": 26125998,
+                      "end": 26125998
+                    },
+                    "arrayBuffers": {
+                      "min": 21482043,
+                      "median": 21482043,
+                      "max": 21482043,
+                      "end": 21482043
+                    }
+                  },
+                  "maxGapMs": 64.220947265625,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                9013.378299999997,
+                9250.1725,
+                9119.705200000004,
+                10096.108800000002,
+                10027.288499999995,
+                10005.724499999997,
+                10019.096099999995,
+                8911.989299999994
+              ],
+              "statuses": [
+                200,
+                429,
+                429,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                429,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                429,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                429,
+                429,
+                200,
+                429
+              ],
+              "gateway": {
+                "requests": 102,
+                "hits": 84,
+                "misses": 0,
+                "outputBytes": 88080390,
+                "failures": 17,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 17,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 299864064
+            },
+            {
+              "quiet": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443155579.4446,
+                "endMs": 1794443157400.077,
+                "summary": {
+                  "rss": {
+                    "min": 243621888,
+                    "median": 243621888,
+                    "max": 265625600,
+                    "end": 243621888
+                  }
+                }
+              },
+              "load": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443157400.077,
+                "endMs": 1794443168048.1409,
+                "summary": {
+                  "rss": {
+                    "min": 198127616,
+                    "median": 200153088,
+                    "max": 267247616,
+                    "end": 233791488
+                  }
+                }
+              },
+              "drain": {
+                "scope": "process-including-workers",
+                "source": "dedicated-worker/process.memoryUsage.rss",
+                "startMs": 1794443168048.1409,
+                "endMs": 1794443169851.18,
+                "summary": {
+                  "rss": {
+                    "min": 234504192,
+                    "median": 234504192,
+                    "max": 234561536,
+                    "end": 234504192
+                  }
+                }
+              },
+              "mainDiagnostics": {
+                "quiet": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443155580.765,
+                  "endMs": 1794443157401.6797,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 30902320,
+                      "median": 30918360,
+                      "max": 30927544,
+                      "end": 30927544
+                    },
+                    "heapTotal": {
+                      "min": 117329920,
+                      "median": 117329920,
+                      "max": 117329920,
+                      "end": 117329920
+                    },
+                    "external": {
+                      "min": 10372792,
+                      "median": 10372792,
+                      "max": 10372792,
+                      "end": 10372792
+                    },
+                    "arrayBuffers": {
+                      "min": 348498,
+                      "median": 348498,
+                      "max": 348498,
+                      "end": 348498
+                    }
+                  },
+                  "maxGapMs": 63.8525390625,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                },
+                "load": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443157401.6797,
+                  "endMs": 1794443168048.7388,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 31850696,
+                      "median": 51381104,
+                      "max": 71910976,
+                      "end": 54000792
+                    },
+                    "heapTotal": {
+                      "min": 107630592,
+                      "median": 110514176,
+                      "max": 117329920,
+                      "end": 107630592
+                    },
+                    "external": {
+                      "min": 4995376,
+                      "median": 7005205,
+                      "max": 15040208,
+                      "end": 7597745
+                    },
+                    "arrayBuffers": {
+                      "min": 351421,
+                      "median": 2360818,
+                      "max": 10396221,
+                      "end": 2953790
+                    }
+                  },
+                  "maxGapMs": 595.465087890625,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": [
+                    595.465087890625,
+                    564.290771484375,
+                    404.29541015625,
+                    298.419189453125,
+                    514.25830078125,
+                    405.915283203125,
+                    505.75390625,
+                    284.580810546875
+                  ]
+                },
+                "drain": {
+                  "scope": "main-isolate",
+                  "source": "main-thread/process.memoryUsage",
+                  "startMs": 1794443168048.7388,
+                  "endMs": 1794443169855.0852,
+                  "summary": {
+                    "heapUsed": {
+                      "min": 55001072,
+                      "median": 55010256,
+                      "max": 55020272,
+                      "end": 55020272
+                    },
+                    "heapTotal": {
+                      "min": 108060672,
+                      "median": 108060672,
+                      "max": 108060672,
+                      "end": 108060672
+                    },
+                    "external": {
+                      "min": 7601572,
+                      "median": 7601572,
+                      "max": 7601572,
+                      "end": 7601572
+                    },
+                    "arrayBuffers": {
+                      "min": 2957617,
+                      "median": 2957617,
+                      "max": 2957617,
+                      "end": 2957617
+                    }
+                  },
+                  "maxGapMs": 63.649658203125,
+                  "missing": false,
+                  "invalidSampleCount": 0,
+                  "coverageIsDiagnosticOnly": true,
+                  "gapsOver250ms": []
+                }
+              },
+              "latencies": [
+                8950.443800000001,
+                9743.659,
+                9781.5913,
+                9122.831199999993,
+                9062.6734,
+                9665.108,
+                9801.131200000003,
+                8428.242100000003
+              ],
+              "statuses": [
+                200,
+                200,
+                200,
+                429,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                429,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                200,
+                429,
+                429,
+                429,
+                429
+              ],
+              "gateway": {
+                "requests": 134,
+                "hits": 110,
+                "misses": 0,
+                "outputBytes": 115343366,
+                "failures": 23,
+                "storageErrors": 0,
+                "cancellations": 0,
+                "timeouts": 0,
+                "rejected": 23,
+                "peakActive": 2,
+                "active": 0
+              },
+              "lifetimePeakRssDiagnosticOnly": 299864064
+            }
+          ],
+          "instrumentation": {
+            "workers": 1,
+            "startupRssBefore": 118714368,
+            "startupRssAfter": 128081920,
+            "observedStartupRssDelta": 9367552
+          },
+          "recovered": {
+            "requests": 137,
+            "hits": 116,
+            "misses": 0,
+            "outputBytes": 119538580,
+            "failures": 26,
+            "storageErrors": 0,
+            "cancellations": 2,
+            "timeouts": 0,
+            "rejected": 24,
+            "peakActive": 2,
+            "active": 0
+          },
+          "recoveryMs": 748.2610999999961,
+          "faultMetrics": {
+            "requests": 140,
+            "hits": 116,
+            "misses": 2,
+            "outputBytes": 119538580,
+            "failures": 29,
+            "storageErrors": 1,
+            "cancellations": 2,
+            "timeouts": 0,
+            "rejected": 24,
+            "peakActive": 2,
+            "active": 0
+          },
+          "shutdownMs": 1056.4175000000105,
+          "gc": {
+            "dataDir": "D:\\Code\\task-engine\\.gateway-rss-owned-2-treatment\\data",
+            "selection": {
+              "cache": true
+            },
+            "deletedTasks": 0,
+            "deletedLogs": 0,
+            "deletedCacheBlocks": 8,
+            "deletedCacheBytes": 7340312
+          }
+        },
+        "node": "v26.13.0",
+        "arm": "treatment",
+        "url": "http://127.0.0.1:51836",
+        "taskCarSha256": "17809d6b4201279686774d0ad2dd75c2dc134990d4895dad155d947a5ad111d3"
+      }
+    }
+  ],
+  "rawSamples": {
+    "file": ".silvermoon\\ideas\\01M75CCXR5TWE63N6QEXV1C720\\outer\\inner\\independent-memory-evidence.json.samples.json.gz",
+    "sha256": "84a03bf97d16588160f88cab9e386f7ef98063517a69827f0fc2c30784b37bf2",
+    "windows": 108,
+    "compression": "gzip",
+    "encoding": "utf8-json"
+  }
+}

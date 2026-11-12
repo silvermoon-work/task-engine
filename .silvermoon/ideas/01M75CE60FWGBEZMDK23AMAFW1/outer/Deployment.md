@@ -2,6 +2,8 @@
 
 用户已授权顺序推进剩余迭代：本轮由新 subagent 实施，主 Agent 独立验收 impl/deploy、发布新 RC、在指定 Ubuntu 设备验证并清理自有测试资源。仅在专用 loopback/显式批准拓扑启用递归，不自动改变现有实例模式、共享工具或公开回源能力。
 
+本轮唯一新版本为 `@silvermoon-work/task-engine-cli@0.2.0-rc.7` / `task-engine-cli-v0.2.0-rc.7`，内部依赖仍为已发布 `0.2.0-rc.0`；版本/tag 已占用则停止。发布前 `latest=0.1.0`、`canary=0.2.0-canary-261111-1`、`rc=0.2.0-rc.6`。回放使用已同步的 [公共 CLI 验证脚本](inner/replay.mjs)，冻结profile/limits不随结果调整。
+
 ## Steps
 
 ### D-S01: 配置可观测的受控上游

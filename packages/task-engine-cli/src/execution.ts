@@ -1,5 +1,5 @@
 import { CarBlockIterator } from "@ipld/car/iterator";
-import { openCarSource } from "./car.js";
+import { importCarContent, openCarSource } from "./car.js";
 import { createTaskEngine, MemoryStore } from "@silvermoon-work/task-engine";
 import {
   type Facts,
@@ -188,7 +188,20 @@ export async function executeTask(
   try {
     let cid = root.cid;
     const car = repository.car(id);
-    if (car) {
+    if (car && content.ipfsStore.configuration.backend === "kubo") {
+      cid = await importCarContent(
+        content.ipfsStore,
+        car,
+        `${repository.contentOwner}/import/${id}`,
+        repository.contentOwner,
+        { signal },
+      );
+      root.cid = cid;
+      root.roots = [cid];
+      repository.put(root);
+      repository.db.prepare("UPDATE tasks SET car=NULL WHERE id=?").run(id);
+      await content.ipfsStore.confirmRetained(repository.contentOwner, [cid], { signal });
+    } else if (car) {
       const verified = await openCarSource(
         new ReadableStream<Uint8Array>({
           start(controller) {
@@ -234,6 +247,8 @@ export async function executeTask(
     engine = createTaskEngine({
       store: domain,
       ipfsStore: content.ipfsStore,
+      retentionOwner: repository.contentOwner,
+      retentionRoots: () => repository.contentRoots(),
       persistentContent: true,
       executionBudgetFromWorker: true,
       requestInputEnvelope: true,

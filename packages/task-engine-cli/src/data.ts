@@ -6,7 +6,8 @@ import { existsSync, lstatSync } from "node:fs";
 import * as dagPb from "@ipld/dag-pb";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
-import { IpfsStore, type GatewayClient } from "@silvermoon-work/task-engine";
+import { IpfsStore, retainedContentRoots, type GatewayClient } from "@silvermoon-work/task-engine";
+import type { StoreConfiguration } from "@silvermoon-work/ipfs-store";
 import { ContentError } from "@silvermoon-work/ipfs-store";
 import {
   type ErrorFact,
@@ -50,6 +51,7 @@ export interface InstanceRecord {
   birth: string;
   dataDir: string;
   contentDataDir?: string;
+  contentStore?: StoreConfiguration;
   state: "starting" | "ready" | "stopping" | "stopped";
   engineUrl?: string;
   released: boolean;
@@ -171,8 +173,35 @@ export function directoryUnlocked(directory: string): boolean {
   }
 }
 export class Repository {
+  get contentOwner(): string {
+    return `managed:${this.contentIdentity}`;
+  }
+  get legacyContentOwner(): string {
+    return `managed:${resolve(this.directory)}`;
+  }
+  contentRoots(): string[] {
+    const roots = new Set(this.all().flatMap((task) => task.roots));
+    for (const row of this.db.prepare("SELECT payload FROM facts").all()) {
+      const facts = JSON.parse(
+        String(row.payload),
+      ) as import("@silvermoon-work/task-protocol").Facts;
+      for (const root of retainedContentRoots(facts, {
+        readRunContentRoots: (runId) => {
+          if (!this.db.prepare("SELECT 1 FROM sqlite_schema WHERE name='run_content_roots'").get())
+            return [];
+          return this.db
+            .prepare("SELECT cid FROM run_content_roots WHERE run_id=?")
+            .all(runId)
+            .map((row) => String(row.cid));
+        },
+      }))
+        roots.add(root);
+    }
+    return [...roots].sort();
+  }
   readonly db: DatabaseSync;
   private readonly cursorKey: string;
+  private readonly contentIdentity: string;
   constructor(
     readonly directory: string,
     private readonly failed: (error: unknown) => void = () => {},
@@ -209,6 +238,14 @@ export class Repository {
       this.cursorKey = String(
         this.db.prepare("SELECT value FROM metadata WHERE key='cursor'").get()!.value,
       );
+      this.db
+        .prepare("INSERT OR IGNORE INTO metadata VALUES ('content-owner',?)")
+        .run(randomUUID());
+      this.contentIdentity = String(
+        this.db.prepare("SELECT value FROM metadata WHERE key='content-owner'").get()!.value,
+      );
+      if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(this.contentIdentity))
+        throw new TaskError("storage_corrupt", "Invalid retained content identity.");
     } catch (error) {
       this.db.close();
       throw error;
@@ -365,6 +402,7 @@ export async function verifyBlock(cid: CID, bytes: Uint8Array): Promise<void> {
 export class DiskContent implements GatewayClient {
   readonly ipfsStore: IpfsStore;
   private readonly ownedSource: IpfsStore | undefined;
+  private readonly kubo: boolean;
   constructor(
     readonly directory: string,
     gateway?: string | GatewayClient | IpfsStore,
@@ -372,27 +410,30 @@ export class DiskContent implements GatewayClient {
     private readonly beforeWrite?: () => void,
     private readonly retainedBlock?: (cid: string, maxBytes?: number) => Uint8Array | undefined,
   ) {
-    this.checkDirectory();
     this.ownedSource =
       typeof gateway === "string" ? new IpfsStore({ dataDir: directory, gateway }) : undefined;
     const source = typeof gateway === "string" ? this.ownedSource : gateway;
-    if (retainedBlock) {
+    this.kubo = source instanceof IpfsStore && source.configuration.backend === "kubo";
+    if (!this.kubo) this.checkDirectory();
+    if (this.kubo) {
+      this.ipfsStore = (source as IpfsStore).scope();
+    } else if (retainedBlock) {
       // The host exposes retained output as a read port; the IPFS store never knows SQLite.
-      this.ipfsStore = IpfsStore.fromClient(
-        {
-          block: {
-            get: async (value, options = {}) => {
-              options.signal?.throwIfAborted();
-              const retained = retainedBlock(CID.parse(value).toV1().toString(), 2 * 1024 * 1024);
-              if (retained) return retained;
-              if (!source) throw new ContentError("missing_block", "Missing local content block.");
-              return source.block.get(value, options);
-            },
+      const port = {
+        block: {
+          get: async (value: string, options: { signal?: AbortSignal } = {}) => {
+            options.signal?.throwIfAborted();
+            const retained = retainedBlock(CID.parse(value).toV1().toString(), 2 * 1024 * 1024);
+            if (retained) return retained;
+            if (!source) throw new ContentError("missing_block", "Missing local content block.");
+            return source.block.get(value, options);
           },
         },
-        {},
-        directory,
-      );
+      };
+      this.ipfsStore =
+        source instanceof IpfsStore && source.supportsRetention
+          ? source.withLocalSource(port)
+          : IpfsStore.fromClient(port, {}, directory);
     } else {
       this.ipfsStore =
         source instanceof IpfsStore
@@ -417,16 +458,17 @@ export class DiskContent implements GatewayClient {
     const snapshot = Uint8Array.from(bytes);
     await verifyBlock(cid, snapshot);
     signal?.throwIfAborted();
-    try {
-      await this.local(cid);
-      return;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    }
+    if (!this.kubo)
+      try {
+        await this.local(cid);
+        return;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
     try {
       this.beforeWrite?.();
       signal?.throwIfAborted();
-      this.checkDirectory();
+      if (!this.kubo) this.checkDirectory();
       await this.ipfsStore.put(cid, snapshot, signal ? { signal } : {});
     } catch (error) {
       if (signal?.aborted && error === signal.reason) throw error;
@@ -440,6 +482,12 @@ export class DiskContent implements GatewayClient {
   ): Promise<Uint8Array> {
     options.signal?.throwIfAborted();
     const maxBytes = options.maxBytes ?? Number.MAX_SAFE_INTEGER;
+    if (this.kubo) {
+      const bytes = await this.ipfsStore.block.get(cid.toString(), options);
+      if (bytes.byteLength > maxBytes)
+        throw new TaskError("BLOCK_TOO_LARGE", "Content block exceeds the read budget.");
+      return bytes;
+    }
     this.checkDirectory();
     const path = join(this.directory, "blocks", cid.toV1().toString());
     const metadata = await lstat(path).catch((error: NodeJS.ErrnoException) => {
@@ -513,13 +561,14 @@ export async function pruneData(
   repository: Repository,
   selection: PruneSelection,
   signal?: AbortSignal,
-  contentDirectory?: string,
+  contentDirectory?: string | StoreConfiguration,
 ) {
   const counts = {
     dataDir: repository.directory,
     selection,
     deletedTasks: 0,
     deletedLogs: 0,
+    ...(contentDirectory && typeof contentDirectory !== "string" ? { unpinnedRoots: 0 } : {}),
     ...(selection.cache ? { deletedCacheBlocks: 0, deletedCacheBytes: 0 } : {}),
   };
   try {
@@ -550,7 +599,8 @@ export async function pruneData(
             .prepare("DELETE FROM logs WHERE task_id=?")
             .run(task.taskId).changes;
           repository.db.prepare("DELETE FROM tasks WHERE id=?").run(task.taskId);
-          repository.db.prepare("DELETE FROM facts WHERE root_id=?").run(task.rootId);
+          if (!repository.db.prepare("SELECT 1 FROM tasks WHERE root_id=?").get(task.rootId))
+            repository.db.prepare("DELETE FROM facts WHERE root_id=?").run(task.rootId);
           repository.db.exec("COMMIT");
           counts.deletedTasks++;
           counts.deletedLogs += Number(logs);
@@ -560,6 +610,47 @@ export async function pruneData(
         }
       });
       await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    if (contentDirectory && typeof contentDirectory !== "string") {
+      const base = new IpfsStore(contentDirectory);
+      const content =
+        contentDirectory.backend === "local"
+          ? base.withLocalSource({
+              block: {
+                get: async (cid, options) =>
+                  repository.readContentBlock(
+                    CID.parse(cid).toV1().toString(),
+                    base.limits.blockBytes,
+                  ) ?? base.block.get(cid, options),
+              },
+            })
+          : base;
+      try {
+        if (repository.all().some((task) => !task.released))
+          throw new TaskError("DATA_IN_USE", "Retained task release cannot be verified.");
+        await content.recoverOwner(
+          repository.contentOwner,
+          repository.contentRoots(),
+          signal ? { signal } : {},
+        );
+        await content.recoverOwner(repository.legacyContentOwner, [], signal ? { signal } : {});
+        counts.unpinnedRoots = await content.reconcile(
+          repository.contentOwner,
+          repository.contentRoots(),
+          signal ? { signal } : {},
+        );
+        if (contentDirectory.backend === "kubo") return { ok: true as const, data: counts };
+        contentDirectory = contentDirectory.dataDir;
+      } catch (error) {
+        if (signal?.aborted && error === signal.reason) throw error;
+        throw new TaskError(
+          "RETENTION_UNFINISHED",
+          "Metadata prune committed; retention hint cleanup is unfinished. Retry data prune --cache.",
+        );
+      } finally {
+        await content.close();
+        if (content !== base) await base.close();
+      }
     }
     if (selection.cache) {
       const content = new DiskContent(
@@ -574,11 +665,11 @@ export async function pruneData(
           ? new DiskContent(contentDirectory)
           : undefined;
       const marked = new Set<string>();
-      const pending = repository.all().flatMap((task) => {
+      for (const task of repository.all()) {
         if (!task.released)
           throw new TaskError("DATA_IN_USE", "Retained task release cannot be verified.");
-        return task.roots;
-      });
+      }
+      const pending = repository.contentRoots();
       try {
         while (pending.length) {
           signal?.throwIfAborted();

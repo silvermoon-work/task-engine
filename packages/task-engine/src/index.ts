@@ -19,3 +19,4 @@ export {
 } from "./content.js";
 export { newId } from "./identity.js";
 export { MemoryStore } from "./memory-store.js";
+export { retainedContentRoots } from "./retained-content.js";

@@ -12,12 +12,17 @@ import {
 import { ContentBlocks, defaultContentLimits, type ContentLimits } from "./dag.js";
 import { SharedContent } from "./storage.js";
 import { ContentError } from "./errors.js";
-
-export interface IpfsStoreOptions {
-  dataDir: string;
-  gateway?: string | readonly string[];
-  limits?: Partial<ContentLimits>;
-}
+import { createHash } from "node:crypto";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { KuboContent } from "./kubo.js";
+import { Retention } from "./retention.js";
+import {
+  validateConfiguration,
+  type IpfsStoreOptions,
+  type StoreConfiguration,
+} from "./configuration.js";
+export type { IpfsStoreOptions, StoreConfiguration } from "./configuration.js";
 export interface IpfsReadOptions {
   signal?: AbortSignal;
   hints?: readonly string[];
@@ -27,29 +32,37 @@ export type IpfsNode = Extract<UnixFSEntry, { type: "file" | "raw" | "directory"
 
 /** Verified IPFS/UnixFS content only. Configuration and source ownership belong to the host. */
 export class IpfsStore implements IpfsClient {
+  readonly configuration: StoreConfiguration;
   readonly limits: Readonly<ContentLimits>;
   private readonly lifetime = new AbortController();
   private readonly retainedBlocks = new Map<string, Uint8Array>();
   private readonly retentionBudget: { bytes: number; limit: number };
   private readonly gateway: GatewayClient | undefined;
-  private backend: SharedContent | ContentBlocks;
+  private backend: SharedContent | ContentBlocks | KuboContent;
+  private retention?: Retention;
+  private retentionStore?: IpfsStore;
+  private coordinated = true;
   private source: IpfsClient | undefined;
   private closing?: Promise<void>;
   private ownsBackend = true;
   private upstream?: AbortSignal;
   constructor(options: IpfsStoreOptions) {
-    if (typeof options.dataDir !== "string" || !options.dataDir.trim())
-      throw new Error("IPFS store dataDir must be a nonempty directory path.");
-    this.limits = Object.freeze({ ...defaultContentLimits, ...options.limits });
+    this.configuration = validateConfiguration(options);
+    const config = this.configuration;
+    this.limits = Object.freeze({ ...defaultContentLimits, ...config.limits });
     for (const [key, value] of Object.entries(this.limits))
       if (!Object.hasOwn(defaultContentLimits, key) || !Number.isSafeInteger(value) || value <= 0)
         throw new Error("Invalid IPFS content capacity.");
     this.retentionBudget = { bytes: 0, limit: this.limits.bytes };
-    this.gateway = options.gateway
-      ? createIpfsGatewayClient(options.gateway, { allowPath: true })
-      : undefined;
+    this.gateway =
+      config.backend === "local" && config.gateway
+        ? createIpfsGatewayClient(config.gateway, { allowPath: true })
+        : undefined;
     this.source = this.gateway;
-    this.backend = new SharedContent(options.dataDir, this.source, this.limits.blockBytes);
+    this.backend =
+      config.backend === "local"
+        ? new SharedContent(config.dataDir, this.source, this.limits.blockBytes)
+        : new KuboContent(config.apiUrl, this.limits.blockBytes, config.timeoutMs);
   }
   /** Adapt a caller-owned CAR or block port without reading configuration or owning its close. */
   static fromClient(
@@ -61,6 +74,7 @@ export class IpfsStore implements IpfsClient {
       throw new Error("An IPFS block port is required.");
     const store = new IpfsStore({ dataDir: dataDir ?? ".", limits });
     store.source = client;
+    store.coordinated = false;
     store.backend = dataDir
       ? new SharedContent(dataDir, client, store.limits.blockBytes)
       : new ContentBlocks(client, store.limits);
@@ -68,6 +82,18 @@ export class IpfsStore implements IpfsClient {
   }
   get retainedBytes(): number {
     return this.retentionBudget.bytes;
+  }
+  get supportsRetention(): boolean {
+    return this.coordinated;
+  }
+  /** Explicit host read-through port for legacy local content; never used by Kubo. */
+  withLocalSource(source: IpfsClient): IpfsStore {
+    if (this.configuration.backend !== "local" || !this.supportsRetention)
+      throw new ContentError("read_only", "Only coordinated local stores accept a local source.");
+    const store = new IpfsStore(this.configuration);
+    store.source = source;
+    store.backend = new SharedContent(this.configuration.dataDir, source, this.limits.blockBytes);
+    return store;
   }
   /** Independent reader budget/lifetime; closing it never closes the shared backing store. */
   scope(limits: Partial<ContentLimits> = {}): IpfsStore {
@@ -79,6 +105,9 @@ export class IpfsStore implements IpfsClient {
     reader.source = this.source;
     reader.ownsBackend = false;
     reader.upstream = this.signal({});
+    reader.coordinated = this.coordinated;
+    Object.defineProperty(reader, "configuration", { value: this.configuration });
+    reader.retentionStore = this;
     return reader;
   }
   private signal(options: IpfsReadOptions): AbortSignal {
@@ -89,6 +118,7 @@ export class IpfsStore implements IpfsClient {
     ]);
   }
   private client(options: IpfsReadOptions): IpfsClient {
+    if (this.backend instanceof KuboContent) return this.backend;
     if (!options.hints?.length || !options.allowGateway) return this.backend;
     const source = withGatewayHints(
       this.source ?? {
@@ -135,6 +165,123 @@ export class IpfsStore implements IpfsClient {
   async put(cid: CID, bytes: Uint8Array, options: IpfsReadOptions = {}): Promise<void> {
     await this.backend.put(cid, bytes, { signal: this.signal(options) });
   }
+  private coordinator(): Retention {
+    this.signal({}).throwIfAborted();
+    if (!this.supportsRetention)
+      throw new ContentError("read_only", "Source adapters do not support coordinated retention.");
+    if (this.retentionStore) return this.retentionStore.coordinator();
+    if (!this.retention) {
+      const config = this.configuration;
+      const directory =
+        config.coordinationDir ??
+        (config.backend === "local"
+          ? join(config.dataDir, "retention")
+          : join(
+              homedir(),
+              ".silvermoon.work",
+              "retention",
+              createHash("sha256").update(config.apiUrl).digest("hex"),
+            ));
+      const kubo = this.backend instanceof KuboContent ? this.backend : undefined;
+      this.retention = new Retention(directory, {
+        prepare: async (root, signal) => {
+          await prepareContent(this.backend, root, {
+            signal: signal ?? this.signal({}),
+            maxBlockBytes: this.limits.blockBytes,
+            maxDagBlocks: this.limits.blocks,
+            depth: this.limits.depth,
+            retentionBudget: { bytes: 0, limit: this.limits.bytes },
+            retainedBlocks: new Map(),
+          });
+        },
+        ...(kubo
+          ? {
+              status: (root, signal) => kubo.pinStatus(root, signal ? { signal } : {}),
+              pin: (root, name, signal) => kubo.pin(root, name, signal ? { signal } : {}),
+              unpin: (root, signal) => kubo.unpin(root, signal ? { signal } : {}),
+            }
+          : {}),
+      });
+    }
+    return this.retention;
+  }
+  registerOwner(owner: string, roots: readonly string[]): void {
+    this.signal({}).throwIfAborted();
+    this.coordinator().register(owner, roots);
+  }
+  async retain(
+    owner: string,
+    roots: readonly string[],
+    options: IpfsReadOptions = {},
+  ): Promise<void> {
+    return this.coordinator().retain(owner, roots, this.signal(options));
+  }
+  async confirmRetained(
+    owner: string,
+    roots: readonly string[],
+    options: IpfsReadOptions = {},
+  ): Promise<void> {
+    return this.coordinator().confirm(owner, roots, this.signal(options));
+  }
+  async recoverOwner(
+    owner: string,
+    roots: readonly string[] | (() => readonly string[]),
+    options: IpfsReadOptions & { isIdle?: () => boolean } = {},
+  ): Promise<void> {
+    return this.coordinator().recover(owner, roots, this.signal(options), options.isIdle);
+  }
+  async reconcile(
+    owner: string,
+    roots: readonly string[] | (() => readonly string[]),
+    options: IpfsReadOptions = {},
+  ): Promise<number> {
+    return this.coordinator().reconcile(owner, roots, this.signal(options));
+  }
+  async pin(root: CID | string, options: IpfsReadOptions = {}): Promise<void> {
+    return this.coordinator().pin(root.toString(), this.signal(options));
+  }
+  async unpin(root: CID | string, options: IpfsReadOptions = {}): Promise<void> {
+    return this.coordinator().unpin(root.toString(), this.signal(options));
+  }
+  pins(): readonly string[] {
+    return this.coordinator().pins();
+  }
+  async stageBlock(
+    session: string,
+    cid: CID,
+    bytes: Uint8Array,
+    options: IpfsReadOptions = {},
+  ): Promise<void> {
+    const signal = this.signal(options);
+    // Atomic raw-leaf pins protect even a parent arriving before its children.
+    // Kubo keys block bytes by multihash; the alias neither reencodes nor duplicates the payload.
+    const staged = this.backend instanceof KuboContent ? CID.createV1(0x55, cid.multihash) : cid;
+    return this.coordinator().stage(
+      session,
+      staged.toString(),
+      async (name, claim) => {
+        if (this.backend instanceof KuboContent) {
+          await this.backend.put(staged, bytes, { signal }, claim);
+          if (claim) await this.backend.pin(staged.toString(), name, { signal });
+          if (cid.code !== staged.code) await this.backend.put(cid, bytes, { signal });
+        } else {
+          await this.backend.put(cid, bytes, { signal });
+        }
+      },
+      signal,
+    );
+  }
+  async finishImport(
+    session: string,
+    root: CID | string,
+    owner?: string,
+    options: IpfsReadOptions = {},
+  ): Promise<void> {
+    return this.coordinator().finish(session, root.toString(), owner, this.signal(options));
+  }
+  async discardImport(session: string, options: IpfsReadOptions = {}): Promise<void> {
+    return this.coordinator().discard(session, this.signal(options));
+  }
   async read(path: CID | string, options: IpfsReadOptions = {}): Promise<IpfsNode> {
     const node = await openContent(this.client(options), path.toString(), this.access(options));
     if (node.type === "directory") {
@@ -172,6 +319,7 @@ export class IpfsStore implements IpfsClient {
     this.closing ??= (async () => {
       this.lifetime.abort(new Error("IPFS store is closed."));
       if (this.ownsBackend) await this.backend.close();
+      if (this.ownsBackend) await this.retention?.close();
       await this.gateway?.close();
       this.retainedBlocks.clear();
       this.retentionBudget.bytes = 0;

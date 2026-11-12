@@ -25,10 +25,12 @@ import {
 } from "@silvermoon-work/task-protocol";
 import { BundleCache, type BundleLimits, type BundleCacheOptions } from "./bundle.js";
 import { bundleModuleURL } from "./bundle-module.js";
-import type { IpfsClient, IpfsStore } from "./content.js";
+import { ContentError, type IpfsClient, type IpfsStore } from "./content.js";
 import { TaskEngine as Coordinator, type EngineOptions as CoordinatorOptions } from "./engine.js";
 import { newId } from "./identity.js";
 import { createRunSpaceHost, type RunSpaceHostOptions } from "./spaces.js";
+import { retainedContentRoots } from "./retained-content.js";
+import { CID } from "multiformats/cid";
 
 export { defaultEngineLimits, type EngineLimits } from "./engine.js";
 export type SpaceLimits = Omit<
@@ -49,6 +51,10 @@ export interface EngineOptions
   /** @deprecated Prefer an explicit, caller-owned IpfsStore. */
   ipfsClient?: IpfsClient;
   persistentContent?: boolean;
+  /** Stable shared business identity; defaults to the persistent Store's storeId. */
+  retentionOwner?: string;
+  /** Shared hosts supply their entire persisted Task/Run root set, not just this execution. */
+  retentionRoots?: () => readonly string[];
   confirmBundleRelease?: (context: RunResourceContext) => Promise<void>;
   preparingCapacity?: { enter(): (() => void) | undefined };
   bundleLimits?: Partial<BundleLimits>;
@@ -76,9 +82,11 @@ async function pause(signal: AbortSignal): Promise<void> {
 }
 function failure(error: unknown, fallback = "invalid_bundle"): ErrorFact {
   return {
-    code: error instanceof TaskError ? error.code : fallback,
+    code: error instanceof TaskError || error instanceof ContentError ? error.code : fallback,
     message:
-      error instanceof TaskError ? error.message.slice(0, 512) : "Bundle preparation failed.",
+      error instanceof TaskError || error instanceof ContentError
+        ? error.message.slice(0, 512)
+        : "Bundle preparation failed.",
   };
 }
 export interface DrainResult {
@@ -123,8 +131,10 @@ export class TaskEngine implements TaskService {
   readonly sendTaskMessage: TaskService["sendTaskMessage"];
   readonly getTaskMessage: TaskService["getTaskMessage"];
   readonly waitForTaskRelease: Coordinator["waitForTaskRelease"];
-  readonly collect: Coordinator["collect"];
+  readonly collect: () => Promise<void>;
+  private readonly contentOwner: string;
   constructor(private readonly options: EngineOptions) {
+    this.contentOwner = options.retentionOwner ?? options.store.read().storeId;
     if (Object.hasOwn(options, "authorizeChild") || Object.hasOwn(options, "bundlePrefetch"))
       throw new TaskError(
         "invalid_config",
@@ -174,8 +184,17 @@ export class TaskEngine implements TaskService {
       ...(options.onError ? { onError: options.onError } : {}),
       loadBundle: async (binding) => {
         const prepared = await this.cache.acquire(binding.bundle!);
-        this.install(prepared);
-        return prepared.release;
+        try {
+          await this.protect(prepared.cid);
+          await this.persistentStore?.confirmRetained(this.contentOwner, [prepared.cid], {
+            signal: this.lifetime.signal,
+          });
+          this.install(prepared);
+          return prepared.release;
+        } catch (error) {
+          prepared.release();
+          throw error;
+        }
       },
     });
     this.getTask = this.core.getTask.bind(this.core);
@@ -199,7 +218,39 @@ export class TaskEngine implements TaskService {
     this.collect = () => {
       if (this.sealed) throw new TaskError("engine_draining", "Collection is sealed during drain.");
       this.core.collect();
+      return this.collectContent();
     };
+  }
+  private async collectContent(): Promise<void> {
+    if (!this.options.retentionRoots)
+      await this.persistentStore?.recoverOwner(this.contentOwner, () => this.contentRoots(), {
+        signal: this.lifetime.signal,
+        isIdle: () =>
+          !this.processing.size &&
+          !this.admissions &&
+          Object.values(this.options.store.read().facts.runs).every((run) => !!run.reclaimedAt),
+      });
+    await this.reconcileContent();
+  }
+  private get persistentStore(): IpfsStore | undefined {
+    return this.options.ipfsStore?.supportsRetention ? this.options.ipfsStore : undefined;
+  }
+  private protect(root: string): Promise<void> {
+    return (
+      this.persistentStore?.retain(this.contentOwner, [root], { signal: this.lifetime.signal }) ??
+      Promise.resolve()
+    );
+  }
+  async reconcileContent(): Promise<void> {
+    await this.persistentStore?.reconcile(this.contentOwner, () => this.contentRoots(), {
+      signal: this.lifetime.signal,
+    });
+  }
+  private contentRoots(): readonly string[] {
+    return (
+      this.options.retentionRoots?.() ??
+      retainedContentRoots(this.options.store.read().facts, this.options.store)
+    );
   }
   get limits() {
     return this.core.limits;
@@ -228,6 +279,15 @@ export class TaskEngine implements TaskService {
       bundle: { cid: bundle.cid, declaration: bundle.resolved },
       getBundleSource: () => this.cache.source(cid),
       createSpace: (context: RunResourceContext): SpaceHost => {
+        const staged = new Set<string>();
+        const session = `${this.contentOwner}/${context.runId}`;
+        const stage = async (target: string, bytes: Uint8Array) => {
+          if (!this.persistentStore || staged.has(target)) return;
+          await this.persistentStore.stageBlock(session, CID.parse(target), bytes, {
+            signal: context.signal,
+          });
+          staged.add(target);
+        };
         const host = createRunSpaceHost({
           ...this.options.spaceLimits,
           runId: context.runId,
@@ -235,9 +295,36 @@ export class TaskEngine implements TaskService {
           client: this.cache,
           signal: context.signal,
           storage: {
-            get: async (target) => this.core.readContentBlock(target),
-            put: async (target, bytes) => this.core.writeContentBlock(target, bytes),
-            retain: async (runId, target) => this.core.retainRunContent(runId, target),
+            get: async (target) => {
+              if (!this.persistentStore) return this.core.readContentBlock(target);
+              try {
+                const bytes = await this.persistentStore.block.get(target, {
+                  signal: context.signal,
+                });
+                await stage(target, bytes);
+                return bytes;
+              } catch (error) {
+                if (error instanceof ContentError && error.code === "missing_block")
+                  return undefined;
+                throw error;
+              }
+            },
+            put: async (target, bytes) => {
+              if (this.persistentStore) await stage(target, bytes);
+              else this.core.writeContentBlock(target, bytes);
+            },
+            retain: async (runId, target) => {
+              await this.persistentStore?.finishImport(
+                `${this.contentOwner}/${runId}`,
+                target,
+                this.contentOwner,
+                { signal: context.signal },
+              );
+              this.core.retainRunContent(runId, target);
+              await this.persistentStore?.confirmRetained(this.contentOwner, [target], {
+                signal: context.signal,
+              });
+            },
           },
         });
         return {
@@ -264,6 +351,7 @@ export class TaskEngine implements TaskService {
   }
   async start(): Promise<void> {
     const facts = this.core.facts().facts;
+    this.persistentStore?.registerOwner(this.contentOwner, this.contentRoots());
     for (const record of [...Object.values(facts.tasks), ...Object.values(facts.runs)])
       if (!record.binding.bundle || !record.binding.declaration)
         throw new TaskError(
@@ -304,6 +392,10 @@ export class TaskEngine implements TaskService {
         );
     await this.core.start();
     try {
+      if (!this.options.retentionRoots)
+        await this.persistentStore?.recoverOwner(this.contentOwner, this.contentRoots(), {
+          signal: this.lifetime.signal,
+        });
       if (this.core.facts().facts.admissionLowerBound === null) {
         const now = this.now();
         this.core.commitAdmission([
@@ -785,11 +877,15 @@ export class TaskEngine implements TaskService {
           this.core.facts().facts.submissions[id]?.decision.status !== "preparing"
         )
           return;
-        const prepared = await this.cache.acquire(validateBundleReference(record.request.bundle));
+        const reference = validateBundleReference(record.request.bundle, this.cache.limits.hints);
+        const protectedBeforeRead = this.persistentStore?.configuration.backend === "kubo";
+        if (protectedBeforeRead) await this.protect(bundleCid(reference));
+        const prepared = await this.cache.acquire(reference);
         try {
           if (this.closing) return;
           const current = this.core.facts().facts.submissions[id]!;
           if (current.decision.status !== "preparing") return;
+          if (!protectedBeforeRead) await this.protect(prepared.cid);
           const registration = this.install(prepared);
           this.core.submit(
             { ...record.request, type: registration.type },
@@ -797,13 +893,20 @@ export class TaskEngine implements TaskService {
             {},
             { registration, intent: record.request },
           );
+          await this.persistentStore?.confirmRetained(this.contentOwner, [prepared.cid], {
+            signal: this.lifetime.signal,
+          });
         } finally {
           prepared.release();
         }
       })
       .catch((error) => {
         try {
-          this.reject(id, error);
+          if (this.core.facts().facts.submissions[id]?.decision.status === "accepted")
+            this.core.reportError(
+              error instanceof ContentError ? new TaskError(error.code, error.message) : error,
+            );
+          else this.reject(id, error);
         } catch (failure) {
           this.core.reportError(failure);
         }

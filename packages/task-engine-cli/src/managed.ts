@@ -34,6 +34,7 @@ import { managedDiagnostics } from "./diagnostics.js";
 import { createRawGateway, type RawGatewayOptions } from "./raw-gateway.js";
 import { IpnsRecords } from "./ipns.js";
 import { createMemorySampler } from "./memory.js";
+import { importCarContent } from "./car.js";
 
 const exec = promisify(execFile);
 export interface ResponseValue {
@@ -886,10 +887,22 @@ export async function serveManaged(
           input,
           ...(typeof body.cid === "string" ? { cid: body.cid } : {}),
         };
-        repository!.put(
-          task,
-          typeof body.car === "string" ? Buffer.from(body.car, "base64") : undefined,
-        );
+        let car = typeof body.car === "string" ? Buffer.from(body.car, "base64") : undefined;
+        if (typeof body.cid === "string" && shared!.configuration.backend === "kubo")
+          await shared!.retain(repository!.contentOwner, [body.cid]);
+        if (car && shared!.configuration.backend === "kubo") {
+          task.cid = await importCarContent(
+            shared!,
+            car,
+            `${repository!.contentOwner}/import/${id}`,
+            repository!.contentOwner,
+          );
+          task.roots = [task.cid];
+          car = undefined;
+        }
+        repository!.put(task, car);
+        if (task.cid && shared!.configuration.backend === "kubo")
+          await shared!.confirmRetained(repository!.contentOwner, [task.cid]);
         finish(outgoing, { ok: true, data: { taskId: id, status: "pending" } });
         queued.push(id);
         setImmediate(schedule);
@@ -1060,10 +1073,19 @@ export async function serveManaged(
         ? { dataDir: String(effective(config, "server.contentDataDir")) }
         : {}),
     });
+    if (
+      shared.configuration.backend === "kubo" &&
+      effective(config, "server.gatewayMode") === "recursive"
+    )
+      throw new TaskError(
+        "CONFIG_INVALID",
+        "Recursive Gateway upstreams are local-only; Kubo content uses the configured daemon RPC.",
+      );
     const sameDirectory =
-      process.platform === "win32"
+      shared.configuration.backend === "local" &&
+      (process.platform === "win32"
         ? shared.configuration.dataDir.toLowerCase() === lock.directory.toLowerCase()
-        : shared.configuration.dataDir === lock.directory;
+        : shared.configuration.dataDir === lock.directory);
     if (sameDirectory) {
       await shared.close();
       throw new TaskError(
@@ -1071,9 +1093,14 @@ export async function serveManaged(
         "Content storage must use a directory separate from the Engine database.",
       );
     }
-    instance.contentDataDir = shared.configuration.dataDir;
+    if (shared.configuration.backend === "local")
+      instance.contentDataDir = shared.configuration.dataDir;
+    instance.contentStore = shared.configuration;
+    shared.registerOwner(repository.contentOwner, repository.contentRoots());
+    await shared.recoverOwner(repository.contentOwner, repository.contentRoots());
+    await shared.recoverOwner(repository.legacyContentOwner, []);
     content = new DiskContent(
-      shared.configuration.dataDir,
+      shared.configuration.backend === "local" ? shared.configuration.dataDir : lock.directory,
       shared,
       failStorage,
       hooks.beforeCacheWrite,

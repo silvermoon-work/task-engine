@@ -21,18 +21,23 @@ test("public defaults and independent overrides use content-only storage", async
     );
     const builder = await readContentConfiguration({}, config);
     const engine = await readContentConfiguration({}, config);
+    assert.ok(builder.backend === "local");
+    assert.ok(engine.backend === "local");
     assert.deepEqual(engine, builder);
     assert.equal(builder.dataDir, join(directory, "shared"));
     const independent = await readContentConfiguration(
       { dataDir: join(directory, "other") },
       config,
     );
+    assert.ok(independent.backend === "local");
     assert.equal(independent.gateway, builder.gateway);
     assert.notEqual(independent.dataDir, builder.dataDir);
-    assert.equal(
-      (await readContentConfiguration({ gateway: "http://127.0.0.1:23456" }, config)).dataDir,
-      builder.dataDir,
+    const overridden = await readContentConfiguration(
+      { gateway: "http://127.0.0.1:23456" },
+      config,
     );
+    assert.ok(overridden.backend === "local");
+    assert.equal(overridden.dataDir, builder.dataDir);
     await writeFile(config, '{"server.dataDir":"not-content"}');
     await assert.rejects(readContentConfiguration({}, config), /Invalid public content/);
   } finally {

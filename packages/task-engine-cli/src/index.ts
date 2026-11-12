@@ -126,14 +126,19 @@ export async function runBundle(options: RunBundleOptions): Promise<ExecutionRes
           options.maxRuntimeMs,
         );
   let engine: ReturnType<typeof createTaskEngine> | undefined;
+  let localSource: IpfsStore | undefined;
   let outcome: ExecutionResult | undefined;
   const requestId = newId();
   const caller = { scope: store.read().storeId, subject: "cli" };
   try {
     signal.throwIfAborted();
+    // The legacy local runner has no retained business domain or pin ownership.
+    if (options.ipfsStore?.supportsRetention && options.ipfsStore.configuration.backend === "local")
+      localSource = IpfsStore.fromClient(options.ipfsStore, options.ipfsStore.limits);
+    const content = localSource ?? options.ipfsStore;
     engine = createTaskEngine({
       store,
-      ...(options.ipfsStore ? { ipfsStore: options.ipfsStore } : {}),
+      ...(content ? { ipfsStore: content } : {}),
       ...(options.ipfsClient ? { ipfsClient: options.ipfsClient } : {}),
       authorize: (identity) =>
         identity.scope === caller.scope && identity.subject === caller.subject,
@@ -194,7 +199,13 @@ export async function runBundle(options: RunBundleOptions): Promise<ExecutionRes
     if (timer) clearTimeout(timer);
     try {
       await engine?.close();
+      await localSource?.close();
       store.close();
+      if (
+        options.ipfsStore?.supportsRetention &&
+        options.ipfsStore.configuration.backend === "kubo"
+      )
+        await options.ipfsStore.recoverOwner(caller.scope, []);
     } catch (error) {
       const cleanup = fact(error);
       outcome = result("cleanup_failed", {

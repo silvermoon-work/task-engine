@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { link, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { link, mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
@@ -11,6 +11,83 @@ import { DiskContent, Repository, pruneData, type TaskRecord } from "../src/data
 import { managedDiagnostics } from "../src/diagnostics.js";
 import type { RunLogEntry } from "@silvermoon-work/task-protocol";
 import { IpfsStore } from "@silvermoon-work/ipfs-store";
+
+test("managed content owner persists across reopen, repository relocation and Windows case aliases", async (t) => {
+  const directory = resolve(".cache", `content-owner-${randomUUID()}`);
+  const original = join(directory, "original"),
+    moved = join(directory, "moved");
+  await mkdir(original, { recursive: true });
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  let repository = new Repository(original);
+  const owner = repository.contentOwner;
+  const legacy = repository.legacyContentOwner;
+  const cursor = repository.db
+    .prepare("SELECT value FROM metadata WHERE key='cursor'")
+    .get()!.value;
+  repository.close();
+  await rename(original, moved);
+  repository = new Repository(moved);
+  try {
+    assert.equal(repository.contentOwner, owner);
+    assert.notEqual(repository.legacyContentOwner, legacy);
+    assert.equal(
+      repository.db.prepare("SELECT value FROM metadata WHERE key='cursor'").get()!.value,
+      cursor,
+    );
+    assert.equal(repository.db.prepare("PRAGMA user_version").get()!.user_version, 1);
+  } finally {
+    repository.close();
+  }
+  if (process.platform === "win32") {
+    const alias = new Repository(moved.toUpperCase());
+    try {
+      assert.equal(alias.contentOwner, owner);
+    } finally {
+      alias.close();
+    }
+  }
+  const independent = join(directory, "independent");
+  await mkdir(independent);
+  const other = new Repository(independent);
+  try {
+    assert.notEqual(other.contentOwner, owner);
+  } finally {
+    other.close();
+  }
+});
+
+test("DiskContent preserves adapter-owned writes and never closes or writes the borrowed source", async (t) => {
+  const directory = resolve(".cache", `disk-adapter-${randomUUID()}`);
+  let sourceWrites = 0,
+    sourceCloses = 0;
+  const source = IpfsStore.fromClient({
+    block: {
+      get: async () => {
+        throw new Error("Missing borrowed source block.");
+      },
+    },
+    put: async () => {
+      sourceWrites++;
+    },
+    close: async () => {
+      sourceCloses++;
+    },
+  } as Parameters<typeof IpfsStore.fromClient>[0]);
+  const content = new DiskContent(directory, source);
+  t.after(async () => {
+    await content.close();
+    await source.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const bytes = Buffer.from("adapter-owned host output");
+  const cid = CID.createV1(0x55, await sha256.digest(bytes));
+  await content.put(cid, bytes);
+  assert.deepEqual(Buffer.from(await content.block.get(cid.toString())), bytes);
+  await content.close();
+  assert.deepEqual(Buffer.from(await source.block.get(cid.toString())), bytes);
+  assert.equal(sourceWrites, 0);
+  assert.equal(sourceCloses, 0);
+});
 
 test("durable log snapshots are atomic and replay without new disk writes or cursor positions", async (t) => {
   const directory = resolve(".cache", `log-snapshots-${randomUUID()}`);

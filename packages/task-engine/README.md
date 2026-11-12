@@ -206,3 +206,29 @@ explicitly rejected without migration. See
 由受管仓库持久化；新 SDK 的对应模式在终结前等日志确认，生产端报告丢失则明确失败。
 跨执行域的 `bundlePreparation`、`preparingCapacity` 由同一 Server 提供共享预算。
 这些是可信宿主组合接口，不是新 CLI 选项、授权开关或生命周期成功证明。
+## IPFS retention hints
+
+An injected retention-capable `IpfsStore` can use either local storage or optional Kubo.
+Engine preserves its persistent Store identity in the content reference
+coordinator. Retained Tasks and **all** retained Runs (historical Runs and child
+tasks included) contribute their bundle roots and actual output CIDs; JSON
+result values are never interpreted as CID references.
+
+Output/import blocks go directly to that injected backend. Kubo does not
+duplicate them in Engine's business block tables or application cache
+directories. `IpfsStore.fromClient` borrows a read-only source but can write its own
+memory/local backend; it does not forward writes or close to that source.
+Its `supportsRetention` is false, independently of `writable`. Engine checks
+retention capability, so source adapters and deprecated `ipfsClient` retain
+their source ownership and legacy business-storage behavior.
+
+`await engine.collect()` commits ordinary record collection first, then
+reconciles all participating content owners. `await engine.reconcileContent()`
+retries retention recovery/cleanup independently. A cleanup error does not
+roll back already collected business records. Closing Engine borrows/closes
+only its scopes; it does not unpin persisted roots or stop the user's daemon.
+
+Pins are named best-effort hints, not absolute availability guarantees.
+All participating Engines must share one durable `coordinationDir`; the
+[Store documentation](../ipfs-store/README.md) defines names, limits, recovery,
+external intervention and custom-host `retentionOwner`/`retentionRoots`.

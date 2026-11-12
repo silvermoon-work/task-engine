@@ -10,7 +10,13 @@ import { sha256 } from "multiformats/hashes/sha2";
 import * as dagPb from "@ipld/dag-pb";
 import { acquireBlock } from "./dag.js";
 export { ContentError } from "./errors.js";
-export { IpfsStore, type IpfsStoreOptions, type IpfsReadOptions, type IpfsNode } from "./store.js";
+export {
+  IpfsStore,
+  type IpfsStoreOptions,
+  type IpfsReadOptions,
+  type IpfsNode,
+  type StoreConfiguration,
+} from "./store.js";
 
 class GatewayCleanupError extends ContentError {
   constructor() {

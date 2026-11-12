@@ -13,7 +13,7 @@ import {
   taskBundleLimits,
   type TaskBundleFileLimits,
 } from "@silvermoon-work/task-protocol";
-import type { IpfsClient } from "@silvermoon-work/task-engine";
+import type { IpfsClient, IpfsStore } from "@silvermoon-work/task-engine";
 import { ContentBlocks } from "@silvermoon-work/ipfs-store/dag";
 
 interface ReadOptions {
@@ -31,6 +31,29 @@ export interface CarSource extends IpfsClient {
   readonly cid: string;
   readonly retainedBytes: number;
   close(): Promise<void>;
+}
+/** Validate in bounded memory, then stage directly into the injected block backend. */
+export async function importCarContent(
+  content: IpfsStore,
+  bytes: Uint8Array,
+  session: string,
+  owner: string,
+  options: CarSourceOptions = {},
+): Promise<string> {
+  const source = await openCarSource(new Blob([Uint8Array.from(bytes)]).stream(), options);
+  try {
+    const iterator = await CarBlockIterator.fromIterable(
+      (async function* () {
+        yield bytes;
+      })(),
+    );
+    for await (const block of iterator)
+      await content.stageBlock(session, block.cid, block.bytes, options);
+    await content.finishImport(session, source.cid, owner, options);
+    return source.cid;
+  } finally {
+    await source.close();
+  }
 }
 
 async function* chunks(input: ReadableStream<Uint8Array>, limit: number, signal?: AbortSignal) {

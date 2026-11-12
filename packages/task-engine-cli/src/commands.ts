@@ -209,7 +209,7 @@ export async function main(
           repository,
           selection,
           controller.signal,
-          instance.contentDataDir,
+          instance.contentStore ?? instance.contentDataDir,
         );
         const completed = response.data as { deletedTasks: number; deletedCacheBlocks?: number };
         if (

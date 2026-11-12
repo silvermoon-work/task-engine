@@ -477,3 +477,59 @@ bundleMaxBytes=67108864、maxConnections=256。
 每步确认准确依赖可用后才进入下一步，不自动发布其他依赖。
 不批量、不自动发布依赖；未经明确授权不推发布 tag 或发布正式版，不移动 tag；
 构想、实施检查或 manual dry-run 不等于真实发布和安装验收。
+## Optional Kubo content storage
+
+Select Kubo in the public TaskContent configuration, for example:
+
+```json
+{
+  "backend": "kubo",
+  "apiUrl": "http://127.0.0.1:5001",
+  "coordinationDir": "/shared/task-content-retention",
+  "timeoutMs": 30000
+}
+```
+
+Use the same durable coordination directory for participating Engines.
+`server.dataDir` remains business persistence; Kubo has no application content
+data directory. Existing local `contentDataDir`/Gateway overrides conflict
+explicitly with Kubo instead of creating a shadow block cache.
+The host's recursive Gateway-upstream mode is also local-only; select daemon
+networking policy instead when using Kubo.
+
+Managed Kubo uploads validate CARs in bounded memory, stage original blocks
+directly through RPC, and persist the resulting CID—not another CAR/blob copy.
+Output blocks also go directly to Kubo; business Task/Run facts and root
+associations remain durable. The retained-block SQLite read adapter is only
+used by the local branch.
+
+The legacy embedded `runBundle`/`legacyMain` local runner still owns only a
+disposable MemoryStore: it borrows a read-only local source and does not create
+durable participant/pin ownership. This preserves its original ephemeral output
+and quiet-success behavior. Its explicitly selected Kubo branch remains a
+direct writable backend, not a local/CAR cache.
+
+Managed retention owners use a UUID persisted in the existing repository
+metadata table, not a directory string. Reopening or relocating the same
+database, including Windows case aliases, preserves that identity without
+changing cursor keys or the database format version. Independently active
+database copies must not share an identity. Managed instance `dataDir`/process
+identity checks are unchanged; this is not a new automatic relocation API.
+Startup/offline prune publishes the new stable root set before retiring the
+old path owner at that same location. Pre-review data moved before this
+retirement cannot reveal its former path automatically; recover that known old
+owner explicitly while its original execution is stopped.
+
+Offline `data prune` commits selected metadata deletions before reconciling
+every known participating Engine's remaining references. Only this
+coordinator's currently named, unreferenced hints are unpinned; no global Kubo
+GC or shared block deletion is performed. Returned `unpinnedRoots` is not a
+disk-byte count. If recovery/mark/RPC fails, the command returns a non-success
+result with `RETENTION_UNFINISHED` and confirmed deletion counts. Metadata was
+not rolled back; retry `data prune --cache` after fixing the reported source or
+coordination problem. Existing local private-cache pruning remains available.
+
+Names are best-effort `@silvermoon-work/task-engine/...` provenance hints, not
+leases or protection from manual deletion. The host configures and runs the
+daemon, including networking and trusted remote RPC access; Engine never
+starts/stops it or silently falls back to local/Gateway storage.

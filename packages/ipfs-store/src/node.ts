@@ -2,12 +2,10 @@ import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { IpfsStore } from "./store.js";
+import { validateConfiguration, type StoreConfiguration } from "./configuration.js";
 
 export { SharedContent } from "./storage.js";
-export interface ContentConfiguration {
-  gateway?: string | readonly string[];
-  dataDir: string;
-}
+export type ContentConfiguration = StoreConfiguration;
 export function contentConfigPath(): string {
   return (
     process.env.TASK_CONTENT_CONFIG ??
@@ -30,37 +28,36 @@ export async function readContentConfiguration(
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
-  if (
-    !value ||
-    typeof value !== "object" ||
-    Array.isArray(value) ||
-    Object.keys(value).some((key) => !["gateway", "dataDir"].includes(key))
-  )
+  if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error(`Invalid public content configuration: ${path}`);
-  const config = { ...value, ...overrides } as Partial<ContentConfiguration>;
-  if (
-    config.gateway !== undefined &&
-    !(
-      typeof config.gateway === "string" ||
-      (Array.isArray(config.gateway) && config.gateway.every((item) => typeof item === "string"))
-    )
-  )
-    throw new Error("Content gateway must be an explicit URL or URL list.");
-  if (
-    config.dataDir !== undefined &&
-    (typeof config.dataDir !== "string" || !config.dataDir.trim())
-  )
-    throw new Error("Content dataDir must be a nonempty directory path.");
-  const dataDir = config.dataDir ?? join(homedir(), ".silvermoon.work", "content");
-  return {
-    ...(config.gateway !== undefined ? { gateway: config.gateway } : {}),
-    dataDir: isAbsolute(dataDir) ? resolve(dataDir) : resolve(dirname(path), dataDir),
-  };
+  const record = value as Record<string, unknown>;
+  const backend =
+    record.backend ?? (Object.keys(record).length === 0 ? (overrides.backend ?? "local") : "local");
+  const defaults =
+    backend === "local" ? { dataDir: join(homedir(), ".silvermoon.work", "content") } : {};
+  // Validate both the file and merged value: overrides cannot hide malformed file fields.
+  try {
+    if (Object.keys(record).length) validateConfiguration({ ...defaults, ...record });
+    const config = validateConfiguration({ ...defaults, ...record, ...overrides });
+    if (Object.keys(record).length && config.backend !== backend)
+      throw new Error("Backend overrides must replace the configuration file explicitly.");
+    if (config.coordinationDir)
+      config.coordinationDir = resolve(dirname(path), config.coordinationDir);
+    if (config.backend === "local")
+      config.dataDir = isAbsolute(config.dataDir)
+        ? resolve(config.dataDir)
+        : resolve(dirname(path), config.dataDir);
+    return config;
+  } catch {
+    throw new Error(
+      `Invalid public content configuration: ${path}; check backend-specific fields.`,
+    );
+  }
 }
 /** Explicit host helper; never called as a library import side effect. */
 export async function createConfiguredContent(
   overrides: Partial<ContentConfiguration> = {},
 ): Promise<IpfsStore & { configuration: ContentConfiguration }> {
   const configuration = await readContentConfiguration(overrides);
-  return Object.assign(new IpfsStore(configuration), { configuration });
+  return new IpfsStore(configuration);
 }

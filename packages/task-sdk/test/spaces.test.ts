@@ -35,6 +35,9 @@ test("Space identities and lexical references do not expose arbitrary SID constr
   assert.equal(spaces.output.sid, "run:run-1:output");
   const ref = spaces.bundle.root.resolve("a//b/../c");
   assert.equal(ref.space, spaces.bundle);
+  assert.deepEqual(spaces.serialize(ref), ref.toJSON());
+  assert.throws(() => spaces.serialize({ ...ref }), /Context's SpaceRef/);
+  assert.throws(() => fixture().spaces.serialize(ref), /Context's SpaceRef/);
   assert.deepEqual(ref.toJSON(), { sid: `ipfs:${cid}`, path: "/a/c" });
   assert.equal(ref.resolve("../d").path, "/a/d");
   assert.equal(ref.resolve("/reset").path, "/reset");

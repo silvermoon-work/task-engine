@@ -19,6 +19,7 @@ export const defaults = {
   "server.bundleMaxBytes": 67_108_864,
   "server.maxConnections": 256,
   "server.ipfsGateway": null,
+  "server.contentDataDir": null,
   "server.rawGatewayAccess": "disabled",
   "server.rawGatewayToken": null,
   "server.rawGatewayMaxConcurrent": 4,
@@ -90,7 +91,8 @@ export function validateValue(key: ConfigKey, value: unknown, base = process.cwd
   }
   if (typeof value !== "string" || !value.trim())
     throw new TaskError("INVALID_CONFIG_VALUE", `${key} must be a nonempty string.`);
-  if (key === "server.dataDir") return isAbsolute(value) ? resolve(value) : resolve(base, value);
+  if (key === "server.dataDir" || key === "server.contentDataDir")
+    return isAbsolute(value) ? resolve(value) : resolve(base, value);
   if (key === "client.engine" || key === "server.ipfsGateway") return serviceUrl(value);
   if (key === "server.gatewayMode" && !["local", "recursive"].includes(value))
     throw new TaskError("INVALID_CONFIG_VALUE", `${key} must be local or recursive.`);

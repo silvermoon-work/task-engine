@@ -259,6 +259,11 @@ export function createSpaces(config: {
     bundle: space(config.cid),
     output,
     space,
+    serialize(ref: SpaceRef): SpaceRefJSON {
+      if (!ref || !refs.has(ref))
+        throw new TaskError("invalid_space", "Expected this Context's SpaceRef.");
+      return ref.toJSON();
+    },
     async drain() {
       while (mutations.size) await Promise.allSettled([...mutations]);
       finishing = true;

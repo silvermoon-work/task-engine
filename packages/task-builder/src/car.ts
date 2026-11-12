@@ -7,6 +7,8 @@ import { importer, type WritableStorage } from "ipfs-unixfs-importer";
 import { fixedSize } from "ipfs-unixfs-importer/chunker";
 import { balanced } from "ipfs-unixfs-importer/layout";
 import { exporter } from "ipfs-unixfs-exporter";
+import { ContentBlocks } from "@silvermoon-work/task-content/dag";
+import { graftImports, importSidecar, loadImportBlocks, validateImports } from "./imports.js";
 import {
   createTaskTextNormalizer,
   isTaskBundlePath,
@@ -21,6 +23,7 @@ import {
   fileTree,
   iteratorStream,
   listTree,
+  memoryFile,
   readBytes,
   streamChunks,
   type FileReader,
@@ -138,6 +141,7 @@ async function treePaths(tree: ReadonlyFileTree, limits: CarLimits, options: Rea
     if (path && !entries.length) throw new Error(`Bundle contains an empty directory: ${path}`);
     for (const entry of entries) {
       const child = path ? `${path}/${entry.name}` : entry.name;
+      if (child === importSidecar) continue;
       if (!isTaskBundlePath(child)) throw new Error(`Unsafe Bundle path: ${child}`);
       if (++paths > limits.files.paths) throw new Error("Bundle exceeds path capacity.");
       if (entry.kind === "directory") await walk(child);
@@ -347,7 +351,28 @@ export async function encodeTaskBundleCar(
     : lifetime.signal;
   try {
     const paths = await treePaths(input, limits, { signal });
-    const root = await importTree(input, paths, store, limits, { signal });
+    const manifest = await readBytes(input, "task.yaml", 65_536, { signal });
+    const declaration = validateTaskBundle(parseTaskBundleYaml(manifest));
+    const imports = declaration.imports ?? {};
+    const imported = await loadImportBlocks(input, imports, { signal });
+    await validateImports(input, paths, imports, imported, { signal });
+    const stagedInput: ReadonlyFileTree = {
+      list: (path, readOptions) => input.list(path, readOptions),
+      read: (path, readOptions) =>
+        path === "task.yaml"
+          ? Promise.resolve(memoryFile(manifest, readOptions))
+          : input.read(path, readOptions),
+    };
+    let root = await importTree(stagedInput, paths, store, limits, { signal });
+    if (Object.keys(imports).length) {
+      const graph = new ContentBlocks({
+        block: { get: async (cid, readOptions) => store.bytes(CID.parse(cid), readOptions) },
+      });
+      for (const [cid, bytes] of imported.blocks)
+        await graph.put(CID.parse(cid), bytes, { signal });
+      root = await graftImports(root, imports, graph, { signal });
+      for (const [cid, bytes] of graph.blocks) await store.put(CID.parse(cid), bytes, { signal });
+    }
     const stored = await storedTree(root, store, limits, { signal });
     await inspectTree(stored.tree, stored.paths, limits, { signal });
     const headerSize = headerLength({ roots: [root] });
@@ -447,7 +472,7 @@ export async function readTaskBundleCar(
     const stored = await storedTree(root, store, limits, options);
     const checked = await inspectTree(stored.tree, stored.paths, limits, options);
     // Canonical re-import computes CIDs without retaining a second copy of the DAG.
-    const canonical = await importTree(
+    let canonical = await importTree(
       stored.tree,
       stored.paths,
       {
@@ -461,6 +486,35 @@ export async function readTaskBundleCar(
       limits,
       options,
     );
+    if (Object.keys(checked.declaration.imports ?? {}).length) {
+      const graph = new ContentBlocks({
+        block: { get: async (cid, readOptions) => store.bytes(CID.parse(cid), readOptions) },
+      });
+      await validateImports(
+        stored.tree,
+        stored.paths,
+        checked.declaration.imports!,
+        graph,
+        options,
+      );
+      // Canonical ancestor directories must be available to replace their imported links.
+      canonical = await importTree(
+        stored.tree,
+        stored.paths,
+        {
+          async put(cid, value, putOptions) {
+            const parts: Uint8Array[] = [];
+            for await (const part of value instanceof Uint8Array ? [value] : value)
+              parts.push(part);
+            await graph.put(cid, Buffer.concat(parts), putOptions);
+            return cid;
+          },
+        },
+        limits,
+        options,
+      );
+      canonical = await graftImports(canonical, checked.declaration.imports!, graph, options);
+    }
     if (!canonical.toV1().equals(root.toV1()))
       throw new Error("CAR root is not a canonical Bundle file tree.");
     return Object.freeze({

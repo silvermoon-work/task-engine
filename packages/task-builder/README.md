@@ -1,8 +1,9 @@
 # @silvermoon-work/task-builder
 
 Build Task Bundles with esbuild from a read-only file tree into another read-only
-file tree. No pguide command protocol, Gulp, Vinyl, CAR, network, publication, or
+file tree. No pguide command protocol, Gulp, Vinyl, publication, or
 output-directory management is part of the transformation.
+Imports use an explicitly injected content port; there is no ambient network source.
 Separate `./init` and `./car` exports provide project templates and offline CAR
 streams without turning build into a multi-output operation. The root entry
 does not re-export or load these modules; init/CAR do not load esbuild.
@@ -13,6 +14,48 @@ UnixFS importer/exporter and multiformats libraries with bounded staging and
 existing Protocol validation. These are compiler-free subpaths, not a separate
 package or a custom CAR codec. Engine CLI owns a smaller offline block-source
 adapter and never installs Builder. No independent CAR package is published.
+
+## Immutable imports and migration
+
+`task.build.yaml` and `TaskBuildOptions` accept `imports: Record<Path, CID>`,
+for example:
+
+```yaml
+imports:
+  resources/tasks/resize: "<built-task-directory-cid>"
+  resources/models/model.bin: "<unixfs-file-cid>"
+  resources/templates: "<unixfs-directory-cid>"
+```
+
+Imports support regular UnixFS files and nonempty directories, not only tasks.
+Only executing targets must satisfy the Task contract. Paths are portable,
+confined to `resources/`, and cannot overlap each other or includes. The library
+requires `content: IpfsClient` when missing blocks must be acquired; hosts can
+inject verified CAR/local ports or configured gateways.
+
+Build fetches and verifies the complete static DAG. The task folder contains
+expanded bytes plus `.task-imports.car`, a bounded archive of the original
+import blocks. `task.yaml.imports` binds each path to its original CID, and
+`include` still enumerates every logical file. Imported files are opaque binary
+in the parent manifest: their original bytes, modes, mtimes and chunk topology
+are not normalized. The sidecar is delivery metadata, not a file in the bundle DAG.
+Copy the **entire folder including this hidden sidecar**, not just `include`.
+
+Offline `car` verifies sidecar hashes, closure, path CIDs and all expanded bytes,
+then links the original nodes into canonical parent directories. The final CAR
+contains only reachable blocks, once per CID. No original project, machine
+cache or gateway is consulted. Missing sidecars/blocks and modified imports fail.
+To edit an imported resource, remove its import, move it to local resources and
+rebuild under a new CID. No old CID is rewritten.
+
+The existing v1 schema URI/version is retained with the updated definition;
+it does **not** imply dual-protocol compatibility. Replace old `{cid,path}`
+child calls with `bundle: context.bundle.root.resolve(path)` or
+`context.space(cid).root`, rebuild using matching SDK/Builder tools, then update
+parent dependency CIDs and rebuild parents. Old calls fail explicitly. Bundles
+already satisfying the new contract do not need artificial changes.
+Stored legacy child associations cannot recover the new fixed identity: choose
+a new Engine data domain; old facts are rejected, not cleared or guessed.
 
 Builder keeps esbuild as a runtime dependency because building author source
 needs a compiler. Its OS/CPU-specific optional package supplies the required

@@ -29,6 +29,9 @@ export type SubmissionResult =
   | { status: "rejected"; requestId: string; error: ErrorFact };
 export interface SubmissionRecord {
   composition?: {
+    invocationVersion: 1;
+    targetCid: string;
+    source: import("./spaces.js").SpaceRefJSON;
     parentRunId: string;
     rootRunId: string;
     depth: number;

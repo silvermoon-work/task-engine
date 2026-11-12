@@ -18,6 +18,10 @@ async function execute(
   code?: string,
   environment: Record<string, string | undefined> = {},
 ) {
+  const contentDirectory = resolve(".cache", `cli-content-${randomUUID()}`);
+  await mkdir(contentDirectory, { recursive: true });
+  const publicConfig = join(contentDirectory, "config.json");
+  await writeFile(publicConfig, JSON.stringify({ dataDir: join(contentDirectory, "blocks") }));
   const child = spawn(
     process.execPath,
     ["--input-type=module", "-e", code ?? embedded, "--", ...args],
@@ -27,6 +31,7 @@ async function execute(
         ...process.env,
         TASK_ENGINE_GATEWAY: undefined,
         IPFS_PATH: absentKubo,
+        TASK_CONTENT_CONFIG: publicConfig,
         ...environment,
       },
     },
@@ -53,6 +58,7 @@ async function execute(
   }).finally(() => clearTimeout(watchdog));
   assert.equal(forced, false, `CLI did not automatically exit: ${stdout} ${stderr}`);
   assert.ok(exitCode !== null, `CLI was terminated by signal: ${stderr}`);
+  await rm(contentDirectory, { recursive: true, force: true });
   return { exitCode, stdout, stderr, elapsedMs: performance.now() - started };
 }
 
@@ -114,12 +120,12 @@ export default async (input,context) => {
  if(input.mode==="slow") await delay(60000,undefined,{signal:context.signal});
  return {value:input.value};
 };`);
-  const wrapper = (cid: string) => `
+  const wrapper = (_cid: string) => `
 import {setTimeout as delay} from "node:timers/promises";
 export default async (input,context) => {
  await delay(100,undefined,{signal:context.signal});
  return await Promise.all(["a","b"].map(key=>context.invokeTask({
- key,cid:${JSON.stringify(cid)},path:"resources/child",
+ key,bundle:context.bundle.root.resolve("resources/child"),
  input:{value:input.value,mode:input.mode||"normal"},timeoutMs:10000})));
 };`;
   const parent = await build(wrapper(leaf.cid), leaf);
@@ -159,10 +165,7 @@ export default async (input,context) => {
     [nested, 7],
   ] as const) {
     await t.test(`${count} Tasks exit 0 after actual Worker/resource cleanup`, async () => {
-      const output = await execute(
-        args(bundle.cid, ["--allow-children"]),
-        JSON.stringify({ value: 7 }),
-      );
+      const output = await execute(args(bundle.cid), JSON.stringify({ value: 7 }));
       assert.equal(output.exitCode, 0, output.stderr);
       assert.equal(output.stderr, "");
       const final = JSON.parse(output.stdout);
@@ -184,7 +187,7 @@ export default async (input,context) => {
   }
   assert.ok(requests > 0);
   await t.test(
-    "CID Gateway precedence is explicit, environment, then Kubo config without guessed ports",
+    "CID Gateway precedence is explicit, environment, then the independent public content config",
     async () => {
       const fromEnv = await execute(["run", leaf.cid], '{"value":7}', undefined, {
         TASK_ENGINE_GATEWAY: gateway,
@@ -204,26 +207,22 @@ export default async (input,context) => {
         });
         assert.equal(invalid.exitCode, 2, invalid.stderr);
       }
-      const repository = join(directory, "kubo");
+      const repository = join(directory, "public-content");
       await mkdir(repository);
-      const config = JSON.stringify({
-        Addresses: {
-          API: "/ip4/127.0.0.1/tcp/5001",
-          Gateway: `/ip4/127.0.0.1/tcp/${address.port}`,
-        },
-      });
+      const config = JSON.stringify({ gateway, dataDir: join(repository, "blocks") });
       await writeFile(join(repository, "config"), config);
       const configured = await execute(["run", leaf.cid], '{"value":7}', undefined, {
-        IPFS_PATH: repository,
+        TASK_CONTENT_CONFIG: join(repository, "config"),
       });
       assert.equal(configured.exitCode, 0, configured.stderr);
       const home = join(directory, "home");
-      await mkdir(join(home, ".ipfs"), { recursive: true });
-      await writeFile(join(home, ".ipfs", "config"), config);
+      await mkdir(home, { recursive: true });
+      await writeFile(
+        join(home, "content.json"),
+        JSON.stringify({ gateway, dataDir: join(home, "blocks") }),
+      );
       const fromHome = await execute(["run", leaf.cid], '{"value":7}', undefined, {
-        IPFS_PATH: undefined,
-        HOME: home,
-        USERPROFILE: home,
+        TASK_CONTENT_CONFIG: join(home, "content.json"),
       });
       assert.equal(fromHome.exitCode, 0, fromHome.stderr);
       const unavailable = `import assert from "node:assert/strict";let reads=0;
@@ -234,8 +233,13 @@ globalThis.fetch=async(input)=>{
 };
 const {legacyMain:main}=await import(${JSON.stringify(new URL("../dist/index.js", import.meta.url).href)});
 process.exitCode=await main(process.argv.slice(1));assert.ok(reads>0);`;
+      await writeFile(
+        join(repository, "unavailable.json"),
+        JSON.stringify({ gateway, dataDir: join(repository, "unavailable-blocks") }),
+      );
       const failed = await execute(["run", leaf.cid], '{"value":7}', unavailable, {
-        IPFS_PATH: repository,
+        TASK_CONTENT_CONFIG: join(repository, "unavailable.json"),
+        TASK_ENGINE_GATEWAY: gateway,
       });
       assert.equal(failed.exitCode, 3, failed.stderr);
       assert.equal(JSON.parse(failed.stdout).error.code, "bundle_fetch_failed");
@@ -249,13 +253,9 @@ process.exitCode=await main(process.argv.slice(1));assert.ok(reads>0);`;
       assert.equal(environmentFailure.exitCode, 3, environmentFailure.stderr);
       assert.match(environmentFailure.stderr, /127\.0\.0\.1:9999/);
       const before = requests;
-      for (const path of [absentKubo, ""]) {
-        const missing = await execute(["run", leaf.cid], '{"value":7}', undefined, {
-          IPFS_PATH: path,
-        });
-        assert.equal(missing.exitCode, 2, missing.stderr);
-        assert.equal(JSON.parse(missing.stdout).error.code, "invalid_config");
-      }
+      const missing = await execute(["run", leaf.cid], '{"value":7}');
+      assert.equal(missing.exitCode, 3, missing.stderr);
+      assert.equal(JSON.parse(missing.stdout).error.code, "bundle_fetch_failed");
       assert.equal(requests, before);
     },
   );
@@ -315,16 +315,7 @@ process.exitCode=await main(process.argv.slice(1));assert.ok(reads>0);`;
       ] as const) {
         const before = requests;
         const output = await execute(
-          [
-            "run",
-            "--car",
-            bundle.car,
-            "--expected-cid",
-            bundle.cid,
-            "--input",
-            "-",
-            "--allow-children",
-          ],
+          ["run", "--car", bundle.car, "--expected-cid", bundle.cid, "--input", "-"],
           '{"value":7}',
         );
         assert.equal(output.exitCode, 0, output.stderr);
@@ -377,11 +368,12 @@ process.exitCode=await main(process.argv.slice(1));assert.ok(reads>0);`;
     },
   );
   await t.test(
-    "local CAR preserves deny policy, failures, overall timeout and signals",
+    "local CAR permits SpaceRef children and preserves failures, overall timeout and signals",
     async () => {
       const args = ["run", "--car", leaf.car, "--input", "-"];
-      const denied = await execute(["run", "--car", parent.car, "--input", "-"], '{"value":7}');
-      assert.equal(denied.exitCode, 4, denied.stderr);
+      const composed = await execute(["run", "--car", parent.car, "--input", "-"], '{"value":7}');
+      assert.equal(composed.exitCode, 0, composed.stderr);
+      assert.equal(JSON.parse(composed.stdout).execution.tasks.length, 3);
       const failed = await execute(args, '{"value":7,"mode":"failure"}');
       assert.equal(failed.exitCode, 4, failed.stderr);
       const budget = await execute([...args, "--max-runtime-ms", "1"], '{"value":7}');
@@ -398,14 +390,17 @@ process.exitCode=await main(process.argv.slice(1));clearTimeout(timer);`;
       }
     },
   );
-  await t.test("default child authorization is deny and returns task failure", async () => {
-    const output = await execute(args(parent.cid), '{"value":7}');
-    assert.equal(output.exitCode, 4, output.stderr);
-    const final = JSON.parse(output.stdout);
-    assert.equal(final.status, "failed");
-    assert.equal(final.execution.tasks[0].error.code, "forbidden");
-    assert.match(output.stderr, /failed/);
-  });
+  await t.test(
+    "removed child authorization flags fail with an explicit argument error",
+    async () => {
+      const output = await execute(args(parent.cid, ["--allow-children"]), '{"value":7}');
+      assert.equal(output.exitCode, 2, output.stderr);
+      const final = JSON.parse(output.stdout);
+      assert.equal(final.status, "invalid");
+      assert.equal(final.execution, undefined);
+      assert.match(output.stderr, /--allow-children/);
+    },
+  );
   await t.test("business failure is nonzero, schema rejection is distinct", async () => {
     const failed = await execute(args(leaf.cid), '{"value":7,"mode":"failure"}');
     assert.equal(failed.exitCode, 4, failed.stderr);

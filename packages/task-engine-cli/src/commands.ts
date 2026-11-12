@@ -205,7 +205,12 @@ export async function main(
           );
         repository = new Repository(lock.directory);
         controller.signal.throwIfAborted();
-        response = await pruneData(repository, selection, controller.signal);
+        response = await pruneData(
+          repository,
+          selection,
+          controller.signal,
+          instance.contentDataDir,
+        );
         const completed = response.data as { deletedTasks: number; deletedCacheBlocks?: number };
         if (
           response.error?.code === "INTERRUPTED" &&

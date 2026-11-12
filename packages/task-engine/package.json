@@ -37,10 +37,8 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@helia/http": "catalog:",
+    "@silvermoon-work/task-content": "workspace:*",
     "@helia/unixfs": "catalog:",
-    "@helia/block-brokers": "catalog:",
-    "@helia/routers": "catalog:",
     "blockstore-core": "catalog:",
     "multiformats": "catalog:",
     "ipfs-unixfs-exporter": "catalog:",

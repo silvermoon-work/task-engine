@@ -65,18 +65,20 @@ Node runtime 版本比较直接使用 `semver`；
 生产依赖闭包不包含 `artifact-files`、Check 制品或运行时包，
 缓存保留/hint/DAG 预算仍由 Engine 管理。
 默认文本资源在准入前完整验证 UTF-8/LF；最终 manifest 必须包含准确的 `binary` 清单，
-空清单也显式为 `[]`。只有显式 binary 资源的后继块默认按需读取，
-`bundlePrefetch: true` 在准入时同时验证完整 binary 内容。旧声明和不规范文本不被改写或兼容。
-因此 Gateway 后续不可用可使已受理 Run 的首次资源读取失败；已缓存的块仍可复用。
+空清单也显式为 `[]`。所有静态 DAG 块（包括 binary 后继块及通用 imports）
+在准入前完整获取并验证；缺块或超限明确失败，不降级懒加载。
+`bundlePrefetch` 已移除；准备后的静态闭包可在断源后执行。
+task.yaml 的 imports 路径必须解析到声明的精确原始 CID。旧声明和不规范文本不被改写或兼容。
 内部内存复用使用有界 verified blocks 及租约保护在途准备/运行，不提供公开缓存管理 API；
-Engine 不维护额外的 Bundle 文件缓存目录；输入可从独立 IPFS 节点按需获取。
+库通过注入端口访问内容，不隐式加载配置。Builder 和 Engine 共同使用
+`@silvermoon-work/task-content`；CLI 默认配置及独立覆盖见该包说明。
 输出内容由 Store 的内容块存储和 Run 保留引用管理，不修改外部节点的 pin。
 `bundleLimits.retainedBytes` 默认 256 MiB，是所有内存保留块的总量预算；超限明确拒绝。
 Helia 验证块，官方 UnixFS 解析路径及提供字节流；本地只保留 Task 准入、容量与租约边界。
 每次拉取使用至多 256 KiB 的 UnixFS 范围，避免官方 exporter 的整文件预读队列。
 旧 `protectedBytes` 已改名为 `retainedBytes`，内存保留/租约不是持久 IPFS pin。
 Engine 入口只重导出 `createIpfsGatewayClient`，不再暴露 RPC 工厂；
-作者只离线生成 CAR；上传、导入、pin 交由用户选择的外部工具，ipfs-content 不再发布。
+Builder build 可从显式内容来源获取 imports，car 则始终离线；上传、导入、pin 交由用户选择的外部工具。
 Engine 不启动/停止节点、不关闭共享 client，也不删除共享或发布者 pin。
 配置的 Gateway 可直接读取；Request hint 默认禁止，宿主通过 `allowGateway(url)` 明确授权候选。
 客户端只使用官方 HTTP-only Helia，无 delegated routing、libp2p、公共 fallback 或重定向。
@@ -156,7 +158,7 @@ store.close();
 
 `drain()` 是终结性操作：同步封闭外部 `submit`、`collect` 和 `collectRequestResults`，
 已有准备/准入继续执行，
-有效父 Run 的结构化 `invokeTask` 继续遵守默认拒绝或显式授权、身份、关联与预算。
+有效父 Run 的结构化 `invokeTask` 继续遵守固定身份、关联及预算，不设置 authorizeChild 启动授权。
 核心生命周期通知同时观察 preparing Request、在途准入/子调用、所有未完成 Task
 （含未来 eligibility）、Run、分配和物理回收，不依赖分页或重复静默轮询。
 耗尽后才调用原 `close()`，等待守护和资源结束，返回

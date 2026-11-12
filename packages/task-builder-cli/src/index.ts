@@ -2,6 +2,10 @@ import { randomUUID } from "node:crypto";
 import { realpath, stat } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { Command, CommanderError, InvalidArgumentError, Option } from "commander";
+import {
+  createConfiguredContent,
+  type ContentConfiguration,
+} from "@silvermoon-work/task-content/node";
 import type { ReadOptions, ReadonlyFileTree } from "@silvermoon-work/task-builder/tree";
 import { directoryTree, writeDirectory } from "./node.js";
 import { cliVersion, createCliTaskProject } from "./project.js";
@@ -89,6 +93,7 @@ async function build(
   carEnabled: boolean,
   cwd: string,
   options: ReadOptions,
+  contentOverrides: Partial<ContentConfiguration> = {},
 ): Promise<BuildData> {
   const file = resolve(cwd, config);
   let root = dirname(file);
@@ -159,7 +164,18 @@ async function build(
       ),
     ),
   );
-  const tree = await buildTaskBundle(observed, definition.options);
+  const content = Object.keys(definition.options.imports ?? {}).length
+    ? await createConfiguredContent(contentOverrides)
+    : undefined;
+  let tree: ReadonlyFileTree;
+  try {
+    tree = await buildTaskBundle(observed, {
+      ...definition.options,
+      ...(content ? { content } : {}),
+    });
+  } finally {
+    await content?.close();
+  }
   const staging = join(dirname(file), `.task-builder-${randomUUID()}`);
   let staged = false;
   let updating = false;
@@ -323,10 +339,31 @@ export async function runTaskBuilderCli(
       new Option("--out-dir <directory>", "Module output; relative to cwd"),
     );
     singleOption(buildCommand, new Option("--no-car", "Do not update or delete any CAR"));
-    buildCommand.action(async (config: string, flags: { outDir?: string; car: boolean }) => {
-      options.signal?.throwIfAborted();
-      result = await build(config, flags.outDir, flags.car, cwd, readOptions);
-    });
+    singleOption(
+      buildCommand,
+      new Option("--content-gateway <url>", "Override the public content gateway for this build"),
+    );
+    singleOption(
+      buildCommand,
+      new Option(
+        "--content-data-dir <directory>",
+        "Override shared content storage; relative to cwd",
+      ),
+    );
+    buildCommand.action(
+      async (
+        config: string,
+        flags: { outDir?: string; car: boolean; contentGateway?: string; contentDataDir?: string },
+      ) => {
+        options.signal?.throwIfAborted();
+        result = await build(config, flags.outDir, flags.car, cwd, readOptions, {
+          ...(flags.contentGateway !== undefined ? { gateway: flags.contentGateway } : {}),
+          ...(flags.contentDataDir !== undefined
+            ? { dataDir: resolve(cwd, flags.contentDataDir) }
+            : {}),
+        });
+      },
+    );
     const car = program
       .command("car")
       .description(

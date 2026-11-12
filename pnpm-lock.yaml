@@ -188,6 +188,9 @@ importers:
       '@ipld/dag-pb':
         specifier: 'catalog:'
         version: 4.2.0
+      '@silvermoon-work/task-content':
+        specifier: workspace:*
+        version: link:../task-content
       '@silvermoon-work/task-protocol':
         specifier: workspace:*
         version: link:../task-protocol
@@ -222,6 +225,9 @@ importers:
       '@silvermoon-work/task-builder':
         specifier: workspace:*
         version: link:../task-builder
+      '@silvermoon-work/task-content':
+        specifier: workspace:*
+        version: link:../task-content
       '@silvermoon-work/task-protocol':
         specifier: workspace:*
         version: link:../task-protocol
@@ -236,7 +242,7 @@ importers:
         specifier: workspace:*
         version: link:../task-sdk
 
-  packages/task-engine:
+  packages/task-content:
     dependencies:
       '@helia/block-brokers':
         specifier: 'catalog:'
@@ -250,6 +256,34 @@ importers:
       '@helia/unixfs':
         specifier: 'catalog:'
         version: 8.0.9(supports-color@10.2.2)
+      '@ipld/dag-pb':
+        specifier: 'catalog:'
+        version: 4.2.0
+      '@silvermoon-work/task-protocol':
+        specifier: workspace:*
+        version: link:../task-protocol
+      blockstore-core:
+        specifier: 'catalog:'
+        version: 7.0.1
+      ipfs-unixfs-exporter:
+        specifier: 'catalog:'
+        version: 16.2.3
+      multiformats:
+        specifier: 'catalog:'
+        version: 14.0.5
+    devDependencies:
+      ipfs-unixfs-importer:
+        specifier: 'catalog:'
+        version: 17.1.1(supports-color@10.2.2)
+
+  packages/task-engine:
+    dependencies:
+      '@helia/unixfs':
+        specifier: 'catalog:'
+        version: 8.0.9(supports-color@10.2.2)
+      '@silvermoon-work/task-content':
+        specifier: workspace:*
+        version: link:../task-content
       '@silvermoon-work/task-protocol':
         specifier: workspace:*
         version: link:../task-protocol
@@ -299,6 +333,9 @@ importers:
       '@libp2p/peer-id':
         specifier: 'catalog:'
         version: 6.0.18
+      '@silvermoon-work/task-content':
+        specifier: workspace:*
+        version: link:../task-content
       '@silvermoon-work/task-engine':
         specifier: workspace:*
         version: link:../task-engine

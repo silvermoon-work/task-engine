@@ -12,6 +12,7 @@ verification are recorded in the
 ```text
 task-builder init <directory> [--package-name <name>] [--task-name <name>]
 task-builder build [build-file] [--out-dir <directory>] [--no-car]
+  [--content-gateway <url>] [--content-data-dir <directory>]
 task-builder car <task-file> [--output <file>]
 task-builder --help
 task-builder build --help
@@ -23,6 +24,10 @@ There is no `help` command, implicit build, `check`, `--root`, `--format`,
 `--trusted-contract`, dependency-version selection, CID sidecar, or business
 field override. Unknown, extra and duplicate options/arguments fail.
 No command prompts, reads stdin, installs dependencies, uploads or publishes.
+Build may fetch declared imports from the explicitly configured content source.
+`car` never fetches. Both use [immutable import validation](../task-builder/README.md#immutable-imports-and-migration).
+Build defaults to the independent [public content configuration](../task-content/README.md);
+the two content flags override it for one build (relative data paths use cwd).
 TTY and redirected invocations have the same behavior.
 
 Successful business commands write one newline-terminated

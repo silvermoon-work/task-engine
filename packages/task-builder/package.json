@@ -48,6 +48,7 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@silvermoon-work/task-content": "workspace:*",
     "@ipld/car": "catalog:",
     "@ipld/dag-pb": "catalog:",
     "multiformats": "catalog:",

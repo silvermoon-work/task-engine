@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID, createHmac, timingSafeEqual } from "node:crypto";
 import { mkdir, readdir, realpath, readFile, open, rename, rm, lstat } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { existsSync, lstatSync } from "node:fs";
 import * as dagPb from "@ipld/dag-pb";
@@ -48,6 +48,7 @@ export interface InstanceRecord {
   pid: number;
   birth: string;
   dataDir: string;
+  contentDataDir?: string;
   state: "starting" | "ready" | "stopping" | "stopped";
   engineUrl?: string;
   released: boolean;
@@ -81,6 +82,8 @@ export async function readInstance(directory: string): Promise<InstanceRecord | 
         ? /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}:[0-9]+$/.test(record.birth)
         : /^(?:[A-Z][a-z]{2} ){2}[0-9]{1,2} [0-9:]{8} [0-9]{4}$/.test(record.birth)) ||
     record.dataDir !== directory ||
+    (record.contentDataDir !== undefined &&
+      (typeof record.contentDataDir !== "string" || !isAbsolute(record.contentDataDir))) ||
     !["starting", "ready", "stopping", "stopped"].includes(record.state) ||
     typeof record.released !== "boolean"
   )
@@ -364,13 +367,17 @@ export class DiskContent implements GatewayClient {
   private readonly active = new Set<Promise<Uint8Array>>();
   constructor(
     readonly directory: string,
-    gateway?: string,
+    gateway?: string | GatewayClient,
     private readonly failed: (error: unknown) => void = () => {},
     private readonly beforeWrite?: () => void,
     private readonly retainedBlock?: (cid: string, maxBytes?: number) => Uint8Array | undefined,
   ) {
     this.checkDirectory();
-    if (gateway) this.gateway = createIpfsGatewayClient(gateway, { allowPath: true });
+    if (gateway)
+      this.gateway =
+        typeof gateway === "string"
+          ? createIpfsGatewayClient(gateway, { allowPath: true })
+          : gateway;
   }
   private checkDirectory() {
     const path = join(this.directory, "blocks");
@@ -384,7 +391,8 @@ export class DiskContent implements GatewayClient {
     }
   }
   async put(cid: CID, bytes: Uint8Array, signal?: AbortSignal): Promise<void> {
-    await verifyBlock(cid, bytes);
+    const snapshot = Uint8Array.from(bytes);
+    await verifyBlock(cid, snapshot);
     signal?.throwIfAborted();
     try {
       await this.local(cid);
@@ -397,7 +405,7 @@ export class DiskContent implements GatewayClient {
       signal?.throwIfAborted();
       this.checkDirectory();
       await mkdir(join(this.directory, "blocks"), { recursive: true });
-      await atomicFile(join(this.directory, "blocks", cid.toV1().toString()), bytes, signal);
+      await atomicFile(join(this.directory, "blocks", cid.toV1().toString()), snapshot, signal);
     } catch (error) {
       if (signal?.aborted && error === signal.reason) throw error;
       this.failed(error);
@@ -502,6 +510,7 @@ export async function pruneData(
   repository: Repository,
   selection: PruneSelection,
   signal?: AbortSignal,
+  contentDirectory?: string,
 ) {
   const counts = {
     dataDir: repository.directory,
@@ -557,6 +566,10 @@ export async function pruneData(
         undefined,
         (cid) => repository.readContentBlock(cid),
       );
+      const shared =
+        contentDirectory && resolve(contentDirectory) !== resolve(repository.directory)
+          ? new DiskContent(contentDirectory)
+          : undefined;
       const marked = new Set<string>();
       const pending = repository.all().flatMap((task) => {
         if (!task.released)
@@ -569,7 +582,13 @@ export async function pruneData(
           const cid = CID.parse(pending.pop()!).toV1();
           const key = cid.toString();
           if (marked.has(key)) continue;
-          const bytes = await content.local(cid);
+          let bytes: Uint8Array;
+          try {
+            bytes = await content.local(cid);
+          } catch (error) {
+            if (!shared || (error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+            bytes = await shared.local(cid);
+          }
           marked.add(key);
           if (cid.code === dagPb.code)
             pending.push(...dagPb.decode(bytes).Links.map((link) => link.Hash.toString()));
@@ -584,6 +603,7 @@ export async function pruneData(
         );
       } finally {
         await content.close();
+        await shared?.close();
       }
       let blocks: string[];
       try {

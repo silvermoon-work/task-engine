@@ -14,6 +14,7 @@ import {
   type TaskBundleFileLimits,
 } from "@silvermoon-work/task-protocol";
 import type { IpfsClient } from "@silvermoon-work/task-engine";
+import { ContentBlocks, linkContent } from "@silvermoon-work/task-content/dag";
 
 interface ReadOptions {
   readonly signal?: AbortSignal;
@@ -210,7 +211,17 @@ export async function openCarSource(
       } else throw new Error("CAR requires a directory of regular UnixFS files.");
     };
     await walk(root, "");
-    readTaskBundle(files, filesLimit);
+    const checked = readTaskBundle(files, filesLimit);
+    const imports = checked.declaration.imports ?? {};
+    const graph = new ContentBlocks({
+      block: { get: (cid, request) => read(CID.parse(cid), request) },
+    });
+    for (const [path, cid] of Object.entries(imports)) {
+      const actual = await exporter(`${root}/${path}`, blocks, options);
+      if (!actual.cid.toV1().equals(CID.parse(cid).toV1()))
+        throw new Error(`Import path CID mismatch: ${path}`);
+      await graph.prepare(cid, options);
+    }
     async function* candidates() {
       for (const path of [...files.keys()].sort()) {
         check();
@@ -223,7 +234,13 @@ export async function openCarSource(
       {
         async put(cid, bytes, request) {
           check(request);
-          if (!(bytes instanceof Uint8Array)) for await (const _part of bytes) check(request);
+          if (Object.keys(imports).length) {
+            const parts: Uint8Array[] = [];
+            for await (const part of bytes instanceof Uint8Array ? [bytes] : bytes)
+              parts.push(part);
+            await graph.put(cid, Buffer.concat(parts), request);
+          } else if (!(bytes instanceof Uint8Array))
+            for await (const _part of bytes) check(request);
           return cid;
         },
       },
@@ -240,6 +257,9 @@ export async function openCarSource(
       },
     ))
       canonical = entry.cid;
+    if (canonical)
+      for (const [path, cid] of Object.entries(imports))
+        canonical = await linkContent(canonical, path, CID.parse(cid), graph, options);
     if (!canonical?.toV1().equals(root.toV1()))
       throw new Error("CAR root is not a canonical Bundle file tree.");
     files.clear();

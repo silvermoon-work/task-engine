@@ -242,7 +242,6 @@ export async function executeTask(
       ...(preparingCapacity ? { preparingCapacity } : {}),
       ...(preparation ? { bundlePreparation: preparation } : {}),
       authorize: () => true,
-      authorizeChild: () => true,
       onError: (error) => {
         if (error.code === "LOGS_INCOMPLETE")
           for (const task of repository.all().filter((task) => task.rootId === id)) {

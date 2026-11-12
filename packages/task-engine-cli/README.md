@@ -1,6 +1,11 @@
 # @silvermoon-work/task-engine-cli
 
 Task Engine 的本地后台 Server 与任务调用 CLI，要求 Node.js 22.15+（23.x 至少 23.5）。
+当前源码新增通用 imports / SpaceRef 子调用；以下历史发布记录不表示该候选已经发布。
+build 交付的完整目录包含 `.task-imports.car`，搬运时不可遗漏。
+离线 CAR 消费保留原始 import DAG，不把非默认分块内容重编码成新身份。
+子调用不需要 authorizeChild；具体资源入口约束和调度预算保持不变。
+旧 CID/path 调用须更新 SDK 并重建；旧子调用持久事实须使用新数据域。
 已发布 `0.1.0-canary-261111-2` 提供受管 Server、持久任务和 Space 输出；
 旧 `0.1.0-canary-261110-1` 是单次嵌入执行命令，不具有下列接口。
 本文描述 **0.2.0 RC** 的接口，保留 0.1.0 的帮助纠错和后台故障诊断。
@@ -105,6 +110,17 @@ status 枚举为 `pending/running/succeeded/failed/timed_out/cancelled/rejected`
 日志按持久化追加顺序分页，只有 time/level/message，不混入完整业务结果。
 
 ## 实例、持久化和清理
+
+内容来源与内容块默认读取独立公共配置（Windows
+`%LOCALAPPDATA%\TaskContent\config.json`；其他平台
+`~/.config/task-content/config.json`，或 `TASK_CONTENT_CONFIG`）。
+配置键为 `gateway` 和 `dataDir`；默认与 Builder 共用
+`~/.silvermoon.work/content`，不含 Engine 数据库。
+`server start --ipfs-gateway <url> --content-data-dir <directory>` 可独立覆盖，
+也可使用 `server.ipfsGateway` / `server.contentDataDir` 配置键。
+`--data-dir` / `server.dataDir` 仍只选择 Engine 运行数据域。
+公共内容目录不参与 Engine 的私有 `data prune --cache`，首版不自动回收共享块。
+旧私有缓存不隐式迁移，不再通过 Kubo 配置猜测内容来源。
 
 `server start` 后台运行，就绪才返回；冲突不改端口、不复用或重启其他实例。
 `server start/status/stop` 和离线 `data prune` 按相同目录选择实例：

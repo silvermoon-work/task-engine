@@ -33,6 +33,7 @@
     "@libp2p/peer-id": "catalog:",
     "timestamp-nano": "catalog:",
     "protons-runtime": "catalog:",
+    "@silvermoon-work/task-content": "workspace:*",
     "@ipld/car": "catalog:",
     "@ipld/dag-pb": "catalog:",
     "@ipld/dag-cbor": "catalog:",

@@ -9,10 +9,16 @@ import {
   TaskError,
   taskBundleLimits,
   validateBundleReference,
-  validateTaskText,
 } from "@silvermoon-work/task-protocol";
 import { gte, satisfies } from "semver";
-import { GatewayReadError, type IpfsClient, openContent, withGatewayHints } from "./content.js";
+import { CID } from "multiformats/cid";
+import {
+  GatewayReadError,
+  type IpfsClient,
+  openContent,
+  prepareContent,
+  withGatewayHints,
+} from "./content.js";
 
 export type BundleLimits = TaskBundleFileLimits & {
   hints: number;
@@ -61,7 +67,6 @@ export interface BundleCacheOptions {
   persistentContent?: boolean;
   preparation?: { acquire(signal: AbortSignal): Promise<() => void> };
   ipfsClient: IpfsClient;
-  prefetch?: boolean;
   concurrency?: number;
   limits?: Partial<BundleLimits>;
   allowGateway?: (url: URL) => boolean;
@@ -75,6 +80,17 @@ export class BundleCache {
   private readonly leases = new Map<string, number>();
   private readonly lifetime = new AbortController();
   private readonly retentionBudget = { bytes: 0, limit: 0 };
+  private readonly retainedBlocks = new Map<string, Uint8Array>();
+  readonly block = {
+    get: async (value: string, options: { signal?: AbortSignal } = {}): Promise<Uint8Array> => {
+      options.signal?.throwIfAborted();
+      this.lifetime.signal.throwIfAborted();
+      const retained = this.retainedBlocks.get(CID.parse(value).toV1().toString());
+      return retained
+        ? Uint8Array.from(retained)
+        : this.options.ipfsClient.block.get(value, options);
+    },
+  };
   private readonly concurrency: number;
   private occupied = 0;
   private readonly waiting: { enter(): void; reject(error: unknown): void }[] = [];
@@ -95,6 +111,32 @@ export class BundleCache {
   async available(cid: string): Promise<boolean> {
     cid = bundleCid(validateBundleReference(cid));
     return this.prepared.has(cid);
+  }
+  async resolve(cid: string, path: string, signal: AbortSignal): Promise<string> {
+    cid = bundleCid(validateBundleReference(cid));
+    const relative = path.replace(/^\//, "");
+    if (relative && !safePath(relative))
+      throw new TaskError("invalid_space", "Unsafe child SpaceRef path.");
+    let entry: Awaited<ReturnType<typeof openContent>>;
+    try {
+      entry = await openContent(this.options.ipfsClient, relative ? `${cid}/${relative}` : cid, {
+        signal: AbortSignal.any([signal, this.lifetime.signal]),
+        maxBlockBytes: 2 * 1024 * 1024,
+        maxDagBlocks: this.limits.blocks,
+        retentionBudget: this.retentionBudget,
+        retainedBlocks: this.retainedBlocks,
+      });
+    } catch (error) {
+      signal.throwIfAborted();
+      if (error instanceof TaskError) throw error;
+      throw new TaskError(
+        "invalid_bundle",
+        "Child SpaceRef could not resolve an immutable task directory.",
+      );
+    }
+    if (entry.type !== "directory")
+      throw new TaskError("invalid_bundle", "Child Task root must be a directory.");
+    return entry.cid.toV1().toString();
   }
   source(cid: string): string {
     const prepared = this.prepared.get(cid);
@@ -167,7 +209,7 @@ export class BundleCache {
     const cid = bundleCid(reference);
     const cached = this.prepared.get(cid);
     if (cached) return cached;
-    const retainedBlocks = new Map<string, Uint8Array>();
+    const retainedBlocks = this.retainedBlocks;
     const gateways =
       typeof reference === "string"
         ? []
@@ -181,7 +223,7 @@ export class BundleCache {
       retainedBlocks,
       retentionBudget: this.retentionBudget,
       maxDagBlocks: this.limits.blocks,
-      cacheBlocks: !this.options.persistentContent,
+      cacheBlocks: true,
     });
     const files = new Map<string, Buffer>();
     const logicalPaths = new Set<string>();
@@ -225,11 +267,6 @@ export class BundleCache {
           BigInt(total) + entry.size > BigInt(this.limits.bytes)
         )
           throw new TaskError("capacity_exceeded", "Bundle byte capacity exceeded.");
-        if (path.startsWith("resources/") && !this.options.prefetch) {
-          total += Number(entry.size);
-          files.set(path, Buffer.alloc(0));
-          return;
-        }
         const chunks: Buffer[] = [];
         let size = 0;
         for await (const chunk of entry.content({ signal: this.lifetime.signal })) {
@@ -245,30 +282,16 @@ export class BundleCache {
         throw new TaskError("invalid_bundle", "Bundle requires regular UnixFS files/directories.");
     };
     try {
+      await prepareContent(client, cid, access(this.lifetime.signal));
       const root = await openContent(client, cid, access(this.lifetime.signal));
       if (root.type !== "directory")
         throw new TaskError("invalid_bundle", "Bundle CID must identify a directory.");
       await walk(root, "");
       const inspected = inspectTaskBundle(files, this.limits);
-      if (!this.options.prefetch) {
-        const binary = new Set(inspected.declaration.binary);
-        for (const path of files.keys()) {
-          if (!path.startsWith("resources/") || binary.has(path)) continue;
-          const entry = await openContent(client, `${cid}/${path}`, access(this.lifetime.signal));
-          if (entry.type !== "file" && entry.type !== "raw")
-            throw new TaskError("invalid_bundle", "Bundle text is not a regular file.");
-          const chunks: Buffer[] = [];
-          let size = 0;
-          for await (const chunk of entry.content({ signal: this.lifetime.signal })) {
-            size += chunk.byteLength;
-            if (size > this.limits.fileBytes || BigInt(size) > entry.size)
-              throw new TaskError("capacity_exceeded", "Bundle text capacity exceeded.");
-            chunks.push(Buffer.from(chunk));
-          }
-          if (BigInt(size) !== entry.size)
-            throw new TaskError("invalid_bundle", "Bundle text size differs from its DAG.");
-          validateTaskText(Buffer.concat(chunks, size), path);
-        }
+      for (const [path, expected] of Object.entries(inspected.declaration.imports ?? {})) {
+        const entry = await openContent(client, `${cid}/${path}`, access(this.lifetime.signal));
+        if (entry.cid.toV1().toString() !== bundleCid(validateBundleReference(expected)))
+          throw new TaskError("invalid_bundle", `Import path CID mismatch: ${path}`);
       }
       const allowed = new Set(files.keys());
       return {
@@ -309,11 +332,6 @@ export class BundleCache {
         },
       };
     } catch (error) {
-      this.retentionBudget.bytes -= [...retainedBlocks.values()].reduce(
-        (sum, block) => sum + block.length,
-        0,
-      );
-      retainedBlocks.clear();
       if (this.lifetime.signal.aborted) throw this.lifetime.signal.reason;
       if (error instanceof TaskError) throw error;
       if (error instanceof Error && /^IPFS .*capacity exceeded\.$/.test(error.message))
@@ -329,7 +347,6 @@ export class BundleCache {
   async evict(cid: string): Promise<boolean> {
     cid = bundleCid(validateBundleReference(cid));
     if (this.fetching.has(cid) || this.leases.has(cid)) return false;
-    this.retentionBudget.bytes -= this.prepared.get(cid)?.retainedBytes ?? 0;
     this.prepared.delete(cid);
     return true;
   }
@@ -338,6 +355,7 @@ export class BundleCache {
     for (const waiting of this.waiting.splice(0)) waiting.reject(this.lifetime.signal.reason);
     await Promise.allSettled([...this.fetching.values()]);
     this.prepared.clear();
+    this.retainedBlocks.clear();
     this.retentionBudget.bytes = 0;
   }
 }

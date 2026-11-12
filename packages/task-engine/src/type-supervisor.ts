@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { Worker } from "node:worker_threads";
 import {
   type Caller,
-  type ChildTaskInvocation,
+  type WireChildTaskInvocation,
   canonical,
   compileInputSchema,
   compileJsonSchema,
@@ -27,7 +27,7 @@ import { bundleModuleURL } from "./bundle-module.js";
 
 export interface TypeChannel {
   invokeTask?(
-    request: ChildTaskInvocation,
+    request: WireChildTaskInvocation,
     context: import("@silvermoon-work/task-protocol").RunResourceContext,
   ): Promise<Json>;
   logDropped?(runId: string, generation: string, scope: string, count: number): RunLogReceipt;
@@ -743,7 +743,7 @@ class RunWorker {
           resourceContext = context;
           context.resources.add(operation);
           const result = json(
-            await this.channel.invokeTask(value as unknown as ChildTaskInvocation, {
+            await this.channel.invokeTask(value as unknown as WireChildTaskInvocation, {
               runId,
               scope: context.scope,
               signal: context.controller.signal,

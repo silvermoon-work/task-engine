@@ -11,11 +11,9 @@ import { openSqliteStore } from "@silvermoon-work/task-engine-storage";
 import { positive, type Store, TaskError } from "@silvermoon-work/task-protocol";
 
 export interface ServerOptions {
-  authorizeChild?: EngineOptions["authorizeChild"];
   logs?: EngineOptions["logs"];
   ipfsClient: EngineOptions["ipfsClient"];
   allowGateway?: EngineOptions["allowGateway"];
-  bundlePrefetch?: EngineOptions["bundlePrefetch"];
   bundleLimits?: EngineOptions["bundleLimits"];
   bundleConcurrency?: number;
   spaceLimits?: EngineOptions["spaceLimits"];
@@ -173,10 +171,8 @@ export async function startTaskServer(options: ServerOptions): Promise<TaskServe
       },
     };
     engine = createTaskEngine({
-      ...(options.authorizeChild ? { authorizeChild: options.authorizeChild } : {}),
       store: lease,
       ipfsClient: options.ipfsClient,
-      ...(options.bundlePrefetch !== undefined ? { bundlePrefetch: options.bundlePrefetch } : {}),
       ...(options.allowGateway ? { allowGateway: options.allowGateway } : {}),
       ...(options.bundleConcurrency !== undefined
         ? { bundleConcurrency: options.bundleConcurrency }

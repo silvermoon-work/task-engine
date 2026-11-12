@@ -2,7 +2,7 @@ import type { ResolvedTaskBundle } from "./bundle.js";
 import { fail, type Json, type JsonObject, json, TaskError } from "./json.js";
 import type { RunLogInput, RunLogReceipt } from "./logs.js";
 import type { InputSchema, JsonSchema } from "./schema.js";
-import type { ReadonlySpace, ReadWriteSpace, SpaceHost } from "./spaces.js";
+import type { ReadonlySpace, ReadWriteSpace, SpaceHost, SpaceRef, SpaceRefJSON } from "./spaces.js";
 import type { Caller } from "./types.js";
 
 export interface RunProgress {
@@ -31,11 +31,12 @@ export class RunFailure extends TaskError {
 export interface ChildTaskInvocation {
   /** Stable within this parent Run; retrying the same key must preserve intent. */
   key: string;
-  cid: string;
-  /** A directory in the verified parent DAG whose root must equal cid. */
-  path: string;
+  bundle: SpaceRef;
   input: Json;
   timeoutMs: number;
+}
+export interface WireChildTaskInvocation extends Omit<ChildTaskInvocation, "bundle"> {
+  bundle: SpaceRefJSON;
 }
 export interface RunContext<Message extends Json = never> {
   readonly startedAt?: string;

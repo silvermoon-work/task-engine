@@ -95,6 +95,7 @@ CLI 通过标准 CAR/UnixFS 库实现离线只读块源，生产安装不依赖 
 | 包                                                                               | 职责                                       |
 | -------------------------------------------------------------------------------- | ------------------------------------------ |
 | [@silvermoon-work/task-protocol](./packages/task-protocol/README.md)             | 任务事实、协议、投影及 Bundle 契约         |
+| [@silvermoon-work/task-content](./packages/task-content/README.md)               | 共用内容获取、CID 验证与独立共享块存储     |
 | [@silvermoon-work/task-sdk](./packages/task-sdk/README.md)                       | Worker 运行时与作者回调、上下文类型        |
 | [@silvermoon-work/task-engine](./packages/task-engine/README.md)                 | 嵌入式引擎、任务协调及执行池               |
 | [@silvermoon-work/task-engine-storage](./packages/task-engine-storage/README.md) | SQLite 持久化                              |
@@ -150,6 +151,7 @@ apps/
   task-engine/
 packages/
   task-protocol/
+  task-content/
   task-sdk/
   task-engine/
   task-engine-storage/

@@ -75,13 +75,24 @@ failure; rejected `RunFailure` evidence is re-reported without that evidence.
 Release follows an acknowledged terminal fact; an unavailable terminal channel
 reports uncertainty. Cancellation keeps its stopping/release path.
 
-`context.invokeTask({ key, cid, path, input, timeoutMs })` requests a child
+`context.invokeTask({ key, bundle: context.bundle.root.resolve("resources/child"), input, timeoutMs })` requests a child
 through the host and returns its acknowledged JSON result. The key is stable
-within the parent Run; the host verifies the child's root against the parent
-DAG, enforces authorization and budgets, and owns admission and cleanup.
+within the parent Run. For an external target use `bundle: context.space(cid).root`.
+The SDK requires a real SpaceRef created by this Context, not lookalike JSON.
+The host resolves and durably fixes the actual CID, child requestId and deadline
+before dispatch. Replays retain that identity; changed intent conflicts.
+There is no child-start authorization or CID whitelist. Existing resource access
+constraints, independent child Runs, validation, cancellation and budgets remain.
+Writable output references are rejected. Creating a Space does not fetch it;
+external targets are completely prepared at invocation time.
 Calls after finishing reject with `run_finished`; cancellation interrupts
 submission. Child invocations share the bounded request channel but do not
 occupy the sequential progress output queue.
+
+The former `{cid, path}` invocation is removed, not an alternate protocol.
+Update calls to SpaceRef, use matching SDK/Builder versions, rebuild bundles and
+replace dependent CIDs. Existing artifacts are never rewritten. See
+[migration](../task-builder/README.md#immutable-imports-and-migration).
 
 Node structured clone transports IPC. Non-cloneable payloads reject locally
 with `invalid_payload`; sendable non-JSON values are rejected by the host.

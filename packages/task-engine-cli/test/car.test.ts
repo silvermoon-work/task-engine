@@ -8,12 +8,76 @@ import { sha256, sha512 } from "multiformats/hashes/sha2";
 import { importer } from "ipfs-unixfs-importer";
 import { fixedSize } from "ipfs-unixfs-importer/chunker";
 import { balanced } from "ipfs-unixfs-importer/layout";
+import { exporter } from "ipfs-unixfs-exporter";
+import { ContentBlocks, linkContent } from "@silvermoon-work/task-content/dag";
 import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { encodeTaskBundleCar, readTaskBundleCar } from "@silvermoon-work/task-builder/car";
 import { memoryFile, memoryTree } from "@silvermoon-work/task-builder/tree";
 import { openCarSource } from "../src/car.js";
 
 const readers = [readTaskBundleCar, openCarSource];
+
+test("both offline consumers retain imported file and directory roots with nondefault UnixFS chunks", async () => {
+  const graph = new ContentBlocks();
+  const payload = Buffer.alloc(20_001, 123);
+  let directory: CID | undefined, file: CID | undefined;
+  for await (const entry of importer(
+    [{ path: "data.bin", content: payload, mode: 0o640, mtime: { secs: 123n } }],
+    graph,
+    {
+      cidVersion: 1,
+      rawLeaves: false,
+      wrapWithDirectory: true,
+      chunker: fixedSize({ chunkSize: 777 }),
+    },
+  )) {
+    if (entry.path === "data.bin") file = entry.cid;
+    directory = entry.cid;
+  }
+  assert.ok(directory);
+  assert.ok(file);
+  const files = bundle({ "resources/import/data.bin": payload, "resources/file.bin": payload }, [
+    "resources/file.bin",
+    "resources/import/data.bin",
+  ]);
+  const declaration = JSON.parse(Buffer.from(files.get("task.yaml")!).toString());
+  declaration.imports = {
+    "resources/import": directory.toString(),
+    "resources/file.bin": file.toString(),
+  };
+  files.set("task.yaml", Buffer.from(JSON.stringify(declaration)));
+  const canonical = await CarReader.fromBytes(await unvalidated(files));
+  for await (const block of canonical.blocks()) await graph.put(block.cid, block.bytes);
+  let root = (await canonical.getRoots())[0]!;
+  root = await linkContent(root, "resources/import", directory, graph);
+  root = await linkContent(root, "resources/file.bin", file, graph);
+  const reached = new ContentBlocks(graph);
+  await reached.prepare(root);
+  const bytes = await archive(
+    [root],
+    [...reached.blocks].map(([cid, bytes]) => ({ cid: CID.parse(cid), bytes })),
+  );
+  for (const read of readers) {
+    const source = await read(memoryFile(bytes), { expectedCid: root.toString() });
+    try {
+      const store = {
+        async *get(cid: CID) {
+          yield await source.block.get(cid.toString());
+        },
+      };
+      assert.ok((await exporter(`${source.cid}/resources/import`, store)).cid.equals(directory));
+      const imported = await exporter(`${source.cid}/resources/file.bin`, store);
+      assert.ok(imported.cid.equals(file));
+      assert.equal(imported.type, "file");
+      if (imported.type === "file") {
+        assert.equal(imported.unixfs.mode, 0o640);
+        assert.equal(imported.unixfs.mtime?.secs, 123n);
+      }
+    } finally {
+      await source.close();
+    }
+  }
+});
 function bundle(extra: Record<string, Uint8Array> = {}, binary: string[] = []) {
   const files = new Map<string, Uint8Array>([
     ["worker.cjs", Buffer.from("module.exports = {};")],

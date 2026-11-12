@@ -4,9 +4,9 @@
 
 ### Implementation steps
 
-- [ ] **I-S01:** 统一引用调用与执行身份
-- [ ] **I-S02:** 明确构建与准备闭包
-- [ ] **I-S03:** 更新验证与作者文档
+- [x] **I-S01:** 统一引用调用与执行身份
+- [x] **I-S02:** 明确构建与准备闭包
+- [x] **I-S03:** 更新验证与作者文档
 
 ### Implementation acceptance criteria
 

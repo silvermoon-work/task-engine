@@ -10,6 +10,7 @@ import {
 } from "./schema.js";
 
 import { taskSchemaUri } from "./task-schema-uri.js";
+import { bundleCid, validateBundleReference } from "./bundle-reference.js";
 export { taskSchemaUri } from "./task-schema-uri.js";
 export const taskBundleSchema = {
   $id: taskSchemaUri,
@@ -69,6 +70,11 @@ export const taskBundleSchema = {
     },
     resultSchema: { type: ["object", "boolean"] },
     messageSchema: { type: ["object", "boolean"] },
+    imports: {
+      type: "object",
+      maxProperties: taskBundleLimits.files,
+      additionalProperties: { type: "string" },
+    },
   },
 };
 export * from "./bundle-reference.js";
@@ -79,6 +85,7 @@ export interface TaskBundleDeclaration {
   entry: "worker.cjs";
   include: string[];
   binary: string[];
+  imports?: Record<string, string>;
   inputSchema: JsonObject;
   resultSchema: JsonSchema;
   messageSchema: JsonSchema;
@@ -144,6 +151,7 @@ export function validateTaskBundle(value: unknown): TaskBundleDeclaration {
     );
   if (!validator(parsed)) fail("invalid_bundle", "Invalid task.yaml declaration.");
   const declaration = parsed as unknown as TaskBundleDeclaration;
+  if (declaration.imports) validateTaskImports(declaration.imports);
   const folded = new Set<string>();
   const spellings = new Map<string, string>();
   for (const path of declaration.include) {
@@ -175,6 +183,28 @@ export function validateTaskBundle(value: unknown): TaskBundleDeclaration {
         "Task Bundle binary requires sorted, unique exact resource file paths from include.",
       );
   return declaration;
+}
+export function validateTaskImports(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    fail("invalid_bundle", "imports must map resources/ paths to immutable CIDs.");
+  const entries = Object.entries(value);
+  if (entries.length > taskBundleLimits.files) fail("capacity_exceeded", "Too many imports.");
+  const result: Record<string, string> = {};
+  for (const [path, cid] of entries) {
+    if (!isTaskBundlePath(path) || !path.startsWith("resources/") || typeof cid !== "string")
+      fail("invalid_bundle", "imports require portable resources/ paths and exact CIDs.");
+    if (
+      entries.some(
+        ([other]) =>
+          other !== path &&
+          (other.toLowerCase() === path.toLowerCase() ||
+            other.toLowerCase().startsWith(`${path.toLowerCase()}/`)),
+      )
+    )
+      fail("invalid_bundle", "Import paths overlap.");
+    result[path] = bundleCid(validateBundleReference(cid));
+  }
+  return result;
 }
 export function validateTaskBundleFiles(
   declaration: TaskBundleDeclaration,

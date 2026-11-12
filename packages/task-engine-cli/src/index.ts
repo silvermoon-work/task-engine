@@ -1,10 +1,7 @@
 import { open, readFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join, resolve } from "node:path";
 import { Readable } from "node:stream";
 import type { CarSource } from "./car.js";
 import {
-  createIpfsGatewayClient,
   createTaskEngine,
   type DrainResult,
   type GatewayClient,
@@ -19,7 +16,7 @@ import {
   TaskError,
   validateBundleReference,
 } from "@silvermoon-work/task-protocol";
-import { kuboGateways } from "./gateway.js";
+import { createConfiguredContent } from "@silvermoon-work/task-content/node";
 export { main, help } from "./entry.js";
 
 export const exitCodes = {
@@ -45,7 +42,6 @@ export interface RunBundleOptions {
   cid: string;
   input: unknown;
   ipfsClient: IpfsClient;
-  allowChildren?: boolean;
   timeoutMs?: number;
   maxRuntimeMs?: number;
   signal?: AbortSignal;
@@ -107,8 +103,6 @@ export async function runBundle(options: RunBundleOptions): Promise<ExecutionRes
       throw new TaskError("invalid_input", "Input collides with the Task request envelope.");
     timeoutMs = positive(options.timeoutMs ?? 60_000);
     if (options.maxRuntimeMs !== undefined) positive(options.maxRuntimeMs);
-    if (options.allowChildren !== undefined && typeof options.allowChildren !== "boolean")
-      throw new TaskError("invalid_config", "allowChildren must be boolean.");
     if (options.signal !== undefined && !(options.signal instanceof AbortSignal))
       throw new TaskError("invalid_config", "signal must be an AbortSignal.");
   } catch (error) {
@@ -140,7 +134,6 @@ export async function runBundle(options: RunBundleOptions): Promise<ExecutionRes
       ipfsClient: options.ipfsClient,
       authorize: (identity) =>
         identity.scope === caller.scope && identity.subject === caller.subject,
-      ...(options.allowChildren ? { authorizeChild: () => true } : {}),
     });
     await engine.start();
     await engine.submit({ ...input, requestId, bundle: options.cid, timeoutMs }, caller);
@@ -234,7 +227,6 @@ No task HTTP service is required. Select CID/Gateway or a local CAR, never both.
                       Default: TASK_ENGINE_GATEWAY, otherwise Kubo Addresses.Gateway.
                       Kubo repo: IPFS_PATH, otherwise ~/.ipfs; never guess a port.
                       Explicit --gateway replaces the default; CAR ignores the environment.
---allow-children       Authorize verified child subtrees within existing engine budgets.
                       Default deny; depth 4, concurrent 4, total 64, child timeout 30s.
 --timeout-ms <ms>      Root Task deadline budget (default 60000).
 --max-runtime-ms <ms>  Optional overall budget, including CAR validation, admission and drain.
@@ -266,13 +258,8 @@ export async function legacyMain(argv: readonly string[] = process.argv.slice(2)
     const cid = argv[1] && !argv[1].startsWith("-") ? argv[1] : undefined;
     const gateways: string[] = [];
     const values = new Map<string, string>();
-    let allowChildren = false;
     for (let index = cid ? 2 : 1; index < argv.length; index++) {
       const key = argv[index]!;
-      if (key === "--allow-children" && !allowChildren) {
-        allowChildren = true;
-        continue;
-      }
       if (
         ![
           "--input",
@@ -312,22 +299,9 @@ export async function legacyMain(argv: readonly string[] = process.argv.slice(2)
       ? positive(Number(values.get("--max-runtime-ms")))
       : undefined;
     if (!carPath) {
-      if (!gateways.length) {
-        const configured = process.env.TASK_ENGINE_GATEWAY;
-        if (configured !== undefined) gateways.push(configured);
-        else {
-          const repository = process.env.IPFS_PATH;
-          if (repository === "")
-            throw new TaskError("invalid_config", "IPFS_PATH must not be empty.");
-          gateways.push(
-            ...(await kuboGateways(
-              resolve(repository ?? join(homedir(), ".ipfs")),
-              controller.signal,
-            )),
-          );
-        }
-      }
-      ipfsClient = createIpfsGatewayClient(gateways);
+      if (!gateways.length && process.env.TASK_ENGINE_GATEWAY !== undefined)
+        gateways.push(process.env.TASK_ENGINE_GATEWAY);
+      ipfsClient = await createConfiguredContent(gateways.length ? { gateway: gateways } : {});
     }
     let text: string;
     if (path === "-") {
@@ -390,7 +364,6 @@ export async function legacyMain(argv: readonly string[] = process.argv.slice(2)
       cid: rootCid,
       input,
       ipfsClient: source,
-      allowChildren,
       ...(timeoutMs !== undefined ? { timeoutMs } : {}),
       ...(!carPath && maxRuntimeMs !== undefined ? { maxRuntimeMs } : {}),
       signal: controller.signal,

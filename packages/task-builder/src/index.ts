@@ -9,7 +9,12 @@ import {
   taskBundlePattern,
   taskSchemaUri,
   validateTaskBundle,
+  validateTaskImports,
 } from "@silvermoon-work/task-protocol";
+import type { IpfsClient } from "@silvermoon-work/task-content";
+import { ContentBlocks, expandContent } from "@silvermoon-work/task-content/dag";
+import { CID } from "multiformats/cid";
+import { importSidecar, encodeImportBlocks } from "./imports.js";
 import { stringify } from "yaml";
 import { contractSchemas } from "./contract.js";
 import { compileTree, evaluateContract } from "./esbuild.js";
@@ -66,6 +71,8 @@ export interface TaskBuildOptions extends ReadOptions {
   };
   readonly include?: readonly { readonly from: string; readonly to: string }[];
   readonly binary?: readonly string[];
+  readonly imports?: Readonly<Record<string, string>>;
+  readonly content?: IpfsClient;
   readonly allowContractExecution?: boolean;
   readonly limits?: Partial<BuilderLimits>;
 }
@@ -130,7 +137,11 @@ function outputTree(
   binary: ReadonlySet<string>,
   limits: BuilderLimits,
 ): ReadonlyFileTree {
-  const sizes = new Map([...generated].map(([path, bytes]) => [path, bytes.byteLength]));
+  const sizes = new Map(
+    [...generated]
+      .filter(([path]) => path !== importSidecar)
+      .map(([path, bytes]) => [path, bytes.byteLength]),
+  );
   let total = [...sizes.values()].reduce((a, b) => a + b, 0);
   const observe = (path: string, bytes: number) => {
     const previous = sizes.get(path) ?? 0;
@@ -163,6 +174,32 @@ export async function buildTaskBundle(
     throw new Error("Only callback entries can select an export.");
   const limits = limitsFor(options);
   const resources = await selectResources(input, options.include ?? [], limits, options);
+  const imports = validateTaskImports(options.imports ?? {});
+  const imported = new Map<string, Uint8Array>();
+  let importedBytes = 0;
+  const blocks = new ContentBlocks(options.content);
+  for (const [destination, cid] of Object.entries(imports)) {
+    for (const local of resources.keys())
+      if (
+        local.toLowerCase() === destination.toLowerCase() ||
+        local.toLowerCase().startsWith(`${destination.toLowerCase()}/`) ||
+        destination.toLowerCase().startsWith(`${local.toLowerCase()}/`)
+      )
+        throw new Error(`Import/include collision: ${destination}`);
+    const files = await expandContent(CID.parse(cid), blocks, {
+      ...options,
+      files: taskBundleLimits.files - imported.size,
+      paths: limits.traversalPaths,
+      bytes: limits.bytes - importedBytes,
+      fileBytes: limits.fileBytes,
+    });
+    for (const file of files) {
+      const path = file.path ? `${destination}/${file.path}` : destination;
+      checkTreePath(path);
+      imported.set(path, file.bytes);
+      importedBytes += file.bytes.byteLength;
+    }
+  }
   let contract: unknown = options.source.contract;
   let evaluated: ReturnType<typeof contractSchemas> | undefined;
   if (typeof contract === "string") {
@@ -190,14 +227,23 @@ export async function buildTaskBundle(
   const generated = new Map<string, Uint8Array>();
   for (const { path, document } of schemas)
     generated.set(path, Buffer.from(`${JSON.stringify(document, null, 2)}\n`));
-  const include = ["task.yaml", "worker.cjs", ...generated.keys(), ...resources.keys()].sort();
+  const include = [
+    "task.yaml",
+    "worker.cjs",
+    ...generated.keys(),
+    ...resources.keys(),
+    ...imported.keys(),
+  ].sort();
   const declaration = validateTaskBundle({
     $schema: taskSchemaUri,
     name: options.name,
     runtime: { type: "node", minVersion: options.runtime.minVersion },
     entry: "worker.cjs",
     include,
-    binary: selectTaskBinary(include, options.binary ?? []),
+    binary: [
+      ...new Set([...selectTaskBinary(include, options.binary ?? []), ...imported.keys()]),
+    ].sort(),
+    ...(Object.keys(imports).length ? { imports } : {}),
     inputSchema: { $ref: primarySchemaPaths[0] },
     resultSchema: { $ref: primarySchemaPaths[1] },
     messageSchema: { $ref: primarySchemaPaths[2] },
@@ -207,6 +253,7 @@ export async function buildTaskBundle(
   const structuralFiles = new Map(generated);
   structuralFiles.set("worker.cjs", Buffer.from("/* pending compilation */"));
   for (const path of resources.keys()) structuralFiles.set(path, new Uint8Array());
+  for (const path of imported.keys()) structuralFiles.set(path, new Uint8Array());
   const { resolved } = readTaskBundle(structuralFiles, limits);
   generated.set(
     "worker.cjs",
@@ -224,8 +271,12 @@ export async function buildTaskBundle(
     ),
   );
   structuralFiles.set("worker.cjs", generated.get("worker.cjs")!);
+  for (const [path, bytes] of imported) structuralFiles.set(path, bytes);
   readTaskBundle(structuralFiles, limits);
   options.signal?.throwIfAborted();
+  for (const [path, bytes] of imported) generated.set(path, bytes);
+  if (Object.keys(imports).length)
+    generated.set(importSidecar, await encodeImportBlocks(imports, blocks, options));
   return outputTree(input, generated, resources, new Set(declaration.binary), limits);
 }
 
@@ -250,9 +301,16 @@ export async function readTaskBuild(
     (value.$schema !== undefined && value.$schema !== taskBuildSchemaUri) ||
     Object.keys(value).some(
       (key) =>
-        !["$schema", "name", "runtime", "source", "include", "binary", "outDirectory"].includes(
-          key,
-        ),
+        ![
+          "$schema",
+          "name",
+          "runtime",
+          "source",
+          "include",
+          "binary",
+          "imports",
+          "outDirectory",
+        ].includes(key),
     ) ||
     typeof value.name !== "string" ||
     (value.outDirectory !== undefined && typeof value.outDirectory !== "string")
@@ -325,6 +383,7 @@ export async function readTaskBuild(
     },
     include,
     binary,
+    imports: validateTaskImports(value.imports ?? {}),
     ...options,
   };
   const selectedOutput = options.outDirectory ?? value.outDirectory ?? "dist";

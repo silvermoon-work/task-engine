@@ -154,12 +154,12 @@ test("the last active Run admits a delayed child after drain; parallel nested cl
     client,
   );
   const marker = join(directory, "continue");
-  const wrapper = (cid: string, wait: boolean) => `
+  const wrapper = (_cid: string, wait: boolean) => `
 import {existsSync} from "node:fs";
 import {setTimeout as delay} from "node:timers/promises";
 export default async (input,context) => {
  ${wait ? `while(!existsSync(${JSON.stringify(marker)})) await delay(5,undefined,{signal:context.signal});` : ""}
- return await Promise.all(["a","b"].map(key=>context.invokeTask({key,cid:${JSON.stringify(cid)},path:"resources/child",input:{value:input.value},timeoutMs:5000})));
+ return await Promise.all(["a","b"].map(key=>context.invokeTask({key,bundle:context.bundle.root.resolve("resources/child"),input:{value:input.value},timeoutMs:5000})));
 };`;
   const parent = await artifact(join(directory, "parent"), wrapper(leaf.cid, false), client, leaf);
   const root = await artifact(join(directory, "root"), wrapper(parent.cid, true), client, parent);
@@ -169,15 +169,19 @@ export default async (input,context) => {
   const engine = createTaskEngine({
     store,
     authorize: () => true,
-    authorizeChild: () => true,
     limits: { maxConcurrent: 1, childTimeoutMs: 10_000 },
+    bundlePreparation: {
+      acquire: async () => {
+        if (Object.keys(store.read().facts.runs).length) {
+          held = true;
+          await preparation.promise;
+        }
+        return () => {};
+      },
+    },
     ipfsClient: {
       block: {
         async get(cid, options) {
-          if (cid === parent.cid && Object.keys(store.read().facts.runs).length) {
-            held = true;
-            await preparation.promise;
-          }
           return client.block.get(cid, options);
         },
       },

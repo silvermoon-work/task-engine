@@ -8,6 +8,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { newId } from "@silvermoon-work/task-engine";
+import { createConfiguredContent } from "@silvermoon-work/task-content/node";
 import {
   canonical,
   object,
@@ -1049,9 +1050,29 @@ export async function serveManaged(
         repository.put(task);
       }
     repository.write(() => repository!.db.exec("UPDATE tasks SET car=NULL"));
+    const shared = await createConfiguredContent({
+      ...(effective(config, "server.ipfsGateway")
+        ? { gateway: String(effective(config, "server.ipfsGateway")) }
+        : {}),
+      ...(effective(config, "server.contentDataDir")
+        ? { dataDir: String(effective(config, "server.contentDataDir")) }
+        : {}),
+    });
+    const sameDirectory =
+      process.platform === "win32"
+        ? shared.configuration.dataDir.toLowerCase() === lock.directory.toLowerCase()
+        : shared.configuration.dataDir === lock.directory;
+    if (sameDirectory) {
+      await shared.close();
+      throw new TaskError(
+        "CONFIG_INVALID",
+        "Content storage must use a directory separate from the Engine database.",
+      );
+    }
+    instance.contentDataDir = shared.configuration.dataDir;
     content = new DiskContent(
-      lock.directory,
-      String(effective(config, "server.ipfsGateway") ?? "") || undefined,
+      shared.configuration.dataDir,
+      shared,
       failStorage,
       hooks.beforeCacheWrite,
       (cid, maxBytes) => repository!.readContentBlock(cid, maxBytes),

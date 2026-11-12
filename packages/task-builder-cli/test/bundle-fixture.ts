@@ -12,6 +12,8 @@ import {
   validateTaskBundle,
 } from "@silvermoon-work/task-protocol";
 import { directoryTree, writeDirectory, writeStreamFile } from "../src/node.js";
+import type { IpfsClient } from "@silvermoon-work/task-content";
+import { ContentBlocks } from "@silvermoon-work/task-content/dag";
 
 export interface BundleFixtureOptions {
   declaration: unknown;
@@ -19,6 +21,8 @@ export interface BundleFixtureOptions {
   outDirectory: string;
   resources?: Readonly<Record<string, string>>;
   binary?: readonly string[];
+  imports?: Readonly<Record<string, string>>;
+  content?: IpfsClient;
 }
 
 export async function buildBundleFixture(options: BundleFixtureOptions) {
@@ -58,6 +62,8 @@ export async function buildBundleFixture(options: BundleFixtureOptions) {
       ? [{ from: `${logical(resourceDirectory)}/**`, to: "resources/" }]
       : [],
     binary: contract.binary,
+    ...(options.imports ? { imports: options.imports } : {}),
+    ...(options.content ? { content: options.content } : {}),
   });
   const paths = await writeDirectory(output, directory);
   const encoded = await encodeTaskBundleCar(await directoryTree(directory));
@@ -72,9 +78,11 @@ export async function buildBundleFixture(options: BundleFixtureOptions) {
   });
   try {
     const files = new Map<string, Buffer>();
-    for (const path of paths)
+    for (const path of paths.filter((path) => path !== ".task-imports.car"))
       files.set(path, Buffer.from(await readBytes(decoded.tree, path, taskBundleLimits.fileBytes)));
-    return { cid: decoded.cid, directory, car, files };
+    const graph = new ContentBlocks(decoded);
+    await graph.prepare(decoded.cid);
+    return { cid: decoded.cid, directory, car, files, blocks: graph.blocks };
   } finally {
     await decoded.close();
   }

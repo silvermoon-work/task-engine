@@ -2,7 +2,8 @@ import {
   at,
   bundleCid,
   type Caller,
-  type ChildTaskInvocation,
+  type WireChildTaskInvocation,
+  normalizeSpacePath,
   canonical,
   type ErrorFact,
   json,
@@ -51,17 +52,8 @@ export interface EngineOptions
   bundleLimits?: Partial<BundleLimits>;
   bundleConcurrency?: number;
   bundlePreparation?: BundleCacheOptions["preparation"];
-  bundlePrefetch?: boolean;
   spaceLimits?: SpaceLimits;
   allowGateway?: (url: URL) => boolean;
-  /** Deny by default. Caller identity is inherited, never supplied by the Worker. */
-  authorizeChild?: (request: {
-    caller: Caller;
-    parentCid: string;
-    cid: string;
-    path: string;
-    depth: number;
-  }) => boolean;
 }
 function bounded<T>(action: () => Promise<T>, signal: AbortSignal): Promise<T> {
   signal.throwIfAborted();
@@ -131,6 +123,11 @@ export class TaskEngine implements TaskService {
   readonly waitForTaskRelease: Coordinator["waitForTaskRelease"];
   readonly collect: Coordinator["collect"];
   constructor(private readonly options: EngineOptions) {
+    if (Object.hasOwn(options, "authorizeChild") || Object.hasOwn(options, "bundlePrefetch"))
+      throw new TaskError(
+        "invalid_config",
+        "authorizeChild and lazy/prefetch configuration are removed; migrate to SpaceRef calls and complete preparation.",
+      );
     for (const key of [
       "types",
       "currentVersions",
@@ -157,7 +154,6 @@ export class TaskEngine implements TaskService {
         : {}),
       ...(options.bundleLimits ? { limits: options.bundleLimits } : {}),
       ...(options.allowGateway ? { allowGateway: options.allowGateway } : {}),
-      ...(options.bundlePrefetch !== undefined ? { prefetch: options.bundlePrefetch } : {}),
     });
     this.core = new Coordinator({
       store: options.store,
@@ -233,7 +229,7 @@ export class TaskEngine implements TaskService {
           ...this.options.spaceLimits,
           runId: context.runId,
           bundleCid: cid,
-          client: this.options.ipfsClient,
+          client: this.cache,
           signal: context.signal,
           storage: {
             get: async (target) => this.core.readContentBlock(target),
@@ -504,23 +500,34 @@ export class TaskEngine implements TaskService {
     };
   }
   private async invokeTask(
-    value: ChildTaskInvocation,
+    value: WireChildTaskInvocation,
     context: RunResourceContext,
   ): Promise<import("@silvermoon-work/task-protocol").Json> {
     this.readable();
     context.signal.throwIfAborted();
     const raw = object(json(value, this.limits.maxPayloadBytes));
     if (
-      Object.keys(raw).some((key) => !["key", "cid", "path", "input", "timeoutMs"].includes(key)) ||
+      Object.keys(raw).some((key) => !["key", "bundle", "input", "timeoutMs"].includes(key)) ||
       typeof raw.key !== "string" ||
       !/^[a-zA-Z0-9._:-]{1,128}$/.test(raw.key) ||
-      typeof raw.path !== "string" ||
       !Number.isSafeInteger(raw.timeoutMs) ||
       (raw.timeoutMs as number) < 1 ||
       (raw.timeoutMs as number) > this.limits.childTimeoutMs
     )
       throw new TaskError("invalid_request", "Invalid child invocation identity or deadline.");
-    const cid = bundleCid(validateBundleReference(raw.cid));
+    const ref = object(raw.bundle);
+    if (
+      Object.keys(ref).some((key) => !["sid", "path"].includes(key)) ||
+      typeof ref.sid !== "string" ||
+      typeof ref.path !== "string" ||
+      !ref.sid.startsWith("ipfs:") ||
+      ref.path !== normalizeSpacePath(ref.path) ||
+      ref.sid !== `ipfs:${bundleCid(validateBundleReference(ref.sid.slice(5)))}`
+    )
+      throw new TaskError(
+        "invalid_space",
+        "Child bundle requires an immutable static SpaceRef; writable output is unsupported.",
+      );
     const input = object(raw.input, this.limits.maxPayloadBytes);
     if (
       !this.options.requestInputEnvelope &&
@@ -538,16 +545,6 @@ export class TaskEngine implements TaskService {
     )
       throw new TaskError("invalid_input", "Child input collides with the Task envelope.");
     const parent = this.parent(context);
-    if (
-      this.options.authorizeChild?.({
-        caller: parent.caller,
-        parentCid: bundleCid(parent.run.binding.bundle!),
-        cid,
-        path: raw.path,
-        depth: parent.depth,
-      }) !== true
-    )
-      throw new TaskError("forbidden", "Host child policy denied access.");
     this.core.authorizeAdmission(parent.caller, "submit", parent.caller.scope);
     const records = Object.values(this.core.facts().facts.submissions);
     const existing = records.find(
@@ -564,7 +561,7 @@ export class TaskEngine implements TaskService {
       return running.operation;
     }
     const operation = this.invokeChild(
-      raw as unknown as ChildTaskInvocation,
+      raw as unknown as WireChildTaskInvocation,
       context,
       parent,
       existing,
@@ -578,7 +575,7 @@ export class TaskEngine implements TaskService {
     }
   }
   private async invokeChild(
-    request: ChildTaskInvocation,
+    request: WireChildTaskInvocation,
     context: RunResourceContext,
     parent: ReturnType<TaskEngine["parent"]>,
     existing?: SubmissionRecord,
@@ -602,20 +599,9 @@ export class TaskEngine implements TaskService {
     const signal = AbortSignal.any([controller.signal, context.signal, this.lifetime.signal]);
     let record = existing;
     try {
-      const prepared = await bounded(async () => {
-        const lease = await this.cache.acquire(parent.run.binding.bundle!);
-        if (signal.aborted) {
-          lease.release();
-          signal.throwIfAborted();
-        }
-        return lease;
-      }, signal);
-      try {
-        if ((await bounded(() => prepared.childRoot(request.path, signal), signal)) !== request.cid)
-          throw new TaskError("invalid_bundle", "Child subtree does not match the requested CID.");
-      } finally {
-        prepared.release();
-      }
+      let cid = record?.composition?.targetCid;
+      if (!cid)
+        cid = await this.cache.resolve(request.bundle.sid.slice(5), request.bundle.path, signal);
       this.parent(context);
       signal.throwIfAborted();
       if (!record) {
@@ -648,16 +634,19 @@ export class TaskEngine implements TaskService {
               ? { input: object(request.input, this.limits.maxPayloadBytes) }
               : object(request.input)),
             requestId,
-            bundle: request.cid,
+            bundle: cid,
             timeoutMs: Math.max(1, deadline - this.now()),
           },
           parent.caller,
           {
+            invocationVersion: 1,
+            targetCid: cid,
+            source: request.bundle,
             parentRunId: context.runId,
             rootRunId: parent.rootRunId,
             depth: parent.depth,
             key: request.key,
-            path: request.path,
+            path: request.bundle.path,
             intent: json(request),
             deadlineAt: at(deadline),
           },
@@ -673,7 +662,7 @@ export class TaskEngine implements TaskService {
           throw new TaskError(decision.error.code, decision.error.message);
         if (decision.status === "accepted") {
           const task = this.getTask(decision.taskId, parent.caller);
-          if (!task.bundle || bundleCid(task.bundle) !== request.cid)
+          if (!task.bundle || bundleCid(task.bundle) !== cid)
             throw new TaskError("invalid_response", "Child result identity mismatch.");
           if (task.stage === "completed") {
             await bounded(() => this.waitForTaskRelease(task.taskId, parent.caller), signal);

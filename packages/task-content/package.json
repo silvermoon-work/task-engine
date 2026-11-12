@@ -1,0 +1,66 @@
+{
+  "name": "@silvermoon-work/task-content",
+  "version": "0.1.0-rc.0",
+  "description": "Verified bounded UnixFS content acquisition and shared block storage.",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./dag": {
+      "types": "./dist/dag.d.ts",
+      "import": "./dist/dag.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "node -e \"for (const path of ['dist', '.cache']) require('node:fs').rmSync(path, { recursive: true, force: true })\"",
+    "lint": "biome lint .",
+    "test": "tsx --test \"test/*.test.ts\"",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@helia/http": "catalog:",
+    "@helia/unixfs": "catalog:",
+    "@helia/block-brokers": "catalog:",
+    "@helia/routers": "catalog:",
+    "@ipld/dag-pb": "catalog:",
+    "blockstore-core": "catalog:",
+    "multiformats": "catalog:",
+    "ipfs-unixfs-exporter": "catalog:",
+    "@silvermoon-work/task-protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "ipfs-unixfs-importer": "catalog:"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/silvermoon-work/task-engine.git",
+    "directory": "packages/task-content"
+  },
+  "homepage": "https://github.com/silvermoon-work/task-engine/tree/main/packages/task-content#readme",
+  "bugs": {
+    "url": "https://github.com/silvermoon-work/task-engine/issues"
+  }
+}

@@ -63,7 +63,8 @@ export async function selectedModule(directory: string, options: ReadOptions = {
   const bytes = await readBytes(input, "task.yaml", 65_536, options);
   const declaration = validateTaskBundle(parseTaskBundleYaml(bytes));
   const files = [...declaration.include];
-  const tree = fileTree(
+  if (Object.keys(declaration.imports ?? {}).length) files.push(".task-imports.car");
+  const selectedTree = fileTree(
     new Map(
       files.map((file) => [
         file,
@@ -82,6 +83,14 @@ export async function selectedModule(directory: string, options: ReadOptions = {
       ]),
     ),
   );
+  const imported = Object.keys(declaration.imports ?? {});
+  const tree: ReadonlyFileTree = {
+    read: (path, readOptions) => selectedTree.read(path, readOptions),
+    list: (path, readOptions) =>
+      imported.some((root) => path === root || path.startsWith(`${root}/`))
+        ? input.list(path, readOptions)
+        : selectedTree.list(path, readOptions),
+  };
   return { tree, files };
 }
 

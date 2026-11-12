@@ -1,6 +1,7 @@
 import { parentPort, workerData } from "node:worker_threads";
 import {
   type ChildTaskInvocation,
+  type WireChildTaskInvocation,
   canonical,
   type Json,
   json,
@@ -263,7 +264,7 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
       }
     });
   }
-  function request(kind: "task-invoke", value: ChildTaskInvocation): Promise<Json>;
+  function request(kind: "task-invoke", value: WireChildTaskInvocation): Promise<Json>;
   function request(kind: string, value: unknown): Promise<void>;
   function request(kind: string, value: unknown): Promise<Json | void> {
     if (pending.size >= config.maxInFlight)
@@ -454,7 +455,17 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
       invokeTask: (value: ChildTaskInvocation) => {
         if (finishing) return Promise.reject(new TaskError("run_finished", "Task is finishing."));
         controller.signal.throwIfAborted();
-        return request("task-invoke", value);
+        if (
+          !value ||
+          Object.keys(value).some((key) => !["key", "bundle", "input", "timeoutMs"].includes(key))
+        )
+          return Promise.reject(
+            new TaskError(
+              "invalid_request",
+              "invokeTask requires bundle: SpaceRef; migrate and rebuild legacy CID/path calls.",
+            ),
+          );
+        return request("task-invoke", { ...value, bundle: spaces!.serialize(value.bundle) });
       },
     });
     const reportFailure = async (reason: unknown) => {

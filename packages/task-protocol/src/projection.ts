@@ -91,13 +91,23 @@ export function assertFactsVersion(facts: Facts): void {
   for (const [id, record] of Object.entries(facts.submissions)) {
     if (record.composition) {
       const child = record.composition;
+      if (child.invocationVersion !== 1)
+        fail(
+          "unsupported_version",
+          "Legacy child invocation facts require a new data domain; migrate and rebuild bundles.",
+        );
       if (
         !Number.isSafeInteger(child.depth) ||
         child.depth < 1 ||
         typeof child.key !== "string" ||
         !/^[a-zA-Z0-9._:-]{1,128}$/.test(child.key) ||
         typeof child.path !== "string" ||
-        !child.path.startsWith("resources/") ||
+        !child.path.startsWith("/") ||
+        child.source?.path !== child.path ||
+        typeof child.source.sid !== "string" ||
+        !child.source.sid.startsWith("ipfs:") ||
+        typeof child.targetCid !== "string" ||
+        record.request.bundle !== child.targetCid ||
         !child.intent ||
         typeof child.intent !== "object"
       )

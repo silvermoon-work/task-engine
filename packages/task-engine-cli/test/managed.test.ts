@@ -171,6 +171,9 @@ async function execute(
   signal?: AbortSignal,
 ) {
   signal?.throwIfAborted();
+  await mkdir(directory, { recursive: true });
+  const contentConfig = join(directory, "content-config.json");
+  await writeFile(contentConfig, JSON.stringify({ dataDir: join(directory, "shared-content") }));
   const began = performance.now();
   const script =
     interruptMs === undefined
@@ -181,7 +184,12 @@ const timer=setTimeout(()=>process.emit("SIGINT"),${interruptMs});process.exitCo
     process.execPath,
     script ? ["--input-type=module", "-e", script, ...args] : [bin, ...args],
     {
-      env: { ...process.env, LOCALAPPDATA: join(directory, "configuration"), HOME: directory },
+      env: {
+        ...process.env,
+        LOCALAPPDATA: join(directory, "configuration"),
+        HOME: directory,
+        TASK_CONTENT_CONFIG: contentConfig,
+      },
       stdio: ["pipe", "pipe", "pipe"],
     },
   );
@@ -264,6 +272,8 @@ test("two independent managed Engines execute a multi-block bundle through A's o
     "start",
     "--data-dir",
     a,
+    "--content-data-dir",
+    join(a, "content"),
     "--port",
     String(portA),
     "--ipfs-gateway",
@@ -271,7 +281,18 @@ test("two independent managed Engines execute a multi-block bundle through A's o
   ]);
   // B uses the same config location, but must not itself expose its cache.
   await run(["config", "reset", "server.rawGatewayAccess"]);
-  await run(["server", "start", "--data-dir", b, "--port", String(portB), "--ipfs-gateway", urlA]);
+  await run([
+    "server",
+    "start",
+    "--data-dir",
+    b,
+    "--content-data-dir",
+    join(b, "content"),
+    "--port",
+    String(portB),
+    "--ipfs-gateway",
+    urlA,
+  ]);
   const entry = join(directory, "entry.ts");
   await writeFile(entry, "export default async (input) => ({echo: input.value});");
   const built = await buildBundleFixture({
@@ -336,14 +357,17 @@ test("two independent managed Engines execute a multi-block bundle through A's o
   const executed = await run(["run", "--engine", urlB, "--cid", built.cid, "--input", input]);
   assert.equal(executed.data.status, "succeeded");
   assert.deepEqual((executed.data.output as { result: unknown }).result, { echo: "independent" });
-  const blocksA = await readdir(join(a, "blocks"));
-  const blocksB = await readdir(join(b, "blocks"));
+  const blocksA = await readdir(join(a, "content", "blocks"));
+  const blocksB = await readdir(join(b, "content", "blocks"));
   assert.ok(blocksA.length > 1);
   for (const cid of blocksA) {
     assert.ok(blocksB.includes(cid), cid);
     const raw = await fetch(`${urlA}/ipfs/${cid}?format=raw`);
     assert.equal(raw.status, 200);
-    assert.deepEqual(Buffer.from(await raw.arrayBuffer()), await readFile(join(b, "blocks", cid)));
+    assert.deepEqual(
+      Buffer.from(await raw.arrayBuffer()),
+      await readFile(join(b, "content", "blocks", cid)),
+    );
   }
   assert.equal(outbound, 0);
 });
@@ -352,6 +376,7 @@ test("managed installed entry: lifecycle, persistent execution, logs, configurat
   await mkdir(directory, { recursive: true });
   const data = join(directory, "data");
   const cancelledData = join(directory, "cancelled-start");
+  const invalidData = join(directory, "invalid-content-database");
   const port = await freePort();
   const engine = `http://127.0.0.1:${port}`;
   let phaseSignal: AbortSignal | undefined;
@@ -380,6 +405,7 @@ test("managed installed entry: lifecycle, persistent execution, logs, configurat
     const cleanup = await Promise.allSettled([
       stopManaged(data, true),
       stopManaged(cancelledData, true),
+      stopManaged(invalidData, true),
     ]);
     for (const result of cleanup) {
       assert.equal(
@@ -392,6 +418,18 @@ test("managed installed entry: lifecycle, persistent execution, logs, configurat
     if (completed) await rm(directory, { recursive: true, force: true });
   });
   await phase("startup cancellation, concurrent ownership and authenticated status", async () => {
+    const mixed = await run([
+      "server",
+      "start",
+      "--data-dir",
+      invalidData,
+      "--content-data-dir",
+      invalidData,
+      "--port",
+      String(await freePort()),
+    ]);
+    assert.equal(mixed.code, 1, mixed.stdout);
+    assert.match(mixed.parse().error?.message ?? "", /separate from the Engine database/);
     const interruptedStart = await run(
       ["server", "start", "--data-dir", cancelledData, "--port", String(await freePort())],
       undefined,
@@ -510,7 +548,7 @@ export default async (input,context)=>{
     await writeFile(
       parentEntry,
       `export default async(input,context)=>context.invokeTask({
-key:"child",cid:${JSON.stringify(built.cid)},path:"resources/child",input,timeoutMs:15000});`,
+key:"child",bundle:context.bundle.root.resolve("resources/child"),input,timeoutMs:15000});`,
     );
     const parent = await buildBundleFixture({
       declaration: {
@@ -761,6 +799,7 @@ key:"child",cid:${JSON.stringify(built.cid)},path:"resources/child",input,timeou
     assert.equal(interrupted.parse().data.status, "failed");
     const restartedStop = await run(["server", "stop", "--data-dir", data]);
     assert.equal(restartedStop.code, 0, restartedStop.stdout + restartedStop.stderr);
+    const sharedBlocks = await readdir(join(directory, "shared-content", "blocks"));
     const prune = await run([
       "data",
       "prune",
@@ -774,6 +813,7 @@ key:"child",cid:${JSON.stringify(built.cid)},path:"resources/child",input,timeou
     assert.equal(prune.parse().data.deletedTasks, 1);
     assert.equal(prune.parse().data.deletedLogs, 30);
     assert.equal(prune.parse().data.deletedCacheBlocks, 0);
+    assert.deepEqual(await readdir(join(directory, "shared-content", "blocks")), sharedBlocks);
   });
   await phase("configuration and installed help", async () => {
     const listed = await run(["config", "list"]);
@@ -782,7 +822,7 @@ key:"child",cid:${JSON.stringify(built.cid)},path:"resources/child",input,timeou
       effectiveValue: unknown;
       source: string;
     }[];
-    assert.equal(items.length, 28);
+    assert.equal(items.length, 29);
     assert.deepEqual(
       items.map((item) => item.key),
       items.map((item) => item.key).sort(),
@@ -872,7 +912,7 @@ test("succeeded is not final until real Worker host cleanup is confirmed; cleanu
       engine = `http://127.0.0.1:${port}`;
     const script = `import {serveManaged} from ${JSON.stringify(new URL("../dist/managed.js", import.meta.url).href)};
 import {writeFile,access} from "node:fs/promises";
-await serveManaged({"server.dataDir":${JSON.stringify(data)},"server.port":${port}},new AbortController().signal,
+await serveManaged({"server.dataDir":${JSON.stringify(data)},"server.contentDataDir":${JSON.stringify(join(data, "content"))},"server.port":${port}},new AbortController().signal,
 (message)=>{if(message.type==="result")console.log(JSON.stringify(message.result));},
 {async confirmTaskRelease(){await writeFile(${JSON.stringify(marker)},"entered");
 while(true){try{await access(${JSON.stringify(release)});break;}catch(error){if(error.code!=="ENOENT")throw error;}
@@ -960,7 +1000,7 @@ test("controlled cache ENOSPC makes a real Server fail-exit without filling the 
     resources: {},
   });
   const script = `import {serveManaged} from ${JSON.stringify(new URL("../dist/managed.js", import.meta.url).href)};
-await serveManaged({"server.dataDir":${JSON.stringify(data)},"server.port":${port}},new AbortController().signal,
+await serveManaged({"server.dataDir":${JSON.stringify(data)},"server.contentDataDir":${JSON.stringify(join(data, "content"))},"server.port":${port}},new AbortController().signal,
 (message)=>{if(message.type==="result")console.log(JSON.stringify(message.result));},
 {beforeCacheWrite(){throw Object.assign(new Error("controlled ENOSPC"),{code:"ENOSPC"});}});`;
   const child = spawn(process.execPath, ["--input-type=module", "-e", script], {

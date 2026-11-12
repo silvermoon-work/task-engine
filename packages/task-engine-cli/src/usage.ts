@@ -41,6 +41,7 @@ export const startKeys: Record<string, ConfigKey> = {
   "--port": "server.port",
   "--data-dir": "server.dataDir",
   "--ipfs-gateway": "server.ipfsGateway",
+  "--content-data-dir": "server.contentDataDir",
   "--max-concurrent": "server.maxConcurrent",
   "--max-preparing": "server.maxPreparing",
   "--max-child-depth": "server.maxChildDepth",

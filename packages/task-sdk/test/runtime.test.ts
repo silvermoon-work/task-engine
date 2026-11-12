@@ -19,8 +19,7 @@ test("SDK refuses to run without a build-locked Bundle binding", () => {
   const callback: runtime.TaskCallback = (input, context) =>
     context.invokeTask({
       key: "child",
-      cid: "host-verified-child",
-      path: "resources/child",
+      bundle: context.bundle.root.resolve("resources/child"),
       input,
       timeoutMs: 1000,
     });

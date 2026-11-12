@@ -189,7 +189,7 @@ test("single-source calls remain valid and invalid/duplicate lists fail before n
     assert.throws(() => createIpfsGatewayClient("https://example.test", options));
 });
 
-test("Bundle admission and lazy resources share root-CID identity across sources and hints; errors retain sources", async (t) => {
+test("complete Bundle admission shares root-CID identity across sources and hints; cold errors retain sources", async (t) => {
   const memory = new MemoryIpfsClient();
   const resource = Buffer.alloc(600_000, 42);
   const root = await memory.import(
@@ -239,7 +239,11 @@ test("Bundle admission and lazy resources share root-CID identity across sources
   same.release();
   assert.equal(await cache.evict(root), true);
   second.mode("missing");
-  await assert.rejects(cache.acquire(root), (error: unknown) => {
+  const retained = await cache.acquire(root);
+  retained.release();
+  const cold = new BundleCache({ ipfsClient: createIpfsGatewayClient([first.url, second.url]) });
+  t.after(() => cold.close());
+  await assert.rejects(cold.acquire(root), (error: unknown) => {
     assert.ok(error instanceof Error);
     assert.match(error.message, /read_or_verification_failed/);
     assert.ok(error.message.includes(first.url) && error.message.includes(second.url));

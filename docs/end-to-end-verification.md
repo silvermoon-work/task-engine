@@ -189,7 +189,7 @@ task-engine server start --data-dir .\engine-data --ipfs-gateway http://127.0.0.
 仅在你已启动并确认该 Gateway 能读取目标 Bundle 时使用这个地址；CLI 不启动 Kubo、不上传或 pin、不默认探测 8080 或公共 Gateway。也可以预先设置
 `server.ipfsGateway`，但这会修改用户配置，验证时优先用启动参数。不再读取
 `TASK_ENGINE_GATEWAY`、`IPFS_PATH` 或 Kubo 配置，不接受 run 的旧
-`--gateway/--expected-cid/--allow-children/--max-runtime-ms`。
+`--gateway/--expected-cid/--max-runtime-ms`；子调用仅使用 SpaceRef，不再需要启动授权。
 
 ## 5. 停止 → 重启 → 验证历史
 

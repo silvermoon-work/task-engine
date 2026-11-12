@@ -118,7 +118,7 @@ async function bytes(iterator: AsyncIterator<Uint8Array>) {
     chunks.push(item.value);
   }
 }
-test("official HTTP/UnixFS demand reads are bounded, cancelable, cached and differ from prefetch", async (t) => {
+test("official HTTP/UnixFS preparation is complete and later reads stay offline and cancelable", async (t) => {
   const memory = new MemoryIpfsClient();
   const cid = await memory.import(tree());
   const host = await gateway(t, memory);
@@ -131,19 +131,19 @@ test("official HTTP/UnixFS demand reads are bounded, cancelable, cached and diff
   const bundle = await cache.acquire(cid);
   assert.equal(
     host.requests.some((key) => leaves.has(key)),
-    false,
-    "Admission does not prefetch resource data.",
+    true,
+    "Admission fetches the complete static DAG.",
   );
   const stream = await bundle.read("resources/nested/data.bin", new AbortController().signal);
   const first = await stream.next();
   assert.ok(!first.done && first.value.length <= 262_144);
   assert.ok(
-    host.requests.filter((key) => leaves.has(key)).length <= 2,
-    "One range can read its adjacent boundary block, not the whole file.",
+    [...leaves].every((key) => host.requests.includes(key)),
+    "Every file block was verified before admission.",
   );
   assert.equal(
     host.requests.some((key) => leaves.has(key) && key === [...leaves].at(-1)),
-    false,
+    true,
   );
   await stream.return?.();
   const controller = new AbortController();
@@ -169,7 +169,7 @@ test("official HTTP/UnixFS demand reads are bounded, cancelable, cached and diff
     false,
     "The first cached block survives Gateway failure.",
   );
-  await assert.rejects(bytes(cachedRange), "An unread block can fail after acceptance.");
+  await bytes(cachedRange);
   host.setMode("ok");
   assert.deepEqual(
     await bytes(await bundle.read("resources/nested/data.bin", new AbortController().signal)),
@@ -186,7 +186,7 @@ test("official HTTP/UnixFS demand reads are bounded, cancelable, cached and diff
   assert.equal(await cache.evict(cid), true);
 
   host.setMode("ok");
-  const eager = new BundleCache({ ipfsClient: client, prefetch: true });
+  const eager = new BundleCache({ ipfsClient: client });
   t.after(() => eager.close());
   const prefetched = await eager.acquire(cid);
   assert.ok([...leaves].every((key) => host.requests.includes(key)));
@@ -309,12 +309,11 @@ test("a real self-contained Worker reads a nested resource through only the conf
   }
   assert.ok(host.requests.length > 4);
   host.setMode("missing-resource");
-  for (const bundlePrefetch of [false, true]) {
+  {
     const coldStore = new MemoryStore();
     const cold = createTaskEngine({
       store: coldStore,
       ipfsClient: createIpfsGatewayClient(host.origin),
-      bundlePrefetch,
       authorize: () => true,
     });
     await cold.start();
@@ -325,27 +324,12 @@ test("a real self-contained Worker reads a nested resource through only the conf
       );
       while (failed.status === "preparing")
         failed = await cold.getRequestStatus(failed.requestId, { waitMs: 1000 }, caller);
-      assert.equal(failed.status, bundlePrefetch ? "rejected" : "accepted");
-      if (failed.status === "accepted") {
-        const deadline = Date.now() + 15_000;
-        for (;;) {
-          const task = cold.getTask(failed.taskId, caller);
-          if (
-            task.stage === "failed" &&
-            task.run &&
-            cold.getRun(task.run.runId, caller).reclaimedAt
-          )
-            break;
-          assert.ok(Date.now() < deadline, JSON.stringify(task));
-          await new Promise((done) => setTimeout(done, 10));
-        }
-      } else {
-        assert.equal(
-          Object.keys(coldStore.read().facts.tasks).length,
-          0,
-          "Prefetch failure never admits a Task.",
-        );
-      }
+      assert.equal(failed.status, "rejected");
+      assert.equal(
+        Object.keys(coldStore.read().facts.tasks).length,
+        0,
+        "Incomplete static closure never admits a Task.",
+      );
     } finally {
       await cold.close();
       coldStore.close();

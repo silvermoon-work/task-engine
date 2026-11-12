@@ -1,0 +1,467 @@
+import { trustlessGateway } from "@helia/block-brokers";
+import { createHeliaHTTP } from "@helia/http";
+import { httpGatewayRouting } from "@helia/routers";
+import { unixfs } from "@helia/unixfs";
+import { TaskError } from "@silvermoon-work/task-protocol";
+import { MemoryBlockstore } from "blockstore-core";
+import { type ExportContentOptions, exporter, type UnixFSEntry } from "ipfs-unixfs-exporter";
+import { CID } from "multiformats/cid";
+import { sha256 } from "multiformats/hashes/sha2";
+import * as dagPb from "@ipld/dag-pb";
+import { acquireBlock } from "./dag.js";
+
+class GatewayCleanupError extends TaskError {
+  constructor() {
+    super("reclamation_unknown", "IPFS Gateway resource cleanup is unconfirmed.");
+  }
+}
+async function stopOwnedNode(node: { stop(): Promise<void> }): Promise<void> {
+  try {
+    await node.stop();
+  } catch {
+    throw new GatewayCleanupError();
+  }
+}
+async function closeOwnedReader(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<void> {
+  try {
+    await reader.cancel();
+  } catch {
+    throw new GatewayCleanupError();
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/** Caller-owned read port. Production hosts use createIpfsGatewayClient. */
+export interface IpfsClient {
+  block: { get(cid: string, options?: { signal?: AbortSignal }): Promise<Uint8Array> };
+}
+export interface GatewayClient extends IpfsClient {
+  /** Seal reads, abort acquisition, and await owned per-read Helia nodes. */
+  close(): Promise<void>;
+}
+export interface GatewayClientOptions {
+  allowPath?: boolean;
+  /** Total budget for all sources for one missing block. */
+  timeoutMs?: number;
+  attemptTimeoutMs?: number;
+}
+export interface GatewayAttempt {
+  source: string;
+  outcome: "timeout" | "read_or_verification_failed";
+}
+export class GatewayReadError extends Error {
+  constructor(
+    readonly attempts: readonly GatewayAttempt[],
+    readonly budgetExhausted: boolean,
+  ) {
+    super(
+      `IPFS Gateway acquisition failed${budgetExhausted ? " (total budget exhausted)" : ""}: ${attempts
+        .map(({ source, outcome }) => `${source} [${outcome}]`)
+        .join("; ")}.`,
+    );
+    this.name = "GatewayReadError";
+  }
+}
+interface ReadSource {
+  source: string;
+  read(cid: string, signal: AbortSignal): Promise<Uint8Array>;
+  allowed?(cid: string): boolean;
+}
+interface ReadPlan {
+  sources: ReadSource[];
+  timeoutMs: number;
+  attemptTimeoutMs: number;
+}
+const plans = new WeakMap<IpfsClient, ReadPlan>();
+
+function bounded<T>(action: () => Promise<T>, signal: AbortSignal): Promise<T> {
+  signal.throwIfAborted();
+  return new Promise<T>((resolve, reject) => {
+    const abort = () => reject(signal.reason);
+    signal.addEventListener("abort", abort, { once: true });
+    void Promise.resolve()
+      .then(() => {
+        signal.throwIfAborted();
+        return action();
+      })
+      .then(resolve, reject)
+      .finally(() => signal.removeEventListener("abort", abort));
+  });
+}
+function readClient(plan: ReadPlan): GatewayClient {
+  const lifetime = new AbortController();
+  const active = new Set<Promise<Uint8Array>>();
+  const cleanupFailures: unknown[] = [];
+  let closing: Promise<void> | undefined;
+  const read = (source: ReadSource, cid: string, signal: AbortSignal) => {
+    const operation = Promise.resolve().then(() => source.read(cid, signal));
+    active.add(operation);
+    void operation.then(
+      () => active.delete(operation),
+      (error) => {
+        active.delete(operation);
+        if (error instanceof GatewayCleanupError && cleanupFailures.length < 16)
+          cleanupFailures.push(error);
+      },
+    );
+    return operation;
+  };
+  const client: GatewayClient = {
+    close() {
+      closing ??= (async () => {
+        lifetime.abort(new Error("IPFS Gateway client is closing."));
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await Promise.race([
+            Promise.allSettled([...active]),
+            new Promise<never>((_, reject) => {
+              timer = setTimeout(
+                () => reject(new Error("IPFS Gateway resource cleanup is unconfirmed.")),
+                plan.timeoutMs,
+              );
+            }),
+          ]);
+          if (cleanupFailures.length)
+            throw new AggregateError(cleanupFailures, "IPFS Gateway resource cleanup failed.");
+        } finally {
+          if (timer) clearTimeout(timer);
+        }
+      })();
+      return closing;
+    },
+    block: {
+      async get(cid, request = {}) {
+        CID.parse(cid);
+        const requestSignal = AbortSignal.any([
+          lifetime.signal,
+          ...(request.signal ? [request.signal] : []),
+        ]);
+        requestSignal.throwIfAborted();
+        const deadline = performance.now() + plan.timeoutMs;
+        const total = AbortSignal.timeout(plan.timeoutMs);
+        const attempts: GatewayAttempt[] = [];
+        for (const source of plan.sources) {
+          requestSignal.throwIfAborted();
+          if (total.aborted || performance.now() >= deadline) break;
+          if (source.allowed && !source.allowed(cid)) continue;
+          if (total.aborted || performance.now() >= deadline) break;
+          const attemptDeadline = Math.min(deadline, performance.now() + plan.attemptTimeoutMs);
+          const signal = AbortSignal.any([
+            total,
+            AbortSignal.timeout(Math.max(1, Math.ceil(attemptDeadline - performance.now()))),
+            requestSignal,
+          ]);
+          try {
+            const bytes = await bounded(() => read(source, cid, signal), signal);
+            signal.throwIfAborted();
+            if (performance.now() >= attemptDeadline) {
+              attempts.push({ source: source.source, outcome: "timeout" });
+              continue;
+            }
+            return bytes;
+          } catch {
+            requestSignal.throwIfAborted();
+            attempts.push({
+              source: source.source,
+              outcome: signal.aborted ? "timeout" : "read_or_verification_failed",
+            });
+          }
+        }
+        throw new GatewayReadError(attempts, total.aborted || performance.now() >= deadline);
+      },
+    },
+  };
+  plans.set(client, plan);
+  return client;
+}
+function isolatedNodeOptions() {
+  return {
+    libp2p: {
+      services: {},
+      addresses: { listen: [] },
+      transports: [],
+      connectionEncrypters: [],
+      streamMuxers: [],
+      peerDiscovery: [],
+    },
+    routers: [],
+  };
+}
+/** Ordered host-owned sources only; no discovery, public fallback or redirects. */
+export function createIpfsGatewayClient(
+  url: string | readonly string[],
+  options: GatewayClientOptions = {},
+): GatewayClient {
+  const urls = typeof url === "string" ? [url] : url;
+  if (!Array.isArray(urls) || urls.length === 0 || urls.length > 16)
+    throw new Error("IPFS Gateway list must contain 1 to 16 base URLs.");
+  const timeoutMs = options.timeoutMs ?? 30_000;
+  const attemptTimeoutMs = options.attemptTimeoutMs ?? 5_000;
+  for (const value of [timeoutMs, attemptTimeoutMs])
+    if (!Number.isSafeInteger(value) || value <= 0 || value > 2_147_483_647)
+      throw new Error("Invalid IPFS Gateway timeout.");
+  const sources = urls.map((base) => gatewaySource(base, options.allowPath));
+  if (new Set(sources.map(({ source }) => source)).size !== sources.length)
+    throw new Error("Duplicate IPFS Gateway base URL.");
+  return readClient({ sources, timeoutMs, attemptTimeoutMs });
+}
+function gatewaySource(url: string, allowPath = false): ReadSource {
+  const endpoint = new URL(url);
+  if (
+    !["http:", "https:"].includes(endpoint.protocol) ||
+    endpoint.username ||
+    endpoint.password ||
+    endpoint.href.includes("?") ||
+    endpoint.href.includes("#") ||
+    (!allowPath && endpoint.pathname !== "/")
+  )
+    throw new Error("IPFS endpoint must be an HTTP(S) Gateway base URL.");
+  if (allowPath && endpoint.pathname !== "/")
+    return {
+      source: endpoint.href,
+      async read(value, signal) {
+        const cid = CID.parse(value);
+        const target = new URL(endpoint);
+        target.pathname = `${target.pathname.replace(/\/$/, "")}/ipfs/${encodeURIComponent(value)}`;
+        target.searchParams.set("format", "raw");
+        const response = await fetch(target, {
+          signal,
+          redirect: "error",
+          credentials: "omit",
+          headers: { accept: "application/vnd.ipld.raw" },
+        });
+        if (!response.ok || !response.body) throw new Error("Gateway block read failed.");
+        const reader = response.body.getReader(),
+          parts: Uint8Array[] = [];
+        let length = 0;
+        try {
+          for (;;) {
+            const item = await reader.read();
+            if (item.done) break;
+            length += item.value.length;
+            if (length > 2 * 1024 * 1024) throw new Error("IPFS block capacity exceeded.");
+            parts.push(item.value);
+          }
+        } finally {
+          await closeOwnedReader(reader);
+        }
+        const bytes = Buffer.concat(parts, length);
+        if (
+          cid.multihash.code !== sha256.code ||
+          !Buffer.from((await sha256.digest(bytes)).bytes).equals(Buffer.from(cid.multihash.bytes))
+        )
+          throw new Error("Gateway CID verification failed.");
+        return bytes;
+      },
+    };
+  return {
+    source: endpoint.href,
+    async read(cid, signal) {
+      signal.throwIfAborted();
+      const node = await createHeliaHTTP({
+        ...isolatedNodeOptions(),
+        routers: [httpGatewayRouting({ gateways: [endpoint.href], shuffle: false })],
+        blockBrokers: [
+          trustlessGateway({
+            allowInsecure: endpoint.protocol === "http:",
+            allowLocal: true,
+            transformRequestInit: (init) => ({
+              ...init,
+              redirect: "error",
+              credentials: "omit",
+              signal: AbortSignal.any([signal, ...(init.signal ? [init.signal] : [])]),
+            }),
+          }),
+        ],
+      });
+      try {
+        const parts: Uint8Array[] = [];
+        for await (const part of node.blockstore.get(CID.parse(cid), { signal })) parts.push(part);
+        signal.throwIfAborted();
+        return Buffer.concat(parts);
+      } finally {
+        await stopOwnedNode(node);
+      }
+    },
+  };
+}
+
+/** Existing explicit hint policy is retained, never inferred from request data. */
+export function withGatewayHints(
+  primary: IpfsClient,
+  hints: readonly string[],
+  allowGateway?: (url: URL) => boolean,
+): IpfsClient {
+  if (!allowGateway || hints.length === 0) return primary;
+  const plan = plans.get(primary) ?? {
+    sources: [
+      {
+        source: "caller-owned IPFS client",
+        read: (cid: string, signal: AbortSignal) => primary.block.get(cid, { signal }),
+      },
+    ],
+    timeoutMs: 30_000,
+    attemptTimeoutMs: 5_000,
+  };
+  const sources = [...plan.sources];
+  for (const base of hints) {
+    if (sources.some(({ source }) => source === new URL(base).href)) continue;
+    // Validate/access the base only after the policy approves this block's URL.
+    sources.push({
+      source: new URL(base).href,
+      allowed: (cid) => allowGateway(new URL(`${base.replace(/\/+$/, "")}/ipfs/${cid}?format=raw`)),
+      read: (cid, signal) => gatewaySource(base).read(cid, signal),
+    });
+  }
+  return readClient({ ...plan, sources });
+}
+export interface ContentAccessOptions {
+  cacheBlocks?: boolean;
+  signal: AbortSignal;
+  retainedBlocks: Map<string, Uint8Array>;
+  retentionBudget: { bytes: number; limit: number };
+  maxBlockBytes: number;
+  maxDagBlocks: number;
+}
+
+/** Bundle-owned accounting only. Helia verifies blocks; UnixFS resolves paths and content. */
+export function contentStore(client: IpfsClient, options: ContentAccessOptions) {
+  return Object.assign(new MemoryBlockstore(), {
+    get: async function* (cid: CID) {
+      options.signal.throwIfAborted();
+      const key = cid.toV1().toString();
+      const retained = options.retainedBlocks.get(key);
+      if (retained) {
+        yield retained;
+        return;
+      }
+      let acquisitionFailure: unknown;
+      const node = await createHeliaHTTP({
+        ...isolatedNodeOptions(),
+        blockBrokers: [
+          () => ({
+            name: "caller-read-port",
+            retrieve: async (target, request) => {
+              let bytes: Uint8Array;
+              try {
+                bytes = await acquireBlock(client, CID.parse(target.toString()), {
+                  signal: options.signal,
+                  blockBytes: options.maxBlockBytes,
+                });
+              } catch (error) {
+                acquisitionFailure = error;
+                throw error;
+              }
+              if (bytes.byteLength > options.maxBlockBytes)
+                throw new Error("IPFS block capacity exceeded.");
+              await request?.validateFn?.(bytes);
+              return bytes;
+            },
+          }),
+        ],
+      });
+      let bytes: Uint8Array;
+      try {
+        const parts: Uint8Array[] = [];
+        for await (const part of node.blockstore.get(cid, { signal: options.signal }))
+          parts.push(part);
+        bytes = Buffer.concat(parts);
+      } catch (error) {
+        if (
+          acquisitionFailure instanceof GatewayReadError ||
+          acquisitionFailure instanceof TaskError
+        )
+          throw acquisitionFailure;
+        throw error;
+      } finally {
+        await stopOwnedNode(node);
+      }
+      options.signal.throwIfAborted();
+      // Another concurrent read may have retained this block during the await.
+      if (options.cacheBlocks !== false && !options.retainedBlocks.has(key)) {
+        if (
+          options.retainedBlocks.size >= options.maxDagBlocks ||
+          options.retentionBudget.bytes + bytes.byteLength > options.retentionBudget.limit
+        )
+          throw new Error("IPFS retention capacity exceeded.");
+        options.retentionBudget.bytes += bytes.byteLength;
+        options.retainedBlocks.set(key, bytes);
+      }
+      yield bytes;
+    },
+  });
+}
+export async function openContent(
+  client: IpfsClient,
+  path: string,
+  options: ContentAccessOptions,
+): Promise<UnixFSEntry> {
+  const store = contentStore(client, options);
+  const entry = await exporter(path, store, { signal: options.signal });
+  if (entry.type !== "file" && entry.type !== "raw") return entry;
+  const [root, ...parts] = path.split("/");
+  const fs = unixfs({ blockstore: store });
+  return {
+    ...entry,
+    content: async function* (contentOptions: ExportContentOptions = {}) {
+      const signal = contentOptions.signal
+        ? AbortSignal.any([options.signal, contentOptions.signal])
+        : options.signal;
+      signal.throwIfAborted();
+      if (entry.size > BigInt(Number.MAX_SAFE_INTEGER))
+        throw new Error("IPFS file capacity exceeded.");
+      const start = contentOptions.offset ?? 0;
+      const length = contentOptions.length ?? Number(entry.size) - start;
+      if (
+        !Number.isSafeInteger(start) ||
+        !Number.isSafeInteger(length) ||
+        start < 0 ||
+        length < 0 ||
+        start + length > Number(entry.size)
+      )
+        throw new Error("Invalid UnixFS content range.");
+      // UnixFS' exporter queues eagerly. One range per pull bounds its read-ahead.
+      const window = 262_144;
+      for (let offset = start; offset < start + length; offset += window) {
+        const range = {
+          path: parts.join("/"),
+          signal,
+          blockReadConcurrency: 1,
+          offset,
+          length: Math.min(window, start + length - offset),
+        };
+        for await (const chunk of fs.cat(CID.parse(root!), range)) {
+          signal.throwIfAborted();
+          if (chunk.byteLength) yield chunk;
+        }
+      }
+      signal.throwIfAborted();
+    },
+  };
+}
+
+/** Verify and retain every linked block, not only file bytes read by the caller. */
+export async function prepareContent(
+  client: IpfsClient,
+  root: string,
+  options: ContentAccessOptions,
+): Promise<void> {
+  const store = contentStore(client, options);
+  const seen = new Set<string>();
+  const walk = async (cid: CID, depth: number): Promise<void> => {
+    options.signal.throwIfAborted();
+    if (depth > 64) throw new Error("IPFS DAG depth capacity exceeded.");
+    const key = cid.toV1().toString();
+    if (seen.has(key)) return;
+    seen.add(key);
+    if (seen.size > options.maxDagBlocks) throw new Error("IPFS block capacity exceeded.");
+    const parts: Uint8Array[] = [];
+    for await (const part of store.get(cid)) parts.push(part);
+    const bytes = Buffer.concat(parts);
+    if (cid.code === dagPb.code)
+      for (const link of dagPb.decode(bytes).Links) await walk(link.Hash, depth + 1);
+    else if (cid.code !== 0x55) throw new Error("Unsupported IPFS block codec.");
+  };
+  await walk(CID.parse(root), 0);
+}

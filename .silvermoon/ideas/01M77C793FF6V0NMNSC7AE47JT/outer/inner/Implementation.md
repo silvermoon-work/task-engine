@@ -1,20 +1,20 @@
 # Implementation
 
-准备阶段初版，尚未执行，不属于构想验收范围。Store 抽象已通过 `61b5661` 合入 primary；实施前先解决 [设计讨论](./ideal/backend-design.md#实施前阻塞评估) 中 B01-B04 的保留责任、释放、联网及 RPC 信任边界决策。
+准备阶段初版，尚未执行，不属于构想验收范围。Store 抽象已通过 `61b5661` 合入 primary；[设计讨论](./ideal/backend-design.md#实施前阻塞评估) 中 B01-B04 的行为已获用户确认，所有权协调与故障恢复仍需技术验证。
 
 ## Steps
 
 ### I-S01: 收口配置与所有权契约
 
-基于已合入 Store 落实 B01-B04 的明确决定、严格后端 union、旧 local 配置与构造调用兼容，以及保留、联网、关闭契约。
+基于已合入 Store 落实严格后端 union、旧 local 配置与构造调用兼容、统一 pin/unpin 及跨 Engine 引用所有权契约；Kubo 联网与部署访问保护由用户管理，Engine 不接管 daemon。
 
 ### I-S02: 接入可选块后端
 
-在统一 Store 能力内增加 Kubo 原始块读写，保持公共校验、预算和错误边界；调整 managed 的目录假设及 DiskContent 的 retained-block 适配，确保完整宿主调用链不引入重复磁盘块缓存。
+在统一 Store 内增加 Kubo 原始块读写与根保留，接入持久化 Task/Run 的 bundle/output 引用及 prune 标记清除，保持校验、预算和错误边界；调整 managed / DiskContent 调用链避免重复磁盘块缓存。
 
 ### I-S03: 验证兼容与失败边界
 
-补充聚焦的配置、块保真、资源限制及失败恢复测试，检查 Builder / Engine / CLI 调用链。
+补充聚焦的配置、块保真、资源限制、跨 Engine 保留和失败恢复测试，检查 Builder / Engine / CLI 调用链。
 
 ## Acceptance criteria
 
@@ -28,4 +28,4 @@
 
 ### I-AC03: 故障与资源所有权明确
 
-通过取消、超时、缺块、损坏、partial DAG 和保留失败测试证明错误不被吞掉、不回退 local，close 不终止外部 daemon，scope 不干扰其他 reader；保留成功遵循选定契约。
+通过持久化与重启、跨 Engine 共享根、prune 最后引用、外部 pin、并发新增引用和标记失败测试证明不误 unpin；取消、断连、partial DAG 及 pin/unpin 失败显式传播且可恢复，不回退 local。close 不终止外部 daemon 或释放持久 pin，scope 不干扰其他 reader。

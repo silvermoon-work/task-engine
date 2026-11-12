@@ -35,6 +35,8 @@
 
 可重放入口为 [registry-smoke.mjs](registry-smoke.mjs) 与 [registry-engine-probe.mjs](registry-engine-probe.mjs)，只在本操作命名的空目录中运行。前者负责独立安装、Builder CLI 三种产物、两个受管 Engine/Gateway、CLI 执行/日志/活跃任务关停；后者由前者启动独立 Node 进程，验证公开 Engine API 的并发状态、16 类拒绝、启动失败、缺失/损坏内容、合作取消与保留 uncertainty 的强制退出。helper 必须自然退出，不用 process.exit 掩盖未结束 Worker。
 
+本机到官方 npm 的 Node/curl TLS 握手预检失败时，不关闭 TLS 校验或改 registry。改用已有 Ubuntu Node 的正常 HTTPS 访问同一官方 verifier exact-version endpoint；[registry-network-observe.mjs](registry-network-observe.mjs) 的本地 plan 模式从实际 manifest 提取全部内部依赖字段，before/after 模式在可正常连接的验证端读取元数据。该纯读取过程没有 publish、tag 或配置写入；发布仍仅由 GitHub Actions 执行。
+
 ## 收尾
 
 将发布、安装、成功及故障证据写入 Outer World，必要修改先同步新契约再重跑相应外部验证。保持 Inner World 精确 revision 不变；只在 D-* 证据完成后更新 ledger，检查、同步 primary，append 精确 submitOuter。停止等待父 agent 独立 acceptOuter，不自行记录验收。

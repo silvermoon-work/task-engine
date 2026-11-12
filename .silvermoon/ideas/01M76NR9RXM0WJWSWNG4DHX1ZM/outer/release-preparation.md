@@ -14,6 +14,16 @@
 - `pnpm install --frozen-lockfile`：退出 0，lockfile 未变，没有修改 registry。
 - `pnpm check`：Node `24.11.1`，退出 0，Turbo **40/40 tasks 成功**，耗时约 **23m18**；随后测试类型检查与所有 package publint 完成。此前 Inner World 中记录的历史 Windows 时序失败未删除或改写，本次版本准备的完整检查为绿色。
 - 三个部署 replay 均经 `node --check`；从实际 smoke 入口抽取的作者 fixture 使用同一 Builder callback 模式本地编译成功，生成 29,203 字节 Worker。此项仅为准备验证，不冒充 registry/Ubuntu 安装结果；临时本地 fixture 目录已删除。
-- 下一步仍须等待**版本准备提交自身**的 exact main push CI（Node 22.15.0 / 24.11.1 + Release verification (v1)）成功后才能推单包 release tag；不能借用先前 `58d9089` 的绿色结果。
+- 发布前必须确认**版本准备提交自身**的 exact main push CI（Node 22.15.0 / 24.11.1 + Release verification (v1)）成功后才能推单包 release tag；不能借用先前 `58d9089` 的绿色结果。
+
+## 精确版本准备 CI
+
+版本准备提交为 `b6044673239005bd219494972e9ca5822d31dd05`；[main push CI 43156103840](https://github.com/silvermoon-work/task-engine/actions/runs/43156103840) 已成功，两个 Node matrix job、Release verification (v1) 及其 Confirm required checks succeeded step 均为 success。已核对 headSha、event=push、headBranch=main；四个拟发布 tag 固定指向该提交，不随之后 Outer World 证据提交漂移。
+
+## 官方 registry 读取路径
+
+本机直接访问官方 npm 的 Node fetch 和 curl 均遇到 TLS 握手失败；没有关闭 TLS 校验、使用不安全 curl 参数或改 registry。既有 Ubuntu Node 通过正常 HTTPS 对 verifier 的同一 SDK rc.0 exact-version endpoint 返回 200。
+
+因此使用 `registry-network-observe.mjs plan <package-id>` 从 **b604467 的 Git manifest** 提取全部内部依赖，再由可正常连接的 Ubuntu Node 对官方完整 metadata 和 exact-version endpoint 进行 before/after 观察。它同时核对身份、依赖字段、latest 与发布后 tarball，没有 publish 或配置写入；Actions 中原有独立 artifact/dependency verifier 保持原样。
 
 实际发布 workflow、版本准备 commit、registry 及 Ubuntu 安装结果将在后续 Outer World 证据中记录，本文件没有声称任何包已经发布。

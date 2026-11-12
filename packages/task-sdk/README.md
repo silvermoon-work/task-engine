@@ -61,6 +61,10 @@ configuration or `workerData`; calling the unbuilt SDK fails.
 
 ## Runtime contract
 
+The imports/SpaceRef changes below describe the current source candidate, not an
+already published SDK. The installation versions above are historical; consume
+the matching approved RC only after its publication is separately verified.
+
 The Engine validates business input/messages, completion and
 failure evidence, plus JSON shape, byte limits, progress and logs. The SDK
 forwards payloads without automatic business-schema validation. Authors may

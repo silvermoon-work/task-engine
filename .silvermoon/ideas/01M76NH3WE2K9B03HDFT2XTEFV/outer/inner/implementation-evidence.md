@@ -56,13 +56,29 @@
 
 全仓结束后再次执行 `pnpm format:check`、`pnpm typecheck:tests`、`git diff --check HEAD` 均退出 0。publint 对既有 private app 的 suggestions 未被当作失败或擅自修复。
 
+## 并发模块加载集成与耦合修复
+
+上述完整验证后，primary 再推进到 `9730efa894663dbe16b69492b14fc4601a7e5164`，包含已验收的 IPFS CJS module hook 实现。再次完整 stash 自有候选、fast-forward、apply；仅合并 runtime semver/imports 和 README 两处冲突，同时保留 Node 22.15+ 宿主要求、bundleModuleURL、独立 bootstrap 和 verified-source hook，不回退并发功能。合并时先将 I-AC* 重置为未完成，不把旧结果冒充新集成证据；下节记录重新完成的真实全仓结果。理想世界保持不变，主 Agent 负责实施门限。
+
+合并后 `pnpm build`、`pnpm typecheck:tests`、`silvermoon check --worktree --audience agent` 均已通过；从 task-engine workspace 执行 `composition.test.ts`、`bundle-module.test.ts`、`bundle-contract-host.test.ts`、`drain.test.ts` 的组合选择器，**64/64 通过**。真实 imports、断源、独立调用与新 module hook 的内置模块、拒绝路径、模块身份/缓存和物理退出契约同时保留。
+
+检查共享端口所有权时补充了“两个 reader 共用一次获取，只取消其中一个”的精确用例；它在修复前实际失败，因为首个请求的 signal 错误地拥有共享获取。现改为客户端 lifetime 拥有获取，各 reader 仅取消自己的等待；宿主仍可通过 close 终止自己拥有的获取。`pnpm --filter @silvermoon-work/task-content test` **5/5 通过**，保留跨进程原子发布、无自动删除与超时/取消用例；该耦合修复已纳入下列最终全仓结果。
+
+## 最新集成候选的最终全仓验证
+
+冻结代码提交 `e56556c30c965caff6f47acaa30c4552262cb5f5` 上执行 `pnpm check`，**实际退出 0**：44/44 Turborepo tasks successful，8 个缓存命中，用时 **24m6.671s**；最后的完整测试类型检查与所有工作区 publint 也通过。
+
+共 **679** 个测试条目，**678 通过、1 个既有 Linux-only 用例在 Windows 按平台跳过、0 失败**。分组数为 release 21、protocol 132、SDK 9、content 5、Builder 54、Builder CLI 23、Engine 256、storage 53、Engine CLI 91、HTTP 19、Server 15、private app 1。没有新增 skip，没有放宽既有测试超时。
+
+原始输出为本工作区 `.cache/dependency-check-candidate-final.log`，SHA-256 `806cad5c5846cec0479d67da68111e0c56912ec25da94c012a812daeb3fdfc80`。这次检查同时覆盖最终共享 reader 取消修复与并发 module hook，而不是只沿用 7e10001 基线的早期结果。
+
+之后普通 merge 提交 `3265e18cb0b28cd007692597b7529e54c48d7bd1` 保留 primary `b6044673239005bd219494972e9ca5822d31dd05` 的并发部署文件和四个包的 RC 版本元数据。差异已逐路径核对：没有改动本次运行代码或测试；这些是并发 idea 准备的版本，不是本 idea 自行调整或发布的 RC。后续只完善本阶段证据、镜像 checklist 与文档的未发布提示。
+
+合并元数据及文档后，`pnpm format:check`、`pnpm test:release`（21/21）、`pnpm typecheck:tests`、`pnpm lint:package`、`git diff --check HEAD`、`silvermoon check --worktree --audience agent` 均再次退出 0。
+
 ## 门限与剩余边界
 
-上述完整验证后，primary 再推进到 `9730efa894663dbe16b69492b14fc4601a7e5164`，包含已验收的 IPFS CJS module hook 实现。再次完整 stash 自有候选、fast-forward、apply；仅合并 runtime semver/imports 和 README 两处冲突，同时保留 Node 22.15+ 宿主要求、bundleModuleURL、独立 bootstrap 和 verified-source hook，不回退并发功能。I-AC* 已重新置为未完成，须以该集成候选重新通过测试和 `pnpm check` 才提交；此前通过结果不冒充本次集成证据。理想世界保持不变，主 Agent 负责实施门限。
-
-合并后 `pnpm build`、`pnpm typecheck:tests`、`silvermoon check --worktree --audience agent` 均已通过；从 task-engine workspace 执行 `composition.test.ts`、`bundle-module.test.ts`、`bundle-contract-host.test.ts`、`drain.test.ts` 的组合选择器，**64/64 通过**。真实 imports、断源、独立调用与新 module hook 的内置模块、拒绝路径、模块身份/缓存和物理退出契约同时保留。完整集成检查仍须完成后才同步门限候选。
-
-检查共享端口所有权时补充了“两个 reader 共用一次获取，只取消其中一个”的精确用例；它在修复前实际失败，因为首个请求的 signal 错误地拥有共享获取。现改为客户端 lifetime 拥有获取，各 reader 仅取消自己的等待；宿主仍可通过 close 终止自己拥有的获取。`pnpm --filter @silvermoon-work/task-content test` **5/5 通过**，保留跨进程原子发布、无自动删除与超时/取消用例；该耦合修复须纳入最终全仓集成结果。
+全部 I-* 实施与验证重新完成。准确 candidate 的 primary 可达性及 submitInner 以普通 Git 同步、事件日志和新鲜 Silvermoon 观测为准，不以 ledger 勾选代替验收。
 
 本轮保留现有受支持内容 profile：SHA-256 raw / DAG-PB 的普通文件和非空 UnixFS 目录；不悄悄规范化不支持的内容。共享目录没有自动 GC 或跨进程下载去重承诺，Worker 也不是通用 OS 权限沙箱。
 

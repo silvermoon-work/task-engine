@@ -4,6 +4,11 @@ import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
 import { TaskError } from "@silvermoon-work/task-protocol";
 import { CarRequestError, serveCar, wantsCar } from "./car-gateway.js";
+import {
+  createRecursiveGateway,
+  recursiveHopHeader,
+  type RecursiveGatewayOptions,
+} from "./recursive-gateway.js";
 
 const media = "application/vnd.ipld.raw";
 export interface RawGatewayOptions {
@@ -14,6 +19,7 @@ export interface RawGatewayOptions {
   timeoutMs: number;
   maxTraversalBlocks?: number;
   maxCarBytes?: number;
+  recursive?: RecursiveGatewayOptions;
 }
 export type LocalRead = (
   cid: CID,
@@ -48,8 +54,12 @@ function matches(value: string | undefined, etag: string, weak: boolean): boolea
   });
 }
 
-// This adapter receives only a local read capability, never GatewayClient.block.get.
-export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
+// Task-facing block.get is intentionally never a gateway acquisition capability.
+export function createRawGateway(
+  options: RawGatewayOptions,
+  local: LocalRead,
+  persist?: (cid: CID, bytes: Uint8Array, signal: AbortSignal) => Promise<void>,
+) {
   if (
     !["disabled", "public", "token"].includes(options.access) ||
     ![
@@ -65,6 +75,12 @@ export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
     throw new TaskError("INVALID_CONFIG_VALUE", "Invalid local raw gateway policy or budget.");
   if (options.access === "token" && !/^[A-Za-z0-9_-]{32,256}$/.test(options.token ?? ""))
     throw new TaskError("INVALID_CONFIG_VALUE", "Token gateway requires a rawGatewayToken.");
+  if (options.recursive && !persist)
+    throw new TaskError("INVALID_CONFIG_VALUE", "Recursive gateway requires verified persistence.");
+  const recursive =
+    options.recursive && persist
+      ? createRecursiveGateway(options.recursive, local, persist)
+      : undefined;
   const active = new Set<Promise<void>>();
   const controllers = new Set<AbortController>();
   const metrics = {
@@ -184,13 +200,24 @@ export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
     }, options.timeoutMs);
     const read: LocalRead = async (cid, readOptions) => {
       try {
-        const bytes = await local(cid, readOptions);
+        const onlyCached = request.headers["cache-control"]
+          ?.split(",")
+          .some((part) => part.trim().toLowerCase() === "only-if-cached");
+        const bytes =
+          recursive && !onlyCached
+            ? await recursive.read(cid, readOptions, request.headers[recursiveHopHeader])
+            : await local(cid, readOptions);
         metrics.hits++;
         return bytes;
       } catch (error) {
         const code = (error as NodeJS.ErrnoException).code;
         if (code === "ENOENT" || code === "ERR_NOT_FOUND") metrics.misses++;
-        else if (!controller.signal.aborted && code !== "BLOCK_TOO_LARGE") metrics.storageErrors++;
+        else if (
+          !controller.signal.aborted &&
+          code !== "BLOCK_TOO_LARGE" &&
+          !code?.startsWith("RECURSIVE_")
+        )
+          metrics.storageErrors++;
         throw error;
       }
     };
@@ -247,7 +274,17 @@ export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
                 ? 412
                 : 404,
             );
-          return end(code === "BLOCK_TOO_LARGE" ? 413 : 500);
+          return end(
+            code === "BLOCK_TOO_LARGE"
+              ? 413
+              : code === "RECURSIVE_BUSY"
+                ? 429
+                : code === "RECURSIVE_TIMEOUT"
+                  ? 504
+                  : code?.startsWith("RECURSIVE_")
+                    ? 502
+                    : 500,
+          );
         }
       }
       if (controller.signal.aborted) return;
@@ -313,7 +350,13 @@ export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
                 : 404
               : code === "BLOCK_TOO_LARGE"
                 ? 413
-                : 500,
+                : code === "RECURSIVE_BUSY"
+                  ? 429
+                  : code === "RECURSIVE_TIMEOUT"
+                    ? 504
+                    : code?.startsWith("RECURSIVE_")
+                      ? 502
+                      : 500,
         );
       }
     } finally {
@@ -326,7 +369,11 @@ export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
   };
   return {
     snapshot() {
-      return { ...metrics, active: controllers.size };
+      return {
+        ...metrics,
+        active: controllers.size,
+        ...(recursive ? { recursive: recursive.snapshot() } : {}),
+      };
     },
     handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
       const operation = serve(request, response);
@@ -340,6 +387,7 @@ export function createRawGateway(options: RawGatewayOptions, local: LocalRead) {
         if (!controller.signal.aborted) metrics.cancellations++;
         controller.abort();
       }
+      await recursive?.close();
       await Promise.allSettled([...active]);
     },
   };

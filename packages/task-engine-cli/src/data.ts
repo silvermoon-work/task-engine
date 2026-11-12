@@ -87,7 +87,11 @@ export async function readInstance(directory: string): Promise<InstanceRecord | 
     throw new TaskError("LOCAL_SERVER_UNKNOWN", "Invalid local instance identity.");
   return record;
 }
-export async function atomicFile(path: string, value: Uint8Array | string): Promise<void> {
+export async function atomicFile(
+  path: string,
+  value: Uint8Array | string,
+  signal?: AbortSignal,
+): Promise<void> {
   const candidate = `${path}.${randomUUID()}.pending`;
   try {
     const file = await open(candidate, "wx", 0o600);
@@ -97,6 +101,7 @@ export async function atomicFile(path: string, value: Uint8Array | string): Prom
     } finally {
       await file.close();
     }
+    signal?.throwIfAborted();
     await rename(candidate, path);
   } finally {
     await rm(candidate, { force: true });
@@ -378,8 +383,9 @@ export class DiskContent implements GatewayClient {
         );
     }
   }
-  async put(cid: CID, bytes: Uint8Array): Promise<void> {
+  async put(cid: CID, bytes: Uint8Array, signal?: AbortSignal): Promise<void> {
     await verifyBlock(cid, bytes);
+    signal?.throwIfAborted();
     try {
       await this.local(cid);
       return;
@@ -388,10 +394,12 @@ export class DiskContent implements GatewayClient {
     }
     try {
       this.beforeWrite?.();
+      signal?.throwIfAborted();
       this.checkDirectory();
       await mkdir(join(this.directory, "blocks"), { recursive: true });
-      await atomicFile(join(this.directory, "blocks", cid.toV1().toString()), bytes);
+      await atomicFile(join(this.directory, "blocks", cid.toV1().toString()), bytes, signal);
     } catch (error) {
+      if (signal?.aborted && error === signal.reason) throw error;
       this.failed(error);
       throw error;
     }

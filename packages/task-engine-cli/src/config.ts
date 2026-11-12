@@ -4,6 +4,7 @@ import { dirname, isAbsolute, resolve, join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { TaskError } from "@silvermoon-work/task-protocol";
+import { recursiveEndpoints } from "./recursive-gateway.js";
 
 export const defaults = {
   "server.host": "127.0.0.1",
@@ -23,6 +24,12 @@ export const defaults = {
   "server.rawGatewayMaxConcurrent": 4,
   "server.rawGatewayMaxBlockBytes": 2_097_152,
   "server.rawGatewayTimeoutMs": 10_000,
+  "server.gatewayMode": "local",
+  "server.recursiveGatewayUpstreams": null,
+  "server.recursiveGatewayMaxConcurrent": 2,
+  "server.recursiveGatewayMaxBlockBytes": 2_097_152,
+  "server.recursiveGatewayTimeoutMs": 5000,
+  "server.recursiveGatewayAttemptTimeoutMs": 2000,
   "server.carGatewayMaxBlocks": 128,
   "server.carGatewayMaxBytes": 67_108_864,
   "server.dataDir": join(homedir(), ".silvermoon.work", "task-engine"),
@@ -85,6 +92,9 @@ export function validateValue(key: ConfigKey, value: unknown, base = process.cwd
     throw new TaskError("INVALID_CONFIG_VALUE", `${key} must be a nonempty string.`);
   if (key === "server.dataDir") return isAbsolute(value) ? resolve(value) : resolve(base, value);
   if (key === "client.engine" || key === "server.ipfsGateway") return serviceUrl(value);
+  if (key === "server.gatewayMode" && !["local", "recursive"].includes(value))
+    throw new TaskError("INVALID_CONFIG_VALUE", `${key} must be local or recursive.`);
+  if (key === "server.recursiveGatewayUpstreams") return recursiveEndpoints(value).join(",");
   if (key === "server.rawGatewayAccess" && !["disabled", "public", "token"].includes(value))
     throw new TaskError("INVALID_CONFIG_VALUE", `${key} must be disabled, public or token.`);
   if (key === "server.rawGatewayToken" && !/^[A-Za-z0-9_-]{32,256}$/.test(value))

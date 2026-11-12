@@ -15,7 +15,7 @@
 - 原始只读观察见 [release-preflight.json](./release-preflight.json)。匿名 HTTP
   404 只代表相应官方公开记录不可读，不证明 npm
   owner 的私有包、预留状态或 Trusted Publisher 配置不存在。
-- 发布计划目前有前置阻塞 B1、B2；即使主 Agent 认可版本与测试矩阵，也不能跳过这些阻塞或精确提交 CI。
+- 主 Agent 于 13:32 条件批准本计划七包范围、依赖顺序、精确 RC 与隔离矩阵；该批准未解除阻塞或允许立即发布。13:55 的只读复核已确认 B2 恢复，B1 仍未解决；本轮仍只读、不安装、不发布、不改版本。
 
 ## 精确七包、版本与标签
 
@@ -37,11 +37,22 @@
 UTC 的官方 exact-version 查询对以上七个候选全部返回 404；随后七个精确远端 Git
 tag 查询均为空。这不是永久版本预留：主 Agent 允许继续后、版本准备时及逐包打 tag 前均重查。任何占用、他人预留或新 manifest 变化都停止并重新交主 Agent 审阅，不自动改版本或移动标签。
 
+13:55（05:55
+UTC）通过恢复的原 SSH 路径重查：七个拟用精确版本仍全部为官方公开 404，七个拟用 Git
+tag 仍不存在。拟定版本与顺序没有改变；匿名 404 仍不能排除 owner 的私有记录或预留，未来执行前必须再查。
+
 并发 `ipfs-module-loading` idea 在 `b6044673239005bd219494972e9ca5822d31dd05`
 预留 Builder / Builder CLI / Engine `0.2.0-rc.1` 及 Engine CLI
 `0.2.0-rc.9`。05:08 的官方精确记录已能读到前三包 rc.1，CLI
 rc.9 当时仍为 404。不得占用它们；本 idea 开始发布前须确认该链已完成或由对应协调者明确排除冲突，避免迟到的并发发布把
 `rc` 倒退。既有 latest / canary / 历史版本与标签均保留。
+
+13:55 复核已确认这四个既有 RC 的官方 exact endpoint 全部 200，provenance /
+trustedPublisher 标记存在，且四个不可变 tag 都指向
+`b6044673239005bd219494972e9ca5822d31dd05`；见并发 idea 的
+[release-evidence.md](../../01M76NR9RXM0WJWSWNG4DHX1ZM/outer/release-evidence.md)。这是该会话发布链完成的证据，不是本 idea 部署完成证据：b604467 早于 SpaceRef/content 实现，四个公开 manifest 也均无 task-content
+runtime
+dependency。另一个会话正在做其远端 smoke；不重发这四包、不使用其目录或服务、不把其结果冒充本七包的验证。
 
 ### 必要性与不发布范围
 
@@ -79,7 +90,7 @@ version 一致；catalog 缓存或某个 dist-tag 不是替代证据。
 
 ## CI 基线、版本准备与逐包发布
 
-1. 先取得主 Agent 对本计划及 B1 恢复路径的明确同意。本轮不执行下列动作。
+1. 七包计划已有条件批准；只有 B1 的 owner 前置条件已核实、SSH 即时可达且主 Agent 另行明确允许执行后，才能进行下面动作。本轮不执行。
 2. 重新观察 main、七包 manifest、Git
    tags、官方精确版本与 latest 基线；保留并发历史，禁止 rebase /
    force。先解决所有包的 owner / Trusted
@@ -177,7 +188,18 @@ npm 官方支持先确认不引入未授权发布的 provision 方案，再交�
 占位版本，超出本任务仅 RC、只经指定 Actions/tag 发布的授权。也不使用本地 publish、stored
 token、临时稳定版、移动 tag 或其他 workflow。
 
-## B2：同步契约后的 SSH 可达性阻塞
+### 给用户的最小操作说明
+
+请具备 write 权限与 2FA 的 npm owner 登录 npmjs.com，确认账户/组织中是否已有
+`@silvermoon-work/task-content`（包括私有或预留状态），反馈脱敏结果即可，不提供凭据：
+
+1. **若存在：**确认或配置 GitHub `silvermoon-work/task-engine`、workflow
+   `publish-npm.yaml`、environment `npm` 的 Trusted Publisher，且允许直接 **npm
+   publish**、配置未过期；反馈这组字段的确认。
+2. **若确实不存在：**反馈“包尚未建立”，由 owner /
+   npm 官方确认符合现有约束的预置/首发路径，再交主 Agent 决定；不先用本地 publish、token 或 stage 占位创建它。公开 404 本身不能代替这一步 owner 判断。
+
+## B2：SSH 可达性记录（现已恢复）
 
 计划契约先同步到 primary `33ebbcf2229a52237cda8273e558903a1f50d380`，重新观察为
 `deploymentRevision=0e943ff3fe365d3e7de619fe2f5fd580b6d0db4c`，再做只读前置复核。Git
@@ -190,10 +212,13 @@ timeout 后以 255 退出，第二次仅发送只读 READY 探针，没有扩大
 404，也没有伪造新的 registry 可见性或消费证明。05:06 /
 05:08 的官方 registry 与运行时信息是先前真实准备快照，不是这次失败的成功复核。
 
-恢复条件：现有网络 / VPN
-/ 路由及指定主机 SSH 服务恢复，原目标上的只读连接与现有 Node 再次正常；然后重查本计划七个官方 exact-version
-endpoint、完整 publisher 前置条件和远端 registry，再开始任何安装或发布。Agent 不自行更换主机、改访问控制、提权、重启未知服务或以本地 /
-workspace 测试代替指定远端。B1 与 B2 必须都恢复，并取得主 Agent 对本计划的允许，才能继续。
+13:54 主 Agent 通知原 SSH 路径已返回 SSH_READY；13:55 本 Agent 同一路径只读复核也退出 0、返回 SSH_READY，并使用已有 Node
+`v24.22.2`
+正常 HTTPS 重查官方版本记录。没有写部署文件、安装包、启动/停止服务或接触另一会话的 smoke 目录。B2 因此解除，但旧失败记录保留，不把恢复解释为发布许可。
+
+B1 仍阻塞：task-content 的公开 package 与拟用版本 endpoint 仍为 404，owner 存在性/首发路径和 Trusted
+Publisher 仍未获核实。收到 owner 反馈及主 Agent 后续允许后，仍应即时复核 SSH、版本占用与未来
+`V` 的精确提交 CI；不更换目标、不提权、不重启未知服务、不改号或绕过。
 
 ## office-ubuntu 隔离安装与运行方案
 
@@ -258,4 +283,4 @@ alias 加载实现。测试脚本和 fixture 是外部消费驱动，不是替�
 实际远端 smoke 的失败按契约修复并准备新的不可变 RC 后重测；涉及产品代码实质变化先报告主 Agent，重新验证实施，不编辑已验收 inner 来掩盖变更。publish
 success 本身绝不是部署完成。
 
-只有全部 D-* 和真实 RC/SSH 证据完成、candidate 同步 primary 后，才记录准确 submitOuter 并交主 Agent 决定；本轮不 submitOuter、不 accept*。本轮交接是对本计划版本/顺序/前置条件的审阅，不是 outer 验收。
+只有全部 D-* 和真实 RC/SSH 证据完成、candidate 同步 primary 后，才记录准确 submitOuter 并交主 Agent 决定；本轮不 submitOuter、不 accept*。七包版本/顺序的条件批准保持不变，本轮交接仅为只读恢复及 B1 阻塞复核，不是发布许可或 outer 验收。

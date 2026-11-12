@@ -11,6 +11,7 @@
 task.build.yaml 以 imports: Record<Path, CID> 引入文件或目录，不限于任务。build 获取完整静态闭包并交付自包含 task folder，car 离线打包并核对引入 CID。Builder 与 Engine 共用内容机制和独立公共默认配置，允许分别覆盖。
 
 设计取舍、调用示例与语义边界见[讨论细节](./dependency-and-invocation.md)。
+实施与部署由一个 subagent 执行、主 Agent 审批，授权范围见[执行与门限分工](./execution-and-gates.md)。
 
 ## 边界
 

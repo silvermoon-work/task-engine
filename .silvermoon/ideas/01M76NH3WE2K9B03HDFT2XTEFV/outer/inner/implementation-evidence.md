@@ -62,6 +62,8 @@
 
 合并后 `pnpm build`、`pnpm typecheck:tests`、`silvermoon check --worktree --audience agent` 均已通过；从 task-engine workspace 执行 `composition.test.ts`、`bundle-module.test.ts`、`bundle-contract-host.test.ts`、`drain.test.ts` 的组合选择器，**64/64 通过**。真实 imports、断源、独立调用与新 module hook 的内置模块、拒绝路径、模块身份/缓存和物理退出契约同时保留。完整集成检查仍须完成后才同步门限候选。
 
+检查共享端口所有权时补充了“两个 reader 共用一次获取，只取消其中一个”的精确用例；它在修复前实际失败，因为首个请求的 signal 错误地拥有共享获取。现改为客户端 lifetime 拥有获取，各 reader 仅取消自己的等待；宿主仍可通过 close 终止自己拥有的获取。`pnpm --filter @silvermoon-work/task-content test` **5/5 通过**，保留跨进程原子发布、无自动删除与超时/取消用例；该耦合修复须纳入最终全仓集成结果。
+
 本轮保留现有受支持内容 profile：SHA-256 raw / DAG-PB 的普通文件和非空 UnixFS 目录；不悄悄规范化不支持的内容。共享目录没有自动 GC 或跨进程下载去重承诺，Worker 也不是通用 OS 权限沙箱。
 
 部署、精确 RC 版本调整、tag、真实 npm 发布和 office-ubuntu SSH smoke 均未开始。后续须先审阅逐包 RC 与依赖顺序，新 `task-content` 的 Trusted Publisher 绑定需在真实发布前具备；本地通过不替代外部部署证据。

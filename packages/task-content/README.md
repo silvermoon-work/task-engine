@@ -32,4 +32,6 @@ are validated, never overwritten with unverified data. Close aborts owned work
 but never removes blocks or closes an injected source. Configured factories own
 and close only the gateways they create. Disk retention has no automatic GC.
 In-flight acquisition is deduplicated within each instance, not across processes.
+Canceling one reader detaches only that reader; shared acquisition belongs to
+the client's lifetime and remains available to other readers.
 CID storage accounting and logical file/path/execution budgets remain independent.

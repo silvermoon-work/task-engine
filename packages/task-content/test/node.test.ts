@@ -76,3 +76,56 @@ await store.close();`;
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("canceling one reader does not cancel another reader sharing the same acquisition", async () => {
+  const directory = resolve(`.content-readers-${randomUUID()}`);
+  const bytes = Buffer.from("shared acquisition");
+  const cid = CID.createV1(0x55, await sha256.digest(bytes));
+  let release = () => {};
+  let reads = 0;
+  const client = new SharedContent(directory, {
+    block: {
+      get: async (_cid, options = {}) =>
+        new Promise<Uint8Array>((resolve, reject) => {
+          reads++;
+          const abort = () => reject(options.signal?.reason);
+          options.signal?.addEventListener("abort", abort, { once: true });
+          release = () => {
+            options.signal?.removeEventListener("abort", abort);
+            resolve(bytes);
+          };
+        }),
+    },
+  });
+  const canceled = new AbortController();
+  const first = assert.rejects(
+    client.block.get(cid.toString(), { signal: canceled.signal }),
+    /one reader canceled/,
+  );
+  const second = client.block.get(cid.toString()).then(
+    (value) => ({ value }),
+    (error: unknown) => ({ error }),
+  );
+  try {
+    const deadline = Date.now() + 2000;
+    while (!reads) {
+      assert.ok(Date.now() < deadline);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    canceled.abort(new Error("one reader canceled"));
+    await first;
+    release();
+    const result = await second;
+    assert.equal(
+      "error" in result,
+      false,
+      "Another reader must keep the shared acquisition alive.",
+    );
+    if ("value" in result) assert.deepEqual(Buffer.from(result.value), bytes);
+    assert.equal(reads, 1);
+  } finally {
+    release();
+    await client.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});

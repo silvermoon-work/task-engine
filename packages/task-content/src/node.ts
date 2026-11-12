@@ -135,16 +135,28 @@ export class SharedContent implements GatewayClient {
             throw new Error(
               `Missing local content block: ${cid}; configure a content gateway or import a complete CAR.`,
             );
-          const bytes = await acquireBlock(this.source, cid, { signal });
-          await this.put(cid, bytes, { signal });
+          const bytes = await acquireBlock(this.source, cid, { signal: this.lifetime.signal });
+          await this.put(cid, bytes, { signal: this.lifetime.signal });
           return Uint8Array.from(bytes);
         })();
         this.pending.set(key, operation);
         void operation.finally(() => this.pending.delete(key)).catch(() => {});
       }
-      const bytes = await operation;
-      signal.throwIfAborted();
-      return Uint8Array.from(bytes);
+      let abort = () => {};
+      try {
+        const bytes = await Promise.race([
+          operation,
+          new Promise<never>((_, reject) => {
+            abort = () => reject(signal.reason);
+            signal.addEventListener("abort", abort, { once: true });
+            if (signal.aborted) abort();
+          }),
+        ]);
+        signal.throwIfAborted();
+        return Uint8Array.from(bytes);
+      } finally {
+        signal.removeEventListener("abort", abort);
+      }
     },
   };
   async close(): Promise<void> {

@@ -39,7 +39,8 @@
 固定 3 个独立匹配重复，每对新建 task-only control 与 task+gateway treatment
 受管进程，顺序 C/T、T/C、C/T。Node、配置、fixture、任务代码/CAR、8 并发、
 输入 value/headers、文件预热与 Worker 预热相同；唯一测量负载差异是 input.gateway
-启用32次读取。两臂均先读取同一1 MiB文件并运行一波8个带网关读取的任务作等量预热，
+启用32次读取。两臂均先读取同一1 MiB文件，串行执行1个带网关读取任务使包/输出
+文件缓存就绪，再串行执行1个无网关读取任务、运行一波8个带网关读取的任务作等量预热，
 不计为测量。每臂此后固定3波，均为8个真实任务，treatment 每波32次读取；
 control 每波0次。每波 quiet 1000ms、load 到8任务释放、drain 1000ms，
 由已有身份校验的 managed status 确认 phase 边界，禁止强制 GC。

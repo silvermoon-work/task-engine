@@ -298,10 +298,16 @@ try {
       };
     }
     const status = () => command("server", "status", "--data-dir", data);
-    // 两臂采用相同文件和 Worker 预热，随后仅切换任务输入中的 gateway。
-    await Promise.all(
-      Array.from({ length: 8 }, () => task(loadInput)),
-    );
+    async function waveTasks(inputPath) {
+      const results = await Promise.allSettled(Array.from({ length: 8 }, () => task(inputPath)));
+      const failed = results.find(result => result.status === "rejected");
+      if (failed) throw failed.reason;
+      return results.map(result => result.value);
+    }
+    // 冷缓存先单任务预热，避免Windows并发替换同一缓存文件；两臂完全相同。
+    await task(loadInput);
+    await task(input);
+    await waveTasks(loadInput);
     const waves = [];
     report.measurements.waves = waves;
     for (let wave = 0; wave < 3; wave++) {
@@ -309,9 +315,7 @@ try {
       assert.ok(beginning.memory, "Installed CLI lacks current-memory sampling; publish a fresh package, never replace rc.5");
       await new Promise(done => setTimeout(done, 1000));
       const quietEnd = await status();
-      const tasks = await Promise.all(
-        Array.from({ length: 8 }, () => task(memoryArm === "control" ? input : loadInput)),
-      );
+      const tasks = await waveTasks(memoryArm === "control" ? input : loadInput);
       const loadEnd = await status();
       await new Promise(done => setTimeout(done, 1000));
       const drainEnd = await status();

@@ -48,6 +48,27 @@ Git 与 primary 在准备前为 `b07a2b4eac0452ec69519bb80a1e5fcdf2f7f654`，ahe
 
 首包完整 before／after、Actions steps、tarball hashes／integrity 和公开 provenance 在 [registry-publication.json](./registry-publication.json)。此刻其余六包仍未发布，D-* 与 remote smoke 尚未完成。后续只按单包顺序继续：`publish-authorized-one.mjs` 每次只接受一个批准 ID，检查所有先前成功收据、V 的精确 CI、剩余 tag／版本及全部内部依赖，再推一个 tag；不支持批量发布或自动换号。registry 可见性仅对明确的缓存延迟作有上限等待，其他失败立即停止。
 
+## 后续串行进度
+
+以下每包都在前一包已成功且官方 exact endpoint 可见后才推 tag；全部固定 V，四类内部依赖字段均核对精确版本。
+
+| package | 精确版本 | 成功 Actions run | 官方完整 after 观察 UTC |
+| --- | --- | --- | --- |
+| task-protocol | 0.2.0-rc.1 | [43196076650](https://github.com/silvermoon-work/task-engine/actions/runs/43196076650) | 2026-11-12T10:00:08.552Z |
+| task-sdk | 0.2.0-rc.1 | [43196487503](https://github.com/silvermoon-work/task-engine/actions/runs/43196487503) | 2026-11-12T10:02:48.009Z |
+| task-builder | 0.2.0-rc.2 | [43196914719](https://github.com/silvermoon-work/task-engine/actions/runs/43196914719) | 2026-11-12T10:06:39.557Z |
+| task-builder-cli | 0.2.0-rc.2 | [43197494196](https://github.com/silvermoon-work/task-engine/actions/runs/43197494196) | 2026-11-12T10:12:42.024Z |
+| task-engine | 0.2.0-rc.2 | [43198440993](https://github.com/silvermoon-work/task-engine/actions/runs/43198440993) | 2026-11-12T10:17:22.896Z |
+| task-engine-cli | 0.2.0-rc.10 | [43199115450](https://github.com/silvermoon-work/task-engine/actions/runs/43199115450) | 2026-11-12T10:22:26.715Z |
+
+表内各包的 tarball 实际 SHA-1／SHA-512 都与官方元数据一致，公开 SLSA 的 tag／repository／workflow／gitCommit=V 和 subject digest 也匹配。所有 latest／canary 原样，仅 rc 更新。Builder CLI 的 Actions 成功先于 exact record 可见；只按有上限的既定等待复查同一 endpoint，没有重复 publish、rerun 或移动 tag。
+
+Engine 在上述 Builder CLI 精确版本可见后才发布，包含 development-only 前置边。Engine CLI 在 Engine 精确版本可见后才发布，六条内部依赖字段均已精确可见。现在七包全部 Actions success、exact version 可见、tarball integrity 与公开 provenance 来源／摘要匹配；没有任何 rerun、版本覆盖、tag 移动或认证绕过。Engine CLI 曾等待 rc 元数据的缓存延迟，只读复查后才完成收据，没有重复 publish。
+
+七个 latest 和历史 canary 都未变，ipfs-store 的 stage／rc.0 保留。完整结构化记录的 `allSevenPublishedAndVisible=true`；这只代表发布链完成，不是 remote smoke 或 Outer 验收完成。
+
+隔离安装入口 `prepare-registry-consumer.mjs` 已通过语法检查：它在写目录之前先要求七个精确官方版本全部为 200，检查四类内部依赖，再只创建带 V／nonce／uid 的专有目录，使用原 HOME／原 registry 和专有 npm cache 安装，不改全局工具。其 SHA-256 为 `a4b559d26c30d35e5db92c2fbc65558dbb0a3ca33a224e43f8b84bf5e3592deb`。此处仍仅为准备，不是安装或 smoke 成功证据。
+
 ## 隔离消费驱动准备
 
 [registry-spaceref-smoke.mjs](./registry-spaceref-smoke.mjs) 是本计划的外部消费驱动，不包含产品实现。它先核对 ownership marker、精确 installed manifests、registry lock／tarball/integrity 和非 symlink 路径，再从这些已安装包加载公开 API／真实 CLI；不加载 workspace src／dist。

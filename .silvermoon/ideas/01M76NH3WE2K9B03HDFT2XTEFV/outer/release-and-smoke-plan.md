@@ -11,7 +11,7 @@
 
 ## 精确版本与顺序
 
-scope 均为 `@silvermoon-work/`，映射沿用 `scripts/release-packages.js`。未来全部 tag 固定同一个版本准备提交 **V**，逐包推送；V 尚未创建。
+scope 均为 `@silvermoon-work/`，映射沿用 `scripts/release-packages.js`。全部 tag 固定同一个版本准备提交 **V**，逐包推送。计划提交时 V 尚未创建；执行时已冻结为 `bbc504364514ef91edbd28e3a4a7f61d828cb58b`，实际 CI／发布结果见 [release-execution.md](./release-execution.md)。
 
 | 顺序 | package ID | 准备前 manifest | 本次候选 | 不可变 tag |
 | --- | --- | --- | --- | --- |
@@ -62,7 +62,9 @@ IpfsStore 已无 Protocol 依赖，因此可先发；优先验证新包真实 OI
 8. 用户关于新包绑定的确认作为配置证据；不要求重新证明其他六包。仓库 workflow／environment 与公开历史不能穷尽 npm 私有配置。**实际 OIDC、直接 publish 权限或过期失败就明确阻塞**，先查版本是否已经产生，不绕过为 token、本地 publish、stage、其他 workflow 或移动 tag。
 9. 每包记录 V、tag SHA、main CI／publish run URL、pack／artifact 验证、官方 exact record、tarball/integrity、provenance 和前后 dist-tags。依赖可见性延迟只做有界等待；确认尚未发布时才可重跑同一不可变 tag。版本已存在即阻止再次 publish。
 
-### 本轮 CI／environment 观察
+### 计划预检时的 CI／environment 观察（08:42 UTC 历史）
+
+执行阶段的 V 已由 [43192357661](https://github.com/silvermoon-work/task-engine/actions/runs/43192357661) 精确 main push CI 核验成功；下面保留计划预检时的信息，不把旧状态冒充 V 的结果。
 
 - 已接受决定提交 `f330abbc14f1900da33453c2d2f9d70976b241ac` 的 [main CI 43184831356](https://github.com/silvermoon-work/task-engine/actions/runs/43184831356) 在本轮读取时仍为 **in_progress**，两个 Node job 运行中，aggregate 尚未成功。实现提交 61b5661 与提交事件 207c08f 的 runs 已 cancelled，不能当作绿色。
 - 本地已接受实现的完整结果是 44/44 tasks、689 通过、1 既有 skip；父 Agent 已独立复核部分测试。这不是未来 V 的 CI 许可。
@@ -100,7 +102,7 @@ IpfsStore 已无 Protocol 依赖，因此可先发；优先验证新包真实 OI
 
 ## 停止与交接
 
-本轮只修改 Outer 计划／预检和用户指定的 README 重复残句，没有运行代码、manifest、lockfile 或 Inner／Ideal 变化。
+计划提交 b07a2b4 当时只修改 Outer 计划／预检和用户指定的 README 重复残句，没有运行代码、manifest、lockfile 或 Inner／Ideal 变化；后来经新授权在 V 仅更新七个 version 字段。Inner／Ideal 与运行代码保持不变。
 候选版本／tag 映射和全部四类依赖边已由脚本与实际七包 manifest 逐项核对通过；`pnpm format:check`、`pnpm test:release`（21/21）和 Silvermoon worktree 检查已退出 0。文档修正不冒充重新执行实现全仓验证；实施验证沿用准确已验收修订的真实证据。
 
 现按明确授权进入版本准备；D-* 在真实证据完成前保持未完成，不提前 submitOuter／accept*。

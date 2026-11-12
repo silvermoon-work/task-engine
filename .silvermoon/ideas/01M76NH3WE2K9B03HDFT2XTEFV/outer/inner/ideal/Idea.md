@@ -8,6 +8,8 @@
 
 静态子任务以 CID 链接纳入父 bundle 的 Merkle DAG，共享相同内容块并支持一次准备完整依赖闭包。Context 启动子任务只接受 SpaceRef；已知 CID 时先创建 Space，由 Engine 解析并固定执行身份。
 
+设计取舍、调用示例与语义边界见[讨论细节](./dependency-and-invocation.md)。
+
 ## 边界
 
 - 引用可达不代表授权；子任务保持独立执行、校验和预算边界。

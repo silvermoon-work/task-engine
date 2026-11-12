@@ -14,6 +14,8 @@
 
 本轮仅发布 `@silvermoon-work/task-engine-cli@0.2.0-rc.5`，tag 为 `task-engine-cli-v0.2.0-rc.5`。发布前 latest=`0.1.0`、canary=`0.2.0-canary-261111-1`、rc=`0.2.0-rc.4`；内部依赖沿用已发布 `0.2.0-rc.0`。版本/tag 已占用则停止。
 
+rc.5 已发布且不可变；修正采样实现需要新的 `@silvermoon-work/task-engine-cli@0.2.0-rc.6` / `task-engine-cli-v0.2.0-rc.6`，仅该映射包改版，内部依赖不变。修正版回放须普通安装 rc.6，不覆盖 rc.5；沿用相同准确 CI、artifact、历史渠道保持规则。原 rc.5 规范集合结果保留，修正版需另验当前采样、剩余浏览器/TLS及资源标准。
+
 在指定 SSH 设备的专用临时 consumer 普通安装精确 registry RC，核对 manifest/lock integrity。使用已经固定的规范/suite 提交、fixtures 与适用测试矩阵，记录每项测试、实际结果和有范围依据的排除项，不能以跳过代替通过。
 
 实际浏览器以独立 origin 验证 CORS、preflight、可读响应头、token/no-token 与缓存语义；可通过仅绑定 loopback 的自有 SSH tunnel 使用集成浏览器，不修改共享浏览器或设备工具。直接 HTTP 与本轮自有 TLS/HTTP2 代理分别验证流式语义；证书只作本轮显式信任，不关闭 TLS 验证。

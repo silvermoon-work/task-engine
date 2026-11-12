@@ -10,19 +10,18 @@
 
 - 支持以 ipfs://<cid>/worker.cjs 加载当前已验证 bundle 的入口；CID 和路径必须经统一解析、验证与规范化，禁止凭据、非法 CID、路径穿越及编码后越界。查询与片段不得被默默丢弃；首期不支持的形式应明确拒绝。
 - 入口应具有可辨识的 IPFS 模块身份，加载失败包含足以定位模块的地址上下文，但不泄漏网关凭据或宿主敏感信息。
-- 首期保持 Builder 的单文件 CJS 产物形态及依赖打包方式，不支持运行时相对模块图、ESM bundle、多文件资源执行或跨 CID 依赖。迁移会改变产物加载契约，不能承诺旧 bundle 无需重建。
+- 首期保持 Builder 的单文件 CJS 产物形态、产物契约及依赖打包方式，不支持运行时相对模块图、ESM bundle、多文件资源执行或跨 CID 依赖。修正模块地址需要重建产物，但不因此升级产物 schema。
 - Node 内置模块保留既有使用行为；支持 IPFS 地址不代表开放宿主本地模块、node_modules 或任意外部协议。实现前核对现有能力，避免无意扩大或收紧既有权限。
 - IPFS 模块空间只开放当前 bundle 的规范入口；其他 IPFS 路径和 CID 明确拒绝，不能借资源路径执行代码。内置模块仍可使用；普通依赖继续由 Builder 打包。入口采用 import 还是 require 是保留 CJS 行为的技术选择，不属于作者新增的调用 API。
 - 正确的模块地址要求新产物的 import.meta.url 为规范 IPFS 入口地址，不得经过 pathToFileURL 转换。__filename 与 __dirname 表示逻辑模块身份而非宿主磁盘路径；不能假定 fileURLToPath(import.meta.url)、createRequire(import.meta.url) 或 path 拼接适用于 IPFS URL。文档必须说明这一有意的地址语义变化。
 
 ## 重建与迁移边界
 
-- 用户已明确要求重建旧 bundle。新引擎必须通过明确、可验证的产物加载契约标识识别新产物，并在任务代码执行前拒绝旧产物，给出重新构建、重新生成 CID 并重新提交的指引。
-- 不得以 runtime.minVersion、npm 包版本、源码字符串匹配或执行后的 SDK 握手代替加载契约识别；旧 Builder 本来就能生成声明较高 Node 版本的 bundle，执行后再发现不兼容则已经越过拒绝边界。
-- 用户已确认新版本权威 schema 由 task-engine 仓库维护并版本化，不以修改 potential-guide 为本次前置；保留历史 v1 schema，不在原标识下悄悄改变含义。协议版本/能力标识的精确字段与 Builder、Protocol、SDK 一并确定，旧引擎对新产物也应明确拒绝；不得复用无关的 Space 协议号表达模块加载能力。
-- 新 schema 的机器可读文件、唯一标识、包内分发方式及文档引用必须一致，并提供可验证的消费入口。若使用可获取的公开 URL，必须验证其实际部署；不能只修改 URL 就宣称 schema 已发布。具体托管或包导出方式由实施设计确定，不要求修改其他仓库或发布 npm 包来完成本次仓库内实现。
-- 本次升级对象是 task.yaml 的 Task Bundle/Worker 产物契约及其共享 taskSchemaUri；优先用新 $schema 身份表达加载语义，不再额外增加含义重复的 loaderVersion。它不要求业务 input/result/message schema、Space 协议号或 JSON Schema 标准 draft 一同升级；task-build 配置若字段语义不变也无需升级。新 URI 必须区别于已交付 v1 及已移除的历史 Task v2，不复活旧标识或为它建立兼容别名。
-- Builder 必须在生成产物时确定正确地址语义，不能在加载时改写已验证源码，也不能篡改 Node 的全局 URL API 来兼容旧 banner。
+- 重建是为了使用修正了模块地址生成方式的 Builder 产物；说明重新构建、重新生成 CID 并重新提交的操作。不能把这项要求扩大成新增构建器版本识别、强制拒绝全部旧产物或双向版本门禁。
+- 保持 task.yaml 结构、taskSchemaUri、SDK 握手和 Space 协议不变，不新增 loaderVersion 或能力标识；input/result/message schema、JSON Schema draft 和 task-build 配置版本也不因加载方式变化而升级。
+- 如需提高产物最低 Node 要求，使用已有 runtime.minVersion 字段；它不是构建器版本标识。直接受影响的包声明和模板应与实际最低版本一致。
+- Builder 在生成产物时确定正确地址语义，不在加载时改写已验证源码，也不篡改 Node 的全局 URL API 来兼容旧 banner。旧产物不保证自动获得修正后的 import.meta.url，不添加 eval 兼容分支。
+- 外部 v1 schema 与当前实现存在差异属于既有问题，不在本次修复，也不作为本次加载变更的前置。关于未来新 schema 由本仓库维护的方向，不构成本次升级 schema 的要求。
 
 ## 获取、校验与授权
 
@@ -41,6 +40,6 @@
 
 ## 验证场景与明确排除
 
-成功场景覆盖新产物入口、正确的模块地址、CJS API、内置模块及并发 Run；拒绝场景覆盖旧产物、非法/编码路径、非入口资源路径、缺失或损坏内容、跨 CID、网关策略限制、容量限制及中途取消。验证同一 Worker 内入口不会重复求值，不同 Run 仍使用独立 Worker/模块状态；关闭与强制退出必须覆盖 bootstrap 和加载器拥有的工作。
+成功场景覆盖重建产物入口、正确的模块地址、CJS API、内置模块及并发 Run；拒绝场景覆盖非法/编码路径、非入口资源路径、缺失或损坏内容、跨 CID、网关策略限制、容量限制及中途取消。验证同一 Worker 内入口不会重复求值，不同 Run 仍使用独立 Worker/模块状态；关闭与强制退出必须覆盖 bootstrap 和加载器拥有的工作。
 
-本 idea 不改变单文件交付及依赖打包策略，但必须为重建迁移引入明确的加载契约边界；不实现任意远程依赖安装，不提供 fetch API，不引入可变 IPNS 寻址，也不要求发布 npm 包。[IPFS fetch idea](../../../../01M76NXWH50ZXJBAN92MEH2ZAQ/outer/inner/ideal/Idea.md) 可独立推进，二者复用现有 IPFS 内容能力而非相互依赖功能完成。
+本 idea 仅改变引擎模块加载及 Builder 地址生成，不改变产物协议、单文件交付及依赖打包策略；不实现任意远程依赖安装，不提供 fetch API，不引入可变 IPNS 寻址，也不要求发布 npm 包。[IPFS fetch idea](../../../../01M76NXWH50ZXJBAN92MEH2ZAQ/outer/inner/ideal/Idea.md) 可独立推进，二者复用现有 IPFS 内容能力而非相互依赖功能完成。

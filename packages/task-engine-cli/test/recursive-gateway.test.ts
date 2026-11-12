@@ -287,6 +287,59 @@ test("ordered fallback has a shared byte/deadline budget and never hides persist
   assert.equal(fallback.snapshot().attempts, 2);
 });
 
+test("verified persistence uses the total deadline, not the completed upstream attempt deadline", async (t) => {
+  for (const expires of [false, true])
+    await t.test(
+      expires ? "total deadline cancels persistence" : "attempt deadline ends before persistence",
+      async (t) => {
+        const upstream = await listen(t, (_request, response) => {
+          response.writeHead(200, { "content-type": "application/vnd.ipld.raw" }).end(bytes);
+        });
+        const content = await cache(t);
+        let entered!: (signal: AbortSignal) => void;
+        const persisting = new Promise<AbortSignal>((resolve) => {
+          entered = resolve;
+        });
+        let release!: () => void;
+        const gate = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        t.mock.timers.enable({ apis: ["setTimeout"] });
+        const client = createRecursiveGateway(
+          { ...policy, upstreams: [upstream] },
+          (cid, options) => content.local(cid, options),
+          async (cid, bytes, signal) => {
+            entered(signal);
+            await gate;
+            await content.put(cid, bytes, signal);
+          },
+        );
+        t.after(() => client.close());
+        const result = client.read(cid, {
+          signal: new AbortController().signal,
+          maxBytes: policy.maxBlockBytes,
+        });
+        try {
+          const signal = await persisting;
+          t.mock.timers.tick(expires ? policy.timeoutMs : policy.attemptTimeoutMs);
+          assert.equal(signal.aborted, expires);
+          assert.equal(client.snapshot().timeouts, expires ? 1 : 0);
+          release();
+          if (expires) {
+            await assert.rejects(result, { code: "RECURSIVE_TIMEOUT" });
+            await assert.rejects(content.local(cid), { code: "ENOENT" });
+          } else {
+            assert.deepEqual(await result, bytes);
+            assert.deepEqual(await content.local(cid), bytes);
+          }
+        } finally {
+          release();
+          await Promise.allSettled([result]);
+        }
+      },
+    );
+});
+
 test("all waiter cancellation aborts acquisition, rejects queue, and close seals/awaits owned work", async (t) => {
   let requests = 0;
   let active = 0;

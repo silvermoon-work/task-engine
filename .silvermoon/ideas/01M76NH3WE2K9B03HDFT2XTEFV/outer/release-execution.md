@@ -69,6 +69,18 @@ Engine 在上述 Builder CLI 精确版本可见后才发布，包含 development
 
 隔离安装入口 `prepare-registry-consumer.mjs` 已通过语法检查：它在写目录之前先要求七个精确官方版本全部为 200，检查四类内部依赖，再只创建带 V／nonce／uid 的专有目录，使用原 HOME／原 registry 和专有 npm cache 安装，不改全局工具。其 SHA-256 为 `a4b559d26c30d35e5db92c2fbc65558dbb0a3ca33a224e43f8b84bf5e3592deb`。此处仍仅为准备，不是安装或 smoke 成功证据。
 
+## Ubuntu 首轮：安装成功，驱动目录准备失败
+
+在同步发布证据 primary `da9c40a804fdf6850cc6b05c6676780ab27e70c0` 并观察 Outer `b29ec8c3a1ca` 后，实际执行新隔离目录安装。10:27:55.805 UTC 的 [ubuntu-bootstrap.json](./ubuntu-bootstrap.json) 证明七包全部来自真实官方 registry，精确版本、非 symlink 安装路径、lock／tarball/integrity 匹配；没有 workspace、源码或本地 tarball 替代，也没有改 user HOME／registry 配置、全局工具或其他会话资源。
+
+第一专有目录为 `task-engine-spaceref-smoke/bbc504364514-523f5f68-f03c-41a3-97f5-b853074b66ed`。10:29:38.889 UTC 的[驱动校验](./ubuntu-script-verification.json)确认 ownership／uid／V 与原驱动 SHA-256 cb2a839c4c3f 一致，然后才开始执行。
+
+真实首轮退出 **1**，见 [ubuntu-first-result.json](./ubuntu-first-result.json)。同对象 reader 取消与来源所有权、原 UnixFS 文件／目录流／缓存两组通过；首次 task build 在调用 `writeDirectory` 时因驱动没有先创建自己的 `bundles` 父目录而 ENOENT。这个 API 本来就先 realpath 既有父目录并仅创建新输出；没有产品库行为与合同不符的证据。此轮不能冒称矩阵通过，D-* 不勾选。
+
+首轮 finally 记录 `allOwnedEnginesClosed=true`、`sourceClosed=true`，尚未启动任何 CLI daemon，没有需要强杀或操作他人的服务。仅在 Outer 驱动的 build helper 增加 `mkdir(dirname(directory), {recursive:true})`；不改运行库、manifest、已发 RC、断言或已接受 Inner／Ideal。修订后 `node --check` 退出 0，驱动 SHA-256 为 `8add718d2c60a4349c9fe00743fcd362a7acdf26aa2cdacf6314e18c7b00fd09`。
+
+先同步这项驱动修订并观察新 Outer，再创建新的 nonce 目录，重新安装同七个精确 RC 并完整重跑；不复用首轮暖缓存，不删除失败记录，也不以局部通过替代最终结果。
+
 ## 隔离消费驱动准备
 
 [registry-spaceref-smoke.mjs](./registry-spaceref-smoke.mjs) 是本计划的外部消费驱动，不包含产品实现。它先核对 ownership marker、精确 installed manifests、registry lock／tarball/integrity 和非 symlink 路径，再从这些已安装包加载公开 API／真实 CLI；不加载 workspace src／dist。

@@ -130,6 +130,7 @@ async function build(code, imports = {}, content = shared) {
     imports, content,
   });
   const directory = join(work, "bundles", name);
+  await mkdir(dirname(directory), { recursive: true });
   await writeDirectory(tree, directory);
   const car = await encodeTaskBundleCar(await directoryTree(directory));
   try {

@@ -4,7 +4,7 @@
 
 2026-11-13，用户在 OKR Agent 讨论中提出将 result 与 output 结合的 Blob 模型，并要求转入 Task Engine 记录。随后讨论收敛到类型化 CID 弱引用；2026-11-14 用户要求按新方向调整本 Idea。
 
-Blob 模型已被本方向取代，不再作为待实施方案。保留原 Idea ID 与别名 `structured-output-blobs`，避免既有入口失效；别名不表示仍采用 Blob。当前授权仅为文档调整，不代表完整构想验收，不开始实施或发布。
+Blob 模型已被本方向取代，不再作为待实施方案。2026-11-14，用户授权改名为更合适的名称：标题为“Task 输入与结果的类型化内容引用”，别名为 `typed-content-refs`，原 Idea ID 保持不变。旧别名 `structured-output-blobs` 不再是导航入口。当前授权仅为文档调整，不代表完整构想验收，不开始实施或发布。
 
 ## 触发问题
 
@@ -31,6 +31,37 @@ Blob 模型已被本方向取代，不再作为待实施方案。保留原 Idea 
 JSONPath 可以表示引用位置；契约规则与本次值的实际位置须区分。数组及 union 等结构需要按实际值生成或验证位置，不能无条件把匹配字符串全部转换。也可以采用 JSON Pointer 表达具体位置，最终语法未定。
 
 独立引用清单是一种候选：业务 JSON 不占用保留字段，传输信封记录哪些位置是引用。SDK 仅编码真实引用并在接收时按验证后的清单解码；父任务重组结构后重新生成清单，不复用旧索引。是否必须携带清单、如何处理 union 分支歧义及防止伪造，留待方案确认。
+
+### 作者侧契约示例：待确认
+
+沿用现有 `{ input, result, message, schemas? }` 结构，在普通 TypeBox 结构中声明内容引用字段，不另加一份作者维护的位置清单。以下 `ContentRef()` 是候选 Schema 构造器，不是现有可执行 API：
+
+```ts
+import { Type } from "@sinclair/typebox";
+
+export default {
+  input: Type.Object({
+    document: ContentRef(),
+    baseline: Type.Optional(ContentRef()),
+    label: Type.String(),
+  }),
+  result: Type.Object({
+    issues: Type.Array(
+      Type.Object({
+        message: Type.String(),
+        references: Type.Array(ContentRef()),
+      }),
+    ),
+  }),
+  message: Type.Never(),
+};
+```
+
+`ContentRef()` 声明的是“此处必须是内容引用”，不是“此处是碰巧符合 CID 格式的字符串”。作者侧类型推导应得到只读引用类型；传输侧可编码为 CID 字符串，但需要由保留下来的协议语义及实际引用位置共同验证。`label` 始终是普通字符串，即使值是有效 CID 也不解码为引用。
+
+若采用独立清单，输入的实际位置可能是 `/document`，结果的实际位置可能是 `/issues/0/references/0`；这些是本次值的位置，不是作者另写的 JSONPath 模板。可选字段缺席时不生成位置，数组重组后重新生成位置。输入与结果使用相同规则。
+
+Schema 构造器必须同时定义作者侧类型和可序列化的传输契约语义。当前 Builder 只接受已支持的 TypeBox kind，并拒绝 `format` 等未被 Engine 强制校验的注释，不能把现有 `Type.String({ format: "cid" })` 或 TypeBox Transform 当作已支持方案。扩展关键字、清单信封及 union 的联合验证仍需设计，不能仅保留一个被验证器忽略的注释。
 
 ## 文档弱引用图：关联议题
 

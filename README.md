@@ -97,6 +97,7 @@ CLI 通过标准 CAR/UnixFS 库实现离线只读块源，生产安装不依赖 
 | [@silvermoon-work/task-protocol](./packages/task-protocol/README.md)             | 任务事实、协议、投影及 Bundle 契约            |
 | [@silvermoon-work/ipfs-access](./packages/ipfs-access/README.md)                 | 轻量 CID 访问与流式文件/目录类型契约          |
 | [@silvermoon-work/ipfs-payload](./packages/ipfs-payload/README.md)               | ContentRef、JSON 载荷及强链接 DAG-CBOR 编解码 |
+| [@silvermoon-work/ipfs-tree](./packages/ipfs-tree/README.md)                     | 按需 CID 只读文件树（read/list/resolve）      |
 | [@silvermoon-work/ipfs-store](./packages/ipfs-store/README.md)                   | 共用内容获取、CID 验证与独立共享块存储        |
 | [@silvermoon-work/task-sdk](./packages/task-sdk/README.md)                       | Worker 运行时与作者回调、上下文类型           |
 | [@silvermoon-work/task-engine](./packages/task-engine/README.md)                 | 嵌入式引擎、任务协调及执行池                  |
@@ -158,6 +159,7 @@ packages/
   task-protocol/
   ipfs-access/
   ipfs-payload/
+  ipfs-tree/
   ipfs-store/
   task-sdk/
   task-engine/

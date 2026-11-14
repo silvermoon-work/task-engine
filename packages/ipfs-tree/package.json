@@ -1,0 +1,53 @@
+{
+  "name": "@silvermoon-work/ipfs-tree",
+  "version": "0.0.0",
+  "description": "On-demand read-only CID path tree over host IpfsAccess.",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "node -e \"for (const path of ['dist', '.cache']) require('node:fs').rmSync(path, { recursive: true, force: true })\"",
+    "lint": "biome lint .",
+    "test": "tsx --test \"test/*.test.ts\"",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@silvermoon-work/ipfs-access": "workspace:*",
+    "multiformats": "catalog:"
+  },
+  "devDependencies": {
+    "@silvermoon-work/ipfs-store": "workspace:*",
+    "@silvermoon-work/task-builder": "workspace:*",
+    "ipfs-unixfs-importer": "catalog:"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/silvermoon-work/task-engine.git",
+    "directory": "packages/ipfs-tree"
+  },
+  "homepage": "https://github.com/silvermoon-work/task-engine/tree/main/packages/ipfs-tree#readme",
+  "bugs": {
+    "url": "https://github.com/silvermoon-work/task-engine/issues"
+  }
+}

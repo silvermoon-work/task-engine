@@ -250,6 +250,25 @@ importers:
         specifier: 'catalog:'
         version: 17.1.1(supports-color@10.2.2)
 
+  packages/ipfs-tree:
+    dependencies:
+      '@silvermoon-work/ipfs-access':
+        specifier: workspace:*
+        version: link:../ipfs-access
+      multiformats:
+        specifier: 'catalog:'
+        version: 14.0.5
+    devDependencies:
+      '@silvermoon-work/ipfs-store':
+        specifier: workspace:*
+        version: link:../ipfs-store
+      '@silvermoon-work/task-builder':
+        specifier: workspace:*
+        version: link:../task-builder
+      ipfs-unixfs-importer:
+        specifier: 'catalog:'
+        version: 17.1.1(supports-color@10.2.2)
+
   packages/task-builder:
     dependencies:
       '@ipld/car':

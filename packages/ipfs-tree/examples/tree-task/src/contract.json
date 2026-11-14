@@ -1,0 +1,16 @@
+{
+  "parameters": {
+    "type": "object",
+    "additionalProperties": false
+  },
+  "result": {
+    "type": "object",
+    "properties": {
+      "listing": { "type": "string" },
+      "text": { "type": "string" }
+    },
+    "required": ["listing", "text"],
+    "additionalProperties": false
+  },
+  "message": false
+}

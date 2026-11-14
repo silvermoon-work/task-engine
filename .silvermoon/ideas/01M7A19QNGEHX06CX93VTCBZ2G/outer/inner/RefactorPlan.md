@@ -166,3 +166,11 @@ P3 本地验收通过；I-S02 的实现工作已完成。I-AC02 仍待 P6 的隔
 - 内部编译契约仍保留 `InputContract.inputSchema` 字段名与部分错误文案；`run_content_access.sid` 存 CID 字符串以免升版。未引入 ipfs-tree。无 RC 或发布。
 
 P4 本地验收通过。I-S01 / I-AC01 已有包级三通道与真链接证据。I-S03 / I-AC03 仍待 P5 按需树形包与 P6 全仓证明，不能提前 submitInner。
+
+## P5 本地验收证据
+
+- 新增 `@silvermoon-work/ipfs-tree`：`ReadonlyIpfsTree` 仅包装宿主 `ReadonlyIpfsAccess` 的 `read` / `list` / `resolve`（root CID + 相对 path）。不恢复 Space、挂载、保留或写入。目录列举复用 file/directory DU 的 entries 流。非法路径、文件/目录类型错误、不支持 codec、取消与预算失败均明确失败。已加入 `scripts/release-packages.js`，未发布。
+- SDK 与 ipfs-payload 不依赖、不重导出 ipfs-tree。Builder 样例：未 import 的 worker.cjs 为 524B 且不含 ipfs-tree 运行时错误字符串；显式 import 后为 1877B（+1353B）并能实际 list/read。这是按需引入，不是 tree-shaking 声明。
+- 主 Agent 复跑未缓存套件（Node 24.12.0）：ipfs-tree 6/6；ipfs-payload isolation 1/1；task-sdk runtime 2/2。无 RC 或发布。
+
+P5 本地验收通过。I-S03 / I-AC03 / I-AC02 仍待 P6 的隔离 Kubo、万级消息预算与全仓 `pnpm check`，不能提前 submitInner。

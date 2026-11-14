@@ -10,6 +10,11 @@ export const releasePackages = [
     name: "@silvermoon-work/ipfs-payload",
   },
   {
+    id: "ipfs-tree",
+    directory: "packages/ipfs-tree",
+    name: "@silvermoon-work/ipfs-tree",
+  },
+  {
     id: "ipfs-store",
     directory: "packages/ipfs-store",
     name: "@silvermoon-work/ipfs-store",

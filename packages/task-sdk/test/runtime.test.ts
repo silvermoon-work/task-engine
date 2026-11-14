@@ -16,6 +16,7 @@ test("SDK exposes only the Worker runtime with protocol and CID dependencies", a
     multiformats: "catalog:",
   });
   assert.equal(Object.hasOwn(manifest.dependencies, "@silvermoon-work/ipfs-tree"), false);
+  assert.equal(Object.hasOwn(runtime, "ReadonlyIpfsTree"), false);
 });
 
 test("SDK refuses to run without a build-locked Bundle binding", () => {

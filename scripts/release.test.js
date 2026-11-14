@@ -603,6 +603,7 @@ test("the release registry contains the core packages, builder CLI and finite ex
   const expected = [
     "ipfs-access",
     "ipfs-payload",
+    "ipfs-tree",
     "ipfs-store",
     "task-builder-cli",
     "task-builder",

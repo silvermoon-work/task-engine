@@ -1,6 +1,6 @@
 # Implementation
 
-本文件是准备阶段的实施种子。按最新订正保留 SQLite 权威，以 IPFS 辅助归档定稿 RunHistory；先按[架构评估](ArchitectureReview.md)确认剩余行为，再按[分阶段计划](RefactorPlan.md)实施，当前不授权写实现代码。
+按已确认设计保留 SQLite 权威，以 IPFS 辅助归档定稿 RunHistory。用户授权主 Agent 负责全部门限审批，按[分阶段计划](RefactorPlan.md)顺序分派 subagent；先完成准确构想修订的同步及验收，再开始 P1，不因委托跳过验证。
 
 ## Steps
 
@@ -10,11 +10,11 @@
 
 ### I-S02: 建立 SQLite 管理的历史归档
 
-对应 P2/P3。SQLite 持续保存活动状态、请求与恢复事实，管理定稿历史的归档/保留意图；生成 RunHistory 强引用 DAG，允许记录与详情独立保留。验证归档、unpin、迟到完成及丢失详情时的正确性，不建立第二个权威 head 或全域 DAG 索引恢复。
+对应 P2/P3。SQLite 持续保存活动状态、请求与恢复事实，Run 终止且纳入历史的退出/消息/清理事实稳定后归档；首次归档失败独立报告重试，不撤销业务完成或重跑 Run。验证强 DAG、unpin、迟到完成及详情丢失，不建立第二个权威 head。
 
 ### I-S03: 完成协议切换与隔离交付
 
-对应 P4/P5/P6。统一 parameters/message/result 和所有内外部调用，移除 Worker Space 与旧 output 交换协议，保持已有 Schema/API 版本；ipfs-tree 独立按需引入。完成全链路、包体、性能、归档故障和数据库恢复验证，不自动修改旧存储或发布。
+对应 P4/P5/P6。统一 parameters/message/result 和所有内外部调用，移除 Worker Space 与旧 output 交换协议，保持已有 Schema/API 版本；ipfs-tree 独立按需引入。顺序完成全链路、包体、性能、故障与恢复验证，各轮不发布 RC，全部完成后才进入统一 RC/Smoke 阶段。
 
 ## Acceptance criteria
 

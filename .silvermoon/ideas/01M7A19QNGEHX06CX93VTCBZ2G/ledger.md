@@ -5,13 +5,13 @@
 ### Implementation steps
 
 - [ ] **I-S01:** 依据确认契约实现引用往返
-- [ ] **I-S02:** 建立权威 DAG 提交与可重建索引
+- [ ] **I-S02:** 建立 SQLite 管理的历史归档
 - [ ] **I-S03:** 完成协议切换与隔离交付
 
 ### Implementation acceptance criteria
 
 - [ ] **I-AC01:** 引用与普通 JSON 无歧义往返
-- [ ] **I-AC02:** 提交保留与索引恢复可验证
+- [ ] **I-AC02:** 归档保留与详情缺失可验证
 - [ ] **I-AC03:** 新协议全链路与按需依赖成立
 
 ## Deployment

@@ -4,7 +4,7 @@
 
 ## 最新范围变更
 
-用户已将 Payload CID 从弱引用改为强依赖，并纠正记录单位为 RunHistory 而非 TaskHistory。执行及交付核心记录以 DAG 保存，Task 为请求/关联/投影，SQLite 主要作为索引。本文件中的当前约束以此为准；此前已确认的弱引用边界被取代。根提交、历史与准入的重大选择见[架构评估](ArchitectureReview.md)，实施安排见[分阶段计划](RefactorPlan.md)。
+用户保留 Payload CID 强引用及 RunHistory 单位，并进一步订正：SQLite 是真正的权威信息源，IPFS Store 只辅助保存定稿 RunHistory，不持续保存尚未执行或执行中的 Task/Run 状态。允许 SQLite 记录仍在而历史详情已 unpin 或无法取得；是否过期以 SQLite 为准。此前“DAG 事实源、SQLite 只是可重建索引”的设计撤回，当前边界见[架构评估](ArchitectureReview.md)，实施安排见[分阶段计划](RefactorPlan.md)。
 
 ## 契约命名
 
@@ -58,7 +58,7 @@ export default {
 
 路径提供引用语义，不替代完整业务 Schema 校验，不授予内容访问权限，也不证明内容已经到达 Store。Engine 必须核对路径与契约及实际判别分支一致，再恢复 CID 类型并存为真正强链接。独立解码不要求找回原 Task 契约，但仍需验证载荷与定位表达式；正式接纳/交付还必须验证并保留完整依赖闭包。
 
-JSON 信封只是交换表示，不是已存储节点。逻辑值经规范 DAG 编码后得到 payloadCID；RunHistory 内的参数、消息、执行及交付记录链接相应的已验证节点。DAG-CBOR 是本次规划采用的结构化编码方案，块布局与规范向量在 P1 固定，不把 CID 当普通字符串存储后声称它是强链接。
+JSON 信封只是交换表示，不是已存储节点。定稿历史归档时，逻辑值经规范 DAG 编码得到 payloadCID，RunHistory 聚合相应的参数、消息、执行及交付节点。DAG-CBOR 是结构化编码方案；运行期间的 SQLite 状态提交不要求先产生或 pin 一份活动历史 DAG。不能把 CID 当普通字符串存储后声称它是强链接。
 
 ## JSONPath 与判别分支
 
@@ -139,23 +139,24 @@ IpfsEntry 包含 name、kind 和目标 CID，不返回 SpaceRef。文件流和�
 
 Worker 内容访问改为三种 CID 能力，不再暴露 context.output、context.space(cid) 或作为 ReadonlySpace 的 context.bundle，也不再以 SpaceRef/SpaceRefJSON 表达传输引用。Bundle 身份及子任务目标通过 CID 表达，具体字段和签名在实施设计中收敛。
 
-废弃的是 Task/Worker 对外的 Space 接口及其直接依赖的宿主桥接协议，不是删除一切内部树形实现。Builder 的 ReadonlyFileTree 和底层 UnixFS 可以保留；新增 DAG 事实源明确需要 Store 提交、遍历、pin 与索引的重构，但不顺带改变调度语义。只读资源经 CID 读取或经 CID 加 path 解析，不需要保留只读 Space 门面。
+废弃的是 Task/Worker 对外的 Space 接口及其直接依赖的宿主桥接协议，不是删除一切内部树形实现。Builder 的 ReadonlyFileTree 和底层 UnixFS 可以保留；新增的是归档 DAG 转换、遍历、pin 与详情读取，不迁走 SQLite 运行事实或改变调度语义。只读资源经 CID 读取或经 CID 加 path 解析，不需要保留只读 Space 门面。
 
-临时存储受前述运行/结果持有原则约束；“临时”不表示运行结束便回收已由结果持有的内容。
+运行中资源读写不等于活动状态归档；本次不据“活动 Task 不存 IPFS”推导取消 CID 资源访问或临时存储。“临时”也不表示可以在使用中或归档尚需时提前释放内容。
 
 ## 内容保留原则
 
-2026-11-14 的最新决定采用强链接与按根 pin，替代先前的弱引用保留方案。保留不成为 ContentRef 的权限或路径字段，以下描述的是必须保持的安全交接语义，根集合的最终粒度见 R-02。
+2026-11-14 最新订正：SQLite 决定记录及详情保留策略，IPFS RunHistory 是允许失去详情的辅助归档。强链接仍然有效，但它不承诺记录存在期间内容永远可得。
 
-- 新内容写入后受运行/staging 保护；根发布时经闭包验证和递归 pin 接管，不需 Engine 为每个资源单独建永久 owner。
-- 运行结束不解除保留期内 RunHistory/交付根的保护；Task 不独占 RunHistory，多个 Task 可关联同一 Run。保留期与历史可达性一起管理，不预先规定固定天数。
+- 新内容写入后受运行/staging 保护；定稿归档声称成功前必须验证强闭包并确认相应保留，不需为每个资源单独建永久 owner。
+- Task 不独占 RunHistory，多个 Task 可关联同一 Run。记录保留期可以长于详情保留期，不预先规定固定天数。
 - 子结果、父运行、父结果及其他 Task 可共享同一内容；根或 owner 仍有保留关系时不能回收，不复制资源实现组合。
-- 交接先取得新持有，再释放旧持有，不留下回收窗口；必要保留责任未建立时不能宣称结果已成功发布。
+- 需要保留的资源交接先取得新持有，再释放旧持有；必要保留未建立不能宣称归档成功。归档失败与业务完成确认的关系见 R-03，不从 pin 失败倒推运行失败。
 - 写入后取消、崩溃或未发布结果的临时持有须可恢复地清理，避免泄漏。
-- 外部依赖必须通过授权来源到达并验证；缺失、无权限或不支持的闭包不能成功接纳/交付。未验证申请不是正式强 Payload，其耐久记录边界见 R-03。
+- 外部依赖必须通过授权来源取得并验证；不完整闭包不能声称归档完整。未验证申请及失败可由 SQLite 耐久记录，不要求先变成正式 DAG。
 - 递归保留遍历真正的 IPLD 链接；文档中的普通字符串、逻辑 ID 和相对名称不会自动升级为强链接。
+- SQLite 允许记录仍在但已发出 unpin。unpin 不等于物理删除，历史不可得也不等于 Task 已过期；详情缺失明确失败，不返回空历史伪装成功。
 
-pin 并非提交标记或全局当前版本。R-01 已确认采用 Store 独立耐久 SQLite 保存多 owner、未完成意图和权威 head；它属于必要备份，查询 SQLite 则可从协调元数据和 DAG 重建。根集合及历史清理策略仍按 R-02 讨论，不将已确认介质等同于所有保留问题已解决。
+业务提交、期限与归档管理以 SQLite 为准，pin 不是业务权威。Store 的多 owner/意图恢复仍保留，但不另造一套活动运行 head；SQLite 是必要备份，不能从残余归档重建完整运行系统。
 
 ## IPFS 包职责与依赖边界
 
@@ -188,7 +189,7 @@ SDK 与 ipfs-payload 不依赖或重新导出 ipfs-tree。使用树形 read/list
 - 明确处理无效 CID、非法数据和错误的引用元数据。
 - 不把存储失败包装成成功引用，不根据普通 JSON 对象形状恢复引用。
 
-工具包不负责 Task 调度、内容下载、pin 或 CAR 打包。实际 I/O 与闭包验证由宿主/Store 执行；不能把 DAG 序列化能力当成获取宿主完整 Store 权限的入口。Task 事实 schema 归属任务协议层，通用 Store 不解释 Task 调度。
+工具包不负责 Task 调度、内容下载、pin 或 CAR 打包。实际 I/O 与闭包验证由宿主/Store 执行；不能把 DAG 序列化能力当成获取宿主完整 Store 权限的入口。SQLite 保持任务事实权威，归档 schema 归属任务协议层，通用 Store 不解释 Task 调度。
 
 当前 Builder 只接受受支持的 TypeBox kind，并拒绝未被 Engine 强制校验的 format 等注释。不能把 `Type.String({ format: "cid" })`、未支持的 Transform 或验证器忽略的自定义注释当成完整方案。TypeBox 扩展必须兼顾作者类型推导、Schema 序列化及运行时校验。
 

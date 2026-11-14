@@ -2,6 +2,10 @@
 
 本文件支持 [Implementation](Implementation.md)，记录 2026-11-14 已讨论确定的设计及其必要验证。当前仍为准备阶段，局部设计确认不代表完整构想验收或发布授权。标为候选的字段与 API 不代表已确认。
 
+## 最新范围变更
+
+用户已将 Payload CID 从弱引用改为强依赖，并纠正记录单位为 RunHistory 而非 TaskHistory。执行及交付核心记录以 DAG 保存，Task 为请求/关联/投影，SQLite 主要作为索引。本文件中的当前约束以此为准；此前已确认的弱引用边界被取代。根提交、历史与准入的重大选择见[架构评估](ArchitectureReview.md)，实施安排见[分阶段计划](RefactorPlan.md)。
+
 ## 契约命名
 
 契约字段统一使用 `parameters / message / result`，对应类型为 `Parameters / Message / Result`：
@@ -52,7 +56,9 @@ export default {
 
 2026-11-14，用户将引用路径字段定名为 `cidPaths`，取代较长的 contentRefPaths；信封示例统一使用 `data + cidPaths`。路径相对于 data 求值，不相对于整个信封。此前 `value + references` 和 `data + contentRefPaths` 不再作为引用字段命名方案。
 
-路径提供引用语义，不替代完整业务 Schema 校验，不授予内容访问权限，也不证明内容已交付或保留。Engine 已绑定可信契约时，必须核对载荷的引用定位与契约及实际判别分支一致。独立解码不要求找回原 Task 契约，但仍需验证载荷与定位表达式；完整业务结构验证需要对应 Schema。
+路径提供引用语义，不替代完整业务 Schema 校验，不授予内容访问权限，也不证明内容已经到达 Store。Engine 必须核对路径与契约及实际判别分支一致，再恢复 CID 类型并存为真正强链接。独立解码不要求找回原 Task 契约，但仍需验证载荷与定位表达式；正式接纳/交付还必须验证并保留完整依赖闭包。
+
+JSON 信封只是交换表示，不是已存储节点。逻辑值经规范 DAG 编码后得到 payloadCID；RunHistory 内的参数、消息、执行及交付记录链接相应的已验证节点。DAG-CBOR 是本次规划采用的结构化编码方案，块布局与规范向量在 P1 固定，不把 CID 当普通字符串存储后声称它是强链接。
 
 ## JSONPath 与判别分支
 
@@ -87,7 +93,7 @@ kind 必须可靠地区分分支；缺失、非法或无法唯一选择分支时
 $['items'][?@['kind'] == 'reference']['value']
 ```
 
-不能退化为 `$['items'][*]['value']`，否则文本分支会被误转换。过滤表达式的确切支持子集、嵌套条件表达和具体下标回退规则尚待 B-01 决定。数组通配符是尽可能使用的原则，不允许为压缩路径而扩大引用集合。
+不能退化为 `$['items'][*]['value']`，否则文本分支会被误转换。采用[架构评估 D-02](ArchitectureReview.md#d-02-cidpaths-是受约束的定位规则不是可执行查询脚本)的受限生成/验证规则；复杂条件可回退具体位置，不能为压缩路径扩大引用集合。
 
 构建时预编译定位规则、运行时按 discriminator 求值是可行候选，不意味着已决定编译产物格式。重组父子结果后重新按当前契约及数据求值，不复用旧具体位置。
 
@@ -103,7 +109,7 @@ const reportCid = await context.putContent(reportBytes);
 return { report: ContentRef.fromCID(reportCid) };
 ```
 
-构造或解码引用不授予访问权限，也不要求立即下载内容。读取权限、取消和预算由宿主负责；跨 Task 传递引用不传递原运行的能力。工具包不依赖 Engine Store，也不把读取能力绑定到 ContentRef 上。
+构造或解码引用不授予访问权限，纯编解码也不进行网络 I/O；正式接纳与发布前，由宿主通过授权来源取得并验证闭包。读取权限、取消和预算由宿主负责；跨 Task 传递引用不传递原运行的能力。工具包不依赖 Engine Store，也不把读取能力绑定到 ContentRef 上。
 
 2026-11-14，用户进一步收敛宿主内容能力为按 CID 读取内容、用 CID 加 path 解析目标 CID、临时存入内容并返回 CID。此处 path 只用于解析，不附加到通用 ContentRef 上；新内容返回 CID 后，仍需按契约表达其引用语义，普通 CID 字符串不自动成为 ContentRef。
 
@@ -125,7 +131,7 @@ IpfsEntry 包含 name、kind 和目标 CID，不返回 SpaceRef。文件流和�
 
 用户确认首期覆盖 raw 及 UnixFS 文件/目录。CID 加 path 按受支持的目录语义解析，写入采用明确、固定的编码规则；流式输入与现有编码实现的具体签名在实施设计中确定，不引入未确认的动态 codec 选择。
 
-不承诺任意 DAG codec 都可按文件树读取或解析，不支持时明确失败。通用 ContentRef 仍可定位其他合法 CID，传输引用语义不等于宿主承诺能够读取任意 codec，也不要求目标块自动进入载荷 DAG/CAR。
+不承诺任意 DAG codec 都可按文件树读取或解析，不支持时明确失败。新增结构化节点由宿主 DAG 编解码/块接口处理，不能扩成第三种伪文件节点。合法 CID 也必须符合宿主允许的 codec/hash 与完整性策略，才能进入正式强引用闭包；编码一个 CID 不代表目标已经到位。
 
 ## 全量协议替换与 Space 边界
 
@@ -133,23 +139,23 @@ IpfsEntry 包含 name、kind 和目标 CID，不返回 SpaceRef。文件流和�
 
 Worker 内容访问改为三种 CID 能力，不再暴露 context.output、context.space(cid) 或作为 ReadonlySpace 的 context.bundle，也不再以 SpaceRef/SpaceRefJSON 表达传输引用。Bundle 身份及子任务目标通过 CID 表达，具体字段和签名在实施设计中收敛。
 
-废弃的是 Task/Worker 对外的 Space 接口及其直接依赖的宿主桥接协议，不是删除一切内部树形数据实现。Builder 的 ReadonlyFileTree、底层 UnixFS/DAG 和 Store 可以按需要保留；不得因此扩大为无关存储重写。只读资源仍可经 CID 读取或经 CID 加 path 解析，不需要保留只读 Space 门面。
+废弃的是 Task/Worker 对外的 Space 接口及其直接依赖的宿主桥接协议，不是删除一切内部树形实现。Builder 的 ReadonlyFileTree 和底层 UnixFS 可以保留；新增 DAG 事实源明确需要 Store 提交、遍历、pin 与索引的重构，但不顺带改变调度语义。只读资源经 CID 读取或经 CID 加 path 解析，不需要保留只读 Space 门面。
 
 临时存储受前述运行/结果持有原则约束；“临时”不表示运行结束便回收已由结果持有的内容。
 
 ## 内容保留原则
 
-2026-11-14，用户确认以下原则。引用的弱定位语义不变；保留是宿主另外维护的责任，不成为 ContentRef 的权限或路径字段。
+2026-11-14 的最新决定采用强链接与按根 pin，替代先前的弱引用保留方案。保留不成为 ContentRef 的权限或路径字段，以下描述的是必须保持的安全交接语义，根集合的最终粒度见 R-02。
 
-- 本地新内容写入后由运行临时持有；结果发布时，交付内容的保留责任由结果取得。
-- 运行结束释放运行持有，不解除结果持有。结果持有跟随结果清理策略，不预先规定固定保留天数。
-- 子结果、父运行及父结果可同时持有同一内容，不以单一所有者转移或复制内容实现组合。只有没有其他持有者时，内容才允许回收。
+- 新内容写入后受运行/staging 保护；根发布时经闭包验证和递归 pin 接管，不需 Engine 为每个资源单独建永久 owner。
+- 运行结束不解除保留期内 RunHistory/交付根的保护；Task 不独占 RunHistory，多个 Task 可关联同一 Run。保留期与历史可达性一起管理，不预先规定固定天数。
+- 子结果、父运行、父结果及其他 Task 可共享同一内容；根或 owner 仍有保留关系时不能回收，不复制资源实现组合。
 - 交接先取得新持有，再释放旧持有，不留下回收窗口；必要保留责任未建立时不能宣称结果已成功发布。
 - 写入后取消、崩溃或未发布结果的临时持有须可恢复地清理，避免泄漏。
-- Store 中不存在的外部 CID，不因构造或传入引用而自动下载、持久保留或承诺可读；缺失及无权限明确失败。
-- 资源及其强 DAG 子块的保留不等于遍历文档弱引用闭包，后者仍为关联议题。
+- 外部依赖必须通过授权来源到达并验证；缺失、无权限或不支持的闭包不能成功接纳/交付。未验证申请不是正式强 Payload，其耐久记录边界见 R-03。
+- 递归保留遍历真正的 IPLD 链接；文档中的普通字符串、逻辑 ID 和相对名称不会自动升级为强链接。
 
-结果清理与保留关系的具体接口、持有恢复和既有本地内容再次引用的策略，仍需在上述原则下细化；不再将“运行持有还是结果持有”列为待决定项。
+pin 并非提交标记或全局当前版本。Store 仍需多 owner、未完成意图和权威 head 恢复；权威根及历史清理策略是这次范围扩大后必须讨论的重大取舍，不再宣称它们只是小细节。
 
 ## IPFS 包职责与依赖边界
 
@@ -158,7 +164,7 @@ Worker 内容访问改为三种 CID 能力，不再暴露 context.output、conte
 | 包 | 职责 | 主要类型 |
 | --- | --- | --- |
 | `@silvermoon-work/ipfs-access` | CID 内容访问与节点契约，不含宿主实现 | `IpfsAccess`、`IpfsNode`、`IpfsEntry` |
-| `@silvermoon-work/ipfs-payload` | 引用类型、JSON 编解码及 cidPaths 推导与校验 | `IpfsPayload<T>`、`ContentRef` |
+| `@silvermoon-work/ipfs-payload` | 引用类型、JSON/逻辑值/DAG 编解码及 cidPaths 验证 | `IpfsPayload<T>`、`ContentRef` |
 | `@silvermoon-work/ipfs-tree` | 按需引入的 CID 只读文件树便利层 | `ReadonlyIpfsTree` |
 | `@silvermoon-work/ipfs-store` | 实际存储、读取及保留实现 | 沿用并协调既有类型 |
 
@@ -178,10 +184,11 @@ SDK 与 ipfs-payload 不依赖或重新导出 ipfs-tree。使用树形 read/list
 
 - 支持作者侧引用类型、可序列化的契约语义以及引用定位。
 - 在真实引用与传输 JSON 之间转换，根据判别分支保持引用语义。
+- 纯编码/解码结构化 Payload 节点，把真实 CID 作为 IPLD 强链接；不把块已编码等同于已提交或依赖完整。
 - 明确处理无效 CID、非法数据和错误的引用元数据。
 - 不把存储失败包装成成功引用，不根据普通 JSON 对象形状恢复引用。
 
-工具包不负责 Task 调度、内容下载、内容保留或完整 DAG/CAR 打包。解码恢复轻量引用身份，实际 I/O 由 context 内容能力执行；引用构造与宿主接口的具体形状待 B-02 收敛，不能注入宿主完整 Store 权限。
+工具包不负责 Task 调度、内容下载、pin 或 CAR 打包。实际 I/O 与闭包验证由宿主/Store 执行；不能把 DAG 序列化能力当成获取宿主完整 Store 权限的入口。Task 事实 schema 归属任务协议层，通用 Store 不解释 Task 调度。
 
 当前 Builder 只接受受支持的 TypeBox kind，并拒绝未被 Engine 强制校验的 format 等注释。不能把 `Type.String({ format: "cid" })`、未支持的 Transform 或验证器忽略的自定义注释当成完整方案。TypeBox 扩展必须兼顾作者类型推导、Schema 序列化及运行时校验。
 
@@ -196,6 +203,7 @@ SDK 与 ipfs-payload 不依赖或重新导出 ipfs-tree。使用树形 read/list
 - 若协议接收路径元数据，覆盖缺失、非法、过宽及伪造路径，不让元数据绕过契约。
 - 父任务重组数组后重新编码，引用保持语义，原始业务数据不被意外修改。
 - 正常转换与失败行为在作者侧、传输侧和解码侧保持一致。
+- DAG-CBOR 真链接与普通字符串的区别、规范字节/CID 向量、混合 codec 强闭包，以及完整性失败不进入成功发布路径。
 
 关键不变量是往返保留数据语义，转换位置与契约选择出的 ContentRef 位置完全一致。过滤和通配符的验证必须包含同一数组内有效 CID 文本与真实引用的混排，证明不会扩大匹配。
 

@@ -274,7 +274,7 @@ test("Kubo Engine output bypasses business block storage and all retained Task/R
       "JSON results without a CID do not invent output roots",
     );
     const corrupt = structuredClone(historical);
-    Object.values(corrupt.runs)[0]!.output = { result: null, cid: "" };
+    Object.values(corrupt.runs)[0]!.output = { result: null, cid: "" } as never;
     await assert.rejects(
       content.reconcile("invalid-snapshot", () => retainedContentRoots(corrupt)),
       { code: "retention_unfinished" },

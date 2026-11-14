@@ -23,6 +23,8 @@ export {
   createRunHistoryArchive,
   decodeRunHistoryDag,
   defaultArchivePolicy,
+  type EncodedRunHistoryDag,
+  type EncodeRunHistoryDagOptions,
   encodeRunHistoryDag,
   publishRunHistoryArchive,
   type RunHistoryArchive,

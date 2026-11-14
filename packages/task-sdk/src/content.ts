@@ -37,7 +37,9 @@ export function createContentAccess(config: {
   ): Promise<IpfsNode | CID> {
     if (finishing) return Promise.reject(new TaskError("run_finished", "Task is finishing."));
     if (pending.size >= config.maxInFlight)
-      return Promise.reject(new TaskError("capacity_exceeded", "Content request capacity exceeded."));
+      return Promise.reject(
+        new TaskError("capacity_exceeded", "Content request capacity exceeded."),
+      );
     const merged = signal ? AbortSignal.any([config.signal, signal]) : config.signal;
     if (merged.aborted) return Promise.reject(merged.reason);
     const contentId = ++sequence;
@@ -55,7 +57,8 @@ export function createContentAccess(config: {
       } catch (error) {
         cleanup();
         pending.delete(contentId);
-        if (value.content && !value.content.locked) void value.content.cancel(error).catch(() => {});
+        if (value.content && !value.content.locked)
+          void value.content.cancel(error).catch(() => {});
         reject(error);
       }
     });
@@ -86,7 +89,10 @@ export function createContentAccess(config: {
       if (!(value instanceof CID)) throw new TaskError("invalid_cid", "Expected a resolved CID.");
       return value;
     },
-    putContent(content: ReadableStream<Uint8Array>, options?: { signal?: AbortSignal }): Promise<CID> {
+    putContent(
+      content: ReadableStream<Uint8Array>,
+      options?: { signal?: AbortSignal },
+    ): Promise<CID> {
       if (finishing) return Promise.reject(new TaskError("run_finished", "Task is finishing."));
       const signal = options?.signal
         ? AbortSignal.any([config.signal, options.signal])

@@ -174,3 +174,11 @@ P4 本地验收通过。I-S01 / I-AC01 已有包级三通道与真链接证据�
 - 主 Agent 复跑未缓存套件（Node 24.12.0）：ipfs-tree 6/6；ipfs-payload isolation 1/1；task-sdk runtime 2/2。无 RC 或发布。
 
 P5 本地验收通过。I-S03 / I-AC03 / I-AC02 仍待 P6 的隔离 Kubo、万级消息预算与全仓 `pnpm check`，不能提前 submitInner。
+
+## P6 本地验收证据
+
+- RunHistory 消息按 `messagePageSize=256` 分段编码；limit/limit+1 与单块 `blockBytes` 精确预算有测试。受控样例（Node 24.12.0，`TSX_DISABLE_CACHE=1`）测量：100 条 1 页 / 3 块 / 31154B；1,000 条 4 页 / 6 块 / 302052B；10,000 条 40 页 / 42 块 / 3012889B。深度 1，单块不超过 Store 限额，每归档根 1 次 pin RPC。
+- Kubo 缺失块映射为 `missing_block`；SQLite 备份恢复保留运行状态与幂等，辅助详情缺失时报告 `missing`/`not_archived`，不从 IPFS 重建业务记录。`GET /runs/:id/archive` 复用 history 授权并校验闭包；未授权 403。
+- 主 Agent 执行 `pnpm check`（Node 24.12.0，`TSX_DISABLE_CACHE=1`）退出码 0；turbo lint/typecheck/test/build 56/56。隔离离线 Kubo（`KUBO_REAL_TEST=1`，独立 daemon，不对共享节点 GC）：MemoryStore 8/8、SqliteStore 8/8。HTTP leftover 字段提交类型与 P4 信封对齐。无 RC 或发布。`ipfs-tree` 已在 `scripts/release-packages.js`。
+
+P6 本地验收通过。I-S03 / I-AC02 / I-AC03 已有可核对证据。最终 RC/Smoke 仍待 Implementation 验收后的 Deployment，不能提前发布。

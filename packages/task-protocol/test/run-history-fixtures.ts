@@ -3,8 +3,8 @@ import test, { type TestContext } from "node:test";
 import {
   isRunHistoryFinalizable,
   matchedRun,
-  project,
   type NewEvent,
+  project,
   type RunHistoryArchiveLease,
   type RunHistoryStorage,
   type Store,
@@ -150,7 +150,10 @@ export function runHistoryCases(
       assert.equal(matchedRun(store.read().facts, task)?.runId, run.runId);
     assert.equal(history.list().length, 1);
     source.run.parameters = "mutated caller copy";
-    assert.deepEqual(history.readSource(run.runId, historyPolicy.now).run.parameters, run.parameters);
+    assert.deepEqual(
+      history.readSource(run.runId, historyPolicy.now).run.parameters,
+      run.parameters,
+    );
     assert.throws(
       () =>
         store.append("writer", before.facts.watermark, [
@@ -206,6 +209,35 @@ export function runHistoryCases(
     assert.deepEqual(history.list(run.runId), []);
     assert.throws(() => history.list("", 1001), { code: "invalid_request" });
     assert.deepEqual(store.read(), before);
+  });
+  test(`${name}: source budget admits the measured limit and rejects limit+1`, (t) => {
+    const measured = setup(t);
+    measured.history.finalize("writer", measured.run.runId, {
+      ...historyPolicy,
+      maxSourceBytes: 10_000_000,
+    });
+    const size = new TextEncoder().encode(
+      JSON.stringify(measured.history.readSource(measured.run.runId, historyPolicy.now)),
+    ).byteLength;
+    assert.ok(size > 1);
+    const over = setup(t);
+    assert.throws(
+      () =>
+        over.history.finalize("writer", over.run.runId, {
+          ...historyPolicy,
+          maxSourceBytes: size - 1,
+        }),
+      { code: "history_limit" },
+    );
+    assert.equal(over.history.read(over.run.runId), undefined);
+    const exact = setup(t);
+    assert.equal(
+      exact.history.finalize("writer", exact.run.runId, {
+        ...historyPolicy,
+        maxSourceBytes: size,
+      }).runId,
+      exact.run.runId,
+    );
   });
   test(`${name}: recovery exit is not physical cleanup or a completed result`, (t) => {
     const { store, history, run, events, outcome, first } = setup(t, false);

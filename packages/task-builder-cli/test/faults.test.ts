@@ -89,7 +89,10 @@ test("delivery faults preserve verified partial data, old CAR and truthful cance
     const unknown = new AbortController();
     fs.rename = async (from, to) => {
       const result = await rename(from, to);
-      if (String(to).includes(`${join(root, "dist")}`) && basename(String(to)) === "parameters.json")
+      if (
+        String(to).includes(`${join(root, "dist")}`) &&
+        basename(String(to)) === "parameters.json"
+      )
         unknown.abort(new Error("injected cancellation during module delivery"));
       return result;
     };

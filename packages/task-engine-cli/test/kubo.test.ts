@@ -100,6 +100,7 @@ test("managed Kubo CAR import, reads, output persistence and offline prune never
       | undefined;
     const output = result?.data?.cid;
     assert.equal(typeof output, "string");
+    if (typeof output !== "string") throw new Error("Expected output CID.");
     const first = await pruneData(
       repositories[0]!,
       { taskIds: [ids[0]!], cache: true },

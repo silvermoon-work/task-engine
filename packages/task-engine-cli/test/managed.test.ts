@@ -550,8 +550,9 @@ export default async (input,context)=>{
     const success = await run(args, '{"value":7}');
     assert.equal(success.code, 0, success.stdout + success.stderr);
     taskId = String(success.parse().data.taskId);
-    const successResult = (success.parse().data.output as { result: { data: { value: number; cid: string } } })
-      .result;
+    const successResult = (
+      success.parse().data.output as { result: { data: { value: number; cid: string } } }
+    ).result;
     assert.equal(successResult.data.value, 7);
     outputCid = successResult.data.cid;
     assert.equal(typeof outputCid, "string");
@@ -1074,7 +1075,16 @@ await serveManaged({"server.dataDir":${JSON.stringify(data)},"server.contentData
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
   const accepted = await execute(
-    ["run", "--car", built.car, "--parameters", "-", "--async", "--engine", `http://127.0.0.1:${port}`],
+    [
+      "run",
+      "--car",
+      built.car,
+      "--parameters",
+      "-",
+      "--async",
+      "--engine",
+      `http://127.0.0.1:${port}`,
+    ],
     directory,
     "{}",
   );

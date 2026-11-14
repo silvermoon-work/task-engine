@@ -61,10 +61,22 @@ capability, with the same finalization, archive lease, retention/release and
 recovery transitions as SQLite, but without durability. When a retention-capable
 `archiveStore` (or the host `ipfsStore`) is injected, Engine finalizes a completed
 Run and publishes a RunHistory DAG with native CID links; list/status stay on
-SQLite and detail reads hit IPFS on demand. Archive I/O is queued off the tick
-stack and never delays `waitForIdle`. Archive errors never revoke a completed
-result or trigger Worker execution. Close settles in-flight archive I/O without
-re-running Workers. See the [durable management contract](../task-engine-storage/README.md#finalized-runhistory-management-metadata-only).
+SQLite and detail reads hit IPFS on demand. Messages are stored as DAG-CBOR
+pages (default 256) rather than one unbounded array. Archive I/O is queued off
+the tick stack and never delays `waitForIdle`. Archive errors never revoke a
+completed result or trigger Worker execution. Close settles in-flight archive
+I/O without re-running Workers.
+
+`readRunHistoryArchive(runId, caller)` uses the existing `history` authorization
+and verifies DAG closure before returning details. It does not invent a second
+visibility policy: builtin local Store is not a public distribution endpoint;
+a Kubo adapter never changes the daemon's network, bootstrap or gateway
+configuration. API authorization does not control another Store ingress.
+
+SQLite remains the backup for run state and idempotency. Restoring a database
+copy without its IPFS blocks keeps Tasks/Runs/requests and reports missing
+archive details; IPFS is never used to recreate those records. See the
+[durable management contract](../task-engine-storage/README.md#finalized-runhistory-management-metadata-only).
 
 宿主可配置 `bundleLimits`、`bundleConcurrency`（默认 4）及通用 Engine limits。
 `maxPreparing` 默认 1000，`maxWaitMs` 默认 30,000ms，

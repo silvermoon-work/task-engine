@@ -94,9 +94,13 @@ Explicit trusted remote HTTP(S) RPC endpoints are supported. The host owns
 authentication, transport and access policy; URL user information is sent as
 Basic authorization and is not included in RPC error messages. The library
 does not discover, expose, start, stop, reconfigure or globally GC a daemon.
-Daemon networking is entirely its startup policy. A network-offline daemon can
-serve existing blocks; a missing block or unreachable RPC fails the dependent
-operation. There is no local or Gateway fallback, including Gateway hints.
+Daemon networking is entirely its startup policy. Product code never issues
+`config`, swarm, bootstrap or gateway RPCs. Isolated tests may GC only a
+dedicated offline fixture, never a shared daemon. The default local backend
+is not a public distribution endpoint; optional `gateway` is host-configured.
+A network-offline daemon can serve existing blocks; a missing block or
+unreachable RPC fails the dependent operation. There is no local or Gateway
+fallback, including Gateway hints.
 
 `pin(root)` verifies the complete DAG with fresh backing reads and requests a
 recursive retention hint; `unpin(root)` releases an unreferenced known hint.

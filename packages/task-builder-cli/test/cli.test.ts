@@ -206,12 +206,23 @@ test("initialized scripts keep named outputs fixed, preserve builds and refuse C
         join(project, "node_modules", name),
         { recursive: true, dereference: true },
       );
-    const ajvRequire = createRequire(new URL("../../ipfs-payload/node_modules/ajv/package.json", import.meta.url));
-    for (const name of ["fast-deep-equal", "fast-uri", "json-schema-traverse", "require-from-string"])
-      await cp(dirname(ajvRequire.resolve(`${name}/package.json`)), join(project, "node_modules", name), {
-        recursive: true,
-        dereference: true,
-      });
+    const ajvRequire = createRequire(
+      new URL("../../ipfs-payload/node_modules/ajv/package.json", import.meta.url),
+    );
+    for (const name of [
+      "fast-deep-equal",
+      "fast-uri",
+      "json-schema-traverse",
+      "require-from-string",
+    ])
+      await cp(
+        dirname(ajvRequire.resolve(`${name}/package.json`)),
+        join(project, "node_modules", name),
+        {
+          recursive: true,
+          dereference: true,
+        },
+      );
     const buildArgs = manifest.scripts.build.split(" ").slice(1);
     const carArgs = manifest.scripts.car.split(" ").slice(1);
     const built = await invoke(project, buildArgs);

@@ -497,7 +497,9 @@ Use the same durable coordination directory for participating Engines.
 data directory. Existing local `contentDataDir`/Gateway overrides conflict
 explicitly with Kubo instead of creating a shadow block cache.
 The host's recursive Gateway-upstream mode is also local-only; select daemon
-networking policy instead when using Kubo.
+networking policy instead when using Kubo. CLI/Engine never rewrite Kubo
+Addresses, Bootstrap or Gateway config. Builtin local content is not published
+through a Gateway unless the host configured one.
 
 Managed Kubo uploads validate CARs in bounded memory, stage original blocks
 directly through RPC, and persist the resulting CID—not another CAR/blob copy.

@@ -120,7 +120,10 @@ test("task portability and graft destinations are Builder policy, not IPFS node 
         {
           name: "portable",
           runtime: { minVersion: "22.15.0" },
-          source: { entry: "main.ts", contract: { parameters: true, result: true, message: false } },
+          source: {
+            entry: "main.ts",
+            contract: { parameters: true, result: true, message: false },
+          },
           imports: { "resources/import": root.toString() },
           content: store,
         },

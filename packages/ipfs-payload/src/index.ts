@@ -85,8 +85,7 @@ function checked(
   budget.bytes(value);
   if (cidPaths.length > budget.limits.maxPaths)
     throw new Error("CID path count capacity exceeded.");
-  const contract =
-    schema === undefined ? undefined : inspector(options)(schema, data, budget);
+  const contract = schema === undefined ? undefined : inspector(options)(schema, data, budget);
   const references = new Map<string, CID>();
   const seen = new Set<string>();
   for (const path of cidPaths) {
@@ -288,7 +287,6 @@ export function compileTrustedContract(
     toDag: (payload) => toDagPayload(payload, schema, bound),
     fromDag: (value) => fromDagPayload(value, schema, bound),
     encodeBlock: (payload) => encodePayloadBlock(payload, schema, bound),
-    decodeBlock: (bytes, cid) =>
-      decodePayloadBlock(bytes, schema, cid ? { ...bound, cid } : bound),
+    decodeBlock: (bytes, cid) => decodePayloadBlock(bytes, schema, cid ? { ...bound, cid } : bound),
   };
 }

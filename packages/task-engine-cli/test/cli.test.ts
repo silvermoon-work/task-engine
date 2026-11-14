@@ -272,7 +272,10 @@ process.exitCode=await main(process.argv.slice(1));assert.ok(reads>0);`;
         assert.equal(implicit.exitCode, 0, implicit.stderr);
         const execution = JSON.parse(implicit.stdout);
         assert.equal(execution.status, "succeeded");
-        assert.deepEqual(execution.execution.tasks[0].output.result, { data: { value: 9 }, cidPaths: [] });
+        assert.deepEqual(execution.execution.tasks[0].output.result, {
+          data: { value: 9 },
+          cidPaths: [],
+        });
         const explicit = await execute([...source, "--parameters", "-"], '{"value":9}');
         assert.equal(explicit.exitCode, 0, explicit.stderr);
         assert.deepEqual(JSON.parse(explicit.stdout).execution.tasks[0].output.result, {
@@ -375,7 +378,10 @@ process.exitCode=await main(process.argv.slice(1));assert.ok(reads>0);`;
     "local CAR permits CID children and preserves failures, overall timeout and signals",
     async () => {
       const args = ["run", "--car", leaf.car, "--parameters", "-"];
-      const composed = await execute(["run", "--car", parent.car, "--parameters", "-"], '{"value":7}');
+      const composed = await execute(
+        ["run", "--car", parent.car, "--parameters", "-"],
+        '{"value":7}',
+      );
       assert.equal(composed.exitCode, 0, composed.stderr);
       assert.equal(JSON.parse(composed.stdout).execution.tasks.length, 3);
       const failed = await execute(args, '{"value":7,"mode":"failure"}');

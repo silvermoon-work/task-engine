@@ -263,7 +263,9 @@ runTask(async (input, context) => {
         assert.equal(released, !blocked);
         assert.equal(supervisor.canRoute("run"), false);
         if (!blocked)
-          assert.deepEqual(outcomes, [{ kind: "completed", result: envelope({ cancelled: true }) }]);
+          assert.deepEqual(outcomes, [
+            { kind: "completed", result: envelope({ cancelled: true }) },
+          ]);
       } finally {
         await supervisor.close();
       }

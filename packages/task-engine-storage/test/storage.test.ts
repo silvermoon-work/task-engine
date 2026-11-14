@@ -152,7 +152,10 @@ for (const mode of ["started", "completed", "future"]) {
         mode === "completed" ? "completed" : mode === "started" ? "stopped" : "initial",
       );
       if (mode === "completed")
-        assert.deepEqual(snapshot.output?.result, { data: { text: "durable final" }, cidPaths: [] });
+        assert.deepEqual(snapshot.output?.result, {
+          data: { text: "durable final" },
+          cidPaths: [],
+        });
       if (mode === "started") assert.equal(snapshot.error, undefined);
       assert.equal(
         engine.submit(engine.getRequest(requestId, caller), caller).taskId,

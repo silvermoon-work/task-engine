@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { at, type Json, json, type Store, wrapRequestParameters } from "@silvermoon-work/task-protocol";
+import {
+  at,
+  type Json,
+  json,
+  type Store,
+  wrapRequestParameters,
+} from "@silvermoon-work/task-protocol";
 import { newId } from "../src/index.js";
 import { MemoryStore, VirtualClock } from "../src/testing.js";
 import type { LifecycleFixture } from "./driver.js";
@@ -11,7 +17,11 @@ const type = (version: string): LifecycleFixture<Json> => ({
   type: "example",
   version,
   environment: "private-runtime-secret",
-  parametersSchema: { type: "object", properties: { value: { type: "number" } }, required: ["value"] },
+  parametersSchema: {
+    type: "object",
+    properties: { value: { type: "number" } },
+    required: ["value"],
+  },
   prepare: async (value) => value,
   validatePrepared: json,
   validateResult: json,
@@ -37,7 +47,12 @@ test("discovery is immutable, current-only, submit-authorized and detached from 
   try {
     const found = engine.discoverTypes(caller);
     assert.equal(found.length, 1);
-    assert.deepEqual(Object.keys(found[0]!).sort(), ["parametersSchema", "revision", "type", "version"]);
+    assert.deepEqual(Object.keys(found[0]!).sort(), [
+      "parametersSchema",
+      "revision",
+      "type",
+      "version",
+    ]);
     assert.equal(found[0]?.version, "2");
     assert.ok(!JSON.stringify(found).includes("private-runtime-secret"));
     assert.ok(Object.isFrozen(found));
@@ -205,7 +220,11 @@ test("run records independently require the original contract identity", async (
 
 test("M01 includes allowed undeclared fields and never invokes obsolete per-demand type authorization", async () => {
   const h = await harness({
-    parametersSchema: { type: "object", properties: { text: { type: "string" } }, required: ["text"] },
+    parametersSchema: {
+      type: "object",
+      properties: { text: { type: "string" } },
+      required: ["text"],
+    },
   });
   let revoked = false;
   h.type.authorize = (input) => {

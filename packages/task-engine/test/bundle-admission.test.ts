@@ -4,7 +4,11 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
 import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
-import { type SubmissionResult, taskSchemaUri, wrapRequestParameters } from "@silvermoon-work/task-protocol";
+import {
+  type SubmissionResult,
+  taskSchemaUri,
+  wrapRequestParameters,
+} from "@silvermoon-work/task-protocol";
 import { createTaskEngine, newId } from "../src/index.js";
 import { MemoryIpfsClient, MemoryStore, VirtualClock } from "../src/testing.js";
 
@@ -129,7 +133,10 @@ test("verified memory-source Worker streams resources independent of author/host
       assert.equal(snapshot.stage, "completed", JSON.stringify(snapshot));
       const run = snapshot.run!.runId;
       await until(() => !!engine.getRun(run, caller).reclaimedAt);
-      const result = snapshot.output?.result as { data?: { value: number; bytes: number; chunks: number }; cidPaths?: string[] };
+      const result = snapshot.output?.result as {
+        data?: { value: number; bytes: number; chunks: number };
+        cidPaths?: string[];
+      };
       assert.deepEqual(result?.cidPaths, []);
       assert.equal(result?.data?.value, 7);
       assert.equal(result?.data?.bytes, 600_000);
@@ -377,7 +384,7 @@ test("legacy idempotency-only history is explicitly refused even after its Task 
     view.facts.requests[id] = {
       taskId: id,
       scope: caller.scope,
-      intent: { requestId: id, type: "legacy", timeoutMs: 1000 },
+      intent: { requestId: id, type: "legacy", timeoutMs: 1000 } as never,
     };
     return view;
   };

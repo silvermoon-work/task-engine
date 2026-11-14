@@ -95,7 +95,9 @@ for (const fail of [false, true])
       assert.notEqual(result.data.copy, result.data.generated);
       assert.ok(store.readRunContentRoots(run.runId).includes(result.data.copy));
       assert.ok(store.readRunContentRoots(run.runId).includes(result.data.generated));
-      assert.ok(run.contentAccess?.includes(built.cid) || run.contentAccess?.includes(result.data.copy));
+      assert.ok(
+        run.contentAccess?.includes(built.cid) || run.contentAccess?.includes(result.data.copy),
+      );
     } finally {
       await engine?.close();
       store.close();

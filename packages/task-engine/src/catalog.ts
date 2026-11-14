@@ -183,9 +183,7 @@ export function runSummary(run: RunRecord, facts: Facts, now: number): RunSummar
   const snapshot = projectRun(facts, run.runId, now);
   return {
     runId: run.runId,
-    ...(snapshot.output
-      ? { output: { result: snapshot.output.result } }
-      : {}),
+    ...(snapshot.output ? { output: { result: snapshot.output.result } } : {}),
     ...(run.binding.bundle
       ? { bundle: structuredClone(run.binding.bundle), name: run.binding.declaration!.name }
       : {}),

@@ -3,13 +3,7 @@ import test from "node:test";
 import { Type } from "@sinclair/typebox";
 import { CID } from "multiformats/cid";
 import { create } from "multiformats/hashes/digest";
-import {
-  ContentRef,
-  compileTrustedContract,
-  decodePayload,
-  encodePayload,
-  toDagPayload,
-} from "../src/index.js";
+import { ContentRef, compileTrustedContract, decodePayload, encodePayload } from "../src/index.js";
 import { ContentRefSchema } from "../src/typebox.js";
 
 const cid = CID.parse("bafkreigh2akiscaildcjlywwfme6ngynt5kwhr6bpcf3r7nnbyurphdisi");
@@ -36,7 +30,7 @@ test("Task dialect keeps $ref, boolean roots, prefixItems and allOf while conver
     label: text,
   });
   assert.deepEqual(encoded.cidPaths.sort(), ['$["baseline"]', '$["document"]']);
-  assert.equal(encoded.data.label, text);
+  assert.equal((encoded.data as { label: string }).label, text);
   const decoded = trusted(parameters).decode(encoded) as {
     document: ContentRef;
     label: string;
@@ -58,7 +52,7 @@ test("Task dialect keeps $ref, boolean roots, prefixItems and allOf while conver
   };
   const prefixed = trusted(tuple).encode([text, ref()]);
   assert.deepEqual(prefixed.cidPaths, ["$[1]"]);
-  assert.equal(prefixed.data[0], text);
+  assert.equal((prefixed.data as unknown[])[0], text);
 
   const intersected = {
     allOf: [
@@ -68,7 +62,7 @@ test("Task dialect keeps $ref, boolean roots, prefixItems and allOf while conver
   };
   const combined = trusted(intersected).encode({ document: ref(), label: "keep" });
   assert.deepEqual(combined.cidPaths, ['$["document"]']);
-  assert.equal(combined.data.label, "keep");
+  assert.equal((combined.data as { label: string }).label, "keep");
 });
 
 test("three channels round-trip JSON, ContentRef and DAG without copying child trees", async () => {
@@ -97,16 +91,15 @@ test("three channels round-trip JSON, ContentRef and DAG without copying child t
   const parametersPayload = trusted(parameters).encode({ document: ref(), label: "doc" });
   const messagePayload = trusted(message).encode({ instruction: "check", document: ref() });
   const combined = trusted(result).encode({
-    issues: [
-      { message: "parent", references: [parent.issues[0]!.references[0]!, ref()] },
-    ],
+    issues: [{ message: "parent", references: [parent.issues[0]!.references[0]!, ref()] }],
   });
-  assert.equal(parametersPayload.data.label, "doc");
-  assert.ok(parametersPayload.data.document);
+  assert.equal((parametersPayload.data as { label: string }).label, "doc");
+  assert.ok((parametersPayload.data as { document: unknown }).document);
   assert.deepEqual(messagePayload.cidPaths, ['$["document"]']);
   assert.equal(combined.cidPaths.includes('$["issues"][*]["references"][*]'), true);
-  assert.equal(combined.data.issues[0]!.references[0], text);
-  assert.equal(combined.data.issues[0]!.references[1], text);
+  const combinedData = combined.data as { issues: { references: string[] }[] };
+  assert.equal(combinedData.issues[0]!.references[0], text);
+  assert.equal(combinedData.issues[0]!.references[1], text);
   const dag = trusted(result).toDag(combined);
   const node = dag.data as { issues: { references: CID[] }[] };
   assert.ok(CID.asCID(node.issues[0]!.references[0]));
@@ -130,7 +123,7 @@ test("ordinary strings stay strings; mixed unions convert only the reference bra
     ],
   });
   assert.deepEqual(payload.cidPaths, ['$["items"][?@["kind"] == "reference"]["value"]']);
-  assert.equal(payload.data.items[0]!.value, text);
+  assert.equal((payload.data as { items: { value: string }[] }).items[0]!.value, text);
   const value = trusted(schema).decode(payload) as {
     items: { kind: string; value: string | ContentRef }[];
   };
@@ -152,7 +145,12 @@ test("injected Task validators are used and P1 encodePayload still rejects $ref"
   const contract = compileTrustedContract(schema, {
     validate: (data) => {
       validated = true;
-      if (!data || typeof data !== "object" || Array.isArray(data) || typeof data.document !== "string")
+      if (
+        !data ||
+        typeof data !== "object" ||
+        Array.isArray(data) ||
+        typeof data.document !== "string"
+      )
         throw new Error("Task validator rejected parameters.");
     },
   });
@@ -181,10 +179,14 @@ test("parameters, message and result round-trip JSON, ContentRef and DAG without
   assert.deepEqual(encodedParameters.cidPaths, ['$["source"]']);
   assert.deepEqual(encodedMessage.cidPaths, ['$["attachment"]']);
   assert.deepEqual(encodedResult.cidPaths.sort(), ['$["fromChild"]', '$["fromParent"]']);
-  assert.equal(encodedResult.data.fromParent, encodedParameters.data.source);
+  assert.equal(
+    (encodedResult.data as { fromParent: string }).fromParent,
+    (encodedParameters.data as { source: string }).source,
+  );
   const dag = trusted(result).toDag(encodedResult);
-  assert.ok(CID.asCID(dag.data.fromParent));
-  assert.ok(CID.asCID(dag.data.fromChild));
+  const dagData = dag.data as { fromParent: CID; fromChild: CID };
+  assert.ok(CID.asCID(dagData.fromParent));
+  assert.ok(CID.asCID(dagData.fromChild));
   const restored = trusted(result).fromDag(dag) as typeof encodedResult;
   const logical = trusted(result).decode(restored) as {
     fromParent: ContentRef;

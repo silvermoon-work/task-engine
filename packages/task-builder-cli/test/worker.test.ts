@@ -41,7 +41,11 @@ for (const mode of ["explicit", "callback"] as const)
         source: {
           entry: logical(join(root, "main.ts")),
           contract: {
-            parameters: { type: "object", properties: { text: { type: "string" } }, required: ["text"] },
+            parameters: {
+              type: "object",
+              properties: { text: { type: "string" } },
+              required: ["text"],
+            },
             result: { type: "string" },
             message: false,
           },
@@ -93,22 +97,26 @@ for (const mode of ["explicit", "callback"] as const)
                 parameters: { data: { text: "hello " }, cidPaths: [] },
               });
             else if (message.kind === "content-request" && "contentId" in message) {
-              if (message.operation === "resolveContent")
+              const request = message as {
+                contentId: unknown;
+                operation?: "readContent" | "resolveContent" | "putContent";
+              };
+              if (request.operation === "resolveContent")
                 active.postMessage({
                   generation,
                   runId: "run",
                   kind: "content-result",
-                  contentId: message.contentId,
+                  contentId: request.contentId,
                   value: "bafkreigh2akiscaildc6a3lqslx3wa6b73grwfyfxtv7xrlrghg5k3gz2e",
                 });
-              else if (message.operation === "readContent") {
+              else if (request.operation === "readContent") {
                 const content = await output.read("resources/text");
                 active.postMessage(
                   {
                     generation,
                     runId: "run",
                     kind: "content-result",
-                    contentId: message.contentId,
+                    contentId: request.contentId,
                     value: { kind: "file", content },
                   },
                   [content],

@@ -50,7 +50,7 @@ export function fixture() {
         type: "echo",
         timeoutMs: 1000 - eligible,
         ...(eligible === received ? {} : { eligibleAt: time(eligible) }),
-        value,
+        parameters: { data: { value }, cidPaths: [] },
       },
       binding: {
         type: "echo",

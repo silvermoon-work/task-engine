@@ -36,7 +36,9 @@ export const requestCoordinatorKeys = [
   "executionMatch",
 ] as const;
 
-export function wrapRequestParameters<T extends Record<string, unknown>>(raw: T): T & {
+export function wrapRequestParameters<T extends Record<string, unknown>>(
+  raw: T,
+): T & {
   parameters: IpfsPayload;
 } {
   if (Object.hasOwn(raw, "parameters")) return raw as T & { parameters: IpfsPayload };

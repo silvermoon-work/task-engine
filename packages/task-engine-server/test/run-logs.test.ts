@@ -195,7 +195,10 @@ test("v1 real SDK -> SQLite -> authenticated HTTP history/realtime, concurrent i
             (entry) => entry.runId === id && entry.message.endsWith(index === 0 ? "A" : "B"),
           ),
         );
-        assert.deepEqual((await api.getRun(id)).output?.result, { data: { ok: true }, cidPaths: [] });
+        assert.deepEqual((await api.getRun(id)).output?.result, {
+          data: { ok: true },
+          cidPaths: [],
+        });
         assert.equal(
           (await api.getRunHistory(id)).events.some((event) => event.type.includes("log")),
           false,

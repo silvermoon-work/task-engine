@@ -556,9 +556,9 @@ class RunWorker {
           if (typeof message.path !== "string" || message.path.length > this.limits.maxPayloadBytes)
             throw new TaskError("invalid_path", "Invalid content path.");
           reply(
-            (
-              await context.content!.resolveContent(cid(), message.path, { signal })
-            ).toV1().toString(),
+            (await context.content!.resolveContent(cid(), message.path, { signal }))
+              .toV1()
+              .toString(),
           );
           finish();
           return;

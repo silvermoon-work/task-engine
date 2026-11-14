@@ -93,14 +93,17 @@ export class KuboContent {
         /is not pinned/i.test(Buffer.concat(parts, size).toString())
       )
         return Buffer.from('{"Keys":{}}');
+      const body = Buffer.concat(parts, size).toString();
       const missing =
         command === "block/get" &&
-        /(?:not found|could not find|blockservice: key not found)/i.test(
-          Buffer.concat(parts, size).toString(),
+        /(?:not found|could not find|blockservice: key not found|block not found|no such block)/i.test(
+          body,
         );
       throw new ContentError(
         response.status === 404 || missing ? "missing_block" : "rpc_failed",
-        `Kubo ${command} RPC failed (HTTP ${response.status}); operation outcome may be unknown.`,
+        missing
+          ? "Kubo block is missing."
+          : `Kubo ${command} RPC failed (HTTP ${response.status}); operation outcome may be unknown.`,
       );
     }
     return Buffer.concat(parts, size);

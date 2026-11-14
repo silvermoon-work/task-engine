@@ -522,6 +522,7 @@ export interface CoordinatorService {
     page: { cursor?: string; limit?: number },
     caller: Caller,
   ): HistoryPage;
+  readRunHistoryArchive?(runId: string, caller: Caller): Promise<unknown>;
   subscribeTask(taskId: string, fromRevision: Revision, caller: Caller): Subscription;
   subscribeRun(runId: string, fromRevision: Revision, caller: Caller): Subscription;
   subscribeTasks(

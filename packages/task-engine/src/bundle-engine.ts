@@ -282,10 +282,7 @@ export class TaskEngine implements TaskService {
       createContent: (context: RunResourceContext) => {
         const store = this.cache.contentStore;
         const signalFor = (options?: { signal?: AbortSignal }) =>
-          AbortSignal.any([
-            context.signal,
-            ...(options?.signal ? [options.signal] : []),
-          ]);
+          AbortSignal.any([context.signal, ...(options?.signal ? [options.signal] : [])]);
         const remember = (target: CID) => {
           const value = target.toV1().toString();
           this.core.recordRunContentAccess(context.runId, value);
@@ -298,13 +295,20 @@ export class TaskEngine implements TaskService {
             remember(parsed);
             return node;
           },
-          resolveContent: async (cid: CID | string, path: string, options?: { signal?: AbortSignal }) => {
+          resolveContent: async (
+            cid: CID | string,
+            path: string,
+            options?: { signal?: AbortSignal },
+          ) => {
             const parsed = CID.parse(cid.toString());
             const target = await store.resolveContent(parsed, path, { signal: signalFor(options) });
             remember(target);
             return target;
           },
-          putContent: async (content: ReadableStream<Uint8Array>, options?: { signal?: AbortSignal }) => {
+          putContent: async (
+            content: ReadableStream<Uint8Array>,
+            options?: { signal?: AbortSignal },
+          ) => {
             const stored = await store.putContent(content, { signal: signalFor(options) });
             if (this.persistentStore)
               await this.persistentStore.confirmRetained(this.contentOwner, [stored.toString()], {

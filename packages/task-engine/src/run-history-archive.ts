@@ -1,7 +1,7 @@
 import { fromDagPayload, toDagPayload } from "@silvermoon-work/ipfs-payload";
 import { asNativeCID, decode, encodeDagCbor } from "@silvermoon-work/ipfs-payload/dag-cbor";
 import { ContentError } from "@silvermoon-work/ipfs-store";
-import { contentLinks } from "@silvermoon-work/ipfs-store/dag";
+import { contentLinks, defaultContentLimits } from "@silvermoon-work/ipfs-store/dag";
 import {
   type ErrorFact,
   fail,
@@ -29,6 +29,7 @@ export const defaultArchivePolicy = Object.freeze({
   maxSourceBytes: 1_048_576,
   leaseMs: 30_000,
   pageSize: 32,
+  messagePageSize: 256,
 });
 export type RunHistoryArchiveStatus = RunHistoryReadObservation["status"] | "not_archived";
 export interface RunHistoryDetail {
@@ -42,6 +43,7 @@ export interface RunHistoryArchivePolicy {
   retryDelayMs: number;
   maxSourceBytes: number;
   leaseMs: number;
+  messagePageSize: number;
 }
 export interface RunHistoryArchivePorts {
   owner: string;
@@ -50,6 +52,16 @@ export interface RunHistoryArchivePorts {
   now: () => number;
   readContentBlock?: (cid: string) => Uint8Array | undefined;
   signal?: AbortSignal;
+  messagePageSize?: number;
+}
+export interface EncodeRunHistoryDagOptions {
+  messagePageSize?: number;
+  blockBytes?: number;
+}
+export interface EncodedRunHistoryDag {
+  root: CID;
+  bytes: Uint8Array;
+  blocks: Map<string, Uint8Array>;
 }
 
 function fact(error: unknown, fallback = "archive_failed"): ErrorFact {
@@ -117,36 +129,112 @@ function runOf(value: unknown): RunHistorySource["run"] {
   };
 }
 
-/** Canonical DAG-CBOR graph: parameters/messages/delivery plus native CID links to content roots. */
-export async function encodeRunHistoryDag(
-  source: RunHistorySource,
-): Promise<{ root: CID; bytes: Uint8Array }> {
-  const bytes = encodeDagCbor({
-    v: runHistoryDagVersion,
-    dataDomain: source.dataDomain,
-    runId: source.runId,
-    sourceWatermark: source.sourceWatermark,
-    finalizedAt: source.finalizedAt,
-    parameters: dagEnvelope(source.run.parameters),
-    messages: source.messages.map((message) => ({
-      ...message,
-      payload: dagEnvelope(message.payload),
-    })),
-    delivery: source.run.outcome ? linkedOutcome(source.run.outcome) : undefined,
-    events: source.events,
-    contentRoots: source.contentRoots.map((value) => cid(value)),
-    contentAccess: source.contentAccess,
-    run: linkedRun(source.run),
-  });
-  return { root: CID.createV1(0x71, await sha256.digest(bytes)), bytes };
+async function dagBlock(
+  value: unknown,
+  blockBytes: number,
+  label: string,
+): Promise<{ cid: CID; bytes: Uint8Array }> {
+  const bytes = encodeDagCbor(value);
+  if (bytes.byteLength > blockBytes)
+    fail("capacity_exceeded", `RunHistory ${label} exceeds the block budget.`);
+  return { cid: CID.createV1(0x71, await sha256.digest(bytes)), bytes };
 }
-export function decodeRunHistoryDag(bytes: Uint8Array): RunHistorySource {
+function canonicalNode(bytes: Uint8Array, label: string): unknown {
   if (!(bytes instanceof Uint8Array) || !bytes.byteLength)
-    fail("history_corrupt", "Archived history is empty.");
+    fail("history_corrupt", `Archived ${label} is empty.`);
   const value: unknown = decode(bytes);
   const canonical = encodeDagCbor(value);
   if (canonical.length !== bytes.length || canonical.some((byte, i) => byte !== bytes[i]))
-    fail("history_corrupt", "Non-canonical RunHistory DAG.");
+    fail("history_corrupt", `Non-canonical RunHistory ${label}.`);
+  return value;
+}
+function messageRecord(value: unknown): RunHistorySource["messages"][number] {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    fail("history_corrupt", "Invalid archived message.");
+  const message = value as RunHistorySource["messages"][number];
+  return {
+    ...message,
+    payload: jsonEnvelope(message.payload) as RunHistorySource["messages"][number]["payload"],
+  };
+}
+async function decodeMessages(
+  value: unknown,
+  load: (cid: CID) => Promise<Uint8Array>,
+): Promise<RunHistorySource["messages"]> {
+  if (!Array.isArray(value)) fail("history_corrupt", "Invalid RunHistory collections.");
+  const links = value.map((item) => asNativeCID(item));
+  if (links.some(Boolean) && links.some((item) => !item))
+    fail("history_corrupt", "Mixed RunHistory message encoding.");
+  if (!value.length) return [];
+  if (links[0]) {
+    const messages: RunHistorySource["messages"] = [];
+    for (const link of links) {
+      if (!link) fail("history_corrupt", "Mixed RunHistory message encoding.");
+      const page = canonicalNode(await load(link), "message page");
+      if (!page || typeof page !== "object" || Array.isArray(page))
+        fail("history_corrupt", "Invalid RunHistory message page.");
+      const items = (page as { items?: unknown }).items;
+      if (!Array.isArray(items)) fail("history_corrupt", "Invalid RunHistory message page.");
+      for (const item of items) messages.push(messageRecord(item));
+    }
+    return messages;
+  }
+  return value.map(messageRecord);
+}
+
+/** Canonical DAG-CBOR graph: paged messages, parameters/delivery, and native CID content roots. */
+export async function encodeRunHistoryDag(
+  source: RunHistorySource,
+  options: EncodeRunHistoryDagOptions = {},
+): Promise<EncodedRunHistoryDag> {
+  const messagePageSize = options.messagePageSize ?? defaultArchivePolicy.messagePageSize;
+  const blockBytes = options.blockBytes ?? defaultContentLimits.blockBytes;
+  if (!Number.isSafeInteger(messagePageSize) || messagePageSize < 1)
+    fail("invalid_request", "Invalid RunHistory message page size.");
+  if (!Number.isSafeInteger(blockBytes) || blockBytes < 1)
+    fail("invalid_request", "Invalid RunHistory block budget.");
+  const blocks = new Map<string, Uint8Array>();
+  const pages: CID[] = [];
+  for (let index = 0; index < source.messages.length; index += messagePageSize) {
+    const page = await dagBlock(
+      {
+        items: source.messages.slice(index, index + messagePageSize).map((message) => ({
+          ...message,
+          payload: dagEnvelope(message.payload),
+        })),
+      },
+      blockBytes,
+      "message page",
+    );
+    blocks.set(page.cid.toString(), page.bytes);
+    pages.push(page.cid);
+  }
+  const root = await dagBlock(
+    {
+      v: runHistoryDagVersion,
+      dataDomain: source.dataDomain,
+      runId: source.runId,
+      sourceWatermark: source.sourceWatermark,
+      finalizedAt: source.finalizedAt,
+      parameters: dagEnvelope(source.run.parameters),
+      messages: pages,
+      delivery: source.run.outcome ? linkedOutcome(source.run.outcome) : undefined,
+      events: source.events,
+      contentRoots: source.contentRoots.map((value) => cid(value)),
+      contentAccess: source.contentAccess,
+      run: linkedRun(source.run),
+    },
+    blockBytes,
+    "root",
+  );
+  blocks.set(root.cid.toString(), root.bytes);
+  return { root: root.cid, bytes: root.bytes, blocks };
+}
+export async function decodeRunHistoryDag(
+  bytes: Uint8Array,
+  load: (cid: CID) => Promise<Uint8Array>,
+): Promise<RunHistorySource> {
+  const value = canonicalNode(bytes, "history");
   if (!value || typeof value !== "object" || Array.isArray(value))
     fail("history_corrupt", "Invalid RunHistory DAG.");
   const node = value as Record<string, unknown>;
@@ -157,11 +245,7 @@ export function decodeRunHistoryDag(bytes: Uint8Array): RunHistorySource {
     fail("history_corrupt", "Invalid RunHistory watermark.");
   if (typeof node.finalizedAt !== "number" || !Number.isSafeInteger(node.finalizedAt))
     fail("history_corrupt", "Invalid RunHistory watermark.");
-  if (
-    !Array.isArray(node.messages) ||
-    !Array.isArray(node.events) ||
-    !Array.isArray(node.contentAccess)
-  )
+  if (!Array.isArray(node.events) || !Array.isArray(node.contentAccess))
     fail("history_corrupt", "Invalid RunHistory collections.");
   if (!Array.isArray(node.contentRoots))
     fail("history_corrupt", "Invalid RunHistory content roots.");
@@ -179,10 +263,7 @@ export function decodeRunHistoryDag(bytes: Uint8Array): RunHistorySource {
     sourceWatermark: node.sourceWatermark,
     finalizedAt: node.finalizedAt,
     run,
-    messages: (node.messages as RunHistorySource["messages"]).map((message) => ({
-      ...message,
-      payload: jsonEnvelope(message.payload) as RunHistorySource["messages"][number]["payload"],
-    })),
+    messages: await decodeMessages(node.messages, load),
     events: node.events as RunHistorySource["events"],
     contentRoots,
     contentAccess: node.contentAccess as string[],
@@ -247,12 +328,12 @@ export async function readRunHistoryDetail(
   try {
     ports.signal?.throwIfAborted();
     const root = CID.parse(published);
-    const bytes = await ports.content.block.get(
-      published,
-      ports.signal ? { signal: ports.signal } : {},
-    );
+    const options = ports.signal ? { signal: ports.signal } : {};
+    const bytes = await ports.content.block.get(published, options);
     await verifyRunHistoryClosure(ports.content, root, ports.signal);
-    const source = decodeRunHistoryDag(bytes);
+    const source = await decodeRunHistoryDag(bytes, (cid) =>
+      ports.content.block.get(cid.toString(), options),
+    );
     if (source.runId !== record.runId || source.sourceWatermark !== record.sourceWatermark)
       return observation("corrupt");
     const available = await observation("available");
@@ -281,11 +362,15 @@ export async function publishRunHistoryArchive(
     const attempt = record?.attempts[lease.attempt - 1];
     if (!record || !attempt || attempt.lease.owner !== lease.owner) return false;
     const source = ports.history.readSource(lease.runId, ports.now());
-    const dag = await encodeRunHistoryDag(source);
+    const dag = await encodeRunHistoryDag(source, {
+      messagePageSize: ports.messagePageSize ?? defaultArchivePolicy.messagePageSize,
+      blockBytes: ports.content.limits.blockBytes,
+    });
     const root = dag.root.toString();
     if (attempt.rootCid && attempt.rootCid !== root)
       fail("storage_conflict", "An archive attempt cannot change its root.");
-    await ports.content.stageBlock(session, dag.root, dag.bytes, options);
+    for (const [key, bytes] of dag.blocks)
+      await ports.content.stageBlock(session, CID.parse(key), bytes, options);
     staged = true;
     for (const value of source.contentRoots) {
       const link = cid(value);

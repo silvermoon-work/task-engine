@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { readFile, readdir, rm } from "node:fs/promises";
+import { readdir, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -297,6 +297,18 @@ test("structured block preparation does not expand the file/directory resource p
     await assert.rejects(store.read(cid), /regular UnixFS files/);
     await assert.rejects(store.readContent(cid), /regular UnixFS files/);
     await assert.rejects(store.resolveContent(cid, ""), /regular UnixFS files/);
+  } finally {
+    await store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("builtin local store is not a public distribution endpoint", async () => {
+  const directory = resolve(".cache", `store-private-${randomUUID()}`);
+  const store = new IpfsStore({ dataDir: directory });
+  try {
+    assert.equal(store.configuration.backend, "local");
+    assert.equal("gateway" in store.configuration, false);
   } finally {
     await store.close();
     await rm(directory, { recursive: true, force: true });

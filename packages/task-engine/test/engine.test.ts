@@ -481,10 +481,7 @@ test("version-bound history and idempotency never silently use current validator
   });
   await restored.start();
   assert.equal(restored.submit(raw, caller).taskId, task.taskId);
-  assert.deepEqual(
-    restored.getRequest(raw.requestId, caller),
-    wrapRequestParameters({ ...raw }),
-  );
+  assert.deepEqual(restored.getRequest(raw.requestId, caller), wrapRequestParameters({ ...raw }));
   await restored.close();
   const unsupported = createTaskEngine({
     ...options,

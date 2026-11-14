@@ -109,12 +109,17 @@ function createHostContent(runId: string, signal: AbortSignal) {
       (options?.signal ?? signal).throwIfAborted();
       return send("readContent", { cid: CID.parse(cid.toString()).toV1().toString() }).then(
         (value) => {
-          if (!value || value instanceof CID) throw new TaskError("invalid_payload", "Invalid content read.");
+          if (!value || value instanceof CID)
+            throw new TaskError("invalid_payload", "Invalid content read.");
           return value;
         },
       );
     },
-    resolveContent(cid: CID | string, path: string, options?: { signal?: AbortSignal }): Promise<CID> {
+    resolveContent(
+      cid: CID | string,
+      path: string,
+      options?: { signal?: AbortSignal },
+    ): Promise<CID> {
       (options?.signal ?? signal).throwIfAborted();
       return send("resolveContent", {
         cid: CID.parse(cid.toString()).toV1().toString(),
@@ -124,11 +129,12 @@ function createHostContent(runId: string, signal: AbortSignal) {
         return value;
       });
     },
-    putContent(content: ReadableStream<Uint8Array>, options?: { signal?: AbortSignal }): Promise<CID> {
+    putContent(
+      content: ReadableStream<Uint8Array>,
+      options?: { signal?: AbortSignal },
+    ): Promise<CID> {
       (options?.signal ?? signal).throwIfAborted();
-      return send("putContent", { content }, [
-        content as unknown as Transferable,
-      ]).then((value) => {
+      return send("putContent", { content }, [content as unknown as Transferable]).then((value) => {
         if (!(value instanceof CID)) throw new TaskError("invalid_cid", "Expected a stored CID.");
         return value;
       });
@@ -338,7 +344,11 @@ port.on("message", (message) => {
       Object.freeze({
         messageId: envelope.messageId,
         taskId: envelope.taskId,
-        payload: decodeChannel(type.messageSchema, envelope.payload, config.maxPayloadBytes) as Json,
+        payload: decodeChannel(
+          type.messageSchema,
+          envelope.payload,
+          config.maxPayloadBytes,
+        ) as Json,
         signal: taskController.signal,
         caller: Object.freeze(envelope.caller),
         accept: () => confirm("accepted"),

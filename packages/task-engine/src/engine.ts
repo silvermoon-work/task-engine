@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   type Authorize,
+  acceptPayload,
   assertFactsVersion,
   at,
   type Binding,
@@ -8,17 +9,15 @@ import {
   type CancellationResult,
   type Clock,
   type CollectionSubscription,
-  acceptPayload,
-  emptyPayload,
-  isPayloadEnvelope,
-  wrapRequestParameters,
   canonical,
   compileInputSchema,
   compileJsonSchema,
   type ErrorFact,
+  emptyPayload,
   type HistoryFilter,
   type HistoryPage,
   type InputContract,
+  isPayloadEnvelope,
   type Json,
   type JsonContract,
   json,
@@ -64,6 +63,7 @@ import {
   validateBundleReference,
   validateRunProgress,
   wouldQualify,
+  wrapRequestParameters,
 } from "@silvermoon-work/task-protocol";
 import { type CatalogLimits, RunCatalog, TaskCatalog } from "./catalog.js";
 import type { IpfsStore } from "./content.js";
@@ -398,6 +398,7 @@ export class TaskEngine implements TaskService {
       retryDelayMs: options.archive?.retryDelayMs ?? defaultArchivePolicy.retryDelayMs,
       maxSourceBytes: options.archive?.maxSourceBytes ?? defaultArchivePolicy.maxSourceBytes,
       leaseMs: options.archive?.leaseMs ?? defaultArchivePolicy.leaseMs,
+      messagePageSize: options.archive?.messagePageSize ?? defaultArchivePolicy.messagePageSize,
     };
     for (const [key, value] of Object.entries(this.archivePolicy))
       positive(value, `archive.${key}`);
@@ -412,10 +413,11 @@ export class TaskEngine implements TaskService {
           ? { readContentBlock: options.store.readContentBlock.bind(options.store) }
           : {}),
         signal: this.archiveAbort.signal,
+        messagePageSize: this.archivePolicy.messagePageSize,
       });
   }
-  async readRunHistoryArchive(runId: string): Promise<RunHistoryDetail> {
-    this.readable();
+  async readRunHistoryArchive(runId: string, caller: Caller): Promise<RunHistoryDetail> {
+    this.run(runId, caller, "history");
     if (!this.archive) {
       const record = this.options.store.runHistory?.read(runId);
       return record ? { record, status: "not_archived" } : { status: "not_archived" };
@@ -829,9 +831,9 @@ export class TaskEngine implements TaskService {
     this.accepting();
     this.authorized(caller, "submit", caller?.scope);
     const raw = object(
-        request,
-        Math.min(Number.MAX_SAFE_INTEGER, this.limits.maxPayloadBytes + 8192),
-      );
+      request,
+      Math.min(Number.MAX_SAFE_INTEGER, this.limits.maxPayloadBytes + 8192),
+    );
     wrapRequestParameters(raw);
     const requestId = ulid(raw.requestId);
     let now = this.clock.now();
@@ -1114,7 +1116,9 @@ export class TaskEngine implements TaskService {
     const task = this.task(id, caller, "message"),
       key = `${id}\0${ulid(messageId)}`;
     const value = acceptPayload(
-      isPayloadEnvelope(payload) ? payload : emptyPayload(json(payload, this.limits.maxPayloadBytes)),
+      isPayloadEnvelope(payload)
+        ? payload
+        : emptyPayload(json(payload, this.limits.maxPayloadBytes)),
       this.historical(task.binding).messageSchema,
       {
         maxBytes: this.limits.maxPayloadBytes,
@@ -1400,7 +1404,9 @@ export class TaskEngine implements TaskService {
     group.startup = Promise.resolve()
       .then(async () => {
         if (task.binding.bundle) group.releaseBundle = await this.options.loadBundle!(task.binding);
-        await this.supervisors.get(this.key(task.binding))!.run(id, task.parameters, task.binding.scope);
+        await this.supervisors
+          .get(this.key(task.binding))!
+          .run(id, task.parameters, task.binding.scope);
       })
       .catch((error) => {
         const run = this.view.facts.runs[id];

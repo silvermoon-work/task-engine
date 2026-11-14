@@ -304,7 +304,10 @@ export async function main(
       } catch {
         throw new TaskError("INVALID_INPUT", "Input must be one complete JSON object.");
       }
-      const input = parametersFromJson(object(parsed, Number.MAX_SAFE_INTEGER), Number.MAX_SAFE_INTEGER);
+      const input = parametersFromJson(
+        object(parsed, Number.MAX_SAFE_INTEGER),
+        Number.MAX_SAFE_INTEGER,
+      );
       let car: string | undefined;
       if (carPath) {
         const metadata = await lstat(carPath);

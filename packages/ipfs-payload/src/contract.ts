@@ -122,7 +122,8 @@ export function inspectTaskSchema(
       schema.type !== "string" ||
       Object.keys(schema).some(
         (key) =>
-          !metadata.has(key) && !["type", "x-ipfs-content-ref", "$ref", "$id", "$anchor"].includes(key),
+          !metadata.has(key) &&
+          !["type", "x-ipfs-content-ref", "$ref", "$id", "$anchor"].includes(key),
       )
     )
       throw new Error("Invalid ContentRef schema.");
@@ -209,7 +210,10 @@ export function inspectTaskSchema(
       }
       hasRefs = hasRefs || unionRefs;
     }
-    if (options && (schema.properties || schema.items || schema.prefixItems || schema.additionalProperties))
+    if (
+      options &&
+      (schema.properties || schema.items || schema.prefixItems || schema.additionalProperties)
+    )
       throw new Error("Reference traversal does not support union structural siblings.");
     references.set(schema, hasRefs);
     return hasRefs;

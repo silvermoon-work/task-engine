@@ -217,7 +217,10 @@ test("generic host-mediated child Tasks", { timeout: 60_000 }, async (t) => {
       const id = await submit(engine, artifacts.parent.cid, "replay");
       const task = await settled(engine, id);
       assert.equal(task.stage, "completed", JSON.stringify(task));
-      assert.deepEqual(task.output?.result, envelope({ a: { value: 7 }, b: { value: 7 }, c: { value: 7 } }));
+      assert.deepEqual(
+        task.output?.result,
+        envelope({ a: { value: 7 }, b: { value: 7 }, c: { value: 7 } }),
+      );
       assert.equal(
         Object.values(store.read().facts.submissions).filter((record) => record.composition).length,
         1,

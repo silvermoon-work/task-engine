@@ -101,7 +101,16 @@ Archive outcome, retention state and `lastRead` are independent. The latter is
 a dated `available` / `unauthorized` / `unreachable` / `missing` / `corrupt`
 observation, never a current availability guarantee. Released means this
 owner's retention was relinquished, **not** physical deletion or revoked
-external access. Store controls visibility and protects other owners.
+external access. Unpin is not physical deletion. Store controls visibility and
+protects other owners; Engine API authorization does not cover another Kubo
+ingress. Builtin local Store is not publicly distributed. Isolated test
+fixtures may GC only their own offline daemon, never a shared node.
+
 SQLite remains the necessary authority/backup for admission, Tasks, Runs,
-messages and expiry; IPFS must never reconstruct or resurrect those records.
-Public payload/Space replacement remains a later protocol switch.
+messages, expiry and idempotency credentials. Restore a closed database
+together with its WAL/SHM sidecars; do not reconstruct records from leftover
+IPFS blocks. If auxiliary archive details are absent after restore, query
+status is `missing` / `not_archived` and business completion is unchanged.
+Detail cleanup follows `requestRelease` plus owner-aware unpin; leftover DAG
+bytes may remain until the Store backend's own GC, which product code never
+invokes on a shared daemon.

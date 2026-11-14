@@ -5,11 +5,7 @@ import { join, resolve } from "node:path";
 import test from "node:test";
 import { CarReader } from "@ipld/car/reader";
 import { CarWriter } from "@ipld/car/writer";
-import {
-  ContentRef,
-  encodePayload,
-  encodePayloadBlock,
-} from "@silvermoon-work/ipfs-payload";
+import { ContentRef, encodePayload, encodePayloadBlock } from "@silvermoon-work/ipfs-payload";
 import { ContentRefSchema } from "@silvermoon-work/ipfs-payload/typebox";
 import { encodeDagCbor } from "@silvermoon-work/ipfs-payload/dag-cbor";
 import { importer } from "ipfs-unixfs-importer";

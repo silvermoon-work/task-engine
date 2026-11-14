@@ -2,17 +2,18 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
+import test from "node:test";
 import * as dagPb from "@ipld/dag-pb";
 import { importer } from "ipfs-unixfs-importer";
 import { fixedSize } from "ipfs-unixfs-importer/chunker";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
-import { IpfsStore } from "../src/index.js";
 import { ContentBlocks } from "../src/dag.js";
+import { IpfsStore } from "../src/index.js";
 import { readContentConfiguration } from "../src/node.js";
 import { kuboFixture } from "./kubo-fixture.js";
+
 const directories: string[] = [];
 test.after(async () => {
   for (const directory of directories) await rm(directory, { recursive: true, force: true });
@@ -460,4 +461,26 @@ test("close cancels an uncertain pin without daemon ownership; restart reconcile
   } finally {
     await restarted.close();
   }
+});
+
+test("Kubo adapter never reconfigures daemon networking, bootstrap or gateway policy", async (t) => {
+  const { rpc, store } = await fixture(t);
+  const bytes = Buffer.from("policy-unchanged");
+  const cid = await raw(bytes);
+  await store.put(cid, bytes);
+  await store.prepare(cid);
+  await store.pin(cid.toString());
+  await store.unpin(cid.toString());
+  await store.block.get(cid.toString());
+  assert.equal(
+    rpc.calls.every((command) => /^(block\/(get|put)|pin\/(add|rm|ls))$/.test(command)),
+    true,
+    rpc.calls.join(","),
+  );
+  assert.equal(
+    rpc.calls.some((command) =>
+      /^(config|swarm|bootstrap|dht|routing|name|gateway|shutdown|id)/.test(command),
+    ),
+    false,
+  );
 });

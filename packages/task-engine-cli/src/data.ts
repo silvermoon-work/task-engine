@@ -314,7 +314,10 @@ export class Repository {
         throw new TaskError("STORAGE_CORRUPT", "Task output must contain a business result.");
       json(task.output.result, Number.MAX_SAFE_INTEGER);
       if ("cid" in task.output)
-        throw new TaskError("UNSUPPORTED_STORAGE", "Legacy output CID requires a new data directory.");
+        throw new TaskError(
+          "UNSUPPORTED_STORAGE",
+          "Legacy output CID requires a new data directory.",
+        );
     }
     return task;
   }

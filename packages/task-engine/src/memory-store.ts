@@ -1,10 +1,15 @@
 import { randomBytes } from "node:crypto";
 import {
+  captureRunHistory,
+  createRunHistoryStorage,
   emptyFacts,
   fail,
   MemoryRunLogStorage,
   type NewEvent,
   reduce,
+  protectRunHistory,
+  type RunHistoryChange,
+  type RunHistoryEntry,
   type Store,
   type StoredRunLogs,
   type StoreView,
@@ -13,6 +18,48 @@ import { newId } from "./identity.js";
 
 /** Explicitly non-durable; useful for tests and disposable hosts only. */
 export class MemoryStore implements Store {
+  private histories = new Map<string, RunHistoryEntry>();
+  private historyRevision = 0;
+  readonly runHistory = createRunHistoryStorage({
+    read: (id) => {
+      if (this.closed) fail("storage_failure", "Store closed.");
+      return structuredClone(this.histories.get(id));
+    },
+    list: (after, limit) => {
+      if (this.closed) fail("storage_failure", "Store closed.");
+      return [...this.histories.entries()]
+        .filter(([id]) => id > after)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .slice(0, limit)
+        .map(([, entry]) => structuredClone(entry.record));
+    },
+    change: (owner, id, action) => this.changeHistory(owner, id, action),
+  });
+  private changeHistory<T>(owner: string, id: string, action: RunHistoryChange<T>): T {
+    if (this.closed || this.owner !== owner) fail("store_owned", "Owner mismatch.");
+    const watermark = this.view.facts.watermark,
+      revision = this.historyRevision;
+    const value = action(structuredClone(this.histories.get(id)), (options) =>
+      captureRunHistory(
+        this.view,
+        id,
+        options,
+        this.readRunContentRoots(id),
+        this.readRunContentAccess(id),
+      ),
+    );
+    this.beforeCommit?.();
+    if (this.closed || this.owner !== owner) fail("store_owned", "Owner mismatch.");
+    if (this.view.facts.watermark !== watermark || this.historyRevision !== revision)
+      fail("storage_conflict", "Archive source changed during the commit hook.");
+    this.histories.set(id, structuredClone(value.entry));
+    this.historyRevision++;
+    return structuredClone(value.result);
+  }
+  private mutableHistory(runId: string): void {
+    if (this.histories.has(runId))
+      fail("history_finalized", "Finalized RunHistory content cannot be changed.");
+  }
   private readonly contentBlocks = new Map<string, Uint8Array>();
   private readonly contentRoots = new Map<string, Set<string>>();
   private readonly contentAccess = new Map<string, Set<string>>();
@@ -29,9 +76,11 @@ export class MemoryStore implements Store {
   }
   retainRunContent(owner: string, runId: string, cid: string): void {
     if (this.closed || this.owner !== owner) fail("store_owned", "Owner mismatch.");
+    this.mutableHistory(runId);
     const roots = this.contentRoots.get(runId) ?? new Set<string>();
     roots.add(cid);
     this.contentRoots.set(runId, roots);
+    this.historyRevision++;
   }
   readRunContentRoots(runId: string): string[] {
     if (this.closed) fail("storage_failure", "Store closed.");
@@ -39,9 +88,11 @@ export class MemoryStore implements Store {
   }
   recordRunContentAccess(owner: string, runId: string, sid: string): void {
     if (this.closed || this.owner !== owner) fail("store_owned", "Owner mismatch.");
+    this.mutableHistory(runId);
     const access = this.contentAccess.get(runId) ?? new Set<string>();
     access.add(sid);
     this.contentAccess.set(runId, access);
+    this.historyRevision++;
   }
   readRunContentAccess(runId: string): string[] {
     if (this.closed) fail("storage_failure", "Store closed.");
@@ -98,10 +149,27 @@ export class MemoryStore implements Store {
       sequence: expectedWatermark + index + 1,
     }));
     const facts = reduce(this.view.facts, appended);
+    const histories = new Map(this.histories),
+      revision = this.historyRevision;
+    const historyIds = new Set(
+      events.flatMap((event) =>
+        event.type === "records.forgotten" ? event.data.runIds : event.runId ? [event.runId] : [],
+      ),
+    );
+    for (const id of historyIds) {
+      const value = histories.get(id);
+      if (!value) continue;
+      const entry = structuredClone(value);
+      protectRunHistory(entry, events);
+      histories.set(id, entry);
+    }
     this.beforeCommit?.();
-    if (this.view.facts.watermark !== expectedWatermark)
+    if (this.closed || this.owner !== owner) fail("store_owned", "Owner mismatch.");
+    if (this.view.facts.watermark !== expectedWatermark || this.historyRevision !== revision)
       fail("storage_conflict", "Source prefix changed during the commit hook.");
     this.view = { ...this.view, facts, events: [...this.view.events, ...appended] };
+    this.histories = histories;
+    this.historyRevision++;
     return this.read();
   }
   compact(owner: string, through: number): void {

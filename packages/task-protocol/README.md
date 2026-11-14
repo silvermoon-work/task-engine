@@ -113,3 +113,21 @@ Request 幂等冲突检查仍比较完整原始 Request，不使用结构 Equals
 全域源 revision、完整集合封装和 fromRevision 补读不使用每 Task 权威快照或绑定事务。
 旧版本明确拒绝，无隐式数据迁移或删除。
 完整协议与历史/取消/资源边界见 [Task Engine](https://github.com/shazhou-ww/potential-guide/blob/3500086123d8b821b77958699ceeebfb2a518e0f/docs/task-engine.md)。
+
+## Optional finalized history management
+
+`Store.runHistory?: RunHistoryStorage` is a single optional capability, not a
+mandatory change for existing Store adapters. `isRunHistoryFinalizable` requires
+terminal exit, settled messages and confirmed resource cleanup; it never treats
+an outcome or recovery exit as reclamation evidence. `captureRunHistory` selects
+one bounded, stable Run source at a SQLite watermark, not Task snapshots or an
+active IPFS head. The existing projection/API versions remain unchanged.
+
+The protocol exports `RunHistorySource`, `RunHistoryRecord`,
+`RunHistoryPolicy`, archive/release leases, closure/retention receipts and dated
+read observations. `createRunHistoryStorage` shares synchronous metadata
+transitions across durable and disposable Stores. Finalization is explicit and
+idempotent, archive retries are bounded, and release generations fence stale
+publishers independently of Run outcomes. No network, pinning or payload codec
+is invoked by these transitions. See the [storage contract](../task-engine-storage/README.md#finalized-runhistory-management-metadata-only)
+for sequencing, source contents and recovery responsibilities.

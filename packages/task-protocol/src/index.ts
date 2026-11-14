@@ -7,6 +7,7 @@ export * from "./logs.js";
 export * from "./presentation.js";
 export * from "./projection.js";
 export * from "./run.js";
+export * from "./run-history.js";
 export * from "./spaces.js";
 export * from "./schema.js";
 export * from "./types.js";

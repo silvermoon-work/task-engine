@@ -137,3 +137,13 @@ Set-Location 'packages\task-engine'
 - P4 必须补齐上述完整 Task Schema 桥接，以及 Builder/CLI 的 CAR 遍历消费点，不能直接把 serialized Task Schema 传给 P1 的窄 profile。该限制明确纳入后续验收，不宣称完整 Task 协议已实现。
 
 P1 基础轮次本地验收通过；本 Idea 的完整 I-AC 条目仍待 P2 至 P6 的端到端证据，不能提前 submitInner。
+
+## P2 本地验收证据
+
+- 新增可选 Store.runHistory 元数据接口，在 MemoryStore/SqliteStore 复用状态机：定稿源、归档/释放租约、根写前意图、失败重试、保留代次、读取观察与恢复均不含网络事务。
+- 定稿要求 exit、消息结算与清理证明；SQLite 仍是业务权威。归档失败不改写完成，不重跑 Worker；释放确认之后迟到的 pin 结果重新触发有代次保护的清理，不复活归档。
+- SQLite forgetting 与释放意图原子提交，tombstone 保留到后续协调处理；不迭代既有数据库/协议版本。普通诊断日志不属于冻结源，生命周期事实仍保留。
+- 主 Agent 复核 SQLite/Memory 事务、冻结源和租约条件，并运行两处 run-history.test.ts：26/26 通过；pnpm typecheck:tests 与 pnpm check 均退出 0，使用既定进程级 Node 24.12.0。
+- P3 必须实现服务调度、实际 DAG 写入/保留/详情读取和恢复；按 lease owner 区分暂存及清理，先持久记录候选 root 再进行保留 I/O。目前 runtime 自动归档未开启，不冒充 P3 已完成。
+
+P2 本地验收通过，无 RC 或发布后 Smoke；I-S02/I-AC02 的完整端到端验收仍待 P3/P6。

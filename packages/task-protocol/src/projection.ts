@@ -1,5 +1,6 @@
 import { at, canonical, fail, timestamp, ulid } from "./json.js";
 import { compileInputSchema, type InputContract } from "./schema.js";
+import type { RunHistoryFinalizeOptions, RunHistorySource } from "./run-history.js";
 import type {
   FactEvent,
   Facts,
@@ -178,6 +179,53 @@ export function runStage(run: RunRecord): RunStage {
   if (run.exit?.basis === "recovery") return "stopped";
   if (run.exit) return run.outcome?.kind ?? (run.stopRequested ? "stopped" : "failed");
   return run.stoppingAt ? "stopping" : "running";
+}
+export function isRunHistoryFinalizable(facts: Facts, runId: string): boolean {
+  const run = facts.runs[runId];
+  return !!(
+    run?.exit &&
+    run.reclaimedAt &&
+    !run.cleanupUnknown &&
+    !Object.values(facts.messages).some(
+      (message) => message.runId === runId && message.state === "queued",
+    )
+  );
+}
+export function captureRunHistory(
+  view: StoreView,
+  runId: string,
+  options: RunHistoryFinalizeOptions,
+  contentRoots: string[],
+  contentAccess: string[],
+): RunHistorySource {
+  if (!isRunHistoryFinalizable(view.facts, runId))
+    fail(
+      "history_not_finalizable",
+      "History requires terminal exit, settled messages and cleanup proof.",
+    );
+  const run = view.facts.runs[runId]!;
+  if (view.floor >= run.startedSequence)
+    fail("history_gap", "The complete Run source prefix is no longer retained.");
+  const messages = Object.values(view.facts.messages).filter((message) => message.runId === runId);
+  const taskIds = new Set(messages.map((message) => message.taskId));
+  const source: RunHistorySource = structuredClone({
+    dataDomain: view.facts.dataDomain,
+    runId,
+    sourceWatermark: view.facts.watermark,
+    finalizedAt: options.now,
+    run,
+    messages,
+    events: view.events.filter(
+      (event) =>
+        event.runId === runId ||
+        (event.type === "task.canceled" && event.taskId !== undefined && taskIds.has(event.taskId)),
+    ),
+    contentRoots: [...new Set(contentRoots)].sort(),
+    contentAccess: [...new Set(contentAccess)].sort(),
+  });
+  if (new TextEncoder().encode(JSON.stringify(source)).byteLength > options.maxSourceBytes)
+    fail("history_limit", "RunHistory source exceeds the configured byte budget.");
+  return source;
 }
 export function matchesRunTime(
   policy: MatchPolicy,

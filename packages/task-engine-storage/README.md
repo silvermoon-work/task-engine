@@ -41,3 +41,70 @@ Completed outcomes optionally retain `outputCid` in the existing `run.outcome`
 event and its projection. Existing v5 events remain valid without it, so neither
 the projection nor SQLite format version changes; old v5 stores add the content
 tables on their first owner-authorized content mutation.
+
+## Finalized RunHistory management (metadata only)
+
+`SqliteStore.runHistory` implements the optional, coherent `RunHistoryStorage`
+capability from task-protocol. It does **not** start an archiver or change
+existing Engine execution, V1 APIs, projection 5, or SQLite user_version 5.
+Compatible databases add the owned `run_history_archives` table on the first
+owner-authorized archive mutation. Reads do not create it; incompatible owned
+layouts fail preflight without modifying the database or its sidecars.
+
+- `finalize(owner, runId, {now, retainUntil, maxAttempts, retryDelayMs,
+  maxSourceBytes})` atomically captures a bounded, immutable source at a SQLite
+  watermark. Exit, settled messages and confirmed resource reclamation are all
+  required. An outcome alone, recovery exit alone or `cleanupUnknown` is
+  insufficient. Resolved cleanup uncertainty remains in the source events.
+- The source contains the Run, settled messages, Run-related events (and message
+  Task cancellations), content roots and diagnostic content associations. It
+  excludes Store secrets, active-state snapshots, other Runs, Task matching
+  projections and separately mutable diagnostic logs. Multiple Tasks still
+  share one RunHistory; subsequent Task matching never rewrites it.
+- `claimArchive` commits a bounded attempt, retention generation, expiring
+  lease and unique Store retention owner. `setArchiveRoot` records the candidate
+  CID **before** retention I/O. `completeArchive` records the trusted service's
+  verified closure counts and retention observations, not just root existence.
+  `failArchive` retains an error and retry deadline without changing business
+  facts. Attempts stop at the configured limit or retention deadline.
+- `requestRelease`, deadline recovery and `records.forgotten` revoke retention,
+  fence publication and discard the separate archive source. Forgetting and its
+  release intent commit atomically. Business records, messages, results and
+  idempotency credentials otherwise follow their existing SQLite policies.
+  Compact does not discard archive/release tombstones.
+- `claimRelease` / `completeRelease` / `failRelease` coordinate idempotent cleanup
+  for each attempt owner, with leases and backoff. A late publisher re-arms its
+  release revision even after an earlier release acknowledgement; stale cleanup
+  acknowledgements cannot erase that new intent. Failed/uncertain attempts retain
+  their cleanup work. `recover(owner, runId, now)` reconciles expiry and abandoned
+  leases; page `list(afterRunId, limit)` (maximum 1000) to bound recovery work.
+
+All mutations use the existing exclusive Engine owner and synchronous
+transactions, including the `beforeCommit` / `afterCommit` fault seams. Network
+operations must run **between**, never inside, these methods. `readSource(runId,
+now)` rejects released/expired sources; `read` returns metadata even when the
+business record or source has been removed. A repeated `finalize` returns the
+original policy/identity and never extends or re-grants retention.
+
+### Archive service handoff
+
+The next integration must build/verify the complete DAG, use each lease's
+`owner` for retention and `${owner}/...` staging sessions, then conditionally
+complete the SQLite attempt. Retain the new closure before releasing old
+staging/resource protection. On cancellation or a false completion, settle
+in-flight I/O and service the recorded release intent using the Store's
+owner-aware recovery/reconciliation, never a global unpin/GC. Reconcile after
+uncertain RPCs and process restart; no Worker re-execution is an archive retry.
+Always report delayed success/failure so its stale owner can be reclaimed.
+Archive retry count is bounded; unresolved cleanup intents remain durable,
+retryable with backoff, and visible rather than silently discarded.
+
+Archive outcome, retention state and `lastRead` are independent. The latter is
+a dated `available` / `unauthorized` / `unreachable` / `missing` / `corrupt`
+observation, never a current availability guarantee. Released means this
+owner's retention was relinquished, **not** physical deletion or revoked
+external access. Store controls visibility and protects other owners.
+SQLite remains the necessary authority/backup for admission, Tasks, Runs,
+messages and expiry; IPFS must never reconstruct or resurrect those records.
+P2 includes no archive DAG I/O, retrieval/CAR path, public payload switch or
+automatic source/log retention migration.

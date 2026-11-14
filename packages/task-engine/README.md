@@ -56,6 +56,15 @@ drain 开始后该方法与 `collect()` 一样返回明确的 `engine_draining` 
 避免最终汇总前清理拒绝证据。
 `collect()` 继续管理 Task/Run 历史的受保护保留边界。
 
+`MemoryStore.runHistory` also offers the optional finalized-history metadata
+capability, with the same finalization, archive lease, retention/release and
+recovery transitions as SQLite, but without durability. It is opt-in: the Engine
+does not automatically archive Runs or change current public output/Space
+behavior. Finalize only after exit, message settlement and confirmed resource
+cleanup. Archive errors never revoke a completed result or trigger Worker
+execution. See the [durable management contract](../task-engine-storage/README.md#finalized-runhistory-management-metadata-only);
+actual archive I/O and public protocol integration are separate steps.
+
 宿主可配置 `bundleLimits`、`bundleConcurrency`（默认 4）及通用 Engine limits。
 `maxPreparing` 默认 1000，`maxWaitMs` 默认 30,000ms，
 `requestResultRetentionMs` 默认 86,400,000ms。队列等待不构成 preparation 超时。

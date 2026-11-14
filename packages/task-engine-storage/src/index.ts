@@ -13,12 +13,17 @@ import { resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
   assertFactsVersion,
+  captureRunHistory,
+  createRunHistoryStorage,
   emptyFacts,
   type FactEvent,
   type Facts,
   fail,
   type NewEvent,
   reduce,
+  protectRunHistory,
+  type RunHistoryChange,
+  type RunHistoryEntry,
   restoreTaskUpdates,
   type Store,
   type StoredRunLogs,
@@ -48,12 +53,33 @@ function inspectFormat(db: DatabaseSync): boolean {
     return false;
   }
   if (version !== 5) unsupported();
+  inspectHistoryLayout(db);
   const checkpoint = db
     .prepare("SELECT projection_version, payload FROM checkpoint WHERE singleton=1")
     .get();
   if (checkpoint?.projection_version !== 5 || typeof checkpoint.payload !== "string") unsupported();
   assertFactsVersion(JSON.parse(checkpoint.payload) as Facts);
   return true;
+}
+
+function inspectHistoryLayout(db: DatabaseSync): void {
+  const table = db
+    .prepare("SELECT type FROM sqlite_schema WHERE name='run_history_archives'")
+    .get();
+  if (!table) return;
+  const columns = db.prepare("PRAGMA table_info(run_history_archives)").all();
+  if (
+    table.type !== "table" ||
+    columns.length !== 3 ||
+    columns.some(
+      (column, index) =>
+        column.name !== ["run_id", "payload", "checksum"][index] ||
+        column.type !== "TEXT" ||
+        column.pk !== (index === 0 ? 1 : 0) ||
+        column.notnull !== 1,
+    )
+  )
+    unsupported();
 }
 
 function preflight(filename: string): void {
@@ -116,6 +142,92 @@ function preflight(filename: string): void {
 }
 
 export class SqliteStore implements Store {
+  readonly runHistory = createRunHistoryStorage({
+    read: (id) => this.readHistory(id),
+    list: (after, limit) => {
+      if (!this.hasContentTable("run_history_archives")) return [];
+      return this.db
+        .prepare(
+          "SELECT run_id,payload,checksum FROM run_history_archives WHERE run_id>? ORDER BY run_id LIMIT ?",
+        )
+        .all(after, limit)
+        .map((row) => this.decodeHistory(row).record);
+    },
+    change: (owner, id, action) => this.changeHistory(owner, id, action),
+  });
+  private decodeHistory(row: Record<string, unknown>): RunHistoryEntry {
+    if (typeof row.payload !== "string" || checksum(row.payload) !== row.checksum)
+      fail("storage_corrupt", "Invalid RunHistory checksum.");
+    let entry: RunHistoryEntry;
+    try {
+      entry = JSON.parse(row.payload) as RunHistoryEntry;
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) throw error;
+      return fail("storage_corrupt", "Cannot decode RunHistory metadata.");
+    }
+    if (
+      !entry?.record ||
+      entry.record.runId !== row.run_id ||
+      !entry.record.dataDomain ||
+      !Number.isSafeInteger(entry.record.sourceWatermark) ||
+      !entry.record.policy ||
+      !entry.record.retention ||
+      !entry.record.archive ||
+      !Array.isArray(entry.record.attempts) ||
+      (entry.record.retention.state === "retained" &&
+        (entry.source?.runId !== row.run_id ||
+          entry.source.sourceWatermark !== entry.record.sourceWatermark))
+    )
+      fail("storage_corrupt", "Invalid RunHistory metadata.");
+    return entry;
+  }
+  private readHistory(id: string): RunHistoryEntry | undefined {
+    if (!this.hasContentTable("run_history_archives")) return undefined;
+    const row = this.db
+      .prepare("SELECT run_id,payload,checksum FROM run_history_archives WHERE run_id=?")
+      .get(id);
+    return row ? this.decodeHistory(row) : undefined;
+  }
+  private writeHistory(entry: RunHistoryEntry): void {
+    const payload = JSON.stringify(entry);
+    this.db
+      .prepare(
+        "INSERT OR REPLACE INTO run_history_archives (run_id,payload,checksum) VALUES (?,?,?)",
+      )
+      .run(entry.record.runId, payload, checksum(payload));
+  }
+  private changeHistory<T>(owner: string, id: string, action: RunHistoryChange<T>): T {
+    this.owned(owner);
+    this.db.exec("BEGIN IMMEDIATE");
+    let committed = false;
+    try {
+      this.db.exec(`CREATE TABLE IF NOT EXISTS run_history_archives (
+        run_id TEXT PRIMARY KEY NOT NULL, payload TEXT NOT NULL, checksum TEXT NOT NULL
+      )`);
+      const value = action(this.readHistory(id), (options) =>
+        captureRunHistory(
+          this.readInside(),
+          id,
+          options,
+          this.readRunContentRoots(id),
+          this.readRunContentAccess(id),
+        ),
+      );
+      this.writeHistory(value.entry);
+      this.options.fault?.("beforeCommit");
+      this.db.exec("COMMIT");
+      committed = true;
+      this.options.fault?.("afterCommit");
+      return structuredClone(value.result);
+    } catch (error) {
+      if (!committed) this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+  private mutableHistory(runId: string): void {
+    if (this.readHistory(runId))
+      fail("history_finalized", "Finalized RunHistory content cannot be changed.");
+  }
   private contentInitialized = false;
   private initializeContent(): void {
     if (this.contentInitialized) return;
@@ -149,6 +261,7 @@ export class SqliteStore implements Store {
   }
   retainRunContent(owner: string, runId: string, cid: string): void {
     this.owned(owner);
+    this.mutableHistory(runId);
     this.initializeContent();
     this.db
       .prepare("INSERT OR IGNORE INTO run_content_roots (run_id,cid) VALUES (?,?)")
@@ -163,6 +276,7 @@ export class SqliteStore implements Store {
   }
   recordRunContentAccess(owner: string, runId: string, sid: string): void {
     this.owned(owner);
+    this.mutableHistory(runId);
     this.initializeContent();
     this.db
       .prepare("INSERT OR IGNORE INTO run_content_access (run_id,sid) VALUES (?,?)")
@@ -459,6 +573,17 @@ export class SqliteStore implements Store {
         sequence: expectedWatermark + index + 1,
       }));
       const facts = reduce(view.facts, appended);
+      const historyIds = new Set(
+        events.flatMap((event) =>
+          event.type === "records.forgotten" ? event.data.runIds : event.runId ? [event.runId] : [],
+        ),
+      );
+      for (const id of historyIds) {
+        const entry = this.readHistory(id);
+        if (!entry) continue;
+        protectRunHistory(entry, events);
+        this.writeHistory(entry);
+      }
       const insert = this.db.prepare(
         "INSERT INTO events(sequence,payload,checksum) VALUES (?, ?, ?)",
       );

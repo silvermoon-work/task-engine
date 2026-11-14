@@ -280,6 +280,8 @@ export interface StoreView {
   events: FactEvent[];
 }
 export interface Store {
+  /** Optional as one coherent capability; no archive I/O is performed by the Store. */
+  readonly runHistory?: import("./run-history.js").RunHistoryStorage;
   readContentBlock?(cid: string): Uint8Array | undefined;
   writeContentBlock?(owner: string, cid: string, bytes: Uint8Array): void;
   retainRunContent?(owner: string, runId: string, cid: string): void;

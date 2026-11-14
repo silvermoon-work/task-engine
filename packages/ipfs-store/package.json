@@ -37,12 +37,16 @@
     "@helia/unixfs": "catalog:",
     "@helia/block-brokers": "catalog:",
     "@helia/routers": "catalog:",
+    "@ipld/dag-cbor": "catalog:",
     "@ipld/dag-pb": "catalog:",
+    "@silvermoon-work/ipfs-access": "workspace:*",
+    "@silvermoon-work/ipfs-payload": "workspace:*",
     "blockstore-core": "catalog:",
     "multiformats": "catalog:",
     "ipfs-unixfs-exporter": "catalog:"
   },
   "devDependencies": {
+    "@ipld/car": "catalog:",
     "ipfs-unixfs-importer": "catalog:"
   },
   "engines": {

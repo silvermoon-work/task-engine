@@ -1,5 +1,6 @@
 import { createServer, type ServerResponse } from "node:http";
 import * as dagPb from "@ipld/dag-pb";
+import * as dagCbor from "@ipld/dag-cbor";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
 
@@ -54,6 +55,16 @@ export async function kuboFixture() {
           const cid = CID.parse(key);
           if (recursive && cid.code === dagPb.code)
             for (const link of dagPb.decode(bytes).Links) check(link.Hash.toV1().toString());
+          if (recursive && cid.code === dagCbor.code) {
+            const walk = (value: unknown): void => {
+              const link = value instanceof CID ? value : null;
+              if (link) check(link.toV1().toString());
+              else if (Array.isArray(value)) for (const item of value) walk(item);
+              else if (value && typeof value === "object" && !(value instanceof Uint8Array))
+                for (const item of Object.values(value)) walk(item);
+            };
+            walk(dagCbor.decode(bytes));
+          }
         };
         check(key);
         pins.set(key, {

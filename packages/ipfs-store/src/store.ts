@@ -1,4 +1,5 @@
 import { CID } from "multiformats/cid";
+import type { IpfsEntry, IpfsNode, ReadonlyIpfsAccess } from "@silvermoon-work/ipfs-access";
 import type { ExportContentOptions, UnixFSEntry } from "ipfs-unixfs-exporter";
 import {
   createIpfsGatewayClient,
@@ -28,10 +29,10 @@ export interface IpfsReadOptions {
   hints?: readonly string[];
   allowGateway?: (url: URL) => boolean;
 }
-export type IpfsNode = Extract<UnixFSEntry, { type: "file" | "raw" | "directory" }>;
+export type UnixfsNode = Extract<UnixFSEntry, { type: "file" | "raw" | "directory" }>;
 
 /** Verified IPFS/UnixFS content only. Configuration and source ownership belong to the host. */
-export class IpfsStore implements IpfsClient {
+export class IpfsStore implements IpfsClient, ReadonlyIpfsAccess {
   readonly configuration: StoreConfiguration;
   readonly limits: Readonly<ContentLimits>;
   private readonly lifetime = new AbortController();
@@ -282,7 +283,13 @@ export class IpfsStore implements IpfsClient {
   async discardImport(session: string, options: IpfsReadOptions = {}): Promise<void> {
     return this.coordinator().discard(session, this.signal(options));
   }
-  async read(path: CID | string, options: IpfsReadOptions = {}): Promise<IpfsNode> {
+  async read(path: CID | string, options: IpfsReadOptions = {}): Promise<UnixfsNode> {
+    const root = CID.parse(path.toString().split("/")[0]!);
+    if (root.code !== 0x55 && root.code !== 0x70)
+      throw new ContentError(
+        "unsupported_content",
+        "Only regular UnixFS files and directories are supported.",
+      );
     const node = await openContent(this.client(options), path.toString(), this.access(options));
     if (node.type === "directory") {
       const ownerSignal = this.signal(options);
@@ -310,7 +317,66 @@ export class IpfsStore implements IpfsClient {
         "unsupported_content",
         "Only regular UnixFS files and directories are supported.",
       );
-    return node as IpfsNode;
+    return node as UnixfsNode;
+  }
+  async readContent(cid: CID, options: IpfsReadOptions = {}): Promise<IpfsNode> {
+    const lifetime = new AbortController();
+    const signal = AbortSignal.any([lifetime.signal, ...(options.signal ? [options.signal] : [])]);
+    const node = await this.read(cid, { ...options, signal });
+    if (node.type === "directory") {
+      const store = this;
+      const entries = async function* (): AsyncIterable<IpfsEntry> {
+        for await (const entry of node.entries()) {
+          const target = await store.read(entry.cid, { ...options, signal });
+          yield {
+            name: entry.name,
+            kind: target.type === "directory" ? "directory" : "file",
+            cid: entry.cid,
+          };
+        }
+      };
+      return { kind: "directory", entries: entries() };
+    }
+    const iterator = node.content()[Symbol.asyncIterator]();
+    return {
+      kind: "file",
+      content: new ReadableStream<Uint8Array>(
+        {
+          async pull(controller) {
+            try {
+              const result = await iterator.next();
+              if (result.done) controller.close();
+              else controller.enqueue(result.value);
+            } catch (error) {
+              controller.error(error);
+            }
+          },
+          async cancel() {
+            lifetime.abort(new Error("IPFS file stream canceled."));
+            await iterator.return?.();
+          },
+        },
+        { highWaterMark: 0 },
+      ),
+    };
+  }
+  async resolveContent(cid: CID, path: string, options: IpfsReadOptions = {}): Promise<CID> {
+    if (
+      typeof path !== "string" ||
+      path.includes("\0") ||
+      path.includes("\\") ||
+      (path !== "" && path.split("/").some((part) => !part || part === "." || part === ".."))
+    )
+      throw new ContentError("unsupported_content", "Expected a directory-relative content path.");
+    if (path === "") return (await this.read(cid, options)).cid;
+    let target = cid;
+    for (const part of path.split("/")) {
+      const directory = await this.read(target, options);
+      if (directory.type !== "directory")
+        throw new ContentError("unsupported_content", "Cannot resolve a path through a file.");
+      target = (await this.read(`${target}/${part}`, options)).cid;
+    }
+    return target;
   }
   prepare(root: CID | string, options: IpfsReadOptions = {}): Promise<void> {
     return prepareContent(this.client(options), root.toString(), this.access(options));

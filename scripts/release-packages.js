@@ -1,5 +1,15 @@
 export const releasePackages = [
   {
+    id: "ipfs-access",
+    directory: "packages/ipfs-access",
+    name: "@silvermoon-work/ipfs-access",
+  },
+  {
+    id: "ipfs-payload",
+    directory: "packages/ipfs-payload",
+    name: "@silvermoon-work/ipfs-payload",
+  },
+  {
     id: "ipfs-store",
     directory: "packages/ipfs-store",
     name: "@silvermoon-work/ipfs-store",

@@ -92,18 +92,20 @@ x64 和 Linux x64 已有验证；macOS、ARM 和生产多租户隔离未在本�
 构建 IO 端口与不加载编译器的 `/car` 生产/校验入口；Engine
 CLI 通过标准 CAR/UnixFS 库实现离线只读块源，生产安装不依赖 Builder/esbuild。Task 规则复用既有 Protocol/Engine 校验，CID 与 CAR 字节契约不变。当前已发布基线见上方；后续源码变更仍须分别发布和真实 registry 安装验证。旧 CAR 首次发布失败的不可变 tag 仅保留历史，不重试、不移动。
 
-| 包                                                                               | 职责                                       |
-| -------------------------------------------------------------------------------- | ------------------------------------------ |
-| [@silvermoon-work/task-protocol](./packages/task-protocol/README.md)             | 任务事实、协议、投影及 Bundle 契约         |
-| [@silvermoon-work/ipfs-store](./packages/ipfs-store/README.md)                   | 共用内容获取、CID 验证与独立共享块存储     |
-| [@silvermoon-work/task-sdk](./packages/task-sdk/README.md)                       | Worker 运行时与作者回调、上下文类型        |
-| [@silvermoon-work/task-engine](./packages/task-engine/README.md)                 | 嵌入式引擎、任务协调及执行池               |
-| [@silvermoon-work/task-engine-storage](./packages/task-engine-storage/README.md) | SQLite 持久化                              |
-| [@silvermoon-work/task-engine-http](./packages/task-engine-http/README.md)       | 可挂载 HTTP API 与 SSE                     |
-| [@silvermoon-work/task-engine-server](./packages/task-engine-server/README.md)   | Node HTTP/SSE 服务组装                     |
-| [@silvermoon-work/task-builder](./packages/task-builder/README.md)               | 只读文件树转换、esbuild 构建与流式资源     |
-| [@silvermoon-work/task-builder-cli](./packages/task-builder-cli/README.md)       | Commander 命令交互、本地文件适配与模板组装 |
-| [@silvermoon-work/task-engine-cli](./packages/task-engine-cli/README.md)         | 显式后台 Server、持久任务查询与离线清理    |
+| 包                                                                               | 职责                                          |
+| -------------------------------------------------------------------------------- | --------------------------------------------- |
+| [@silvermoon-work/task-protocol](./packages/task-protocol/README.md)             | 任务事实、协议、投影及 Bundle 契约            |
+| [@silvermoon-work/ipfs-access](./packages/ipfs-access/README.md)                 | 轻量 CID 访问与流式文件/目录类型契约          |
+| [@silvermoon-work/ipfs-payload](./packages/ipfs-payload/README.md)               | ContentRef、JSON 载荷及强链接 DAG-CBOR 编解码 |
+| [@silvermoon-work/ipfs-store](./packages/ipfs-store/README.md)                   | 共用内容获取、CID 验证与独立共享块存储        |
+| [@silvermoon-work/task-sdk](./packages/task-sdk/README.md)                       | Worker 运行时与作者回调、上下文类型           |
+| [@silvermoon-work/task-engine](./packages/task-engine/README.md)                 | 嵌入式引擎、任务协调及执行池                  |
+| [@silvermoon-work/task-engine-storage](./packages/task-engine-storage/README.md) | SQLite 持久化                                 |
+| [@silvermoon-work/task-engine-http](./packages/task-engine-http/README.md)       | 可挂载 HTTP API 与 SSE                        |
+| [@silvermoon-work/task-engine-server](./packages/task-engine-server/README.md)   | Node HTTP/SSE 服务组装                        |
+| [@silvermoon-work/task-builder](./packages/task-builder/README.md)               | 只读文件树转换、esbuild 构建与流式资源        |
+| [@silvermoon-work/task-builder-cli](./packages/task-builder-cli/README.md)       | Commander 命令交互、本地文件适配与模板组装    |
+| [@silvermoon-work/task-engine-cli](./packages/task-engine-cli/README.md)         | 显式后台 Server、持久任务查询与离线清理       |
 
 Web UI、pguide CLI 和 Check/Probe 包不在本次提取范围。Task
 SDK 已迁入，保留原 Worker 运行时与 API，仅依赖本仓库 task-protocol；init 模板与作者入口使用
@@ -114,6 +116,9 @@ binary 或宿主文件系统适配；独立 task-builder-cli 库提供 `task-bui
 [Task Builder](./packages/task-builder/README.md)。SDK、引擎、CLI、HTTP、存储和 Server 测试全部使用本仓库的 SDK、builder 和 protocol；不再依赖旧 scope 的 Bundle 工具或 SDK/protocol，也不维护旧 CAR 字节兼容测试。
 `ipfs-content` 不作为依赖，离线测试复用引擎的 `testing`
 支持。包内完整设计文档链接固定到来源提交，后续文档迁移不在本次范围。
+
+新增 IPFS 引用基础包目前仅在工作区本地验证，`0.0.0`
+是未发布占位版本。P1 不切换现有 Task/Space 协议、不归档活动状态、不发布 RC。Store 可验证及保留 DAG-CBOR/DAG-PB/raw 混合强闭包；资源读取仍只有文件/目录。载荷编码或 pin 不等于业务提交，SQLite 仍是权威状态源。
 
 ## Git lineage
 
@@ -151,6 +156,8 @@ apps/
   task-engine/
 packages/
   task-protocol/
+  ipfs-access/
+  ipfs-payload/
   ipfs-store/
   task-sdk/
   task-engine/

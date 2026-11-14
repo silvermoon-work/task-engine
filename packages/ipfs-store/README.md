@@ -29,10 +29,33 @@ Corrupt local content fails rather than silently fetching a replacement.
 byte and depth limits. `block.get` and verified `put` support offline block
 transfer; CAR encoding, task manifests, imports, path policy and DAG grafting are
 not store responsibilities.
-Low-level verified blocks are SHA-256 codec-neutral (for example a raw gateway
-may retain DAG-CBOR); full UnixFS preparation still rejects unsupported DAG codecs.
+Low-level verified blocks are SHA-256 codec-neutral. Full DAG preparation supports
+raw, DAG-PB and canonical DAG-CBOR and follows genuine IPLD links across these
+codecs, not CID-looking strings or objects. Unknown codecs, unsupported hashes,
+missing/corrupt blocks and exceeded budgets fail. Structured blocks also have a
+64-level/100,000-node inspection limit. Shared subgraphs count once for bytes and
+blocks, but all paths must satisfy the DAG depth limit.
 `ContentBlocks` in `./dag` is the bounded in-memory
 block primitive for such transfers, not another application-level acquisition API.
+`contentLinks(cid, bytes)` in that subpath is the shared codec-aware link extractor
+used by both preparation paths (callers verify block integrity separately).
+It reuses the identity-safe codec from `ipfs-payload/dag-cbor`, which loads no
+TypeBox/AJV runtime. All pin, retain, finishImport and reconciliation preparation
+uses this same mixed-codec traversal with fresh backing reads. CAR framing remains
+outside Store; tests transfer mixed graphs through the existing CAR library and
+staging/finishImport, including parent-before-child delivery and incomplete imports.
+
+The additive `readContent(cid)` and `resolveContent(cid, path)` methods implement
+the type-only `ReadonlyIpfsAccess` contract. `readContent` returns the shared
+`IpfsNode` DU (`kind: "file"` with a `ReadableStream`, or `kind: "directory"` with
+an async entry stream). Entries carry target CIDs and validated file/directory
+kinds. File cancellation and directory enumeration retain host budgets/signals.
+`resolveContent` accepts directory-relative slash-separated segments and returns
+the target CID; empty path validates and returns the resource itself.
+Structured archives cannot be read or resolved as a third file variant.
+The existing `read` result shape is unchanged and is now named `UnixfsNode`;
+the exported `IpfsNode` name refers to the shared access contract.
+The temporary writer remains a host contract, not an unprotected alias for `put`.
 
 `scope(limits?)` borrows the same backing store with an independent, no-larger
 reader budget and cancellation lifetime. Closing a scope does not close its parent.
@@ -61,8 +84,9 @@ const content = new IpfsStore({
 
 Kubo is a direct raw-block backend, not a local cache backed by a Gateway. No
 application `blocks` directory or temporary CAR is written. Original bytes and
-SHA-256 raw, DAG-PB and DAG-CBOR block CIDs are preserved; UnixFS traversal
-supports raw and DAG-PB as before. RPC responses, including errors, are bounded
+SHA-256 raw, DAG-PB and DAG-CBOR block CIDs are preserved; strong closure traversal
+supports all three while file/directory access remains raw/UnixFS only.
+RPC responses, including errors, are bounded
 while streaming. The same read/unique-block/depth limits apply. `limits.bytes`
 and `retainedBytes` measure in-process retention, **not disk quotas**.
 

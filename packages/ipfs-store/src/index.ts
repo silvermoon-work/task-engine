@@ -7,14 +7,14 @@ import { MemoryBlockstore } from "blockstore-core";
 import { type ExportContentOptions, exporter, type UnixFSEntry } from "ipfs-unixfs-exporter";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
-import * as dagPb from "@ipld/dag-pb";
-import { acquireBlock } from "./dag.js";
+import { acquireBlock, contentLinks } from "./dag.js";
+export type { IpfsNode, IpfsEntry } from "@silvermoon-work/ipfs-access";
 export { ContentError } from "./errors.js";
 export {
   IpfsStore,
   type IpfsStoreOptions,
   type IpfsReadOptions,
-  type IpfsNode,
+  type UnixfsNode,
   type StoreConfiguration,
 } from "./store.js";
 
@@ -420,20 +420,28 @@ export async function prepareContent(
   options: ContentAccessOptions,
 ): Promise<void> {
   const store = contentStore(client, options);
+  const heights = new Map<string, number>();
   const seen = new Set<string>();
-  const walk = async (cid: CID, depth: number): Promise<void> => {
+  const walk = async (cid: CID, depth: number): Promise<number> => {
     options.signal.throwIfAborted();
     if (depth > (options.depth ?? 64)) throw new Error("IPFS DAG depth capacity exceeded.");
     const key = cid.toV1().toString();
-    if (seen.has(key)) return;
+    const known = heights.get(key);
+    if (known !== undefined) {
+      if (depth + known > (options.depth ?? 64))
+        throw new Error("IPFS DAG depth capacity exceeded.");
+      return known;
+    }
     seen.add(key);
     if (seen.size > options.maxDagBlocks) throw new Error("IPFS block capacity exceeded.");
     const parts: Uint8Array[] = [];
     for await (const part of store.get(cid)) parts.push(part);
     const bytes = Buffer.concat(parts);
-    if (cid.code === dagPb.code)
-      for (const link of dagPb.decode(bytes).Links) await walk(link.Hash, depth + 1);
-    else if (cid.code !== 0x55) throw new Error("Unsupported IPFS block codec.");
+    let height = 0;
+    for (const link of contentLinks(cid, bytes))
+      height = Math.max(height, 1 + (await walk(link, depth + 1)));
+    heights.set(key, height);
+    return height;
   };
   await walk(CID.parse(root), 0);
 }

@@ -79,6 +79,7 @@
 
 ## P4: 一次性替换公开协议
 
+- P1 的独立 payload Schema profile 不是现有 Task 契约的替代验证器。P4 必须在 ipfs-payload 中提供复用严格快照/路径转换的受信编译契约桥接，继续使用 Task 的完整 Schema dialect 与校验器；保留现有 `$ref`、boolean schema、prefixItems、intersection 等非引用语义，不丢弃关键字或绕过业务验证。只拒绝真正有歧义的引用布局。
 - 统一 parameters/message/result、父子调用和外部 HTTP/CLI 的 IpfsPayload，SDK 编解码真实引用，直接调用方传完整信封。
 - 保留消息接收/接受/拒绝、请求 key/deadline、共享 Run、资格与退出/回收语义。
 - 移除 input 旧别名、Worker Space/sid 和独立 output 文件树交换协议；Bundle/子任务目标使用 CID。
@@ -107,3 +108,32 @@
 SQLite 是必要备份，IPFS 是仍需保存详情的另一个备份范围；不能只复制归档块宣称恢复了执行系统。旧 Worker 排空后显式切换新候选，新数据一旦写入不可回退到旧数据库继续接纳而丢弃新事实。
 
 归档和清理失败保留意图并报告，不自动重执行已完成 Run，不自动删除用户数据。每阶段失败停止后续轮次。主 Agent 代理验收仍需真实证据；中间 Deployment 为本地验证，最终 RC 与 Smoke 必须等待全部 iteration 完成。
+
+## 已完成的准备证据
+
+- 用户已明确由主 Agent 负责全部门限审批；最终归档行为与中间本地 Deployment 契约已同步。
+- 准确 idealRevision `ce606efcd682040b81fdc074cecf18c3f6a0aaeb` 已在 primary 上 submit/accept，Idea 已进入 implementing。该验收仅覆盖构想，不预先接受 P1 至 P6。
+- 只读 preflight 子 Agent 定向复现 Node 26.13.0 上已知模块宿主 fixture 的 invalid_payload 失败；未修改验证器或放宽断言。
+- 已安装的受支持 Node 24.12.0 上，原样运行 self-entry 与 non-entry 拒绝两个测试，2/2 通过。后续迭代使用该 Node 的进程级 PATH，不更改设备全局版本或把 Node 26 错称为不受支持。
+
+基线验证命令（仓库根为当前目录）：
+
+```powershell
+$env:TSX_DISABLE_CACHE = '1'
+$node24 = 'C:\Users\Wei\AppData\Roaming\nvm\v24.12.0\node.exe'
+Set-Location 'packages\task-engine'
+& $node24 '..\..\node_modules\tsx\dist\cli.mjs' --test --test-concurrency=1 --test-name-pattern='^IPFS module (entry preserves Builder URLs, CJS APIs, cache and per-Run isolation|hook rejects non-entry addresses without disclosing credentials)$' 'test\bundle-contract-host.test.ts'
+```
+
+后续工作使用进程级 `$env:PATH = 'C:\Users\Wei\AppData\Roaming\nvm\v24.12.0;' + $env:PATH` 执行 pnpm，不以这两个基线测试代替各 iteration 的功能与完整验收。
+
+## P1 本地验收证据
+
+- P1 subagent 完成 ipfs-access 类型契约、ipfs-payload JSON/逻辑值/DAG 编解码与受限路径校验，以及 Store 的 mixed-codec prepare/retain/reconcile 和加法式 readContent/resolveContent。
+- Node 24.12.0 下，subagent 报告定向套件 46 passed、1 skipped；真实 Kubo 测试仍为 opt-in，不把 mock 结果写成真实服务证据。
+- 主 Agent 复核新增接口和 Store 改动，并执行 `pnpm exec turbo run lint typecheck test build --filter=@silvermoon-work/ipfs-access --filter=@silvermoon-work/ipfs-payload --filter=@silvermoon-work/ipfs-store --concurrency=1 --output-logs=errors-only`：12/12 tasks 通过。
+- 主 Agent 执行 `pnpm check`，退出码 0；未修改此前 Node 26 的模块宿主 fixture 或放宽断言。无 RC/tag/发布。
+- P1 仅承诺读取适配及 putContent 接口；受控流式 writer 由 P2 的暂存管理和 P4 的 context 集成实现。当前原有 Store.read 保留，原有节点类型改名 UnixfsNode，以区分共享 IpfsNode DU。
+- P4 必须补齐上述完整 Task Schema 桥接，以及 Builder/CLI 的 CAR 遍历消费点，不能直接把 serialized Task Schema 传给 P1 的窄 profile。该限制明确纳入后续验收，不宣称完整 Task 协议已实现。
+
+P1 基础轮次本地验收通过；本 Idea 的完整 I-AC 条目仍待 P2 至 P6 的端到端证据，不能提前 submitInner。

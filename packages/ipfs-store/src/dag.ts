@@ -1,4 +1,6 @@
 import * as dagPb from "@ipld/dag-pb";
+import * as dagCbor from "@ipld/dag-cbor";
+import { asNativeCID, encodeDagCbor } from "@silvermoon-work/ipfs-payload/dag-cbor";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
 import type { IpfsClient } from "./index.js";
@@ -16,6 +18,39 @@ export const defaultContentLimits: Readonly<ContentLimits> = Object.freeze({
   blockBytes: 2 * 1024 * 1024,
   depth: 64,
 });
+
+/** Enumerate genuine IPLD links, never CID-looking strings or application object shapes. */
+export function contentLinks(
+  cid: CID,
+  bytes: Uint8Array,
+  limits: { depth?: number; nodes?: number } = {},
+): readonly CID[] {
+  for (const limit of Object.values(limits))
+    if (!Number.isSafeInteger(limit) || limit < 0)
+      throw new ContentError("capacity_exceeded", "Invalid structured content limit.");
+  if (cid.code === 0x55) return [];
+  if (cid.code === dagPb.code) return dagPb.decode(bytes).Links.map((link) => link.Hash);
+  if (cid.code !== dagCbor.code)
+    throw new ContentError("unsupported_content", "Unsupported content DAG codec.");
+  const links: CID[] = [];
+  let nodes = 0;
+  const value: unknown = dagCbor.decode(bytes);
+  const visit = (value: unknown, depth: number): void => {
+    if (++nodes > (limits.nodes ?? 100_000) || depth > (limits.depth ?? 64))
+      throw new ContentError("capacity_exceeded", "Structured content capacity exceeded.");
+    const link = asNativeCID(value);
+    if (link) links.push(link);
+    else if (Array.isArray(value)) for (const item of value) visit(item, depth + 1);
+    else if (value && typeof value === "object" && !(value instanceof Uint8Array))
+      for (const item of Object.values(value)) visit(item, depth + 1);
+  };
+  visit(value, 0);
+  const canonical = encodeDagCbor(value);
+  if (canonical.length !== bytes.length || canonical.some((byte, i) => byte !== bytes[i]))
+    throw new ContentError("unsupported_content", "Non-canonical DAG-CBOR content.");
+  return links;
+}
+
 export async function verifyBlock(cid: CID, bytes: Uint8Array): Promise<void> {
   if (cid.multihash.code !== sha256.code) throw new Error("Unsupported content hash.");
   const hash = await sha256.digest(bytes);
@@ -149,18 +184,23 @@ export class ContentBlocks implements IpfsClient {
     yield await this.block.get(cid.toString(), options);
   }
   async prepare(root: CID | string, options: { signal?: AbortSignal } = {}): Promise<void> {
-    const seen = new Set<string>();
-    const walk = async (cid: CID, depth: number): Promise<void> => {
+    const heights = new Map<string, number>();
+    const walk = async (cid: CID, depth: number): Promise<number> => {
       options.signal?.throwIfAborted();
       if (depth > this.limits.depth) throw new Error("Content DAG depth capacity exceeded.");
       const key = cid.toV1().toString();
-      if (seen.has(key)) return;
-      seen.add(key);
+      const known = heights.get(key);
+      if (known !== undefined) {
+        if (depth + known > this.limits.depth)
+          throw new Error("Content DAG depth capacity exceeded.");
+        return known;
+      }
       const bytes = await this.block.get(cid.toString(), options);
-      if (cid.code === dagPb.code)
-        for (const link of dagPb.decode(bytes).Links) await walk(link.Hash, depth + 1);
-      else if (cid.code !== 0x55)
-        throw new ContentError("unsupported_content", "Unsupported content DAG codec.");
+      let height = 0;
+      for (const link of contentLinks(cid, bytes))
+        height = Math.max(height, 1 + (await walk(link, depth + 1)));
+      heights.set(key, height);
+      return height;
     };
     await walk(typeof root === "string" ? CID.parse(root) : root, 0);
   }

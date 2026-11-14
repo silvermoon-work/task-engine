@@ -285,7 +285,7 @@ test("reader budgets account unique blocks, while a narrower full-prepare budget
   }
 });
 
-test("verified low-level blocks are codec-neutral without expanding the UnixFS preparation profile", async () => {
+test("structured block preparation does not expand the file/directory resource profile", async () => {
   const directory = resolve(".cache", `store-codec-${randomUUID()}`);
   const store = new IpfsStore({ dataDir: directory });
   const bytes = Uint8Array.of(0xa0);
@@ -293,7 +293,10 @@ test("verified low-level blocks are codec-neutral without expanding the UnixFS p
   try {
     await store.put(cid, bytes);
     assert.deepEqual(await store.block.get(cid.toString()), bytes);
-    await assert.rejects(store.prepare(cid), /Unsupported IPFS block codec/);
+    await store.prepare(cid);
+    await assert.rejects(store.read(cid), /regular UnixFS files/);
+    await assert.rejects(store.readContent(cid), /regular UnixFS files/);
+    await assert.rejects(store.resolveContent(cid, ""), /regular UnixFS files/);
   } finally {
     await store.close();
     await rm(directory, { recursive: true, force: true });

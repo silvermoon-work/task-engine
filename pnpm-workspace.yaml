@@ -28,6 +28,7 @@ catalog:
   "@ipld/car": 5.4.6
   "@ipld/dag-pb": 4.2.0
   "@ipld/dag-cbor": 10.0.2
+  cborg: 6.2.1
   "@helia/http": 3.0.4
   "@helia/unixfs": 8.0.9
   "@helia/block-brokers": 5.2.4

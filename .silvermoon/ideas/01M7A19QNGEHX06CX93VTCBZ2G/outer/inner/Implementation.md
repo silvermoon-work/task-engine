@@ -6,7 +6,7 @@
 
 ### I-S01: 依据确认契约实现引用往返
 
-构想验收后，按确认方案调整 input/result 契约与编解码，覆盖嵌套值及父子任务组合；JSONPath、TypeBox 扩展和传输信封仍待确认。
+构想验收后，按[Content Payload 设计](ContentPayload.md)建立 `@silvermoon-work/content-payload` 工具包，以充分单测验证 JSONPath、判别分支及引用往返；将契约命名统一为 parameters/message/result，保持现有 Schema/API V1。TypeBox 扩展与传输信封按待决定项收敛，不重复实现转换。
 
 ### I-S02: 以不可变内容能力替代可写输出
 
@@ -16,7 +16,7 @@
 
 ### I-AC01: 引用与普通 JSON 无歧义往返
 
-以定向测试覆盖输入/结果、数组重组和父子引用传递；普通 CID 字符串及同形对象保持业务原义，无效引用按契约明确失败。
+以工具包单测和集成验证覆盖 parameters/result、数组重组、混排及嵌套 discriminated union、父子引用传递；引用路径尽可能使用安全通配符或判别条件，普通 CID 字符串及同形对象保持业务原义。无效引用或判别信息按契约明确失败；直接依赖的调用方使用新命名，原有 Schema/API V1 不变。
 
 ### I-AC02: 内容写入与生命周期可验证
 

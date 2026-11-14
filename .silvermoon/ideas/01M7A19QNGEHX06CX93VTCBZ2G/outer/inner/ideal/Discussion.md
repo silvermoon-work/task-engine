@@ -15,53 +15,26 @@ Blob 模型已被本方向取代，不再作为待实施方案。2026-11-14，�
 
 ## 本次收敛方向
 
-- input 与 result 均可包含类型化内容引用；不要求整个输入或结果只传一个根 CID，也不把大内容嵌入 JSON。
+- parameters 与 result 均可包含类型化内容引用；不要求整个输入或结果只传一个根 CID，也不把大内容嵌入 JSON。
 - 通用引用只包含目标 CID，不附加 path，不假定目标节点是文件树。作者侧 SpaceRef 若定位子节点，须解析得到该目标 CID，不能直接使用所属 Space 的根 CID。
 - 编码时把作者侧真实内容引用转换为可识别 CID；解码时恢复当前上下文中的只读内容引用。是否统一使用 SpaceRef 表达一般 codec 节点，仍需确认。
 - 父任务可组合子任务返回的引用并再次编码；这是业务结果组合，不是合并输出目录或复制全部资源。
 - Worker 不再直接维护 ReadWriteSpace。保留只读资源访问，并提供受控的新内容存储能力：先成功写入 IPFS Store，再返回稳定引用，而不是只计算哈希。
 - 弱引用表示内容定位，不自动授权、下载、保留或要求目标块进入结果的 Merkle DAG/CAR；完整打包与资源生命周期是独立策略。
 
-## 契约与引用编码候选
+## 2026-11-14 已确认的关键设计
 
-仅凭 CID 字符串或 `{ "$cid": "..." }` 对象形状不能排除普通业务数据。引用语义需要由契约和明确的编码元数据表达。
+以下是局部设计决定，不是完整构想验收。详细契约示例、实现边界和测试要求集中记录在主体世界的[Content Payload 设计](../ContentPayload.md)，不把它作为第二份构想契约。
 
-当前候选是在 TypeBox 中增加内容引用类型，由单一契约声明 input/result 哪些位置允许引用。`ContentRef()` 只是讨论中的名称，不是已批准或已存在的 API；必须同时解决作者侧类型推导、传输 Schema 和验证，不能只给普通字符串添加注释。
+- 契约使用 `parameters / message / result`，类型命名为 `Parameters / Message / Result`。parameters 表达启动参数集合，message 表达可追加的单条运行中消息，result 表达最终业务结果。
+- 单个内容引用称为 `ContentRef`，包含业务数据与引用语义的传输载荷称为 `ContentPayload<T>`；信封不是单个引用。
+- 引用位置采用从类型定义推导的 JSONPath。数组尽可能使用通配符，不把每次运行的具体下标清单作为默认模型。
+- 允许包含 ContentRef 的 discriminated union：依据实际 discriminator 选择分支，再定位引用。禁止无判别信息的直接 `ContentRef | String`，不一概禁止外层 union。
+- 数组中的分支可以混排；只在符合引用分支的元素上转换，不将普通 CID 字符串或同形业务对象误解码。
+- JSON 与 ContentRef 的转换独立成 `@silvermoon-work/content-payload` 工具包，并进行充分单测；工具包不承担内容存储和 Task 生命周期。
+- 当前处于内部开发阶段，本次 breaking change 直接调整现有 Schema/API V1，不迭代版本号。同步更新直接依赖的定义与调用方。
 
-JSONPath 可以表示引用位置；契约规则与本次值的实际位置须区分。数组及 union 等结构需要按实际值生成或验证位置，不能无条件把匹配字符串全部转换。也可以采用 JSON Pointer 表达具体位置，最终语法未定。
-
-独立引用清单是一种候选：业务 JSON 不占用保留字段，传输信封记录哪些位置是引用。SDK 仅编码真实引用并在接收时按验证后的清单解码；父任务重组结构后重新生成清单，不复用旧索引。是否必须携带清单、如何处理 union 分支歧义及防止伪造，留待方案确认。
-
-### 作者侧契约示例：待确认
-
-沿用现有 `{ input, result, message, schemas? }` 结构，在普通 TypeBox 结构中声明内容引用字段，不另加一份作者维护的位置清单。以下 `ContentRef()` 是候选 Schema 构造器，不是现有可执行 API：
-
-```ts
-import { Type } from "@sinclair/typebox";
-
-export default {
-  input: Type.Object({
-    document: ContentRef(),
-    baseline: Type.Optional(ContentRef()),
-    label: Type.String(),
-  }),
-  result: Type.Object({
-    issues: Type.Array(
-      Type.Object({
-        message: Type.String(),
-        references: Type.Array(ContentRef()),
-      }),
-    ),
-  }),
-  message: Type.Never(),
-};
-```
-
-`ContentRef()` 声明的是“此处必须是内容引用”，不是“此处是碰巧符合 CID 格式的字符串”。作者侧类型推导应得到只读引用类型；传输侧可编码为 CID 字符串，但需要由保留下来的协议语义及实际引用位置共同验证。`label` 始终是普通字符串，即使值是有效 CID 也不解码为引用。
-
-若采用独立清单，输入的实际位置可能是 `/document`，结果的实际位置可能是 `/issues/0/references/0`；这些是本次值的位置，不是作者另写的 JSONPath 模板。可选字段缺席时不生成位置，数组重组后重新生成位置。输入与结果使用相同规则。
-
-Schema 构造器必须同时定义作者侧类型和可序列化的传输契约语义。当前 Builder 只接受已支持的 TypeBox kind，并拒绝 `format` 等未被 Engine 强制校验的注释，不能把现有 `Type.String({ format: "cid" })` 或 TypeBox Transform 当作已支持方案。扩展关键字、清单信封及 union 的联合验证仍需设计，不能仅保留一个被验证器忽略的注释。
+先前的 JSON Pointer 具体下标清单不再作为主要方向；先前 `input` 或候选 `params` 的契约命名由 `parameters` 取代。`ContentPayload` 的具体字段名、路径元数据的放置方式和引用访问 API 尚未决定，不将此前示例当成已批准协议。
 
 ## 文档弱引用图：关联议题
 
@@ -73,16 +46,11 @@ Schema 构造器必须同时定义作者侧类型和可序列化的传输契约�
 
 ## 待确认细节
 
-1. 引用类型的 TypeBox 扩展、作者 API、输入输出对称性，以及 JSONPath/JSON Pointer 或其他位置元数据的确切契约。
-2. 编解码顺序、Schema 校验、可选项/数组/union、普通同形对象、无效 CID 及无效位置的错误行为。
-3. 只读引用如何支持不同 codec；新内容写入的编码、流式传输、取消及资源预算，不向 Worker 暴露宿主完整 Store 或保留管理权限。
-4. 写入与保留的区别：结果发布、父子运行结束、故障及回收时如何管理引用目标；外部弱引用的可用性承诺和缺失错误。
-5. 旧 `context.output`、Run 输出信封、Space 协议、invokeTask、CLI 与现有消费者的兼容或迁移，不修改历史制品。
-6. 文档描述节点、弱引用索引、按需闭包打包及磁盘物化的归属与后续范围。
+重要阻塞项及不必阻塞本次方向的关联议题集中维护在[待决定项](OpenQuestions.md)。已确认的命名、JSONPath 方向、discriminated union、独立工具包和保持 V1 不再列为未决项。
 
 ## 候选验证场景
 
-调用方传入包含真实内容引用及普通 CID 字符串、同形对象的 input。子 Check 读取资源并返回问题的 CID 引用；父 Check 重组数组后再次返回。验证引用往返而普通数据保持原义，父任务不创建输出目录或复制子资源。
+调用方传入包含真实内容引用及普通 CID 字符串、同形对象的 parameters。子 Check 读取资源并返回问题的 CID 引用；父 Check 重组数组后再次返回。验证引用往返而普通数据保持原义，父任务不创建输出目录或复制子资源。
 
 另验证 Worker 写入新内容后返回引用，存储失败不能冒充成功，子任务结束后目标的可用性符合明确的保留策略。共享标准、多级及循环文档引用用于后续文档层方案，不假定弱引用会自动实现完整离线交付。
 

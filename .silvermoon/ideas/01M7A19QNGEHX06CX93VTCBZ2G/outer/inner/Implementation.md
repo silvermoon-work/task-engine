@@ -6,11 +6,11 @@
 
 ### I-S01: 依据确认契约实现引用往返
 
-构想验收后，按[Content Payload 设计](ContentPayload.md)建立 `@silvermoon-work/content-payload` 工具包，以充分单测验证 JSONPath、判别分支及引用往返；将契约命名统一为 parameters/message/result，保持现有 Schema/API V1。TypeBox 扩展与传输信封按待决定项收敛，不重复实现转换。
+构想验收后，按[IPFS Payload 设计](IpfsPayload.md)建立 `@silvermoon-work/ipfs-payload` 工具包，以充分单测验证 JSONPath、判别分支及引用往返；将契约命名统一为 parameters/message/result，保持现有 Schema/API V1。TypeBox 扩展与传输信封按待决定项收敛，不重复实现转换。
 
 ### I-S02: 以不可变内容能力替代可写输出
 
-按确认方案以 CID 读取、CID 加 path 解析及临时写入返回 CID 替代 Worker 对外 Space 接口，统一三个通道与内外部调用，移除旧 output 交换模型；实现运行/结果持有、错误及直接替换边界，不复制或全面重写存储实现。
+按确认方案建立 ipfs-access 契约及按需引入的 ipfs-tree 只读便利层，以 CID 读取、CID 加 path 解析及临时写入返回 CID 替代 Worker 对外 Space 接口，统一三个通道与内外部调用，移除旧 output 交换模型；实现运行/结果持有、错误及直接替换边界，不复制或全面重写存储实现。
 
 ## Acceptance criteria
 
@@ -20,4 +20,4 @@
 
 ### I-AC02: 内容写入与生命周期可验证
 
-验证无需 ReadWriteSpace 即可读取已有内容、成功存储并返回新 CID；存储失败、取消和引用目标保留遵循确认策略，兼容或迁移边界有明确证据。
+验证无需 ReadWriteSpace 即可流式读取已有内容、成功存储并返回新 CID；存储失败、取消和引用目标保留遵循确认策略，直接替换边界有明确证据。验证未引入 ipfs-tree 的 Task 构建产物不包含其运行时模块，SDK 与 ipfs-payload 不形成对它的依赖。

@@ -1,4 +1,4 @@
-# Content Payload：已确认设计与实施边界
+# IPFS Payload：已确认设计与实施边界
 
 本文件支持 [Implementation](Implementation.md)，记录 2026-11-14 已讨论确定的设计及其必要验证。当前仍为准备阶段，不授权实现、构想提交或发布。标为候选的字段与 API 不代表已确认。
 
@@ -10,7 +10,7 @@
 - message：运行期间可以追加的单条业务消息，不改名为暗示特定处理语义的 Signal 或 Update。
 - result：最终业务结果。
 
-parameters、message 和 result 均支持内容引用往返，使用同一 ContentPayload 交换规则。消息身份、接受/拒绝等控制信息位于业务载荷外层。
+parameters、message 和 result 均支持内容引用往返，使用同一 IpfsPayload 交换规则。消息身份、接受/拒绝等控制信息位于业务载荷外层。
 
 以下示例中的 `ContentRef()` 表达已确认的类型方向，具体导出 API 尚待确认：
 
@@ -38,13 +38,15 @@ export default {
 };
 ```
 
-普通 CID 字符串不因内容形状而成为引用；例如 label 始终保持业务字符串语义。ContentRef 表达真实内容引用，JSON 编码定位目标 CID，不附加 path。若来源是定位 Space 子节点的引用，编码目标必须是该节点 CID，而不是 Space 根 CID。
+普通 CID 字符串不因内容形状而成为引用；例如 label 始终保持业务字符串语义。ContentRef 表达真实内容引用，JSON 编码定位目标 CID，不附加 path。若资源来自根 CID 加 path，先解析得到目标节点 CID，再构造引用，不能用根 CID 冒充目标。
 
 ## 载荷与引用不是同一类型
 
 - 单个引用类型：`ContentRef`。
-- 包含业务数据及内容引用语义的载荷类型：`ContentPayload<T>`。
-- 工具包：`@silvermoon-work/content-payload`，放在 `packages/`。
+- 包含业务数据及内容引用语义的载荷类型：`IpfsPayload<T>`。
+- 工具包：`@silvermoon-work/ipfs-payload`，放在 `packages/`。
+
+2026-11-14，用户确认这一系列直接使用 IPFS 命名，与现有 ipfs-store 保持一致。此前的 ContentPayload/content-payload 命名由 IpfsPayload/ipfs-payload 取代；ContentRef 仍保留，表示契约中的内容引用角色，传输字段 cidPaths 不变。
 
 2026-11-14，用户确认方案 A：每个载荷自带引用路径，可脱离原 Task 契约识别引用语义。parameters/result 使用同一信封原则；不以仅传业务 JSON、依赖外部契约恢复引用的方案 B 为默认协议。
 
@@ -105,13 +107,13 @@ return { report: ContentRef.fromCID(reportCid) };
 
 2026-11-14，用户进一步收敛宿主内容能力为按 CID 读取内容、用 CID 加 path 解析目标 CID、临时存入内容并返回 CID。此处 path 只用于解析，不附加到通用 ContentRef 上；新内容返回 CID 后，仍需按契约表达其引用语义，普通 CID 字符串不自动成为 ContentRef。
 
-新内容由宿主的受控写入能力存储，成功后返回 CID；失败、取消或超过预算明确失败，不能只计算 CID 后声称内容已存储。具体方法、raw/UnixFS/结构化节点等内容模型以及流式行为仍待 B-02 收敛。
+新内容由宿主的受控写入能力存储，成功后返回 CID；失败、取消或超过预算明确失败，不能只计算 CID 后声称内容已存储。文件读取采用流，不默认将完整内容缓冲为字节数组；具体方法、raw/UnixFS/结构化节点等内容模型以及流式写入行为仍待 B-02 收敛。
 
 上述 ContentRef.fromCID 只是引用构造示意；作者侧如何构造 ContentRef 或在声明为引用的字段使用原生 CID 类型，需在工具包接口设计中明确，不能猜测普通字符串类型。
 
 ## 全量协议替换与 Space 边界
 
-2026-11-14，用户同意全部切换：parameters/message/result、父子调用、SDK、HTTP 和 CLI 共用 ContentPayload 编解码，不保留旧 input 命名或旧 output 交换格式的兼容别名。保持已有 Schema/API V1，不重写历史制品或承诺旧制品继续运行。
+2026-11-14，用户同意全部切换：parameters/message/result、父子调用、SDK、HTTP 和 CLI 共用 IpfsPayload 编解码，不保留旧 input 命名或旧 output 交换格式的兼容别名。保持已有 Schema/API V1，不重写历史制品或承诺旧制品继续运行。
 
 Worker 内容访问改为三种 CID 能力，不再暴露 context.output、context.space(cid) 或作为 ReadonlySpace 的 context.bundle，也不再以 SpaceRef/SpaceRefJSON 表达传输引用。Bundle 身份及子任务目标通过 CID 表达，具体字段和签名在实施设计中收敛。
 
@@ -132,6 +134,27 @@ Worker 内容访问改为三种 CID 能力，不再暴露 context.output、conte
 - 资源及其强 DAG 子块的保留不等于遍历文档弱引用闭包，后者仍为关联议题。
 
 结果清理与保留关系的具体接口、持有恢复和既有本地内容再次引用的策略，仍需在上述原则下细化；不再将“运行持有还是结果持有”列为待决定项。
+
+## IPFS 包职责与依赖边界
+
+统一使用 `@silvermoon-work` 下的以下包名。现有 ipfs-store 保持原名，其余包在构想验收后的实施中建立，不因本次文档更新开始创建或发布：
+
+| 包 | 职责 | 主要类型 |
+| --- | --- | --- |
+| `@silvermoon-work/ipfs-access` | CID 内容访问与节点契约，不含宿主实现 | `IpfsAccess`、`IpfsNode`、`IpfsEntry` |
+| `@silvermoon-work/ipfs-payload` | 引用类型、JSON 编解码及 cidPaths 推导与校验 | `IpfsPayload<T>`、`ContentRef` |
+| `@silvermoon-work/ipfs-tree` | 按需引入的 CID 只读文件树便利层 | `ReadonlyIpfsTree` |
+| `@silvermoon-work/ipfs-store` | 实际存储、读取及保留实现 | 沿用并协调既有类型 |
+
+IpfsAccess 归属轻量的 ipfs-access 契约包；由宿主提供实现，Task SDK 提供受控访问适配，ipfs-tree 组合读取与解析能力。文件树便利封装不是 Task 专有能力，不放进 SDK 或 ipfs-payload。
+
+ipfs-tree 仅要求 IpfsAccess 的只读子集，不强制注入写入权限；不新增 Space 身份、挂载、写入或保留管理。取消、预算和权限由宿主访问能力控制，文件树操作只用于支持目录语义的内容，不把任意 codec 当成文件树。
+
+SDK 与 ipfs-payload 不依赖或重新导出 ipfs-tree。使用树形 read/list/resolve 便利功能的 Task 显式引入 ipfs-tree，未使用的 Task 不应携带其运行时模块，不仅依赖 tree-shaking 消除多余代码。共享接口使用 import type，不为接口引入 Engine、Store 或不必要的 codec 实现。
+
+命名绑定 IPFS 不等于依赖绑定完整 Store。ipfs-access 不依赖 Task SDK、ipfs-tree 或具体 Store 实现；ipfs-payload 不依赖内容 I/O。既有 Store 节点类型与共享契约须协调，不建立同名但不一致的节点模型。
+
+目录列表需要底层能提供目录条目，不能从任意文件字节流或仅解析指定 path 的能力推断出来。底层读取返回文件/目录节点（文件携带内容流、目录携带条目流），或额外提供枚举能力，仍是待明确的接口形状；只读便利层拆包不替代这一协议要求。
 
 ## 工具包职责
 

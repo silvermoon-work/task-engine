@@ -26,7 +26,7 @@ P5 不依赖 P2/P3/P4，可在 P1 完成后独立实现；主路径仍是 P0 →
 
 ## P0: 冻结重大选择，不写生产代码
 
-- 确认查询 SQLite 与 Store registry/retention 元数据的边界及备份范围。
+- R-01 已确认方案 A：Store 的耐久 SQLite 协调元数据属于必要备份，查询 SQLite 为高效可重建索引；P2 按此实施，不自建另一套文件日志。
 - RunHistory 单位已经确认；只需确认 Run 前/跨 Run 事实的根集合及关闭 Run 的历史保留/回收语义。
 - 确认不完整入站申请如何持久化，与正式强 Payload 的准入边界。
 - 确认核心 DAG 的私有存储/公开分发范围。
@@ -58,7 +58,7 @@ P5 不依赖 P2/P3/P4，可在 P1 完成后独立实现；主路径仍是 P0 →
 
 ### 改动范围
 
-- 落实 R-01 选定的 registry 介质，支持 expected-head/sequence、commitId、排他 writer 与耐久恢复。
+- 在独立耐久 SQLite 中实现已确认的 Store registry，支持 expected-head/sequence、commitId、排他 writer 与耐久恢复；与可重建查询库隔离，完整业务内容保留在 DAG。
 - 复用现有多 owner、外部 pin、staging 和未完成意图保护；改为管理结构化逻辑根，不绕开 Retention 的 fail-safe sweep。
 - 提交顺序：保护依赖与候选 → 校验完整闭包 → 确认递归 pin → 提交权威 head → 投影追赶 → 释放已不需要的保护。
 - 为异步存储定义 awaitable 的提交接口和串行队列，不伪装成当前同步 append。

@@ -6,17 +6,16 @@
 
 已确定 ContentPayload、ContentRef 命名，以及从类型和 discriminator 推导 JSONPath、数组尽可能使用通配符。2026-11-14 用户进一步确认方案 A：每个载荷自带路径，可脱离原 Task 契约识别引用；仅依赖绑定契约的方案 B 不作为默认协议。尚需决定：
 
-- 信封字段采用 data/contentRefPaths、data/cidPaths 或其他名称。
 - JSONPath 的受支持子集，以及嵌套判别条件不能安全合并时的具体位置回退方式。
 - 收到路径元数据时以什么方式验证它与可信契约一致，不能任意把业务数据标成引用。
 
-载荷独立性与元数据放置的主要取舍已解决；字段定名和受支持的定位、验证规则需在实现前收敛，不重新争论方案 A/B。接下来优先讨论 B-02 的引用访问与受控写入能力。
+载荷独立性与元数据放置的主要取舍已解决；2026-11-14 用户将引用路径字段定名为 cidPaths。受支持的定位与验证规则需在实现前收敛，不重新争论方案 A/B 或已确定的引用字段名。
 
 ## B-02: 引用对象与受控内容能力
 
 2026-11-14 用户确认引用访问方案 A：ContentRef 只表示不可变 CID 身份，读取通过 context 提供的受控内容能力进行，不把读取方法或访问权限绑定到引用上。工具包与宿主 I/O 分离的主要取舍已解决。
 
-尚需收敛创建已有 CID 引用的入口、context 内容接口，以及 raw、UnixFS 或一般 codec 节点的访问方式。新内容写入须成功存储后才产生稳定引用，但输入编码、流式支持、取消和资源预算尚未定。不得向 Worker 暴露完整 Store 或保留管理权限。
+用户进一步收敛 context 内容能力为按 CID 读取、CID 加 path 解析目标 CID、临时存入内容并返回 CID。尚需明确工具包如何在作者侧构造或识别真实 ContentRef/CID 类型，以及 raw、UnixFS 或一般 codec 节点的读写与路径语义。写入须成功存储后才返回 CID，但输入编码、流式支持、取消和资源预算尚未定。不得向 Worker 暴露完整 Store 或保留管理权限。
 
 受控 context 写入替代可写 output Space 的能力方向已确定；内容模型及边界仍需在实现前明确，不临时猜测 codec。下一项优先讨论 B-03 的保留责任。
 
@@ -30,14 +29,9 @@
 
 ## B-04: 协议调整的覆盖范围
 
-parameters/message/result 命名及保持现有 Schema/API V1 已确定。尚需明确：
+2026-11-14 用户确认全部切换：三个通道、父子调用和外部 SDK/HTTP/CLI 使用统一 ContentPayload，不维护旧 input/output 交换协议。Task/Worker 对外 Space 接口由三种 CID 内容能力替代，Bundle 与子任务目标改以 CID 表达；内部 Builder 文件树及存储实现不因此全面删除。保持已有 Schema/API V1，历史制品不重写或承诺兼容。
 
-- message 是否同样允许 ContentRef 并使用 ContentPayload；当前明确要求是 parameters/result。
-- context.output、Run 的 output/cid/result 信封、Space、invokeTask、HTTP 和 CLI 的具体替代形状。
-- 独立工具包是否暴露 TypeBox 构造器和宿主引用适配接口，以及构建与运行边界如何共享契约语义。
-- 直接替换旧字段还是保留有限过渡入口；历史制品不因保持 V1 而被重写。
-
-建议围绕一次启动、一次追加消息、一次子任务调用及一次最终结果消费画出统一边界，再确认替代范围。此项不重新争论已决定的字段命名或 Schema/API 版本。
+主要覆盖范围已解决。具体 Run/result 控制信封、Bundle CID 字段、TypeBox 构造器及作者侧引用类型由主体世界继续细化；不把这些方法命名问题重新当成全量替换的授权阻塞。
 
 ## 不作为本次前置阻塞的事项
 

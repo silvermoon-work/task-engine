@@ -10,7 +10,7 @@
 - message：运行期间可以追加的单条业务消息，不改名为暗示特定处理语义的 Signal 或 Update。
 - result：最终业务结果。
 
-parameters 和 result 支持内容引用往返；message 是否同样允许 ContentRef 见[阻塞项 B-04](ideal/OpenQuestions.md#b-04-协议调整的覆盖范围)。
+parameters、message 和 result 均支持内容引用往返，使用同一 ContentPayload 交换规则。消息身份、接受/拒绝等控制信息位于业务载荷外层。
 
 以下示例中的 `ContentRef()` 表达已确认的类型方向，具体导出 API 尚待确认：
 
@@ -25,6 +25,7 @@ export default {
   }),
   message: Type.Object({
     instruction: Type.String(),
+    document: Type.Optional(ContentRef()),
   }),
   result: Type.Object({
     issues: Type.Array(
@@ -47,7 +48,7 @@ export default {
 
 2026-11-14，用户确认方案 A：每个载荷自带引用路径，可脱离原 Task 契约识别引用语义。parameters/result 使用同一信封原则；不以仅传业务 JSON、依赖外部契约恢复引用的方案 B 为默认协议。
 
-方案 A 的示意字段为 `data + contentRefPaths`，路径相对于 data 求值，不相对于整个信封；字段名仍待最终定名。`value + references` 和 `data + cidPaths` 是此前的命名候选，不得当成已批准 API。
+2026-11-14，用户将引用路径字段定名为 `cidPaths`，取代较长的 contentRefPaths；信封示例统一使用 `data + cidPaths`。路径相对于 data 求值，不相对于整个信封。此前 `value + references` 和 `data + contentRefPaths` 不再作为引用字段命名方案。
 
 路径提供引用语义，不替代完整业务 Schema 校验，不授予内容访问权限，也不证明内容已交付或保留。Engine 已绑定可信契约时，必须核对载荷的引用定位与契约及实际判别分支一致。独立解码不要求找回原 Task 契约，但仍需验证载荷与定位表达式；完整业务结构验证需要对应 Schema。
 
@@ -95,14 +96,28 @@ $['items'][?@['kind'] == 'reference']['value']
 以下调用形式是接口示意，不代表最终方法名：
 
 ```ts
-const bytes = await context.content.readBytes(parameters.document);
-const report = await context.content.putBytes(reportBytes);
-return { report };
+const bytes = await context.readContent(parameters.document.cid);
+const reportCid = await context.putContent(reportBytes);
+return { report: ContentRef.fromCID(reportCid) };
 ```
 
 构造或解码引用不授予访问权限，也不要求立即下载内容。读取权限、取消和预算由宿主负责；跨 Task 传递引用不传递原运行的能力。工具包不依赖 Engine Store，也不把读取能力绑定到 ContentRef 上。
 
-新内容由宿主的受控写入能力存储，成功后返回 ContentRef；失败、取消或超过预算明确失败，不能只计算 CID 后声称内容已存储。具体方法、raw/UnixFS/结构化节点等内容模型以及流式行为仍待 B-02 收敛。
+2026-11-14，用户进一步收敛宿主内容能力为按 CID 读取内容、用 CID 加 path 解析目标 CID、临时存入内容并返回 CID。此处 path 只用于解析，不附加到通用 ContentRef 上；新内容返回 CID 后，仍需按契约表达其引用语义，普通 CID 字符串不自动成为 ContentRef。
+
+新内容由宿主的受控写入能力存储，成功后返回 CID；失败、取消或超过预算明确失败，不能只计算 CID 后声称内容已存储。具体方法、raw/UnixFS/结构化节点等内容模型以及流式行为仍待 B-02 收敛。
+
+上述 ContentRef.fromCID 只是引用构造示意；作者侧如何构造 ContentRef 或在声明为引用的字段使用原生 CID 类型，需在工具包接口设计中明确，不能猜测普通字符串类型。
+
+## 全量协议替换与 Space 边界
+
+2026-11-14，用户同意全部切换：parameters/message/result、父子调用、SDK、HTTP 和 CLI 共用 ContentPayload 编解码，不保留旧 input 命名或旧 output 交换格式的兼容别名。保持已有 Schema/API V1，不重写历史制品或承诺旧制品继续运行。
+
+Worker 内容访问改为三种 CID 能力，不再暴露 context.output、context.space(cid) 或作为 ReadonlySpace 的 context.bundle，也不再以 SpaceRef/SpaceRefJSON 表达传输引用。Bundle 身份及子任务目标通过 CID 表达，具体字段和签名在实施设计中收敛。
+
+废弃的是 Task/Worker 对外的 Space 接口及其直接依赖的宿主桥接协议，不是删除一切内部树形数据实现。Builder 的 ReadonlyFileTree、底层 UnixFS/DAG 和 Store 可以按需要保留；不得因此扩大为无关存储重写。只读资源仍可经 CID 读取或经 CID 加 path 解析，不需要保留只读 Space 门面。
+
+临时存储受前述运行/结果持有原则约束；“临时”不表示运行结束便回收已由结果持有的内容。
 
 ## 内容保留原则
 
@@ -149,4 +164,4 @@ return { report };
 
 项目仍在内部开发阶段。本次 breaking change 直接调整已有定义及依赖调用方；现有 Schema version 和 API version 为 V1 的继续保持 V1，不因本次修改引入 V2 或其他迭代版本号。
 
-此决定不是包版本、发布渠道或发布授权的变更，也不授权重写历史制品。旧字段是否保留过渡入口、旧 output 的具体替代边界仍按 B-04 确认，不从“不升级 V1”推导未明确的兼容承诺。
+此决定不是包版本、发布渠道或发布授权的变更，也不授权重写历史制品。用户已另外确认全部切换、不维护旧交换协议；不从“保持 V1”推导历史制品兼容承诺。

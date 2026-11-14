@@ -29,15 +29,17 @@ Blob 模型已被本方向取代，不再作为待实施方案。2026-11-14，�
 - 契约使用 `parameters / message / result`，类型命名为 `Parameters / Message / Result`。parameters 表达启动参数集合，message 表达可追加的单条运行中消息，result 表达最终业务结果。
 - 单个内容引用称为 `ContentRef`，包含业务数据与引用语义的传输载荷称为 `ContentPayload<T>`；信封不是单个引用。
 - 2026-11-14 用户确认方案 A：载荷自带引用路径，脱离原 Task 契约仍可识别引用语义；路径相对于业务数据求值，不自动授予内容访问权限或替代完整业务校验。
+- 2026-11-14 用户将引用路径字段定名为 `cidPaths`，并同意全部切换：parameters/message/result 及内外部调用统一 ContentPayload，不保留旧交换协议。
 - 引用位置采用从类型定义推导的 JSONPath。数组尽可能使用通配符，不把每次运行的具体下标清单作为默认模型。
 - 允许包含 ContentRef 的 discriminated union：依据实际 discriminator 选择分支，再定位引用。禁止无判别信息的直接 `ContentRef | String`，不一概禁止外层 union。
 - 数组中的分支可以混排；只在符合引用分支的元素上转换，不将普通 CID 字符串或同形业务对象误解码。
 - JSON 与 ContentRef 的转换独立成 `@silvermoon-work/content-payload` 工具包，并进行充分单测；工具包不承担内容存储和 Task 生命周期。
 - 2026-11-14 用户确认引用访问方案 A：ContentRef 只表示不可变 CID 身份，由 context 提供受控读取及新内容写入能力；引用对象不绑定读取方法或原运行的权限。
+- context 内容能力收敛为按 CID 读取、CID 加 path 解析目标 CID、临时存储内容并返回 CID；Task/Worker 对外 Space 接口由这三种能力替代，内部 Builder 文件树和存储实现不因此全面删除。
 - 2026-11-14 用户确认保留原则：本地新内容由运行临时持有，发布后由结果持有；父子可同时持有同一内容，交接不留回收窗口，失败临时持有可恢复地清理。外部缺失 CID 不自动下载或获得持久可用性承诺，保留强 DAG 不等于遍历文档弱引用。
 - 当前处于内部开发阶段，本次 breaking change 直接调整现有 Schema/API V1，不迭代版本号。同步更新直接依赖的定义与调用方。
 
-先前的 JSON Pointer 具体下标清单不再作为主要方向；先前 `input` 或候选 `params` 的契约命名由 `parameters` 取代。路径由载荷携带已确定；`ContentPayload` 的具体字段名、JSONPath 支持子集和引用访问 API 尚未决定，不将此前示例的所有细节当成已批准协议。
+先前的 JSON Pointer 具体下标清单不再作为主要方向；先前 `input` 或候选 `params` 的契约命名由 `parameters` 取代。路径由载荷携带且字段使用 `cidPaths` 已确定；JSONPath 支持子集、内容模型与具体 API 签名仍需收敛，不将此前示例的所有细节当成已批准协议。
 
 ## 文档弱引用图：关联议题
 

@@ -45,7 +45,11 @@ export default {
 - 包含业务数据及内容引用语义的载荷类型：`ContentPayload<T>`。
 - 工具包：`@silvermoon-work/content-payload`，放在 `packages/`。
 
-载荷字段尚未定名。此前的 `value + references`、`data + contentRefPaths` 和 `data + cidPaths` 是候选，不得当成已批准 API。同样尚未决定路径随每次载荷传输，还是由绑定契约提供；独立导出是否携带路径也属于这一决策。
+2026-11-14，用户确认方案 A：每个载荷自带引用路径，可脱离原 Task 契约识别引用语义。parameters/result 使用同一信封原则；不以仅传业务 JSON、依赖外部契约恢复引用的方案 B 为默认协议。
+
+方案 A 的示意字段为 `data + contentRefPaths`，路径相对于 data 求值，不相对于整个信封；字段名仍待最终定名。`value + references` 和 `data + cidPaths` 是此前的命名候选，不得当成已批准 API。
+
+路径提供引用语义，不替代完整业务 Schema 校验，不授予内容访问权限，也不证明内容已交付或保留。Engine 已绑定可信契约时，必须核对载荷的引用定位与契约及实际判别分支一致。独立解码不要求找回原 Task 契约，但仍需验证载荷与定位表达式；完整业务结构验证需要对应 Schema。
 
 ## JSONPath 与判别分支
 

@@ -28,13 +28,14 @@ Blob 模型已被本方向取代，不再作为待实施方案。2026-11-14，�
 
 - 契约使用 `parameters / message / result`，类型命名为 `Parameters / Message / Result`。parameters 表达启动参数集合，message 表达可追加的单条运行中消息，result 表达最终业务结果。
 - 单个内容引用称为 `ContentRef`，包含业务数据与引用语义的传输载荷称为 `ContentPayload<T>`；信封不是单个引用。
+- 2026-11-14 用户确认方案 A：载荷自带引用路径，脱离原 Task 契约仍可识别引用语义；路径相对于业务数据求值，不自动授予内容访问权限或替代完整业务校验。
 - 引用位置采用从类型定义推导的 JSONPath。数组尽可能使用通配符，不把每次运行的具体下标清单作为默认模型。
 - 允许包含 ContentRef 的 discriminated union：依据实际 discriminator 选择分支，再定位引用。禁止无判别信息的直接 `ContentRef | String`，不一概禁止外层 union。
 - 数组中的分支可以混排；只在符合引用分支的元素上转换，不将普通 CID 字符串或同形业务对象误解码。
 - JSON 与 ContentRef 的转换独立成 `@silvermoon-work/content-payload` 工具包，并进行充分单测；工具包不承担内容存储和 Task 生命周期。
 - 当前处于内部开发阶段，本次 breaking change 直接调整现有 Schema/API V1，不迭代版本号。同步更新直接依赖的定义与调用方。
 
-先前的 JSON Pointer 具体下标清单不再作为主要方向；先前 `input` 或候选 `params` 的契约命名由 `parameters` 取代。`ContentPayload` 的具体字段名、路径元数据的放置方式和引用访问 API 尚未决定，不将此前示例当成已批准协议。
+先前的 JSON Pointer 具体下标清单不再作为主要方向；先前 `input` 或候选 `params` 的契约命名由 `parameters` 取代。路径由载荷携带已确定；`ContentPayload` 的具体字段名、JSONPath 支持子集和引用访问 API 尚未决定，不将此前示例的所有细节当成已批准协议。
 
 ## 文档弱引用图：关联议题
 

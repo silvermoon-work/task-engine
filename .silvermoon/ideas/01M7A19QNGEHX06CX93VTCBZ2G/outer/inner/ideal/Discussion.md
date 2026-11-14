@@ -33,6 +33,7 @@ Blob 模型已被本方向取代，不再作为待实施方案。2026-11-14，�
 - 允许包含 ContentRef 的 discriminated union：依据实际 discriminator 选择分支，再定位引用。禁止无判别信息的直接 `ContentRef | String`，不一概禁止外层 union。
 - 数组中的分支可以混排；只在符合引用分支的元素上转换，不将普通 CID 字符串或同形业务对象误解码。
 - JSON 与 ContentRef 的转换独立成 `@silvermoon-work/content-payload` 工具包，并进行充分单测；工具包不承担内容存储和 Task 生命周期。
+- 2026-11-14 用户确认引用访问方案 A：ContentRef 只表示不可变 CID 身份，由 context 提供受控读取及新内容写入能力；引用对象不绑定读取方法或原运行的权限。
 - 当前处于内部开发阶段，本次 breaking change 直接调整现有 Schema/API V1，不迭代版本号。同步更新直接依赖的定义与调用方。
 
 先前的 JSON Pointer 具体下标清单不再作为主要方向；先前 `input` 或候选 `params` 的契约命名由 `parameters` 取代。路径由载荷携带已确定；`ContentPayload` 的具体字段名、JSONPath 支持子集和引用访问 API 尚未决定，不将此前示例的所有细节当成已批准协议。

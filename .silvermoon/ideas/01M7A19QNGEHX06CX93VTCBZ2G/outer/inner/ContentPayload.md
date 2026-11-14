@@ -88,6 +88,22 @@ $['items'][?@['kind'] == 'reference']['value']
 
 构建时预编译定位规则、运行时按 discriminator 求值是可行候选，不意味着已决定编译产物格式。重组父子结果后重新按当前契约及数据求值，不复用旧具体位置。
 
+## 引用身份与宿主访问能力
+
+2026-11-14，用户确认引用访问方案 A：ContentRef 只表示不可变的 CID 身份，读取通过 context 提供的受控内容能力进行。不采用在解码引用对象上绑定 readBytes 等读取方法的方案 B。
+
+以下调用形式是接口示意，不代表最终方法名：
+
+```ts
+const bytes = await context.content.readBytes(parameters.document);
+const report = await context.content.putBytes(reportBytes);
+return { report };
+```
+
+构造或解码引用不授予访问权限，也不要求立即下载内容。读取权限、取消和预算由宿主负责；跨 Task 传递引用不传递原运行的能力。工具包不依赖 Engine Store，也不把读取能力绑定到 ContentRef 上。
+
+新内容由宿主的受控写入能力存储，成功后返回 ContentRef；失败、取消或超过预算明确失败，不能只计算 CID 后声称内容已存储。具体方法、raw/UnixFS/结构化节点等内容模型以及流式行为仍待 B-02 收敛，写入后的保留责任按 B-03 单独决定。
+
 ## 工具包职责
 
 提供可共享的 ContentRef JSON 编解码能力，避免 Engine、SDK 和消费者重复实现：
@@ -97,7 +113,7 @@ $['items'][?@['kind'] == 'reference']['value']
 - 明确处理无效 CID、非法数据和错误的引用元数据。
 - 不把存储失败包装成成功引用，不根据普通 JSON 对象形状恢复引用。
 
-工具包不负责 Task 调度、内容下载、内容保留或完整 DAG/CAR 打包。解码所需的宿主只读访问能力及引用对象的具体接口待 B-02 决定，不能默认注入宿主完整 Store 权限。
+工具包不负责 Task 调度、内容下载、内容保留或完整 DAG/CAR 打包。解码恢复轻量引用身份，实际 I/O 由 context 内容能力执行；引用构造与宿主接口的具体形状待 B-02 收敛，不能注入宿主完整 Store 权限。
 
 当前 Builder 只接受受支持的 TypeBox kind，并拒绝未被 Engine 强制校验的 format 等注释。不能把 `Type.String({ format: "cid" })`、未支持的 Transform 或验证器忽略的自定义注释当成完整方案。TypeBox 扩展必须兼顾作者类型推导、Schema 序列化及运行时校验。
 

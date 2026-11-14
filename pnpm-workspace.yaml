@@ -15,7 +15,7 @@ catalog:
   publint: ^0.3.25
   semver: 7.8.5
   turbo: ^2.11.10
-  typescript: 5.9.3
+  typescript: 6.0.3
   typescript-eslint: ^8.72.1
   vitest: ^5.0.4
   tsx: 4.23.15

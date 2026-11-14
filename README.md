@@ -244,6 +244,30 @@ Git tags and npm dist-tags are preserved as historical records. The verifier
 rejects new dated canaries and other prerelease channels. Publish every package
 separately after its exact workspace dependencies are available.
 
+### Typed content refs RC (in preparation)
+
+Thirteen mapped packages are versioned for one authorized RC round after
+`typed-content-refs` local acceptance. Tags stay gated on this commit's exact
+main push CI, then one immutable package-specific tag at a time. New packages
+start at `0.1.0-rc.0`. An RC publication never updates `latest`. Release order
+follows every dependency field, including development-only edges:
+
+| Order | Package                                | Version       |
+| ----- | -------------------------------------- | ------------- |
+| 1     | `@silvermoon-work/ipfs-access`         | `0.1.0-rc.0`  |
+| 2     | `@silvermoon-work/ipfs-payload`        | `0.1.0-rc.0`  |
+| 3     | `@silvermoon-work/ipfs-store`          | `0.1.0-rc.3`  |
+| 4     | `@silvermoon-work/task-protocol`       | `0.2.0-rc.2`  |
+| 5     | `@silvermoon-work/task-sdk`            | `0.2.0-rc.2`  |
+| 6     | `@silvermoon-work/task-builder`        | `0.2.0-rc.4`  |
+| 7     | `@silvermoon-work/task-builder-cli`    | `0.2.0-rc.4`  |
+| 8     | `@silvermoon-work/ipfs-tree`           | `0.1.0-rc.0`  |
+| 9     | `@silvermoon-work/task-engine`         | `0.2.0-rc.4`  |
+| 10    | `@silvermoon-work/task-engine-http`    | `0.2.0-rc.1`  |
+| 11    | `@silvermoon-work/task-engine-storage` | `0.2.0-rc.1`  |
+| 12    | `@silvermoon-work/task-engine-cli`     | `0.2.0-rc.12` |
+| 13    | `@silvermoon-work/task-engine-server`  | `0.2.0-rc.1`  |
+
 All nine RC packages were published from
 `27556d29a456ae7a2d514a7c5b6bf7b4b27d89ac`, after successful
 [exact-commit Node 22/24 CI](https://github.com/silvermoon-work/task-engine/actions/runs/43023616690).

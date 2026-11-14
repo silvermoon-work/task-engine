@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-engine-server",
-  "version": "0.2.0-rc.0",
+  "version": "0.2.0-rc.1",
   "description": "Generic authenticated Node HTTP/SSE task server.",
   "type": "module",
   "sideEffects": false,

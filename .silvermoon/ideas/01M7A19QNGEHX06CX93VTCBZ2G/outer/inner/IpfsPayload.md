@@ -109,7 +109,9 @@ const reportCid = await context.putContent(reportBytes);
 return { report: ContentRef.fromCID(reportCid) };
 ```
 
-构造或解码引用不授予访问权限，纯编解码也不进行网络 I/O；正式接纳与发布前，由宿主通过授权来源取得并验证闭包。读取权限、取消和预算由宿主负责；跨 Task 传递引用不传递原运行的能力。工具包不依赖 Engine Store，也不把读取能力绑定到 ContentRef 上。
+构造或解码引用不授予访问权限，纯编解码也不进行网络 I/O；由宿主通过配置的 Store 取得并验证必要闭包。Store 负责内容可见性与其访问策略，Engine 保留 API 请求授权、取消和资源预算；跨 Task 传递引用不传递原运行的能力。工具包不依赖 Engine Store，也不把读取能力绑定到 ContentRef 上。
+
+2026-11-14 用户确认 builtin IPFS Store 不公开，复用 Kubo 时是否公开由节点管理者决定。Engine 不增加内容发布/私有模式，不代管 Kubo 网络或网关策略；其 Task API 授权不保证另一 Store 入口的相同数据也不可访问。
 
 2026-11-14，用户进一步收敛宿主内容能力为按 CID 读取内容、用 CID 加 path 解析目标 CID、临时存入内容并返回 CID。此处 path 只用于解析，不附加到通用 ContentRef 上；新内容返回 CID 后，仍需按契约表达其引用语义，普通 CID 字符串不自动成为 ContentRef。
 

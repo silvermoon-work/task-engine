@@ -12,8 +12,7 @@ import {
 } from "@silvermoon-work/task-engine";
 import {
   type ErrorFact,
-  json,
-  object,
+  parametersFromJson,
   TaskError,
   validateBundleReference,
 } from "@silvermoon-work/task-protocol";
@@ -41,7 +40,7 @@ export interface ExecutionResult {
 }
 export interface RunBundleOptions {
   cid: string;
-  input: unknown;
+  parameters: unknown;
   ipfsStore?: IpfsStore;
   ipfsClient?: IpfsClient;
   timeoutMs?: number;
@@ -85,24 +84,11 @@ function cleanupFailure(error: unknown): boolean {
 
 /** Owns an ephemeral data domain, not the caller's content client or pins. */
 export async function runBundle(options: RunBundleOptions): Promise<ExecutionResult> {
-  let input: Record<string, import("@silvermoon-work/task-protocol").Json>;
+  let parameters: ReturnType<typeof parametersFromJson>;
   let timeoutMs: number;
   try {
     validateBundleReference(options.cid);
-    input = object(json(options.input, 65_536));
-    const reserved = [
-      "requestId",
-      "bundle",
-      "type",
-      "timeoutMs",
-      "eligibleAt",
-      "seriesId",
-      "matchPolicy",
-      "recurrence",
-      "executionMatch",
-    ];
-    if (Object.keys(input).some((key) => reserved.includes(key)))
-      throw new TaskError("invalid_input", "Input collides with the Task request envelope.");
+    parameters = parametersFromJson(options.parameters);
     timeoutMs = positive(options.timeoutMs ?? 60_000);
     if (options.maxRuntimeMs !== undefined) positive(options.maxRuntimeMs);
     if (options.signal !== undefined && !(options.signal instanceof AbortSignal))
@@ -144,7 +130,15 @@ export async function runBundle(options: RunBundleOptions): Promise<ExecutionRes
         identity.scope === caller.scope && identity.subject === caller.subject,
     });
     await engine.start();
-    await engine.submit({ ...input, requestId, bundle: options.cid, timeoutMs }, caller);
+    await engine.submit(
+      {
+        requestId,
+        bundle: options.cid,
+        timeoutMs,
+        parameters,
+      },
+      caller,
+    );
     const execution = await engine.drain({ signal });
     signal.throwIfAborted();
     const root = execution.tasks.find((task) => task.requestId === requestId);
@@ -230,8 +224,8 @@ export async function runBundle(options: RunBundleOptions): Promise<ExecutionRes
   );
 }
 
-const legacyHelp = `Usage: task-engine run <bundle-cid> [--gateway <base-url>] [--input <file|->] [options]
-       task-engine run --car <file.car> [--input <file|->] [options]
+const legacyHelp = `Usage: task-engine run <bundle-cid> [--gateway <base-url>] [--parameters <file|->] [options]
+       task-engine run --car <file.car> [--parameters <file|->] [options]
 
 Run an embedded engine in a fresh, disposable in-memory data domain.
 No task HTTP service is required. Select CID/Gateway or a local CAR, never both.
@@ -244,7 +238,7 @@ No task HTTP service is required. Select CID/Gateway or a local CAR, never both.
                       Default deny; depth 4, concurrent 4, total 64, child timeout 30s.
 --timeout-ms <ms>      Root Task deadline budget (default 60000).
 --max-runtime-ms <ms>  Optional overall budget, including CAR validation, admission and drain.
---input <file|->      Read one JSON object; omitted or "-" reads stdin until EOF.
+--parameters <file|->      Read one JSON object; omitted or "-" reads stdin until EOF.
 Only finite structured invokeTask work is supported, not detached scheduling.
 stdout: one JSON result; stderr: diagnostics. Exit codes:
 0 success; 2 config/input; 3 root rejection; 4 task/child failure or stop;
@@ -277,7 +271,7 @@ export async function legacyMain(argv: readonly string[] = process.argv.slice(2)
       const key = argv[index]!;
       if (
         ![
-          "--input",
+          "--parameters",
           "--gateway",
           "--car",
           "--expected-cid",
@@ -293,7 +287,7 @@ export async function legacyMain(argv: readonly string[] = process.argv.slice(2)
       if (key === "--gateway") gateways.push(value);
       else values.set(key, value);
     }
-    const path = values.get("--input") ?? "-";
+    const path = values.get("--parameters") ?? "-";
     const carPath = values.get("--car");
     const expectedCid = values.get("--expected-cid");
     if (
@@ -342,7 +336,7 @@ export async function legacyMain(argv: readonly string[] = process.argv.slice(2)
       if (Buffer.byteLength(text) > 65_536)
         throw new TaskError("invalid_input", "Input exceeds 65536 bytes.");
     }
-    const input: unknown = JSON.parse(text);
+    const parameters: unknown = JSON.parse(text);
     if (carPath) {
       if (maxRuntimeMs !== undefined)
         carTimer = setTimeout(
@@ -378,7 +372,7 @@ export async function legacyMain(argv: readonly string[] = process.argv.slice(2)
     if (!(source instanceof IpfsStore)) carStore = IpfsStore.fromClient(source);
     execution = await runBundle({
       cid: rootCid,
-      input,
+      parameters,
       ipfsStore: source instanceof IpfsStore ? source : carStore!,
       ...(timeoutMs !== undefined ? { timeoutMs } : {}),
       ...(!carPath && maxRuntimeMs !== undefined ? { maxRuntimeMs } : {}),

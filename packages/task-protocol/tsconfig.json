@@ -6,5 +6,9 @@
     "outDir": "dist",
     "tsBuildInfoFile": "./.cache/tsconfig.tsbuildinfo"
   },
+  "references": [
+    { "path": "../ipfs-access" },
+    { "path": "../ipfs-payload" }
+  ],
   "include": ["src/**/*.ts"]
 }

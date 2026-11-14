@@ -20,7 +20,7 @@ export function runHistoryEngineCase(
       type: "run-test",
       version: "1",
       environment: "trusted",
-      inputSchema: {
+      parametersSchema: {
         type: "object",
         properties: { mode: { enum: ["work", "messages", "mutate"] }, text: { type: "string" } },
         required: ["mode", "text"],

@@ -3,7 +3,7 @@ import test from "node:test";
 import { buildTaskBundle } from "../src/index.js";
 import { memoryTree } from "../src/tree.js";
 
-const primary = '{input:{type:"object"},result:true,message:false}';
+const primary = '{parameters:{type:"object"},result:true,message:false}';
 for (const statement of [
   'console.log("hidden")',
   'console.error("hidden")',

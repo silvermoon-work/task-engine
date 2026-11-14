@@ -11,6 +11,7 @@ import { newId } from "@silvermoon-work/task-engine";
 import { createConfiguredContent } from "@silvermoon-work/ipfs-store/node";
 import {
   canonical,
+  parametersFromJson,
   object,
   TaskError,
   type Json,
@@ -856,7 +857,8 @@ export async function serveManaged(
             "ENGINE_STOPPING",
             "Engine stopped accepting tasks before upload completed.",
           );
-        const input = object(body.input, Number(effective(config, "server.maxPayloadBytes")));
+        const maxBytes = Number(effective(config, "server.maxPayloadBytes"));
+        const input = parametersFromJson(object(body.parameters, maxBytes), maxBytes);
         if (
           typeof body.timeoutMs !== "number" ||
           !Number.isSafeInteger(body.timeoutMs) ||
@@ -884,7 +886,7 @@ export async function serveManaged(
           released: false,
           roots: typeof body.cid === "string" ? [body.cid] : [],
           timeoutMs: body.timeoutMs,
-          input,
+          parameters: input,
           ...(typeof body.cid === "string" ? { cid: body.cid } : {}),
         };
         let car = typeof body.car === "string" ? Buffer.from(body.car, "base64") : undefined;
@@ -944,10 +946,7 @@ export async function serveManaged(
           status: task.status,
           ...(task.output
             ? {
-                output:
-                  body.id === undefined
-                    ? { ...(task.output.cid ? { cid: task.output.cid } : {}) }
-                    : task.output,
+                output: body.id === undefined ? {} : task.output,
               }
             : {}),
           createdAt: task.createdAt,

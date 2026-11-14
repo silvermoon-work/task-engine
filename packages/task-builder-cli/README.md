@@ -117,7 +117,7 @@ delete an older CAR: `data.car: null` describes this invocation only.
     "module": {
       "directory": "<absolute module directory>",
       "declaration": "<absolute task.yaml>",
-      "files": ["task.yaml", "worker.cjs", "schemas/input.json", "schemas/result.json", "schemas/message.json"]
+      "files": ["task.yaml", "worker.cjs", "schemas/parameters.json", "schemas/result.json", "schemas/message.json"]
     },
     "cid": "<verified module CID>",
     "car": { "path": "<absolute CAR>" }

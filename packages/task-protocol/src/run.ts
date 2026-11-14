@@ -1,8 +1,10 @@
+import type { CID } from "multiformats/cid";
+import type { IpfsNode } from "@silvermoon-work/ipfs-access";
+import type { IpfsPayload } from "@silvermoon-work/ipfs-payload";
 import type { ResolvedTaskBundle } from "./bundle.js";
 import { fail, type Json, type JsonObject, json, TaskError } from "./json.js";
 import type { RunLogInput, RunLogReceipt } from "./logs.js";
 import type { InputSchema, JsonSchema } from "./schema.js";
-import type { ReadonlySpace, ReadWriteSpace, SpaceHost, SpaceRef, SpaceRefJSON } from "./spaces.js";
 import type { Caller } from "./types.js";
 
 export interface RunProgress {
@@ -28,15 +30,30 @@ export class RunFailure extends TaskError {
     super(code, message);
   }
 }
+export interface ContentOptions {
+  signal?: AbortSignal;
+}
+export interface RunContentHost {
+  readContent(cid: CID | string, options?: ContentOptions): Promise<IpfsNode>;
+  resolveContent(cid: CID | string, path: string, options?: ContentOptions): Promise<CID>;
+  putContent(content: ReadableStream<Uint8Array>, options?: ContentOptions): Promise<CID>;
+  close?(): Promise<void>;
+}
 export interface ChildTaskInvocation {
   /** Stable within this parent Run; retrying the same key must preserve intent. */
   key: string;
-  bundle: SpaceRef;
-  input: Json;
+  /** Immutable bundle root CID; optional path is resolved to a CID before admission. */
+  bundle: string;
+  path?: string;
+  parameters: Json;
   timeoutMs: number;
 }
-export interface WireChildTaskInvocation extends Omit<ChildTaskInvocation, "bundle"> {
-  bundle: SpaceRefJSON;
+export interface WireChildTaskInvocation {
+  key: string;
+  bundle: string;
+  path?: string;
+  parameters: IpfsPayload;
+  timeoutMs: number;
 }
 export interface RunContext<Message extends Json = never> {
   readonly startedAt?: string;
@@ -44,20 +61,22 @@ export interface RunContext<Message extends Json = never> {
   readonly scope: string;
   readonly signal: AbortSignal;
   readonly messages: AsyncIterable<RunMessage<Message>>;
-  readonly bundle: ReadonlySpace;
-  readonly output: ReadWriteSpace;
-  space(cid: string): ReadonlySpace;
+  /** Bundle root CID; not a Space. */
+  readonly bundle: string;
+  readContent(cid: CID | string, options?: ContentOptions): Promise<IpfsNode>;
+  resolveContent(cid: CID | string, path: string, options?: ContentOptions): Promise<CID>;
+  putContent(content: ReadableStream<Uint8Array>, options?: ContentOptions): Promise<CID>;
   progress(value: RunProgress): Promise<void>;
   log(value: RunLogInput): Promise<RunLogReceipt>;
   invokeTask?(request: ChildTaskInvocation): Promise<Json>;
 }
-export interface TaskType<Input = Json, Result = Json, Message extends Json = never> {
+export interface TaskType<Parameters = Json, Result = Json, Message extends Json = never> {
   type: string;
   version: string;
-  inputSchema: InputSchema;
+  parametersSchema: InputSchema;
   resultSchema: JsonSchema;
   messageSchema: JsonSchema;
-  run(input: Input, context: RunContext<Message>): Promise<Result>;
+  run(parameters: Parameters, context: RunContext<Message>): Promise<Result>;
 }
 export interface RunResourceContext {
   runId: string;
@@ -66,13 +85,12 @@ export interface RunResourceContext {
   workerGeneration: string;
 }
 export interface TypeWorkerRegistration {
-  createSpace?(context: RunResourceContext): SpaceHost;
   bundle?: { cid: string; declaration: ResolvedTaskBundle };
   getBundleSource?(): string;
   type: string;
   version: string;
   environment: string;
-  inputSchema: InputSchema;
+  parametersSchema: InputSchema;
   resultSchema: JsonSchema;
   messageSchema: JsonSchema;
   module: string;
@@ -88,6 +106,8 @@ export interface TypeWorkerRegistration {
   resourceLifetime?: "request";
   /** 有跨请求存活资源的宿主适配器必须提供清理证明，不序列化进类型 Worker。 */
   confirmResourceRelease?(context: RunResourceContext): Promise<void>;
+  /** Host content access for this Run; never serialized into the Worker. */
+  createContent?(context: RunResourceContext): RunContentHost;
 }
 export function validateRunProgress(value: unknown, maxBytes = 65_536): RunProgress & JsonObject {
   const parsed = json(value, maxBytes);

@@ -24,7 +24,7 @@ function type(): RegisteredType {
     type: "echo",
     version: "1",
     environment: "test",
-    inputSchema: { type: "object" },
+    parametersSchema: { type: "object" },
     resultSchema: true,
     messageSchema: false,
     module: new URL("./crash-worker.mjs", import.meta.url).href,
@@ -152,7 +152,7 @@ for (const mode of ["started", "completed", "future"]) {
         mode === "completed" ? "completed" : mode === "started" ? "stopped" : "initial",
       );
       if (mode === "completed")
-        assert.deepEqual(snapshot.output?.result, { text: "durable final" });
+        assert.deepEqual(snapshot.output?.result, { data: { text: "durable final" }, cidPaths: [] });
       if (mode === "started") assert.equal(snapshot.error, undefined);
       assert.equal(
         engine.submit(engine.getRequest(requestId, caller), caller).taskId,

@@ -12,7 +12,8 @@ import {
   symlink,
   writeFile,
 } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { createRequire } from "node:module";
+import { dirname, join, resolve } from "node:path";
 import { test } from "node:test";
 import { promisify } from "node:util";
 import { readTaskBundle } from "@silvermoon-work/task-protocol";
@@ -23,7 +24,7 @@ import type { ReadonlyFileTree } from "@silvermoon-work/task-builder/tree";
 
 const execute = promisify(execFile);
 const cli = resolve("dist", "bin.js");
-const primary = { input: { type: "object" }, result: true, message: false };
+const primary = { parameters: { type: "object" }, result: true, message: false };
 
 async function invoke(root: string, args: string[], expected = 0) {
   let stdout = "",
@@ -173,7 +174,7 @@ test("initialized scripts keep named outputs fixed, preserve builds and refuse C
     const manifest = JSON.parse(await readFile(join(project, "package.json"), "utf8"));
     manifest.name = "renamed-package";
     await writeFile(join(project, "package.json"), JSON.stringify(manifest));
-    for (const name of ["task-sdk", "task-protocol"]) {
+    for (const name of ["task-sdk", "task-protocol", "ipfs-payload", "ipfs-access"]) {
       const target = join(project, "node_modules", "@silvermoon-work", name);
       await mkdir(target, { recursive: true });
       await copyFile(
@@ -194,6 +195,23 @@ test("initialized scripts keep named outputs fixed, preserve builds and refuse C
       join(project, "node_modules", "@sinclair", "typebox"),
       { recursive: true, dereference: true },
     );
+    await cp(
+      new URL("../../ipfs-payload/node_modules/@ipld/", import.meta.url),
+      join(project, "node_modules", "@ipld"),
+      { recursive: true, dereference: true },
+    );
+    for (const name of ["ajv", "cborg"])
+      await cp(
+        new URL(`../../ipfs-payload/node_modules/${name}/`, import.meta.url),
+        join(project, "node_modules", name),
+        { recursive: true, dereference: true },
+      );
+    const ajvRequire = createRequire(new URL("../../ipfs-payload/node_modules/ajv/package.json", import.meta.url));
+    for (const name of ["fast-deep-equal", "fast-uri", "json-schema-traverse", "require-from-string"])
+      await cp(dirname(ajvRequire.resolve(`${name}/package.json`)), join(project, "node_modules", name), {
+        recursive: true,
+        dereference: true,
+      });
     const buildArgs = manifest.scripts.build.split(" ").slice(1);
     const carArgs = manifest.scripts.car.split(" ").slice(1);
     const built = await invoke(project, buildArgs);
@@ -201,7 +219,7 @@ test("initialized scripts keep named outputs fixed, preserve builds and refuse C
     assert.equal(built.data.car.path, join(project, "dist", "acme-echo-task.car"));
     const schema = async (path: string) =>
       JSON.parse(await readFile(join(built.data.module.directory, "schemas", path), "utf8"));
-    assert.deepEqual(await schema("input.json"), {
+    assert.deepEqual(await schema("parameters.json"), {
       $id: "https://task.invalid/schema/0",
       type: "object",
       properties: { text: { $ref: "https://task.invalid/echo/text" } },

@@ -1,5 +1,6 @@
 import { CID } from "multiformats/cid";
-import type { IpfsEntry, IpfsNode, ReadonlyIpfsAccess } from "@silvermoon-work/ipfs-access";
+import { unixfs } from "@helia/unixfs";
+import type { IpfsAccess, IpfsEntry, IpfsNode } from "@silvermoon-work/ipfs-access";
 import type { ExportContentOptions, UnixFSEntry } from "ipfs-unixfs-exporter";
 import {
   createIpfsGatewayClient,
@@ -32,7 +33,7 @@ export interface IpfsReadOptions {
 export type UnixfsNode = Extract<UnixFSEntry, { type: "file" | "raw" | "directory" }>;
 
 /** Verified IPFS/UnixFS content only. Configuration and source ownership belong to the host. */
-export class IpfsStore implements IpfsClient, ReadonlyIpfsAccess {
+export class IpfsStore implements IpfsClient, IpfsAccess {
   readonly configuration: StoreConfiguration;
   readonly limits: Readonly<ContentLimits>;
   private readonly lifetime = new AbortController();
@@ -359,6 +360,70 @@ export class IpfsStore implements IpfsClient, ReadonlyIpfsAccess {
         { highWaterMark: 0 },
       ),
     };
+  }
+  async putContent(
+    content: ReadableStream<Uint8Array>,
+    options: IpfsReadOptions = {},
+  ): Promise<CID> {
+    const signal = this.signal(options);
+    signal.throwIfAborted();
+    if (!(content instanceof ReadableStream))
+      throw new ContentError("unsupported_content", "putContent requires a byte stream.");
+    const reader = content.getReader();
+    let imported = 0;
+    const store = this;
+    const blockstore = {
+      get: async function* (cid: CID) {
+        yield await store.block.get(cid.toString(), { signal });
+      },
+      put: async (cid: CID, bytes: Uint8Array) => {
+        signal.throwIfAborted();
+        if (!(bytes instanceof Uint8Array))
+          throw new ContentError("unsupported_content", "putContent requires bytes.");
+        if (bytes.byteLength > store.limits.blockBytes)
+          throw new ContentError("capacity_exceeded", "IPFS block byte capacity exceeded.");
+        await store.put(cid, bytes, options);
+        return cid;
+      },
+      has: async (cid: CID) => {
+        try {
+          await store.block.get(cid.toString(), { signal });
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    };
+    async function* input() {
+      for (;;) {
+        signal.throwIfAborted();
+        const item = await reader.read();
+        if (item.done) return;
+        if (!(item.value instanceof Uint8Array))
+          throw new ContentError("unsupported_content", "putContent requires bytes.");
+        imported += item.value.byteLength;
+        if (imported > store.limits.bytes)
+          throw new ContentError("capacity_exceeded", "IPFS import byte capacity exceeded.");
+        for (let offset = 0; offset < item.value.length; offset += 262_144)
+          yield item.value.subarray(offset, offset + 262_144);
+      }
+    }
+    try {
+      const cid = await unixfs({ blockstore }).addByteStream(input(), {
+        signal,
+        cidVersion: 1,
+        rawLeaves: true,
+        blockWriteConcurrency: 1,
+      });
+      await this.read(cid, options);
+      return cid;
+    } finally {
+      try {
+        await reader.cancel();
+      } finally {
+        reader.releaseLock();
+      }
+    }
   }
   async resolveContent(cid: CID, path: string, options: IpfsReadOptions = {}): Promise<CID> {
     if (

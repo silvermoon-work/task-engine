@@ -11,7 +11,7 @@ test("最终结果与恢复复验留在原类型 Worker，损坏业务证据不�
     type: "proof",
     version: "1",
     environment: "test",
-    inputSchema: { type: "object" },
+    parametersSchema: { type: "object" },
     resultSchema: { type: "object" },
     messageSchema: false,
     module: new URL("./result-type.mjs", import.meta.url).href,
@@ -33,8 +33,11 @@ test("最终结果与恢复复验留在原类型 Worker，损坏业务证据不�
     const final = engine.getTask(task.taskId, caller);
     assert.equal(final.stage, "completed");
     assert.deepEqual(final.output?.result, {
-      prepared: { original: { text: "bound" } },
-      value: { ok: true },
+      data: {
+        prepared: { original: { text: "bound" } },
+        value: { ok: true },
+      },
+      cidPaths: [],
     });
     assert.equal(
       store.read().events.filter((event) => event.type === "run.progress").length,
@@ -51,8 +54,11 @@ test("最终结果与恢复复验留在原类型 Worker，损坏业务证据不�
       read() {
         const view = store.read();
         const forged = {
-          prepared: { original: { text: "forged" } },
-          value: { ok: true },
+          data: {
+            prepared: { original: { text: "forged" } },
+            value: { ok: true },
+          },
+          cidPaths: [],
         };
         const run = view.facts.runs[final.run!.runId]!;
         run.output = { result: forged };

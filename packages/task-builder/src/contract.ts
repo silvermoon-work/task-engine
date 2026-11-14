@@ -16,6 +16,7 @@ const kinds = new Set([
   "Record",
   "Ref",
   "Never",
+  "ContentRef",
 ]);
 const maps = new Set([
   "properties",
@@ -54,7 +55,10 @@ export function toTaskSchema(value: unknown): unknown {
         throw new Error("Unsupported TypeBox metadata or transform.");
     if (node[Kind] !== undefined && !kinds.has(String(node[Kind])))
       throw new Error(`Unsupported TypeBox kind: ${String(node[Kind])}.`);
-    if (
+    if (schema && node[Kind] === "ContentRef") {
+      if (node.type !== "string" || node["x-ipfs-content-ref"] !== true)
+        throw new Error("ContentRef Schema must serialize as a typed content-ref string.");
+    } else if (
       schema &&
       ["format", "contentEncoding", "contentMediaType", "contentSchema"].some((key) =>
         Object.hasOwn(node, key),
@@ -98,12 +102,12 @@ export function contractSchemas(value: unknown): { path: string; document: JsonO
     !value ||
     typeof value !== "object" ||
     Array.isArray(value) ||
-    !("input" in value) ||
+    !("parameters" in value) ||
     !("result" in value) ||
     !("message" in value) ||
-    Object.keys(value).some((key) => !["input", "result", "message", "schemas"].includes(key))
+    Object.keys(value).some((key) => !["parameters", "result", "message", "schemas"].includes(key))
   )
-    throw new Error("Contract must contain { input, result, message, schemas? }.");
+    throw new Error("Contract must contain { parameters, result, message, schemas? }.");
   const schemas = "schemas" in value ? value.schemas : {};
   if (!schemas || typeof schemas !== "object" || Array.isArray(schemas))
     throw new Error("Contract schemas must be a name-to-Schema object, not an array.");
@@ -121,7 +125,7 @@ export function contractSchemas(value: unknown): { path: string; document: JsonO
     names.add(name.toLowerCase());
   }
   const entries = [
-    { path: "schemas/input.json", identity: "0", schema: value.input },
+    { path: "schemas/parameters.json", identity: "0", schema: value.parameters },
     { path: "schemas/result.json", identity: "1", schema: value.result },
     { path: "schemas/message.json", identity: "2", schema: value.message },
     ...shared.map(([name, schema]) => ({
@@ -134,7 +138,7 @@ export function contractSchemas(value: unknown): { path: string; document: JsonO
     const normalized = json(toTaskSchema(schema));
     const id = `https://task.invalid/schema/${identity}`;
     if (typeof normalized === "boolean") {
-      if (!index) throw new Error("Task input Schema must be an object.");
+      if (!index) throw new Error("Task parameters Schema must be an object.");
       return {
         path,
         document: { $id: id, ...(normalized ? {} : { not: {} }) },

@@ -37,7 +37,7 @@ test("Builder and two Engines consume the same injected IpfsStore without owning
         runtime: { type: "node", minVersion: "22.15.0" },
         entry: "worker.cjs",
         binary: [],
-        inputSchema: { type: "object" },
+        parametersSchema: { type: "object" },
         resultSchema: true,
         messageSchema: false,
       },
@@ -62,7 +62,10 @@ test("Builder and two Engines consume the same injected IpfsStore without owning
         const result = await engine.drain();
         assert.deepEqual(result.errors, []);
         assert.equal(result.tasks[0]?.stage, "completed");
-        assert.deepEqual(result.tasks[0]?.output?.result, { value: "shared object" });
+        assert.deepEqual(result.tasks[0]?.output?.result, {
+          data: { value: "shared object" },
+          cidPaths: [],
+        });
         await engine.close();
       }),
     );
@@ -128,7 +131,7 @@ test("a confirmation failure after accepted metadata is reported, not silently t
         runtime: { type: "node", minVersion: "22.15.0" },
         entry: "worker.cjs",
         binary: [],
-        inputSchema: { type: "object" },
+        parametersSchema: { type: "object" },
         resultSchema: true,
         messageSchema: false,
       },
@@ -183,11 +186,12 @@ test("Kubo Engine output bypasses business block storage and all retained Task/R
     await writeFile(
       entry,
       `export default async (input, context) => {
-      if (input.link) await context.output.link("/linked.txt", context.space(input.link).root);
-      if (input.write) await context.output.write("/result.txt", new ReadableStream({
+      if (input.link) await context.readContent(input.link);
+      let stored;
+      if (input.write) stored = await context.putContent(new ReadableStream({
         start(controller) { controller.enqueue(new TextEncoder().encode("retained output")); controller.close(); }
       }));
-      return { json: true };
+      return { json: true, stored: stored ? stored.toString() : null };
     };`,
     );
     const built = await buildBundleFixture({
@@ -197,7 +201,7 @@ test("Kubo Engine output bypasses business block storage and all retained Task/R
         runtime: { type: "node", minVersion: "22.15.0" },
         entry: "worker.cjs",
         binary: [],
-        inputSchema: { type: "object" },
+        parametersSchema: { type: "object" },
         resultSchema: true,
         messageSchema: false,
       },
@@ -235,15 +239,17 @@ test("Kubo Engine output bypasses business block storage and all retained Task/R
     }
     await Promise.all(engines.map((engine) => engine.start()));
     const [a, b] = await Promise.all(engines.map((engine) => execute(engine, true)));
-    assert.ok(a!.output?.cid);
-    assert.equal(a!.output!.cid, b!.output!.cid);
-    const output = a!.output!.cid!;
+    const storedA = (a!.output?.result as { data?: { stored?: string } })?.data?.stored;
+    const storedB = (b!.output?.result as { data?: { stored?: string } })?.data?.stored;
+    assert.equal(typeof storedA, "string");
+    assert.equal(storedA, storedB);
+    const output = storedA!;
     assert.ok(
       rpc.pins.has(linked),
       "Imported existing blocks receive staging protection before publication",
     );
     const jsonOnly = await execute(engines[0]!, false);
-    assert.deepEqual(jsonOnly.output?.result, { json: true });
+    assert.deepEqual(jsonOnly.output?.result, { data: { json: true, stored: null }, cidPaths: [] });
     assert.equal(
       databases[0]!.readContentBlock(output),
       undefined,
@@ -253,13 +259,14 @@ test("Kubo Engine output bypasses business block storage and all retained Task/R
     historical.tasks = {};
     assert.deepEqual(
       new Set(retainedContentRoots(historical, databases[0])),
-      new Set([built.cid, output, ...(jsonOnly.output?.cid ? [jsonOnly.output.cid] : [])]),
+      new Set([built.cid, output, linked]),
       "Historical retained Runs keep their roots without a current Task",
     );
     const pureJson = structuredClone(historical);
     for (const run of Object.values(pureJson.runs)) {
-      run.output = { result: { looksLikeCid: output } };
-      if (run.outcome) run.outcome.output = { result: { looksLikeCid: output } };
+      run.output = { result: { data: { looksLikeCid: output }, cidPaths: [] } };
+      if (run.outcome)
+        run.outcome.output = { result: { data: { looksLikeCid: output }, cidPaths: [] } };
     }
     assert.deepEqual(
       retainedContentRoots(pureJson),
@@ -268,14 +275,12 @@ test("Kubo Engine output bypasses business block storage and all retained Task/R
     );
     const corrupt = structuredClone(historical);
     Object.values(corrupt.runs)[0]!.output = { result: null, cid: "" };
-    const removals = rpc.calls.filter((call) => call === "pin/rm").length;
     await assert.rejects(
       content.reconcile("invalid-snapshot", () => retainedContentRoots(corrupt)),
       { code: "retention_unfinished" },
     );
-    assert.equal(
-      rpc.calls.filter((call) => call === "pin/rm").length,
-      removals,
+    assert.ok(
+      rpc.pins.has(output) && rpc.pins.has(built.cid),
       "A present but invalid persisted CID must fail marking, not be treated as no CID",
     );
     clocks[0]!.advance(20_000);

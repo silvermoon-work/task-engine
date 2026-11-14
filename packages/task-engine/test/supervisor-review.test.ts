@@ -32,7 +32,7 @@ function registration(configuration: Json = {}, requestScoped = true): Registere
     type: "review",
     version: "1",
     environment: "review-v1",
-    inputSchema: { type: "object" },
+    parametersSchema: { type: "object" },
     resultSchema: true,
     messageSchema: false,
     module: new URL("./review-type.mjs", import.meta.url).href,
@@ -69,6 +69,15 @@ function fixture(type: RegisteredType, healthMs = 5000) {
     maxInFlight: 8,
     maxPayloadBytes: 65_536,
   });
+  const run = supervisor.run.bind(supervisor);
+  supervisor.run = (runId, input, scope) =>
+    run(
+      runId,
+      input && typeof input === "object" && !Array.isArray(input) && "cidPaths" in input
+        ? input
+        : { data: input ?? {}, cidPaths: [] },
+      scope,
+    );
   return { supervisor, released, complete, failed, lost };
 }
 
@@ -137,7 +146,10 @@ test("R01 合法失败证据及无效证据的运行/恢复事实一致", async 
       const before = engine.getTask(task.taskId, caller);
       assert.equal(before.stage, "failed");
       assert.deepEqual(before.error, { code: "business_failure", message: "原业务失败" });
-      assert.deepEqual(before.output?.result, valid ? { valid, marker: "失败证据" } : undefined);
+      assert.deepEqual(
+        before.output?.result,
+        valid ? { data: { valid, marker: "失败证据" }, cidPaths: [] } : undefined,
+      );
       if (!valid)
         assert.equal(
           store
@@ -164,7 +176,7 @@ test("R01 合法失败证据及无效证据的运行/恢复事实一致", async 
           close: () => store.close(),
           read() {
             const view = store.read();
-            const forged = { valid: false, marker: "篡改证据" };
+            const forged = { data: { valid: false, marker: "篡改证据" }, cidPaths: [] };
             const run = view.facts.runs[before.run!.runId]!;
             run.output = { result: forged };
             if (run.outcome?.kind === "failed") run.outcome.output = { result: forged };
@@ -269,7 +281,15 @@ test("R02 Engine 回收事实和 waitForTaskRelease 等待未等待的宿主资�
   });
   const caller = { scope: "scope", subject: "review" };
   await engine.start();
-  const task = engine.submit({ requestId: newId(), type: "review", timeoutMs: 5000 }, caller);
+  const task = engine.submit(
+    {
+      requestId: newId(),
+      type: "review",
+      timeoutMs: 5000,
+      parameters: { data: {}, cidPaths: [] },
+    },
+    caller,
+  );
   const release = engine.waitForTaskRelease(task.taskId, caller).then(() => {
     released = true;
   });

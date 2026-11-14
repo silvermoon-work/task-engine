@@ -53,7 +53,7 @@ async function artifact(
       runtime: { type: "node", minVersion: "22.13.0" },
       entry: "worker.cjs",
       binary: [],
-      inputSchema: {
+      parametersSchema: {
         type: "object",
         properties: { value: { type: "number" } },
         required: ["value"],
@@ -133,7 +133,7 @@ test("drain seals admission while a root preparation is in flight", {
     preparation.release();
     const final = await draining;
     assert.equal(final.tasks.length, 1);
-    assert.deepEqual(final.tasks[0]!.output?.result, { value: 7 });
+    assert.deepEqual(final.tasks[0]!.output?.result, { data: { value: 7 }, cidPaths: [] });
     assert.ok(Object.values(store.read().facts.runs).every((run) => run.exit && run.reclaimedAt));
     store.close();
   } finally {
@@ -159,7 +159,7 @@ import {existsSync} from "node:fs";
 import {setTimeout as delay} from "node:timers/promises";
 export default async (input,context) => {
  ${wait ? `while(!existsSync(${JSON.stringify(marker)})) await delay(5,undefined,{signal:context.signal});` : ""}
- return await Promise.all(["a","b"].map(key=>context.invokeTask({key,bundle:context.bundle.root.resolve("resources/child"),input:{value:input.value},timeoutMs:5000})));
+ return await Promise.all(["a","b"].map(key=>context.invokeTask({key,bundle:context.bundle,path:"resources/child",parameters:{value:input.value},timeoutMs:5000})));
 };`;
   const parent = await artifact(join(directory, "parent"), wrapper(leaf.cid, false), client, leaf);
   const root = await artifact(join(directory, "root"), wrapper(parent.cid, true), client, parent);
@@ -213,10 +213,13 @@ export default async (input,context) => {
     const final = await draining;
     assert.equal(final.tasks.length, 7);
     assert.ok(final.tasks.every((task) => task.stage === "completed"));
-    assert.deepEqual(final.tasks.find((task) => task.requestId === requestId)!.output?.result, [
-      [{ value: 9 }, { value: 9 }],
-      [{ value: 9 }, { value: 9 }],
-    ]);
+    assert.deepEqual(final.tasks.find((task) => task.requestId === requestId)!.output?.result, {
+      data: [
+        [{ value: 9 }, { value: 9 }],
+        [{ value: 9 }, { value: 9 }],
+      ],
+      cidPaths: [],
+    });
     assert.ok(Object.values(store.read().facts.runs).every((run) => run.exit && run.reclaimedAt));
     store.close();
   } finally {
@@ -300,7 +303,7 @@ test("logical completion is insufficient until host resource release; uncertaint
               type: "run-test",
               version: "1",
               environment: "trusted",
-              inputSchema: {
+              parametersSchema: {
                 type: "object",
                 properties: {
                   mode: { enum: ["work", "messages", "mutate"] },

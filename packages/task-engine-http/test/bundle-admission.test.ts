@@ -6,7 +6,7 @@ import test from "node:test";
 import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { createTaskEngine, newId } from "@silvermoon-work/task-engine";
 import { MemoryIpfsClient, MemoryStore, VirtualClock } from "@silvermoon-work/task-engine/testing";
-import { TaskError, taskSchemaUri } from "@silvermoon-work/task-protocol";
+import { TaskError, taskSchemaUri, wrapRequestParameters } from "@silvermoon-work/task-protocol";
 import { createTaskHandler, TaskClient } from "../src/index.js";
 
 test("V10: client rejects legacy Task-shaped receipts, mismatched tracking tokens and incomplete Bundle references", async () => {
@@ -58,7 +58,7 @@ test("V03/V05/V10: HTTP client observes Request preparation separately; disconne
       runtime: { type: "node", minVersion: "22.13.0" },
       entry: "worker.cjs",
       binary: [],
-      inputSchema: {
+      parametersSchema: {
         type: "object",
         properties: { value: { type: "number" } },
         required: ["value"],
@@ -156,7 +156,10 @@ test("V03/V05/V10: HTTP client observes Request preparation separately; disconne
     const accepted = await client.getRequestStatus(request.requestId, { waitMs: 10_000 });
     assert.equal(accepted.status, "accepted");
     if (accepted.status !== "accepted") throw new Error("Expected accepted.");
-    assert.deepEqual(await client.getRequest(request.requestId), request);
+    assert.deepEqual(
+      await client.getRequest(request.requestId),
+      wrapRequestParameters({ ...request }),
+    );
     engine.tick();
     const end = performance.now() + 10_000;
     while ((await client.getTask(accepted.taskId)).stage !== "completed") {

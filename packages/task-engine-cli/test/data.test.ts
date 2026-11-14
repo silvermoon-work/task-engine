@@ -352,7 +352,7 @@ test("offline cache cleanup preserves retained SQLite output graphs until their 
     completedAt: "2026-01-02T00:00:00.000Z",
     released: true,
     roots: [root.toString()],
-    output: { cid: root.toString(), result: null },
+    output: { result: { data: null, cidPaths: [] } },
     releaseProof: { basis: "test" },
     timeoutMs: 1000,
   });

@@ -25,7 +25,7 @@ export const taskBundleSchema = {
     "entry",
     "include",
     "binary",
-    "inputSchema",
+    "parametersSchema",
     "resultSchema",
     "messageSchema",
   ],
@@ -61,7 +61,7 @@ export const taskBundleSchema = {
           "^(?:task\\.yaml|worker\\.cjs|(?:schemas|resources)/[^\\\\:*?<>|\\u0000-\\u001f]+)$",
       },
     },
-    inputSchema: { type: "object" },
+    parametersSchema: { type: "object" },
     binary: {
       type: "array",
       maxItems: taskBundleLimits.files,
@@ -86,12 +86,12 @@ export interface TaskBundleDeclaration {
   include: string[];
   binary: string[];
   imports?: Record<string, string>;
-  inputSchema: JsonObject;
+  parametersSchema: JsonObject;
   resultSchema: JsonSchema;
   messageSchema: JsonSchema;
 }
-export interface ResolvedTaskBundle extends Omit<TaskBundleDeclaration, "inputSchema"> {
-  inputSchema: InputSchema;
+export interface ResolvedTaskBundle extends Omit<TaskBundleDeclaration, "parametersSchema"> {
+  parametersSchema: InputSchema;
 }
 const validator = new Ajv2020({ strict: true, allowUnionTypes: true }).compile(taskBundleSchema);
 export function parseTaskBundleYaml(bytes: Uint8Array): Json {
@@ -329,7 +329,7 @@ export function resolveBundleSchemas(
     const resource = resources[index]!;
     add(absolute(path, `${rootBase}/`), resource, locations.get(resource)!);
   });
-  const roots = [declaration.inputSchema, declaration.resultSchema, declaration.messageSchema];
+  const roots = [declaration.parametersSchema, declaration.resultSchema, declaration.messageSchema];
   roots.forEach((root, index) => {
     const base = `${rootBase}/${index}`;
     add(base, root, base);
@@ -421,7 +421,7 @@ export function resolveBundleSchemas(
   compileJsonSchema(message);
   return {
     ...declaration,
-    inputSchema: input as InputSchema,
+    parametersSchema: input as InputSchema,
     resultSchema: result,
     messageSchema: message,
   };

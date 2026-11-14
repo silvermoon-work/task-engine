@@ -4,7 +4,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
 import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
-import { type SubmissionResult, taskSchemaUri } from "@silvermoon-work/task-protocol";
+import { type SubmissionResult, taskSchemaUri, wrapRequestParameters } from "@silvermoon-work/task-protocol";
 import { createTaskEngine, newId } from "../src/index.js";
 import { MemoryIpfsClient, MemoryStore, VirtualClock } from "../src/testing.js";
 
@@ -39,7 +39,7 @@ async function fixture(
         runtime: { type: "node", minVersion: "22.13.0" },
         entry: "worker.cjs",
         binary: [],
-        inputSchema: {
+        parametersSchema: {
           type: "object",
           properties: { value: { type: "number" } },
           required: ["value"],
@@ -56,20 +56,21 @@ async function fixture(
 appendFileSync(${JSON.stringify(marker)},"loaded\\n");
 export default async (input, context) => {
   let bytes=0, chunks=0;
-  const file=await context.bundle.root.resolve("resources/data.bin").read();
+  const fileCid=await context.resolveContent(context.bundle,"resources/data.bin");
+  const file=await context.readContent(fileCid);
   if(file.kind!=="file")throw Error("Expected file");
   for await (const chunk of file.content) { bytes+=chunk.length; chunks++; }
   for (const path of ["../worker.cjs","resources/missing"]) {
-    let failed=false;try {await context.bundle.root.resolve(path).read()}catch{failed=true}
+    let failed=false;try {await context.resolveContent(context.bundle,path)}catch{failed=true}
     if(!failed)throw Error("Unsafe path accepted");
   }
   const canceled=new AbortController();
-  const cancellable=await context.bundle.root.resolve("resources/data.bin").read({signal:canceled.signal});
+  const cancellable=await context.readContent(fileCid,{signal:canceled.signal});
   if(cancellable.kind!=="file")throw Error("Expected file");
   const reader=cancellable.content.getReader();
   await reader.read();canceled.abort();let aborted=false;try{await reader.read()}catch{aborted=true}
   if(!aborted)throw Error("Cancellation not observed");
-  if("generation" in context || "checkpoint" in context)throw Error("Legacy context exposed");
+  if("generation" in context || "space" in context || "output" in context)throw Error("Legacy context exposed");
   appendFileSync(${JSON.stringify(marker)},JSON.stringify({startedAt:context.startedAt,scope:context.scope})+"\\n");
   return {value:input.value,bytes,chunks};
 };`,
@@ -128,16 +129,11 @@ test("verified memory-source Worker streams resources independent of author/host
       assert.equal(snapshot.stage, "completed", JSON.stringify(snapshot));
       const run = snapshot.run!.runId;
       await until(() => !!engine.getRun(run, caller).reclaimedAt);
-      assert.ok(
-        snapshot.output?.result &&
-          typeof snapshot.output?.result === "object" &&
-          !Array.isArray(snapshot.output?.result),
-      );
-      assert.equal(snapshot.output?.result.value, 7);
-      assert.equal(snapshot.output?.result.bytes, 600_000);
-      assert.ok(
-        typeof snapshot.output?.result.chunks === "number" && snapshot.output?.result.chunks > 1,
-      );
+      const result = snapshot.output?.result as { data?: { value: number; bytes: number; chunks: number }; cidPaths?: string[] };
+      assert.deepEqual(result?.cidPaths, []);
+      assert.equal(result?.data?.value, 7);
+      assert.equal(result?.data?.bytes, 600_000);
+      assert.ok(typeof result?.data?.chunks === "number" && result.data.chunks > 1);
       const evaluated = await readFile(marker, "utf8");
       assert.deepEqual(JSON.parse(evaluated.trim().split("\n")[1]!), {
         startedAt: snapshot.run!.startedAt,
@@ -150,7 +146,10 @@ test("verified memory-source Worker streams resources independent of author/host
       try {
         assert.equal(restored.getTask(id, caller).stage, "completed");
         assert.equal(accepted(await restored.submit(request, caller)), id);
-        assert.deepEqual(restored.getRequest(request.requestId, caller), request);
+        assert.deepEqual(
+          restored.getRequest(request.requestId, caller),
+          wrapRequestParameters({ ...request }),
+        );
         assert.equal(await readFile(marker, "utf8"), evaluated);
       } finally {
         await restored.close();
@@ -267,7 +266,10 @@ test("preparing capacity and final failure decisions are durable; stop cancels o
         assert.equal(restored.getTask(id, caller).receivedAt, new Date(clock.now()).toISOString());
         assert.equal(Date.parse(restored.getTask(id, caller).deadlineAt) - clock.now(), 5);
         await assert.rejects(restored.submit(request, caller), { code: "request_expired" });
-        assert.deepEqual(restored.getRequest(request.requestId, caller), request);
+        assert.deepEqual(
+          restored.getRequest(request.requestId, caller),
+          wrapRequestParameters({ ...request }),
+        );
         assert.deepEqual(await restored.getRequestStatus(second.requestId, {}, caller), rejected);
         clock.advance(20);
         assert.equal(restored.collectRequestResults(), 2);
@@ -329,7 +331,10 @@ test("invalid new references remain durable rejected intentions, while unsupport
   const restored = createTaskEngine(options);
   await restored.start();
   assert.deepEqual(await restored.getRequestStatus(request.requestId, {}, caller), rejected);
-  assert.deepEqual(restored.getRequest(request.requestId, caller), request);
+  assert.deepEqual(
+    restored.getRequest(request.requestId, caller),
+    wrapRequestParameters({ ...request }),
+  );
   await restored.close();
   store.close();
 

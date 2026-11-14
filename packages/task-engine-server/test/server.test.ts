@@ -38,7 +38,7 @@ async function config(): Promise<ServerOptions> {
         runtime: { type: "node", minVersion: "22.13.0" },
         entry: "worker.cjs",
         binary: [],
-        inputSchema: { type: "object" },
+        parametersSchema: { type: "object" },
         resultSchema: true,
         messageSchema: false,
       }),

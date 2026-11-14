@@ -14,6 +14,7 @@ export type CoordinatorRequest = JsonObject & {
   eligibleAt?: string;
   seriesId?: string;
   matchPolicy?: MatchPolicy;
+  parameters: Json;
 };
 export type TaskRequest = JsonObject & {
   requestId: string;
@@ -22,6 +23,7 @@ export type TaskRequest = JsonObject & {
   eligibleAt?: string;
   seriesId?: string;
   matchPolicy?: MatchPolicy;
+  parameters: Json;
 };
 export type SubmissionResult =
   | { status: "preparing"; requestId: string; trackingToken: string }
@@ -31,7 +33,7 @@ export interface SubmissionRecord {
   composition?: {
     invocationVersion: 1;
     targetCid: string;
-    source: import("./spaces.js").SpaceRefJSON;
+    source: { cid: string; path?: string };
     parentRunId: string;
     rootRunId: string;
     depth: number;
@@ -54,7 +56,6 @@ export interface ErrorFact {
   message: string;
 }
 export interface TaskOutput {
-  cid?: string;
   result: Json;
 }
 export interface ParentTaskAssociation {
@@ -102,7 +103,7 @@ export interface Binding {
   type: string;
   version: string;
   contractRevision: string;
-  inputSchema: InputSchema;
+  parametersSchema: InputSchema;
   environment: string;
   scope: string;
   subject: string;
@@ -117,7 +118,7 @@ export interface TaskRecord {
   receivedSequence: number;
   request: CoordinatorRequest | TaskRequest;
   binding: Binding;
-  input: Json;
+  parameters: Json;
   canceledAt?: string;
   canceledSequence?: number;
 }
@@ -136,7 +137,7 @@ export interface RunRecord {
   contentAccess?: string[];
   generation: string;
   binding: Binding;
-  input: Json;
+  parameters: Json;
   startedAt: string;
   startedSequence: number;
   updatedAt: string;
@@ -389,7 +390,7 @@ export interface TaskQuery {
 }
 export interface TaskSummary {
   bundle?: BundleReference;
-  output?: Pick<TaskOutput, "cid">;
+  output?: { result?: Json };
   name?: string;
   taskId: string;
   requestId: string;
@@ -436,7 +437,7 @@ export interface RunQuery {
 }
 export interface RunSummary {
   bundle?: BundleReference;
-  output?: Pick<TaskOutput, "cid">;
+  output?: { result?: Json };
   name?: string;
   runId: string;
   type: string;
@@ -557,7 +558,7 @@ export interface TaskService
 export interface TaskTypeDiscovery {
   readonly type: string;
   readonly version: string;
-  readonly inputSchema: InputSchema;
+  readonly parametersSchema: InputSchema;
   readonly revision: string;
 }
 export interface SubmitOptions {

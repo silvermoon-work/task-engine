@@ -43,7 +43,7 @@ test("build ships noncanonical imports for offline CAR without the source or a m
       runtime: { minVersion: "22.13.0" },
       source: {
         entry: "main.ts",
-        contract: { input: { type: "object" }, result: true, message: false },
+        contract: { parameters: { type: "object" }, result: true, message: false },
       },
       imports: { "resources/dir": directory.toString(), "resources/shared.bin": file.toString() },
       content: IpfsStore.fromClient(source),
@@ -120,7 +120,7 @@ test("task portability and graft destinations are Builder policy, not IPFS node 
         {
           name: "portable",
           runtime: { minVersion: "22.15.0" },
-          source: { entry: "main.ts", contract: { input: true, result: true, message: false } },
+          source: { entry: "main.ts", contract: { parameters: true, result: true, message: false } },
           imports: { "resources/import": root.toString() },
           content: store,
         },
@@ -148,7 +148,7 @@ test("imports reject include conflicts, overlapping destinations, missing conten
     runtime: { minVersion: "22.13.0" },
     source: {
       entry: "main.ts",
-      contract: { input: { type: "object" }, result: true, message: false },
+      contract: { parameters: { type: "object" }, result: true, message: false },
     },
   };
   const input = memoryTree(new Map([["asset.txt", Buffer.from("local")]]));

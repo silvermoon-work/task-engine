@@ -54,7 +54,7 @@ test("init returns a deterministic owned task template without CLI or package-ma
   assert.deepEqual(await readBytes(tree, "assets/greeting.txt", 6), Buffer.from("Hello\n"));
 });
 
-test("generated TypeBox contract derives usable Input/Result types and typechecks the Worker", async () => {
+test("generated TypeBox contract derives usable Parameters/Result types and typechecks the Worker", async () => {
   const root = resolve(".cache", `init-types-${randomUUID()}`);
   const tree = createTaskProject();
   try {
@@ -71,14 +71,14 @@ test("generated TypeBox contract derives usable Input/Result types and typecheck
     }
     await writeFile(
       join(root, "src/types.test.ts"),
-      `import type { Input, Result } from "./contract.js";
-const input: Input = { text: "hello" };
+      `import type { Parameters, Result } from "./contract.js";
+const input: Parameters = { text: "hello" };
 const result: Result = { text: input.text, bytes: 6, chunks: 1 };
 const text: string = result.text;
 const bytes: number = result.bytes;
 const chunks: number = result.chunks;
 // @ts-expect-error shared text must not infer as unknown or any
-const badInput: Input = { text: 123 };
+const badInput: Parameters = { text: 123 };
 // @ts-expect-error shared result text must be a string
 const badText: Result = { text: 123, bytes: 6, chunks: 1 };
 // @ts-expect-error result byte count must be numeric
@@ -86,7 +86,7 @@ const badBytes: Result = { text: "hello", bytes: "6", chunks: 1 };
 // @ts-expect-error result chunk count is required
 const missingChunks: Result = { text: "hello", bytes: 6 };
 // @ts-expect-error input properties are explicit
-const extraInput: Input = { text: "hello", extra: true };
+const extraInput: Parameters = { text: "hello", extra: true };
 `,
     );
     const typecheck = () =>
@@ -106,7 +106,7 @@ const extraInput: Input = { text: "hello", extra: true };
     const contract = await readFile(join(root, "src/contract.ts"), "utf8");
     await writeFile(
       join(root, "src/contract.ts"),
-      `${contract}\nconst invalidInput: Input = { text: 123 };
+      `${contract}\nconst invalidInput: Parameters = { text: 123 };
 const invalidResult: Result = { text: "hello", bytes: "6", chunks: 1 };
 `,
     );

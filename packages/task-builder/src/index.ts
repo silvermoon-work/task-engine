@@ -54,7 +54,7 @@ export const defaultBuilderLimits: BuilderLimits = Object.freeze({
 });
 
 export interface TaskContract {
-  readonly input: unknown;
+  readonly parameters: unknown;
   readonly result: unknown;
   readonly message: unknown;
   readonly schemas?: Readonly<Record<string, unknown>>;
@@ -222,7 +222,7 @@ export async function buildTaskBundle(
   }
   const schemas = evaluated ?? contractSchemas(contract);
   const primarySchemaPaths = [
-    "schemas/input.json",
+    "schemas/parameters.json",
     "schemas/result.json",
     "schemas/message.json",
   ] as const;
@@ -246,7 +246,7 @@ export async function buildTaskBundle(
       ...new Set([...selectTaskBinary(include, options.binary ?? []), ...imported.keys()]),
     ].sort(),
     ...(Object.keys(imports).length ? { imports } : {}),
-    inputSchema: { $ref: primarySchemaPaths[0] },
+    parametersSchema: { $ref: primarySchemaPaths[0] },
     resultSchema: { $ref: primarySchemaPaths[1] },
     messageSchema: { $ref: primarySchemaPaths[2] },
   });

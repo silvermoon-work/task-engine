@@ -56,13 +56,13 @@ export function fixture() {
         type: "echo",
         version: "1",
         contractRevision: "contract",
-        inputSchema: { type: "object", properties: { value: { type: "number" } } },
+        parametersSchema: { type: "object", properties: { value: { type: "number" } } },
         environment: "fixture",
         scope: "scope",
         subject: "actor",
         matchPolicy: policy,
       },
-      input: { value },
+      parameters: { data: { value }, cidPaths: [] },
     };
     append({
       type: "task.created",
@@ -84,13 +84,13 @@ export function fixture() {
         type: "echo",
         version: "1",
         contractRevision: "contract",
-        inputSchema: { type: "object", properties: { value: { type: "number" } } },
+        parametersSchema: { type: "object", properties: { value: { type: "number" } } },
         environment: "fixture",
         scope: "scope",
         subject: "actor",
         matchPolicy: "terminates-after-eligible",
       },
-      input: { value },
+      parameters: { data: { value }, cidPaths: [] },
     };
     append({
       type: "run.started",

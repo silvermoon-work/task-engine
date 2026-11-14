@@ -4,7 +4,6 @@ export {
   defaultEngineLimits,
   type EngineLimits,
   type EngineOptions,
-  type SpaceLimits,
   TaskEngine,
 } from "./bundle-engine.js";
 export {

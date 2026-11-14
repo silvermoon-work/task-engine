@@ -1,3 +1,4 @@
+import { fromDagPayload, toDagPayload } from "@silvermoon-work/ipfs-payload";
 import { asNativeCID, decode, encodeDagCbor } from "@silvermoon-work/ipfs-payload/dag-cbor";
 import { ContentError } from "@silvermoon-work/ipfs-store";
 import { contentLinks } from "@silvermoon-work/ipfs-store/dag";
@@ -65,8 +66,22 @@ function cid(value: string, name = "content CID"): CID {
     return fail("invalid_request", `Invalid RunHistory ${name}.`);
   }
 }
+function dagEnvelope(value: unknown): unknown {
+  try {
+    return toDagPayload(value);
+  } catch {
+    return value;
+  }
+}
+function jsonEnvelope(value: unknown): unknown {
+  try {
+    return fromDagPayload(value);
+  } catch {
+    return value;
+  }
+}
 function linkedOutput(output: TaskOutput): unknown {
-  return output.cid === undefined ? output : { ...output, cid: cid(output.cid, "output CID") };
+  return { result: dagEnvelope(output.result) };
 }
 function linkedOutcome(outcome: RunOutcome): unknown {
   return outcome.output ? { ...outcome, output: linkedOutput(outcome.output) } : outcome;
@@ -74,6 +89,7 @@ function linkedOutcome(outcome: RunOutcome): unknown {
 function linkedRun(run: RunHistorySource["run"]): unknown {
   return {
     ...run,
+    parameters: dagEnvelope(run.parameters),
     ...(run.output ? { output: linkedOutput(run.output) } : {}),
     ...(run.outcome ? { outcome: linkedOutcome(run.outcome) } : {}),
   };
@@ -81,13 +97,7 @@ function linkedRun(run: RunHistorySource["run"]): unknown {
 function outputCid(value: unknown): TaskOutput {
   if (!value || typeof value !== "object" || Array.isArray(value) || !("result" in value))
     fail("history_corrupt", "Invalid archived output.");
-  const output = value as TaskOutput & { cid?: unknown };
-  const link = asNativeCID(output.cid);
-  return link
-    ? { ...output, cid: link.toV1().toString() }
-    : output.cid === undefined
-      ? { result: output.result }
-      : fail("history_corrupt", "Archived output CID must be a native link.");
+  return { result: jsonEnvelope((value as TaskOutput).result) as TaskOutput["result"] };
 }
 function outcomeOf(value: unknown): RunOutcome {
   if (!value || typeof value !== "object" || Array.isArray(value) || !("kind" in value))
@@ -101,6 +111,7 @@ function runOf(value: unknown): RunHistorySource["run"] {
   const run = value as RunHistorySource["run"] & { output?: unknown; outcome?: unknown };
   return {
     ...run,
+    parameters: jsonEnvelope(run.parameters) as RunHistorySource["run"]["parameters"],
     ...(run.output ? { output: outputCid(run.output) } : {}),
     ...(run.outcome ? { outcome: outcomeOf(run.outcome) } : {}),
   };
@@ -116,8 +127,11 @@ export async function encodeRunHistoryDag(
     runId: source.runId,
     sourceWatermark: source.sourceWatermark,
     finalizedAt: source.finalizedAt,
-    parameters: source.run.input,
-    messages: source.messages,
+    parameters: dagEnvelope(source.run.parameters),
+    messages: source.messages.map((message) => ({
+      ...message,
+      payload: dagEnvelope(message.payload),
+    })),
     delivery: source.run.outcome ? linkedOutcome(source.run.outcome) : undefined,
     events: source.events,
     contentRoots: source.contentRoots.map((value) => cid(value)),
@@ -165,7 +179,10 @@ export function decodeRunHistoryDag(bytes: Uint8Array): RunHistorySource {
     sourceWatermark: node.sourceWatermark,
     finalizedAt: node.finalizedAt,
     run,
-    messages: node.messages as RunHistorySource["messages"],
+    messages: (node.messages as RunHistorySource["messages"]).map((message) => ({
+      ...message,
+      payload: jsonEnvelope(message.payload) as RunHistorySource["messages"][number]["payload"],
+    })),
     events: node.events as RunHistorySource["events"],
     contentRoots,
     contentAccess: node.contentAccess as string[],

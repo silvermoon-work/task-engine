@@ -7,10 +7,10 @@ import { CarReader } from "@ipld/car/reader";
 import { CarWriter } from "@ipld/car/writer";
 import {
   ContentRef,
-  ContentRefSchema,
   encodePayload,
   encodePayloadBlock,
 } from "@silvermoon-work/ipfs-payload";
+import { ContentRefSchema } from "@silvermoon-work/ipfs-payload/typebox";
 import { encodeDagCbor } from "@silvermoon-work/ipfs-payload/dag-cbor";
 import { importer } from "ipfs-unixfs-importer";
 import { fixedSize } from "ipfs-unixfs-importer/chunker";
@@ -300,5 +300,48 @@ test("canceling a pending Web file stream stops that reader without waiting for 
     assert.equal((await pending).done, true);
   } finally {
     await store.close();
+  }
+});
+
+test("putContent stores UnixFS bytes before returning a CID and honors cancel", async () => {
+  const directory = resolve(".cache", `put-${randomUUID()}`);
+  const store = new IpfsStore({ dataDir: directory });
+  try {
+    const payload = Buffer.from("put-content-bytes");
+    const cid = await store.putContent(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(payload);
+          controller.close();
+        },
+      }),
+    );
+    const node = await store.readContent(cid);
+    assert.ok(node.kind === "file");
+    const parts: Uint8Array[] = [];
+    const reader = node.content.getReader();
+    for (;;) {
+      const item = await reader.read();
+      if (item.done) break;
+      parts.push(item.value);
+    }
+    assert.deepEqual(Buffer.concat(parts), payload);
+    const canceled = new AbortController();
+    canceled.abort(new Error("stop writer"));
+    await assert.rejects(
+      store.putContent(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(Buffer.alloc(32, 7));
+            controller.close();
+          },
+        }),
+        { signal: canceled.signal },
+      ),
+      /stop writer/,
+    );
+  } finally {
+    await store.close();
+    await rm(directory, { recursive: true, force: true });
   }
 });

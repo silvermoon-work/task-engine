@@ -83,79 +83,74 @@ test("SQLite content blocks, multi-Run roots and access associations survive reo
   }
 });
 
-for (const outputCid of [undefined, cid])
-  test(`SQLite replays output envelope (${outputCid ? "with CID" : "non-bundle result"}) and content access`, async () => {
-    const directory = resolve(".cache", `output-${randomUUID()}`);
-    await mkdir(directory, { recursive: true });
-    const filename = join(directory, "tasks.sqlite");
-    const f = fixture();
-    const task = f.task(1, 0);
-    const run = f.run(2, 1);
-    for (const sid of ["bundle", "input", "input"])
-      f.append({
-        type: "run.content-access",
-        runId: run.runId,
-        scope: "scope",
-        occurredAt: time(2),
-        data: { sid },
-      });
+test("SQLite replays payload result envelope and content access without output CID", async () => {
+  const directory = resolve(".cache", `output-${randomUUID()}`);
+  await mkdir(directory, { recursive: true });
+  const filename = join(directory, "tasks.sqlite");
+  const f = fixture();
+  const task = f.task(1, 0);
+  const run = f.run(2, 1);
+  for (const sid of ["bundle", cid])
     f.append({
-      type: "run.outcome",
+      type: "run.content-access",
       runId: run.runId,
       scope: "scope",
-      occurredAt: time(3),
-      data: {
-        outcome: {
-          kind: "completed",
-          output: {
-            result: { ok: true },
-            ...(outputCid === undefined ? {} : { cid: outputCid }),
-          },
-          occurredAt: time(3),
-        },
+      occurredAt: time(2),
+      data: { sid },
+    });
+  f.append({
+    type: "run.outcome",
+    runId: run.runId,
+    scope: "scope",
+    occurredAt: time(3),
+    data: {
+      outcome: {
+        kind: "completed",
+        output: { result: { data: { ok: true }, cidPaths: [] } },
+        occurredAt: time(3),
       },
-    });
-    f.append({
-      type: "run.exited",
-      runId: run.runId,
-      scope: "scope",
-      occurredAt: time(4),
-      data: { basis: "worker", code: 0 },
-    });
-    const store = openSqliteStore(filename);
-    try {
-      store.claim("owner");
-      store.append(
-        "owner",
-        0,
-        f.events.map(({ sequence: _sequence, ...event }) => event),
-      );
-      store.release("owner");
-      store.close();
-      const reopened = openSqliteStore(filename);
-      try {
-        const view = reopened.read();
-        const taskSnapshot = project(view.facts, task.taskId, epoch + 5);
-        const runSnapshot = projectRun(view.facts, run.runId, epoch + 5);
-        assert.equal(view.facts.projectionVersion, 5);
-        assert.equal(view.facts.runs[run.runId]?.output?.cid, outputCid);
-        assert.equal(taskSnapshot.stage, "completed");
-        assert.equal(taskSnapshot.output?.cid, outputCid);
-        assert.equal(runSnapshot.output?.cid, outputCid);
-        assert.deepEqual(taskSnapshot.output, {
-          ...(outputCid ? { cid: outputCid } : {}),
-          result: { ok: true },
-        });
-        assert.deepEqual(runSnapshot.output, taskSnapshot.output);
-        assert.equal(Object.hasOwn(runSnapshot, "result"), false);
-        assert.equal(Object.hasOwn(runSnapshot, "outputCid"), false);
-        assert.deepEqual(runSnapshot.contentAccess, ["bundle", "input"]);
-        assert.deepEqual(taskSnapshot.run?.contentAccess, ["bundle", "input"]);
-      } finally {
-        reopened.close();
-      }
-    } finally {
-      store.close();
-      await rm(directory, { recursive: true, force: true });
-    }
+    },
   });
+  f.append({
+    type: "run.exited",
+    runId: run.runId,
+    scope: "scope",
+    occurredAt: time(4),
+    data: { basis: "worker", code: 0 },
+  });
+  const store = openSqliteStore(filename);
+  try {
+    store.claim("owner");
+    store.append(
+      "owner",
+      0,
+      f.events.map(({ sequence: _sequence, ...event }) => event),
+    );
+    store.release("owner");
+    store.close();
+    const reopened = openSqliteStore(filename);
+    try {
+      const view = reopened.read();
+      const taskSnapshot = project(view.facts, task.taskId, epoch + 5);
+      const runSnapshot = projectRun(view.facts, run.runId, epoch + 5);
+      assert.equal(view.facts.projectionVersion, 5);
+      assert.equal(
+        view.facts.runs[run.runId]?.output !== undefined &&
+          "cid" in view.facts.runs[run.runId]!.output!,
+        false,
+      );
+      assert.equal(taskSnapshot.stage, "completed");
+      assert.deepEqual(taskSnapshot.output, { result: { data: { ok: true }, cidPaths: [] } });
+      assert.deepEqual(runSnapshot.output, taskSnapshot.output);
+      assert.equal(Object.hasOwn(runSnapshot, "result"), false);
+      assert.equal(Object.hasOwn(runSnapshot, "outputCid"), false);
+      assert.deepEqual(runSnapshot.contentAccess, ["bundle", cid]);
+      assert.deepEqual(taskSnapshot.run?.contentAccess, ["bundle", cid]);
+    } finally {
+      reopened.close();
+    }
+  } finally {
+    store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});

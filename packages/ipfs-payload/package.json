@@ -11,6 +11,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./typebox": {
+      "types": "./dist/typebox.d.ts",
+      "import": "./dist/typebox.js"
+    },
     "./dag-cbor": {
       "types": "./dist/dag-cbor.d.ts",
       "import": "./dist/dag-cbor.js"

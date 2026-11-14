@@ -53,7 +53,7 @@ function registration(
     type: "run-test",
     version: "1",
     environment: "trusted",
-    inputSchema: {
+    parametersSchema: {
       type: "object",
       properties: { mode: { enum: ["work", "messages", "mutate"] }, text: { type: "string" } },
       required: ["mode", "text"],
@@ -204,7 +204,10 @@ export function runHistoryArchiveCases(
     assert.equal(source.sourceWatermark, record.sourceWatermark);
     assert.equal(source.run.outcome?.kind, "completed");
     assert.deepEqual(source.contentRoots, [contentCid.toString()]);
-    assert.equal(source.run.input.text, contentCid.toString());
+    assert.equal(
+      (source.run.parameters as { data?: { text?: string } }).data?.text,
+      contentCid.toString(),
+    );
     const detail = await engine.readRunHistoryArchive(runId);
     assert.equal(detail.status, "available");
     assert.equal(detail.source?.runId, runId);
@@ -619,15 +622,18 @@ export async function runHistoryDagCodecCase(): Promise<void> {
         type: "run-test",
         version: "1",
         contractRevision: "rev",
-        inputSchema: { type: "object" },
+        parametersSchema: { type: "object" },
         environment: "trusted",
         scope: "scope",
         subject: "owner",
         matchPolicy: "starts-after-eligible",
       },
-      input: {
-        text: contentCid.toString(),
-        lookalike: { "/": contentCid.toString(), bytes: contentCid.toString() },
+      parameters: {
+        data: {
+          text: contentCid.toString(),
+          lookalike: { "/": contentCid.toString(), bytes: contentCid.toString() },
+        },
+        cidPaths: [],
       },
       startedAt: "2020-01-01T00:00:00.000Z",
       startedSequence: 1,
@@ -635,7 +641,7 @@ export async function runHistoryDagCodecCase(): Promise<void> {
       outcome: {
         kind: "completed",
         occurredAt: "2020-01-01T00:00:01.000Z",
-        output: { result: { ok: true }, cid: contentCid.toString() },
+        output: { result: { data: { ok: true }, cidPaths: [] } },
       },
       reclaimedAt: "2020-01-01T00:00:02.000Z",
       exit: { basis: "worker", occurredAt: "2020-01-01T00:00:01.000Z", sequence: 4, code: 0 },
@@ -648,16 +654,16 @@ export async function runHistoryDagCodecCase(): Promise<void> {
   const links = contentLinks(encoded.root, encoded.bytes);
   assert.ok(links.some((link) => link.toString() === contentCid.toString()));
   const source = decodeRunHistoryDag(encoded.bytes);
-  assert.equal(source.run.input.text, contentCid.toString());
-  assert.deepEqual(source.run.input.lookalike, {
+  assert.equal((source.run.parameters as { data?: { text?: string } }).data?.text, contentCid.toString());
+  assert.deepEqual((source.run.parameters as { data?: { lookalike?: unknown } }).data?.lookalike, {
     "/": contentCid.toString(),
     bytes: contentCid.toString(),
   });
-  assert.equal(
+  assert.deepEqual(
     source.run.outcome && "output" in source.run.outcome
-      ? source.run.outcome.output.cid
+      ? source.run.outcome.output.result
       : undefined,
-    contentCid.toString(),
+    { data: { ok: true }, cidPaths: [] },
   );
   assert.deepEqual(source.contentRoots, [contentCid.toString()]);
 }

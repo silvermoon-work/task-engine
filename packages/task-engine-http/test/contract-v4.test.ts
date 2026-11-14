@@ -19,7 +19,7 @@ import type {
   TaskRequest,
   TaskSnapshot,
 } from "@silvermoon-work/task-protocol";
-import { taskSchemaUri } from "@silvermoon-work/task-protocol";
+import { taskSchemaUri, wrapRequestParameters } from "@silvermoon-work/task-protocol";
 import { createTaskHandler } from "../src/index.js";
 
 async function until(check: () => boolean) {
@@ -57,7 +57,7 @@ async function fixture(limits: Parameters<typeof createTaskEngine>[0]["limits"] 
       runtime: { type: "node", minVersion: "22.13.0" },
       entry: "worker.cjs",
       binary: [],
-      inputSchema: { type: "object" },
+      parametersSchema: { type: "object" },
       resultSchema: true,
       messageSchema: true,
     }),
@@ -153,7 +153,10 @@ test("concurrent HTTP retries accept exactly one Task and retain the complete or
     assert.equal(final.status, "accepted");
     assert.equal(Object.keys(f.store.read().facts.tasks).length, 1);
     assert.equal(f.store.read().events.filter((event) => event.type === "task.created").length, 1);
-    assert.deepEqual(f.engine.getRequest(requestId, f.caller), { ...body, requestId });
+    assert.deepEqual(
+      f.engine.getRequest(requestId, f.caller),
+      wrapRequestParameters({ ...body, requestId }),
+    );
     assert.equal((await send({ ...body, kind: "different" })).status, 409);
   } finally {
     await f.close();

@@ -4,15 +4,14 @@ import {
   type Caller,
   canonical,
   type ErrorFact,
+  wrapRequestParameters,
   json,
-  normalizeSpacePath,
   object,
   project,
   projectRun,
   type RunResourceContext,
   type RunSnapshot,
   requestTime,
-  type SpaceHost,
   type SubmissionRecord,
   type SubmissionResult,
   TaskError,
@@ -30,13 +29,8 @@ import { ContentError, type IpfsClient, type IpfsStore } from "./content.js";
 import { TaskEngine as Coordinator, type EngineOptions as CoordinatorOptions } from "./engine.js";
 import { newId } from "./identity.js";
 import { retainedContentRoots } from "./retained-content.js";
-import { createRunSpaceHost, type RunSpaceHostOptions } from "./spaces.js";
 
 export { defaultEngineLimits, type EngineLimits } from "./engine.js";
-export type SpaceLimits = Omit<
-  RunSpaceHostOptions,
-  "runId" | "bundleCid" | "client" | "storage" | "signal"
->;
 export interface EngineOptions
   extends Omit<
     CoordinatorOptions,
@@ -60,7 +54,6 @@ export interface EngineOptions
   bundleLimits?: Partial<BundleLimits>;
   bundleConcurrency?: number;
   bundlePreparation?: BundleCacheOptions["preparation"];
-  spaceLimits?: SpaceLimits;
   allowGateway?: (url: URL) => boolean;
 }
 function bounded<T>(action: () => Promise<T>, signal: AbortSignal): Promise<T> {
@@ -140,7 +133,7 @@ export class TaskEngine implements TaskService {
     if (Object.hasOwn(options, "authorizeChild") || Object.hasOwn(options, "bundlePrefetch"))
       throw new TaskError(
         "invalid_config",
-        "authorizeChild and lazy/prefetch configuration are removed; migrate to SpaceRef calls and complete preparation.",
+        "authorizeChild and lazy/prefetch configuration are removed; migrate to CID bundle calls and complete preparation.",
       );
     for (const key of [
       "types",
@@ -176,7 +169,6 @@ export class TaskEngine implements TaskService {
     this.core = new Coordinator({
       store: options.store,
       ...(options.executionBudgetFromWorker ? { executionBudgetFromWorker: true } : {}),
-      ...(options.requestInputEnvelope ? { requestInputEnvelope: true } : {}),
       ...(options.durableLogs ? { durableLogs: true } : {}),
       types: [],
       currentVersions: {},
@@ -279,7 +271,7 @@ export class TaskEngine implements TaskService {
       type: "bundle",
       version: bundle.cid,
       environment: "node",
-      inputSchema: bundle.resolved.inputSchema,
+      parametersSchema: bundle.resolved.parametersSchema,
       resultSchema: bundle.resolved.resultSchema,
       messageSchema: bundle.resolved.messageSchema,
       module: bundleModuleURL(bundle.cid),
@@ -287,67 +279,39 @@ export class TaskEngine implements TaskService {
       configuration: null,
       bundle: { cid: bundle.cid, declaration: bundle.resolved },
       getBundleSource: () => this.cache.source(cid),
-      createSpace: (context: RunResourceContext): SpaceHost => {
-        const staged = new Set<string>();
-        const session = `${this.contentOwner}/${context.runId}`;
-        const stage = async (target: string, bytes: Uint8Array) => {
-          if (!this.persistentStore || staged.has(target)) return;
-          await this.persistentStore.stageBlock(session, CID.parse(target), bytes, {
-            signal: context.signal,
-          });
-          staged.add(target);
+      createContent: (context: RunResourceContext) => {
+        const store = this.cache.contentStore;
+        const signalFor = (options?: { signal?: AbortSignal }) =>
+          AbortSignal.any([
+            context.signal,
+            ...(options?.signal ? [options.signal] : []),
+          ]);
+        const remember = (target: CID) => {
+          const value = target.toV1().toString();
+          this.core.recordRunContentAccess(context.runId, value);
+          this.core.retainRunContent(context.runId, value);
         };
-        const host = createRunSpaceHost({
-          ...this.options.spaceLimits,
-          runId: context.runId,
-          bundleCid: cid,
-          client: this.cache,
-          signal: context.signal,
-          storage: {
-            get: async (target) => {
-              if (!this.persistentStore) return this.core.readContentBlock(target);
-              try {
-                const bytes = await this.persistentStore.block.get(target, {
-                  signal: context.signal,
-                });
-                await stage(target, bytes);
-                return bytes;
-              } catch (error) {
-                if (error instanceof ContentError && error.code === "missing_block")
-                  return undefined;
-                throw error;
-              }
-            },
-            put: async (target, bytes) => {
-              if (this.persistentStore) await stage(target, bytes);
-              else this.core.writeContentBlock(target, bytes);
-            },
-            retain: async (runId, target) => {
-              await this.persistentStore?.finishImport(
-                `${this.contentOwner}/${runId}`,
-                target,
-                this.contentOwner,
-                { signal: context.signal },
-              );
-              this.core.retainRunContent(runId, target);
-              await this.persistentStore?.confirmRetained(this.contentOwner, [target], {
-                signal: context.signal,
-              });
-            },
-          },
-        });
         return {
-          ...host,
-          read: async (ref, signal) => {
-            const node = await host.read(ref, signal);
-            if (ref.sid.startsWith("ipfs:"))
-              this.core.recordRunContentAccess(context.runId, ref.sid);
+          readContent: async (cid: CID | string, options?: { signal?: AbortSignal }) => {
+            const parsed = CID.parse(cid.toString());
+            const node = await store.readContent(parsed, { signal: signalFor(options) });
+            remember(parsed);
             return node;
           },
-          link: async (path, ref, signal) => {
-            await host.link(path, ref, signal);
-            if (ref.sid.startsWith("ipfs:"))
-              this.core.recordRunContentAccess(context.runId, ref.sid);
+          resolveContent: async (cid: CID | string, path: string, options?: { signal?: AbortSignal }) => {
+            const parsed = CID.parse(cid.toString());
+            const target = await store.resolveContent(parsed, path, { signal: signalFor(options) });
+            remember(target);
+            return target;
+          },
+          putContent: async (content: ReadableStream<Uint8Array>, options?: { signal?: AbortSignal }) => {
+            const stored = await store.putContent(content, { signal: signalFor(options) });
+            if (this.persistentStore)
+              await this.persistentStore.confirmRetained(this.contentOwner, [stored.toString()], {
+                signal: signalFor(options),
+              });
+            remember(stored);
+            return stored;
           },
         };
       },
@@ -479,11 +443,10 @@ export class TaskEngine implements TaskService {
     this.core.authorizeAdmission(caller, "submit", caller?.scope);
     const raw = object(
       value,
-      this.options.requestInputEnvelope
-        ? Math.min(Number.MAX_SAFE_INTEGER, this.limits.maxPayloadBytes + 8192)
-        : this.limits.maxPayloadBytes,
+      Math.min(Number.MAX_SAFE_INTEGER, this.limits.maxPayloadBytes + 8192),
     );
-    if (this.options.requestInputEnvelope) object(raw.input, this.limits.maxPayloadBytes);
+    wrapRequestParameters(raw);
+    object(raw.parameters, this.limits.maxPayloadBytes);
     const id = ulid(raw.requestId);
     const now = this.now();
     const lower = Math.max(
@@ -611,43 +574,20 @@ export class TaskEngine implements TaskService {
     context.signal.throwIfAborted();
     const raw = object(json(value, this.limits.maxPayloadBytes));
     if (
-      Object.keys(raw).some((key) => !["key", "bundle", "input", "timeoutMs"].includes(key)) ||
+      Object.keys(raw).some(
+        (key) => !["key", "bundle", "path", "parameters", "timeoutMs"].includes(key),
+      ) ||
       typeof raw.key !== "string" ||
       !/^[a-zA-Z0-9._:-]{1,128}$/.test(raw.key) ||
+      typeof raw.bundle !== "string" ||
+      (raw.path !== undefined && (typeof raw.path !== "string" || raw.path.length > 4096)) ||
       !Number.isSafeInteger(raw.timeoutMs) ||
       (raw.timeoutMs as number) < 1 ||
       (raw.timeoutMs as number) > this.limits.childTimeoutMs
     )
       throw new TaskError("invalid_request", "Invalid child invocation identity or deadline.");
-    const ref = object(raw.bundle);
-    if (
-      Object.keys(ref).some((key) => !["sid", "path"].includes(key)) ||
-      typeof ref.sid !== "string" ||
-      typeof ref.path !== "string" ||
-      !ref.sid.startsWith("ipfs:") ||
-      ref.path !== normalizeSpacePath(ref.path) ||
-      ref.sid !== `ipfs:${bundleCid(validateBundleReference(ref.sid.slice(5)))}`
-    )
-      throw new TaskError(
-        "invalid_space",
-        "Child bundle requires an immutable static SpaceRef; writable output is unsupported.",
-      );
-    const input = object(raw.input, this.limits.maxPayloadBytes);
-    if (
-      !this.options.requestInputEnvelope &&
-      Object.keys(input).some((key) =>
-        [
-          "requestId",
-          "bundle",
-          "type",
-          "timeoutMs",
-          "eligibleAt",
-          "seriesId",
-          "matchPolicy",
-        ].includes(key),
-      )
-    )
-      throw new TaskError("invalid_input", "Child input collides with the Task envelope.");
+    bundleCid(validateBundleReference(raw.bundle));
+    object(raw.parameters, this.limits.maxPayloadBytes);
     const parent = this.parent(context);
     this.core.authorizeAdmission(parent.caller, "submit", parent.caller.scope);
     const records = Object.values(this.core.facts().facts.submissions);
@@ -705,7 +645,9 @@ export class TaskEngine implements TaskService {
     try {
       let cid = record?.composition?.targetCid;
       if (!cid)
-        cid = await this.cache.resolve(request.bundle.sid.slice(5), request.bundle.path, signal);
+        cid = request.path
+          ? await this.cache.resolve(request.bundle, request.path, signal)
+          : bundleCid(validateBundleReference(request.bundle));
       this.parent(context);
       signal.throwIfAborted();
       if (!record) {
@@ -734,23 +676,24 @@ export class TaskEngine implements TaskService {
         // admit persists association and intent before its first asynchronous boundary.
         const admission = this.admit(
           {
-            ...(this.options.requestInputEnvelope
-              ? { input: object(request.input, this.limits.maxPayloadBytes) }
-              : object(request.input)),
             requestId,
             bundle: cid,
             timeoutMs: Math.max(1, deadline - this.now()),
+            parameters: object(request.parameters, this.limits.maxPayloadBytes),
           },
           parent.caller,
           {
             invocationVersion: 1,
             targetCid: cid,
-            source: request.bundle,
+            source: {
+              cid: request.bundle,
+              ...(request.path ? { path: request.path } : {}),
+            },
             parentRunId: context.runId,
             rootRunId: parent.rootRunId,
             depth: parent.depth,
             key: request.key,
-            path: request.bundle.path,
+            path: request.path ?? "",
             intent: json(request),
             deadlineAt: at(deadline),
           },

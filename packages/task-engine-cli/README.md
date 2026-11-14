@@ -27,8 +27,8 @@ task-engine --version
 
 ```powershell
 task-engine server start
-'{"text":"world"}' | task-engine run --car .\dist\my-task.car --input -
-task-engine run --cid <bundle-cid> --input .\input.json --async
+'{"text":"world"}' | task-engine run --car .\dist\my-task.car --parameters -
+task-engine run --cid <bundle-cid> --parameters .\input.json --async
 task-engine task query
 task-engine task query --id <task-id>
 task-engine task logs <task-id> --limit 100
@@ -83,7 +83,7 @@ Pinboard、Kubo 或公共 Gateway。显式选择 Kubo 后端才向配置的 daem
 没有 `--json`、`--quiet`、`--yes`、TUI、提示确认或独立 dry-run。
 
 `run` 必须恰选 `--cid` 或调用端本地普通 `--car` 文件，并显式提供
-`--input <JSON 文件|->`。只有 `--input -` 读取 stdin 至 EOF。
+`--parameters <JSON 文件|->`。只有 `--parameters -` 读取 stdin 至 EOF。
 输入必须是单个完整 JSON 对象，允许 `{}`，不自动补入输入。
 业务对象与内部请求信封分离，`requestId` 等业务字段不会覆盖执行身份或预算。
 CAR 在调用端读取并传给 Server，不是远端文件路径，不能用 stdin 传 CAR。
@@ -468,7 +468,7 @@ bundleMaxBytes=67108864、maxConnections=256。
 原 `runBundle()`、`ExecutionResult`、`exitCodes` 保留给已嵌入调用方，
 继续具有旧的非持久、调用者管理内容源语义；不等于新的受管 CLI。
 旧位置 CID 改为 `--cid`；旧 `--gateway` 改为 Server 的 `--ipfs-gateway`；
-旧省略输入改为显式 `--input -`；不再使用 `--allow-children`、
+旧省略输入改为显式 `--parameters -`；不再使用 `--allow-children`、
 `--expected-cid` 或 `--max-runtime-ms`。已提供的子任务能力直接按服务预算执行。
 
 发布映射为 `task-engine-cli`。当前正式版为 `0.1.0`（npm `latest`），

@@ -7,7 +7,7 @@ import test from "node:test";
 import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { createTaskEngine, newId } from "@silvermoon-work/task-engine";
 import { MemoryIpfsClient, VirtualClock } from "@silvermoon-work/task-engine/testing";
-import { taskSchemaUri } from "@silvermoon-work/task-protocol";
+import { taskSchemaUri, wrapRequestParameters } from "@silvermoon-work/task-protocol";
 import { openSqliteStore } from "../src/index.js";
 
 for (const phase of ["beforeCommit", "afterCommit"] as const) {
@@ -27,7 +27,7 @@ for (const phase of ["beforeCommit", "afterCommit"] as const) {
             runtime: { type: "node", minVersion: "22.13.0" },
             entry: "worker.cjs",
             binary: [],
-            inputSchema: {
+            parametersSchema: {
               type: "object",
               properties: { value: { type: "number" } },
               required: ["value"],
@@ -102,7 +102,10 @@ process.exit(2);
             caller,
           );
           assert.equal(result.status, decision);
-          assert.deepEqual(engine.getRequest(request.requestId, caller), request);
+          assert.deepEqual(
+            engine.getRequest(request.requestId, caller),
+            wrapRequestParameters({ ...request }),
+          );
           assert.equal(
             Object.keys(store.read().facts.tasks).length,
             decision === "accepted" ? 1 : 0,

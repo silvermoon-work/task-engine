@@ -89,7 +89,7 @@ test("legacy embedded compatibility helper exhausts single, parallel and multi-l
         runtime: { type: "node", minVersion: "22.13.0" },
         entry: "worker.cjs",
         binary: [],
-        inputSchema: {
+        parametersSchema: {
           type: "object",
           properties: { value: { type: "number" }, mode: { type: "string" } },
           required: ["value"],
@@ -125,8 +125,8 @@ import {setTimeout as delay} from "node:timers/promises";
 export default async (input,context) => {
  await delay(100,undefined,{signal:context.signal});
  return await Promise.all(["a","b"].map(key=>context.invokeTask({
- key,bundle:context.bundle.root.resolve("resources/child"),
- input:{value:input.value,mode:input.mode||"normal"},timeoutMs:10000})));
+ key,bundle:context.bundle,path:"resources/child",
+ parameters:{value:input.value,mode:input.mode||"normal"},timeoutMs:10000})));
 };`;
   const parent = await build(wrapper(leaf.cid), leaf);
   const nested = await build(wrapper(parent.cid), parent);
@@ -153,7 +153,7 @@ export default async (input,context) => {
   const args = (cid: string, extra: string[] = []) => [
     "run",
     cid,
-    "--input",
+    "--parameters",
     "-",
     "--gateway",
     gateway,
@@ -272,18 +272,22 @@ process.exitCode=await main(process.argv.slice(1));assert.ok(reads>0);`;
         assert.equal(implicit.exitCode, 0, implicit.stderr);
         const execution = JSON.parse(implicit.stdout);
         assert.equal(execution.status, "succeeded");
-        assert.deepEqual(execution.execution.tasks[0].output.result, { value: 9 });
-        const explicit = await execute([...source, "--input", "-"], '{"value":9}');
+        assert.deepEqual(execution.execution.tasks[0].output.result, { data: { value: 9 }, cidPaths: [] });
+        const explicit = await execute([...source, "--parameters", "-"], '{"value":9}');
         assert.equal(explicit.exitCode, 0, explicit.stderr);
         assert.deepEqual(JSON.parse(explicit.stdout).execution.tasks[0].output.result, {
-          value: 9,
+          data: { value: 9 },
+          cidPaths: [],
         });
         const file = await execute(
-          [...source, "--input", inputFile],
+          [...source, "--parameters", inputFile],
           "invalid stdin must not be consumed",
         );
         assert.equal(file.exitCode, 0, file.stderr);
-        assert.deepEqual(JSON.parse(file.stdout).execution.tasks[0].output.result, { value: 11 });
+        assert.deepEqual(JSON.parse(file.stdout).execution.tasks[0].output.result, {
+          data: { value: 11 },
+          cidPaths: [],
+        });
       }
     },
   );
@@ -315,7 +319,7 @@ process.exitCode=await main(process.argv.slice(1));assert.ok(reads>0);`;
       ] as const) {
         const before = requests;
         const output = await execute(
-          ["run", "--car", bundle.car, "--expected-cid", bundle.cid, "--input", "-"],
+          ["run", "--car", bundle.car, "--expected-cid", bundle.cid, "--parameters", "-"],
           '{"value":7}',
         );
         assert.equal(output.exitCode, 0, output.stderr);
@@ -356,7 +360,7 @@ process.exitCode=await main(process.argv.slice(1));assert.ok(reads>0);`;
         ["--car", leaf.car, "--car", nested.car],
         [leaf.cid, "--gateway", gateway, "--expected-cid", leaf.cid],
       ]) {
-        const output = await execute(["run", ...extra, "--input", "-"], '{"value":7}');
+        const output = await execute(["run", ...extra, "--parameters", "-"], '{"value":7}');
         assert.equal(output.exitCode, 2, output.stderr);
         assert.equal(JSON.parse(output.stdout).status, "invalid");
         assert.equal(JSON.parse(output.stdout).execution, undefined);
@@ -368,10 +372,10 @@ process.exitCode=await main(process.argv.slice(1));assert.ok(reads>0);`;
     },
   );
   await t.test(
-    "local CAR permits SpaceRef children and preserves failures, overall timeout and signals",
+    "local CAR permits CID children and preserves failures, overall timeout and signals",
     async () => {
-      const args = ["run", "--car", leaf.car, "--input", "-"];
-      const composed = await execute(["run", "--car", parent.car, "--input", "-"], '{"value":7}');
+      const args = ["run", "--car", leaf.car, "--parameters", "-"];
+      const composed = await execute(["run", "--car", parent.car, "--parameters", "-"], '{"value":7}');
       assert.equal(composed.exitCode, 0, composed.stderr);
       assert.equal(JSON.parse(composed.stdout).execution.tasks.length, 3);
       const failed = await execute(args, '{"value":7,"mode":"failure"}');
@@ -451,20 +455,22 @@ process.exitCode=await main(process.argv.slice(1));clearTimeout(timer);`;
         [args("not-a-cid"), '{"value":7}'],
         [args(leaf.cid), "invalid JSON"],
         [args(leaf.cid), "[]"],
-        [args(leaf.cid), '{"requestId":"override","value":7}'],
         [args(leaf.cid, ["--timeout-ms", "NaN"]), '{"value":7}'],
         [args(leaf.cid, ["--unknown"]), '{"value":7}'],
-        [["run", leaf.cid, "--input", "-", "--gateway", "file:///invalid"], '{"value":7}'],
+        [["run", leaf.cid, "--parameters", "-", "--gateway", "file:///invalid"], '{"value":7}'],
       ] as const) {
         const output = await execute([...arguments_], input);
         assert.equal(output.exitCode, 2, output.stderr);
         assert.equal(JSON.parse(output.stdout).status, "invalid");
       }
+      const extra = await execute(args(leaf.cid), '{"requestId":"override","value":7}');
+      assert.equal(extra.exitCode, 3, extra.stderr);
+      assert.equal(JSON.parse(extra.stdout).status, "rejected");
     },
   );
   await t.test("programmatic caller-owned source and pins are preserved", async () => {
     await client.pin.add(leaf.cid);
-    const output = await runBundle({ cid: leaf.cid, input: { value: 2 }, ipfsClient: client });
+    const output = await runBundle({ cid: leaf.cid, parameters: { value: 2 }, ipfsClient: client });
     assert.equal(output.exitCode, exitCodes.succeeded);
     assert.ok(client.pins.has(leaf.cid));
     assert.ok(client.blocks.has(leaf.cid));

@@ -28,6 +28,8 @@
     "node": ">=22.13.0"
   },
   "dependencies": {
+    "@silvermoon-work/ipfs-access": "workspace:*",
+    "@silvermoon-work/ipfs-payload": "workspace:*",
     "@silvermoon-work/task-protocol": "workspace:*",
     "multiformats": "catalog:"
   },

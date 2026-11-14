@@ -17,7 +17,6 @@ export interface ServerOptions {
   allowGateway?: EngineOptions["allowGateway"];
   bundleLimits?: EngineOptions["bundleLimits"];
   bundleConcurrency?: number;
-  spaceLimits?: EngineOptions["spaceLimits"];
   authorize: EngineOptions["authorize"];
   resolveCaller: HandlerOptions["resolveCaller"];
   store?: Store;
@@ -180,7 +179,6 @@ export async function startTaskServer(options: ServerOptions): Promise<TaskServe
         ? { bundleConcurrency: options.bundleConcurrency }
         : {}),
       ...(options.bundleLimits ? { bundleLimits: options.bundleLimits } : {}),
-      ...(options.spaceLimits ? { spaceLimits: options.spaceLimits } : {}),
       authorize: options.authorize,
       ...(options.logs ? { logs: options.logs } : {}),
       ...(options.limits ? { limits: options.limits } : {}),

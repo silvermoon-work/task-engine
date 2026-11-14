@@ -258,7 +258,7 @@ test("real isolated runaway worker is physically terminated before pressure repl
     type: "echo",
     version: "1",
     environment: "worker",
-    inputSchema: {
+    parametersSchema: {
       type: "object",
       properties: { text: { type: "string" } },
       required: ["text"],

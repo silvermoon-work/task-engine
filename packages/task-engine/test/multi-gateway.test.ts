@@ -204,7 +204,7 @@ test("complete Bundle admission shares root-CID identity across sources and hint
             entry: "worker.cjs",
             include: ["task.yaml", "worker.cjs", "resources/value.bin"],
             binary: ["resources/value.bin"],
-            inputSchema: { type: "object" },
+            parametersSchema: { type: "object" },
             resultSchema: true,
             messageSchema: false,
           }),

@@ -306,7 +306,15 @@ test("two independent managed Engines execute a multi-block bundle through A's o
     urlA,
   ]);
   const entry = join(directory, "entry.ts");
-  await writeFile(entry, "export default async (input) => ({echo: input.value});");
+  await writeFile(
+    entry,
+    `export default async (input, context) => {
+      const cid = await context.putContent(new ReadableStream({
+        start(controller) { controller.enqueue(new TextEncoder().encode(String(input.value))); controller.close(); }
+      }));
+      return { echo: input.value, cid: cid.toString() };
+    };`,
+  );
   const built = await buildBundleFixture({
     entry,
     outDirectory: join(directory, "bundle"),
@@ -316,7 +324,7 @@ test("two independent managed Engines execute a multi-block bundle through A's o
       runtime: { type: "node", minVersion: "22.13.0" },
       entry: "worker.cjs",
       binary: [],
-      inputSchema: { type: "object" },
+      parametersSchema: { type: "object" },
       resultSchema: true,
       messageSchema: false,
     },
@@ -324,10 +332,12 @@ test("two independent managed Engines execute a multi-block bundle through A's o
   const car = built.car;
   const input = join(directory, "input.json");
   await writeFile(input, '{"value":"independent"}');
-  const primed = await run(["run", "--engine", urlA, "--car", car, "--input", input]);
+  const primed = await run(["run", "--engine", urlA, "--car", car, "--parameters", input]);
   assert.equal(primed.data.status, "succeeded");
-  assert.deepEqual((primed.data.output as { result: unknown }).result, { echo: "independent" });
-  const outputCid = CID.parse((primed.data.output as { cid: string }).cid);
+  const primedResult = (primed.data.output as { result: { data: { echo: string; cid: string } } })
+    .result;
+  assert.equal(primedResult.data.echo, "independent");
+  const outputCid = CID.parse(primedResult.data.cid);
   const proofResponse = await fetch(
     `${urlA}/ipfs/${built.cid}/worker.cjs?format=car&dag-scope=block`,
   );
@@ -366,9 +376,12 @@ test("two independent managed Engines execute a multi-block bundle through A's o
   await new Promise<void>((done) => upstream.close(() => done()));
   const response = await fetch(`${urlB}/ipfs/${built.cid}?format=raw`);
   assert.equal(response.status, 404);
-  const executed = await run(["run", "--engine", urlB, "--cid", built.cid, "--input", input]);
+  const executed = await run(["run", "--engine", urlB, "--cid", built.cid, "--parameters", input]);
   assert.equal(executed.data.status, "succeeded");
-  assert.deepEqual((executed.data.output as { result: unknown }).result, { echo: "independent" });
+  assert.equal(
+    (executed.data.output as { result: { data: { echo: string } } }).result.data.echo,
+    "independent",
+  );
   const blocksA = await readdir(join(a, "content", "blocks"));
   const blocksB = await readdir(join(b, "content", "blocks"));
   assert.ok(blocksA.length > 1);
@@ -459,10 +472,10 @@ export default async (input,context)=>{
  if(input.mode==="echo") return input;
  if(input.mode==="null") return null;
  if(input.mode==="slow") await delay(60000,undefined,{signal:context.signal});
- await context.output.write("/value.txt",new ReadableStream({
+ const cid=await context.putContent(new ReadableStream({
    start(controller){controller.enqueue(new TextEncoder().encode(String(input.value??"")));controller.close();}
  }));
- return {value:input.value??null};
+ return {value:input.value??null,cid:cid.toString()};
 }`,
     );
     built = await buildBundleFixture({
@@ -472,7 +485,7 @@ export default async (input,context)=>{
         runtime: { type: "node", minVersion: "22.13.0" },
         entry: "worker.cjs",
         binary: [],
-        inputSchema: { type: "object" },
+        parametersSchema: { type: "object" },
         resultSchema: true,
         messageSchema: false,
       },
@@ -533,12 +546,14 @@ export default async (input,context)=>{
     }
   });
   await phase("persistent execution, child invocation and paginated logs", async () => {
-    args = ["run", "--car", built.car, "--input", "-", "--engine", engine];
+    args = ["run", "--car", built.car, "--parameters", "-", "--engine", engine];
     const success = await run(args, '{"value":7}');
     assert.equal(success.code, 0, success.stdout + success.stderr);
     taskId = String(success.parse().data.taskId);
-    assert.deepEqual((success.parse().data.output as { result: unknown }).result, { value: 7 });
-    outputCid = (success.parse().data.output as { cid: string }).cid;
+    const successResult = (success.parse().data.output as { result: { data: { value: number; cid: string } } })
+      .result;
+    assert.equal(successResult.data.value, 7);
+    outputCid = successResult.data.cid;
     assert.equal(typeof outputCid, "string");
     assert.equal(Object.hasOwn(success.parse().data, "result"), false);
     assert.equal(Object.hasOwn(success.parse().data, "outputCid"), false);
@@ -552,15 +567,21 @@ export default async (input,context)=>{
     };
     const echoed = await run(args, JSON.stringify(business));
     assert.equal(echoed.code, 0, echoed.stdout);
-    assert.deepEqual((echoed.parse().data.output as { result: unknown }).result, business);
+    assert.deepEqual((echoed.parse().data.output as { result: unknown }).result, {
+      data: business,
+      cidPaths: [],
+    });
     const nullResult = await run(args, '{"mode":"null"}');
     assert.equal(nullResult.code, 0, nullResult.stdout);
-    assert.equal((nullResult.parse().data.output as { result: unknown }).result, null);
+    assert.deepEqual((nullResult.parse().data.output as { result: unknown }).result, {
+      data: null,
+      cidPaths: [],
+    });
     const parentEntry = join(directory, "parent.ts");
     await writeFile(
       parentEntry,
       `export default async(input,context)=>context.invokeTask({
-key:"child",bundle:context.bundle.root.resolve("resources/child"),input,timeoutMs:15000});`,
+key:"child",bundle:context.bundle,path:"resources/child",parameters:input,timeoutMs:15000});`,
     );
     const parent = await buildBundleFixture({
       declaration: {
@@ -569,7 +590,7 @@ key:"child",bundle:context.bundle.root.resolve("resources/child"),input,timeoutM
         runtime: { type: "node", minVersion: "22.13.0" },
         entry: "worker.cjs",
         binary: [],
-        inputSchema: { type: "object" },
+        parametersSchema: { type: "object" },
         resultSchema: true,
         messageSchema: false,
       },
@@ -583,11 +604,14 @@ key:"child",bundle:context.bundle.root.resolve("resources/child"),input,timeoutM
       ),
     });
     const childRun = await run(
-      ["run", "--car", parent.car, "--input", "-", "--engine", engine],
+      ["run", "--car", parent.car, "--parameters", "-", "--engine", engine],
       '{"value":9}',
     );
     assert.equal(childRun.code, 0, childRun.stdout);
-    assert.deepEqual((childRun.parse().data.output as { result: unknown }).result, { value: 9 });
+    assert.equal(
+      (childRun.parse().data.output as { result: { data: { value: number } } }).result.data.value,
+      9,
+    );
     const query = await run(["task", "query", "--id", taskId, "--engine", engine]);
     assert.equal((query.parse().data.items as unknown[]).length, 1);
     const logs = await run(["task", "logs", taskId, "--limit", "17", "--engine", engine]);
@@ -704,7 +728,7 @@ key:"child",bundle:context.bundle.root.resolve("resources/child"),input,timeoutM
         runtime: { type: "node", minVersion: "22.13.0" },
         entry: "worker.cjs",
         binary: [],
-        inputSchema: { type: "object" },
+        parametersSchema: { type: "object" },
         resultSchema: true,
         messageSchema: false,
       },
@@ -727,7 +751,7 @@ key:"child",bundle:context.bundle.root.resolve("resources/child"),input,timeoutM
       await delayedCar.close();
     }
     const bootTimeout = await run(
-      ["run", "--car", boot.car, "--input", "-", "--timeout-ms", "50", "--engine", engine],
+      ["run", "--car", boot.car, "--parameters", "-", "--timeout-ms", "50", "--engine", engine],
       "{}",
     );
     assert.equal(bootTimeout.parse().data.status, "timed_out", bootTimeout.stdout);
@@ -786,11 +810,20 @@ key:"child",bundle:context.bundle.root.resolve("resources/child"),input,timeoutM
     const largeBusiness = { mode: "echo", text: "x".repeat(70000) };
     const large = await run(args, JSON.stringify(largeBusiness));
     assert.equal(large.code, 0, large.stdout.slice(0, 512));
-    assert.deepEqual((large.parse().data.output as { result: unknown }).result, largeBusiness);
+    assert.deepEqual((large.parse().data.output as { result: unknown }).result, {
+      data: largeBusiness,
+      cidPaths: [],
+    });
     const retained = await run(["task", "await", taskId, "--engine", engine]);
     assert.equal(retained.code, 0, retained.stdout);
-    assert.deepEqual((retained.parse().data.output as { result: unknown }).result, { value: 7 });
-    assert.equal((retained.parse().data.output as { cid: string }).cid, outputCid);
+    assert.equal(
+      (retained.parse().data.output as { result: { data: { value: number } } }).result.data.value,
+      7,
+    );
+    assert.equal(
+      (retained.parse().data.output as { result: { data: { cid: string } } }).result.data.cid,
+      outputCid,
+    );
     const crashTask = await run([...args, "--async"], '{"mode":"slow"}');
     const crashIdentity = JSON.parse(await readFile(identityPath, "utf8")) as { pid: number };
     assert.notEqual(crashIdentity.pid, identity.pid);
@@ -907,7 +940,7 @@ test("succeeded is not final until real Worker host cleanup is confirmed; cleanu
       runtime: { type: "node", minVersion: "22.13.0" },
       entry: "worker.cjs",
       binary: [],
-      inputSchema: { type: "object" },
+      parametersSchema: { type: "object" },
       resultSchema: true,
       messageSchema: false,
     },
@@ -949,7 +982,7 @@ if(${uncertain})throw new Error("controlled missing release proof");}});`;
         await new Promise((resolve) => setTimeout(resolve, 20));
       }
       const accepted = await execute(
-        ["run", "--car", built.car, "--input", "-", "--async", "--engine", engine],
+        ["run", "--car", built.car, "--parameters", "-", "--async", "--engine", engine],
         directory,
         "{}",
       );
@@ -1003,7 +1036,7 @@ test("controlled cache ENOSPC makes a real Server fail-exit without filling the 
       runtime: { type: "node", minVersion: "22.13.0" },
       entry: "worker.cjs",
       binary: [],
-      inputSchema: { type: "object" },
+      parametersSchema: { type: "object" },
       resultSchema: true,
       messageSchema: false,
     },
@@ -1041,7 +1074,7 @@ await serveManaged({"server.dataDir":${JSON.stringify(data)},"server.contentData
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
   const accepted = await execute(
-    ["run", "--car", built.car, "--input", "-", "--async", "--engine", `http://127.0.0.1:${port}`],
+    ["run", "--car", built.car, "--parameters", "-", "--async", "--engine", `http://127.0.0.1:${port}`],
     directory,
     "{}",
   );
@@ -1097,7 +1130,7 @@ test("detached managed daemon retains private diagnostics after a real SQLite wr
   const client = new MemoryIpfsClient();
   const cid = await client.import(new Map([["input", bytes]]));
   const failed = await execute(
-    ["run", "--cid", cid, "--input", "-", "--async", "--engine", engine],
+    ["run", "--cid", cid, "--parameters", "-", "--async", "--engine", engine],
     directory,
     "{}",
   );
@@ -1197,7 +1230,7 @@ test("CID async acceptance is durable before a blocked Gateway, prepare failure 
       runtime: { type: "node", minVersion: "22.13.0" },
       entry: "worker.cjs",
       binary: [],
-      inputSchema: { type: "object" },
+      parametersSchema: { type: "object" },
       resultSchema: true,
       messageSchema: false,
     },
@@ -1222,7 +1255,7 @@ test("CID async acceptance is durable before a blocked Gateway, prepare failure 
     0,
   );
   const accepted = await run(
-    ["run", "--cid", cid, "--input", "-", "--async", "--engine", engine],
+    ["run", "--cid", cid, "--parameters", "-", "--async", "--engine", engine],
     "{}",
   );
   assert.equal(accepted.code, 0);
@@ -1239,7 +1272,7 @@ test("CID async acceptance is durable before a blocked Gateway, prepare failure 
   fail = false;
   const began = performance.now();
   const success = await run(
-    ["run", "--cid", cid, "--input", "-", "--timeout-ms", "3000", "--engine", engine],
+    ["run", "--cid", cid, "--parameters", "-", "--timeout-ms", "3000", "--engine", engine],
     "{}",
   );
   assert.equal(success.code, 0, success.stdout);
@@ -1247,7 +1280,10 @@ test("CID async acceptance is durable before a blocked Gateway, prepare failure 
     performance.now() - began > 3000,
     "Preparation must exceed the execution budget without consuming it.",
   );
-  assert.deepEqual((success.parse().data.output as { result: unknown }).result, { value: 42 });
+  assert.deepEqual((success.parse().data.output as { result: unknown }).result, {
+    data: { value: 42 },
+    cidPaths: [],
+  });
   assert.equal((await run(["server", "stop", "--data-dir", data])).code, 0);
   const before = requests;
   assert.equal(
@@ -1255,7 +1291,7 @@ test("CID async acceptance is durable before a blocked Gateway, prepare failure 
     0,
   );
   assert.equal(
-    (await run(["run", "--cid", cid, "--input", "-", "--engine", engine], "{}")).code,
+    (await run(["run", "--cid", cid, "--parameters", "-", "--engine", engine], "{}")).code,
     0,
   );
   assert.equal(requests, before, "cache-only restart must not use a network source");

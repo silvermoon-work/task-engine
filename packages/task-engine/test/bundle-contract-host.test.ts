@@ -12,6 +12,7 @@ import { createTaskEngine, newId } from "../src/index.js";
 import { MemoryIpfsClient, MemoryStore } from "../src/testing.js";
 import { TypeSupervisor, type RunOutcomeReport, type TypeChannel } from "../src/type-supervisor.js";
 
+const envelope = (data: unknown) => ({ data, cidPaths: [] as string[] });
 const object = { type: "object" };
 const text = {
   type: "object",
@@ -25,7 +26,7 @@ const declaration = {
   runtime: { type: "node", minVersion: "22.13.0" },
   entry: "worker.cjs",
   binary: [],
-  inputSchema: object,
+  parametersSchema: object,
   resultSchema: text,
   messageSchema: false,
 };
@@ -57,7 +58,7 @@ async function compile(directory: string, source: string, schemas: Record<string
       entry: relative(repository, entry).split(sep).join("/"),
       mode: "explicit",
       contract: {
-        input: contract.inputSchema,
+        parameters: contract.parametersSchema,
         result: contract.resultSchema,
         message: contract.messageSchema,
       },
@@ -121,7 +122,7 @@ runTask(async () => {
     };
     const runs = await Promise.all([supervise(built, {}), supervise(built, {})]);
     for (const observed of runs)
-      assert.deepEqual(observed?.outcomes, [{ kind: "completed", result: expected }]);
+      assert.deepEqual(observed?.outcomes, [{ kind: "completed", result: envelope(expected) }]);
   });
 });
 
@@ -155,8 +156,15 @@ runTask(async () => {
     );
     const observed = await supervise(built, {});
     const outcome = observed?.outcomes[0];
-    assert.ok(outcome?.kind === "completed" && Array.isArray(outcome.result));
-    const result = outcome.result;
+    const result =
+      outcome?.kind === "completed" &&
+      outcome.result &&
+      typeof outcome.result === "object" &&
+      !Array.isArray(outcome.result) &&
+      "data" in outcome.result
+        ? (outcome.result as { data: unknown }).data
+        : undefined;
+    assert.ok(Array.isArray(result));
     assert.equal(result.length, 16);
     for (const error of result) {
       assert.ok(error && typeof error === "object" && !Array.isArray(error));
@@ -255,7 +263,7 @@ runTask(async (input, context) => {
         assert.equal(released, !blocked);
         assert.equal(supervisor.canRoute("run"), false);
         if (!blocked)
-          assert.deepEqual(outcomes, [{ kind: "completed", result: { cancelled: true } }]);
+          assert.deepEqual(outcomes, [{ kind: "completed", result: envelope({ cancelled: true }) }]);
       } finally {
         await supervisor.close();
       }
@@ -369,7 +377,7 @@ for (const scenario of precompileCases)
             ? 'import {runTask} from "@silvermoon-work/task-sdk"; runTask(async (_input, context) => {for await(const message of context.messages){await message.accept();return message.payload;}return null;});'
             : 'import {runTask} from "@silvermoon-work/task-sdk"; runTask(async input => input.value);',
           {
-            inputSchema: role === "input" ? boxed : object,
+            parametersSchema: role === "input" ? boxed : object,
             resultSchema: role === "result" ? scenario.schema : true,
             messageSchema: role === "message" ? scenario.schema : false,
           },
@@ -380,7 +388,7 @@ for (const scenario of precompileCases)
             { value: value as Json },
             role === "message" ? (value as Json) : undefined,
           );
-          assert.deepEqual(observed?.outcomes, [{ kind: "completed", result: value }]);
+          assert.deepEqual(observed?.outcomes, [{ kind: "completed", result: envelope(value) }]);
         }
         for (const value of scenario.bad) {
           const observed = await supervise(
@@ -484,7 +492,8 @@ for (const mode of [
         assert.ok(run.exit);
         assert.equal(run.cleanupUnknown, undefined);
         assert.ok(run.reclaimedAt);
-        if (mode === "valid-evidence") assert.deepEqual(task.output?.result, { text: "evidence" });
+        if (mode === "valid-evidence")
+          assert.deepEqual(task.output?.result, { data: { text: "evidence" }, cidPaths: [] });
         else assert.equal(task.output?.result, undefined);
         const persisted = store.read().facts.runs[runId]!;
         assert.notDeepEqual(persisted.output?.result, { text: 1 });
@@ -530,7 +539,7 @@ runTask(async(input,context)=>{
  }
  return input;
 });`,
-      { inputSchema: text, messageSchema: text },
+      { parametersSchema: text, messageSchema: text },
     );
     const client = new MemoryIpfsClient(),
       store = new MemoryStore();
@@ -565,7 +574,7 @@ runTask(async(input,context)=>{
       await until(() => engine.getTask(id, caller).stage === "completed");
       const task = engine.getTask(id, caller);
       await until(() => !!engine.getRun(task.run!.runId, caller).reclaimedAt);
-      assert.deepEqual(task.output?.result, { text: "message" });
+      assert.deepEqual(task.output?.result, { data: { text: "message" }, cidPaths: [] });
       assert.equal(await readFile(marker, "utf8"), "callback\nmessage\n");
     } finally {
       await engine.close();
@@ -574,14 +583,14 @@ runTask(async(input,context)=>{
   });
 });
 
-test("Bundle host explicitly rejects a Worker without the Space protocol handshake", async () => {
+test("Bundle host explicitly rejects a Worker without the content protocol handshake", async () => {
   await fixture(async (directory) => {
     const built = await compile(
       directory,
       `
 import {parentPort,workerData} from "node:worker_threads";
 const {generation,bundle}=workerData;
-parentPort.postMessage({generation,kind:"ready",value:{$schema:bundle.declaration.$schema,cid:bundle.cid,inputSchema:bundle.declaration.inputSchema,resultSchema:bundle.declaration.resultSchema,messageSchema:bundle.declaration.messageSchema}});
+parentPort.postMessage({generation,kind:"ready",value:{$schema:bundle.declaration.$schema,cid:bundle.cid,parametersSchema:bundle.declaration.parametersSchema,resultSchema:bundle.declaration.resultSchema,messageSchema:bundle.declaration.messageSchema}});
 parentPort.on("message",m=>{
  if(m.kind==="run")throw Error("Legacy Worker must not be dispatched");
 });
@@ -616,10 +625,10 @@ test("Engine rejects diagnostic and progress payloads through ACK without poison
     assert.deepEqual(result?.outcomes, [
       {
         kind: "completed",
-        result: {
+        result: envelope({
           codes: ["invalid_payload", "invalid_log", "invalid_log"],
           receipt: { state: "unavailable", reason: "disabled" },
-        },
+        }),
       },
     ]);
     const progress = await compile(

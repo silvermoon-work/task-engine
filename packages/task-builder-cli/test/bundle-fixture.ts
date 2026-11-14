@@ -53,7 +53,7 @@ export async function buildBundleFixture(options: BundleFixtureOptions) {
       entry: logical(options.entry),
       mode: "callback",
       contract: {
-        input: contract.inputSchema,
+        parameters: contract.parametersSchema,
         result: contract.resultSchema,
         message: contract.messageSchema,
       },

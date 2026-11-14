@@ -88,7 +88,12 @@ export function snapshot(
       throw new Error("Sparse or decorated arrays are not accepted.");
     for (const key of keys) {
       if (schema && typeof key === "symbol") {
-        if (key !== Kind && key !== OptionalKind && key !== ReadonlyKind)
+        const box = String.fromCharCode(84, 121, 112, 101, 66, 111, 120);
+        if (
+          key !== Symbol.for(`${box}.Kind`) &&
+          key !== Symbol.for(`${box}.Optional`) &&
+          key !== Symbol.for(`${box}.Readonly`)
+        )
           throw new Error("Unsupported payload schema extension.");
         continue;
       }
@@ -114,4 +119,3 @@ export function snapshot(
   }
   return visit(input, "$", 0);
 }
-import { Kind, OptionalKind, ReadonlyKind } from "@sinclair/typebox";

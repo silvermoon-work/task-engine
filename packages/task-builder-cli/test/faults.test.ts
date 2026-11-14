@@ -51,7 +51,7 @@ test("delivery faults preserve verified partial data, old CAR and truthful cance
     await fs.writeFile(join(root, "main.ts"), "export const version = 1;");
     await fs.writeFile(
       join(root, "contract.json"),
-      '{"input":{"type":"object"},"result":true,"message":false}',
+      '{"parameters":{"type":"object"},"result":true,"message":false}',
     );
     const first = await invoke();
     assert.equal(first.code, 0);
@@ -89,7 +89,7 @@ test("delivery faults preserve verified partial data, old CAR and truthful cance
     const unknown = new AbortController();
     fs.rename = async (from, to) => {
       const result = await rename(from, to);
-      if (String(to).includes(`${join(root, "dist")}`) && basename(String(to)) === "input.json")
+      if (String(to).includes(`${join(root, "dist")}`) && basename(String(to)) === "parameters.json")
         unknown.abort(new Error("injected cancellation during module delivery"));
       return result;
     };

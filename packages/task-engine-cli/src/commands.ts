@@ -5,6 +5,7 @@ import {
   TaskError,
   taskBundleLimits,
   validateBundleReference,
+  parametersFromJson,
 } from "@silvermoon-work/task-protocol";
 import {
   configItem,
@@ -277,7 +278,7 @@ export async function main(
     } else {
       const cid = get("--cid");
       const carPath = get("--car");
-      const inputPath = get("--input");
+      const inputPath = get("--parameters");
       if (!cid === !carPath || carPath === "-" || !inputPath)
         throw new TaskError("ARGUMENT_REQUIRED", leafHelp(command));
       if (cid) validateBundleReference(cid);
@@ -303,7 +304,7 @@ export async function main(
       } catch {
         throw new TaskError("INVALID_INPUT", "Input must be one complete JSON object.");
       }
-      const input = object(parsed, Number.MAX_SAFE_INTEGER);
+      const input = parametersFromJson(object(parsed, Number.MAX_SAFE_INTEGER), Number.MAX_SAFE_INTEGER);
       let car: string | undefined;
       if (carPath) {
         const metadata = await lstat(carPath);
@@ -318,7 +319,7 @@ export async function main(
         engine(),
         "/cli/run",
         {
-          input,
+          parameters: input,
           timeoutMs: integer(
             get("--timeout-ms") ?? effective(config, "task.timeoutMs"),
             "--timeout-ms",

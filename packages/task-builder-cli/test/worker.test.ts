@@ -19,7 +19,8 @@ for (const mode of ["explicit", "callback"] as const)
       await writeFile(
         join(root, "main.ts"),
         `${mode === "explicit" ? 'import {runTask} from "@silvermoon-work/task-sdk";\nrunTask(' : "export default "}async (input, context) => {
-  const node = await context.bundle.root.resolve("resources/text").read();
+  const cid = await context.resolveContent(context.bundle, "resources/text");
+  const node = await context.readContent(cid);
   if (node.kind !== "file") throw Error("Expected file.");
   const reader = node.content.getReader();
   let text = "";
@@ -40,7 +41,7 @@ for (const mode of ["explicit", "callback"] as const)
         source: {
           entry: logical(join(root, "main.ts")),
           contract: {
-            input: { type: "object", properties: { text: { type: "string" } }, required: ["text"] },
+            parameters: { type: "object", properties: { text: { type: "string" } }, required: ["text"] },
             result: { type: "string" },
             message: false,
           },
@@ -89,20 +90,30 @@ for (const mode of ["explicit", "callback"] as const)
                 kind: "run",
                 runId: "run",
                 scope: "scope",
-                input: { text: "hello " },
+                parameters: { data: { text: "hello " }, cidPaths: [] },
               });
-            else if (message.kind === "space-request" && "spaceId" in message) {
-              const content = await output.read("resources/text");
-              active.postMessage(
-                {
+            else if (message.kind === "content-request" && "contentId" in message) {
+              if (message.operation === "resolveContent")
+                active.postMessage({
                   generation,
                   runId: "run",
-                  kind: "space-result",
-                  spaceId: message.spaceId,
-                  value: { kind: "file", content },
-                },
-                [content],
-              );
+                  kind: "content-result",
+                  contentId: message.contentId,
+                  value: "bafkreigh2akiscaildc6a3lqslx3wa6b73grwfyfxtv7xrlrghg5k3gz2e",
+                });
+              else if (message.operation === "readContent") {
+                const content = await output.read("resources/text");
+                active.postMessage(
+                  {
+                    generation,
+                    runId: "run",
+                    kind: "content-result",
+                    contentId: message.contentId,
+                    value: { kind: "file", content },
+                  },
+                  [content],
+                );
+              }
             } else if ("id" in message) {
               if (message.kind === "failed") throw new Error(JSON.stringify(message));
               if (message.kind === "complete" && "value" in message) result = message.value;
@@ -114,7 +125,7 @@ for (const mode of ["explicit", "callback"] as const)
           })().catch(fail);
         });
       });
-      assert.equal(result, "hello stream\nresource");
+      assert.deepEqual(result, { data: "hello stream\nresource", cidPaths: [] });
     } finally {
       await worker?.terminate();
       await rm(root, { recursive: true, force: true });

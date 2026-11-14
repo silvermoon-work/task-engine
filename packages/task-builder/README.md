@@ -148,7 +148,7 @@ location, including pnpm's virtual store.
 
 ## Streaming and ownership
 
-The generated primary Schemas are `schemas/input.json`, `schemas/result.json`
+The generated primary Schemas are `schemas/parameters.json`, `schemas/result.json`
 and `schemas/message.json`; the manifest references those exact paths.
 Additional contract Schemas use a name-to-Schema object, for example
 `schemas: { user: UserSchema, address: AddressSchema }`, and become

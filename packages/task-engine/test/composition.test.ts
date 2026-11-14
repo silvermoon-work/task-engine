@@ -15,6 +15,7 @@ import { createTaskEngine, newId } from "../src/index.js";
 import { MemoryIpfsClient, MemoryStore, VirtualClock } from "../src/testing.js";
 
 const caller = { scope: "composition", subject: "external-caller" };
+const envelope = (data: unknown) => ({ data, cidPaths: [] });
 async function until(check: () => boolean, milliseconds = 10_000) {
   const end = Date.now() + milliseconds;
   while (!check()) {
@@ -42,7 +43,7 @@ async function fixtures(directory: string, client: MemoryIpfsClient) {
         runtime: { type: "node", minVersion: "22.13.0" },
         entry: "worker.cjs",
         binary: [],
-        inputSchema: {
+        parametersSchema: {
           type: "object",
           properties: { value: { type: "number" }, mode: { type: "string" } },
           required: ["value"],
@@ -87,14 +88,18 @@ export default async (input, context) => {
 import {parentPort} from "node:worker_threads";
 import {getEventListeners} from "node:events";
 export default async (input, context) => {
- const request = {key:"one",bundle:context.bundle.root.resolve("resources/child"),input:{value:input.value,mode:input.mode||"normal"},timeoutMs:2000};
- if(input.mode==="mismatch") request.bundle=context.bundle.root.resolve("resources/missing");
- if(input.mode==="output") request.bundle=context.output.root;
- if(input.mode==="external") request.bundle=context.space(${JSON.stringify(child.cid)}).root;
+ const request = {key:"one",bundle:context.bundle,path:"resources/child",parameters:{value:input.value,mode:input.mode||"normal"},timeoutMs:2000};
+ if(input.mode==="mismatch") request.path="resources/missing";
+ if(input.mode==="output") {
+   const cid=await context.putContent(new ReadableStream({start(c){c.enqueue(new Uint8Array([1]));c.close();}}));
+   request.bundle=cid.toString();
+   delete request.path;
+ }
+ if(input.mode==="external") {request.bundle=${JSON.stringify(child.cid)};delete request.path;}
  if(input.mode==="legacy") return context.invokeTask({key:"old",cid:${JSON.stringify(child.cid)},path:"resources/child",input:{value:input.value},timeoutMs:2000});
- if(input.mode==="forged") request.bundle={...request.bundle};
- if(input.mode==="invalid-input") request.input.value="invalid";
- if(input.mode==="timeout") {request.input.mode="slow";request.timeoutMs=100;}
+ if(input.mode==="forged") request.bundle={cid:request.bundle,path:request.path};
+ if(input.mode==="invalid-input") request.parameters.value="invalid";
+ if(input.mode==="timeout") {request.parameters.mode="slow";request.timeoutMs=100;}
  if(input.mode==="replay") {
    const [a,b]=await Promise.all([context.invokeTask(request),context.invokeTask(request)]);
    const c=await context.invokeTask(request);
@@ -105,7 +110,7 @@ export default async (input, context) => {
    let dropped=false;
    parentPort.removeAllListeners("message");
    parentPort.on("message",message=>{
-     if(message.kind==="ack"&&message.value?.value===7&&!dropped) {dropped=true;return;}
+     if(message.kind==="ack"&&message.value?.data?.value===7&&!dropped) {dropped=true;return;}
      for(const handler of handlers) handler.call(parentPort,message);
    });
    void context.invokeTask(request).catch(()=>{});
@@ -115,17 +120,17 @@ export default async (input, context) => {
    return result;
  }
  if(input.mode==="conflict") {
-   const first=context.invokeTask({...request,input:{value:1,mode:"slow"}});
-   try { await context.invokeTask({...request,input:{value:2}}); }
+   const first=context.invokeTask({...request,parameters:{value:1,mode:"slow"}});
+   try { await context.invokeTask({...request,parameters:{value:2}}); }
    finally {void first.catch(()=>{});}
  }
- if(input.mode==="concurrent") return await Promise.all([context.invokeTask({...request,key:"a",input:{value:1,mode:"slow"}}),context.invokeTask({...request,key:"b",input:{value:2,mode:"slow"}})]);
+ if(input.mode==="concurrent") return await Promise.all([context.invokeTask({...request,key:"a",parameters:{value:1,mode:"slow"}}),context.invokeTask({...request,key:"b",parameters:{value:2,mode:"slow"}})]);
  if(input.mode==="total") {
    await context.invokeTask(request);
    return await context.invokeTask({...request,key:"two"});
  }
  if(input.mode==="early-exit"||input.mode==="hard-exit") {
-   void context.invokeTask({...request,input:{value:input.value,mode:"slow"}}).catch(()=>{});
+   void context.invokeTask({...request,parameters:{value:input.value,mode:"slow"}}).catch(()=>{});
    await new Promise(resolve=>setTimeout(resolve,100));
    if(input.mode==="hard-exit") process.exit(9);
    return {early:true};
@@ -196,7 +201,7 @@ test("generic host-mediated child Tasks", { timeout: 60_000 }, async (t) => {
       const id = await submit(engine, artifacts.nested.cid);
       const task = await settled(engine, id);
       assert.equal(task.stage, "completed", JSON.stringify(task));
-      assert.deepEqual(task.output?.result, { value: 7 });
+      assert.deepEqual(task.output?.result, envelope({ value: 7 }));
       assert.equal(Object.values(store.read().facts.tasks).length, 3);
       assert.deepEqual(
         Object.values(store.read().facts.submissions)
@@ -212,7 +217,7 @@ test("generic host-mediated child Tasks", { timeout: 60_000 }, async (t) => {
       const id = await submit(engine, artifacts.parent.cid, "replay");
       const task = await settled(engine, id);
       assert.equal(task.stage, "completed", JSON.stringify(task));
-      assert.deepEqual(task.output?.result, { a: { value: 7 }, b: { value: 7 }, c: { value: 7 } });
+      assert.deepEqual(task.output?.result, envelope({ a: { value: 7 }, b: { value: 7 }, c: { value: 7 } }));
       assert.equal(
         Object.values(store.read().facts.submissions).filter((record) => record.composition).length,
         1,
@@ -223,8 +228,8 @@ test("generic host-mediated child Tasks", { timeout: 60_000 }, async (t) => {
       assert.equal(child.composition!.targetCid, artifacts.leaf.cid);
       assert.equal(child.request.bundle, child.composition!.targetCid);
       assert.deepEqual(child.composition!.source, {
-        sid: `ipfs:${artifacts.parent.cid}`,
-        path: "/resources/child",
+        cid: artifacts.parent.cid,
+        path: "resources/child",
       });
       assert.ok(Date.parse(child.composition!.deadlineAt) <= Date.parse(task.deadlineAt));
     }),
@@ -234,7 +239,7 @@ test("generic host-mediated child Tasks", { timeout: 60_000 }, async (t) => {
       const id = await submit(engine, artifacts.parent.cid, "lost-response");
       const task = await settled(engine, id);
       assert.equal(task.stage, "completed", JSON.stringify(task));
-      assert.deepEqual(task.output?.result, { value: 7 });
+      assert.deepEqual(task.output?.result, envelope({ value: 7 }));
       assert.equal(
         Object.values(store.read().facts.submissions).filter((record) => record.composition).length,
         1,
@@ -262,7 +267,7 @@ test("generic host-mediated child Tasks", { timeout: 60_000 }, async (t) => {
           activeStore = store;
           const task = await settled(engine, await submit(engine, artifacts.nested.cid));
           assert.equal(task.stage, "completed", JSON.stringify(task));
-          assert.deepEqual(task.output?.result, { value: 7 });
+          assert.deepEqual(task.output?.result, envelope({ value: 7 }));
           assert.equal(Object.keys(store.read().facts.runs).length, 3);
           assert.equal(offlineReads, 0);
         },
@@ -307,9 +312,9 @@ test("generic host-mediated child Tasks", { timeout: 60_000 }, async (t) => {
   );
   for (const [mode, code] of [
     ["mismatch", "invalid_bundle"],
-    ["output", "invalid_space"],
+    ["output", "invalid_bundle"],
     ["legacy", "invalid_request"],
-    ["forged", "invalid_space"],
+    ["forged", "invalid_request"],
     ["invalid-input", "invalid_input"],
     ["invalid-result", "invalid_input"],
     ["conflict", "idempotency_conflict"],
@@ -323,7 +328,7 @@ test("generic host-mediated child Tasks", { timeout: 60_000 }, async (t) => {
         assert.equal(task.error?.code, code, JSON.stringify(task));
       }),
     );
-  await t.test("external SpaceRef starts an independent child without authorizeChild", () =>
+  await t.test("external CID starts an independent child without authorizeChild", () =>
     run(async (engine, store) => {
       const task = await settled(
         engine,

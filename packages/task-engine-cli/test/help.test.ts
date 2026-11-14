@@ -85,7 +85,7 @@ test("help rejects unknown, duplicate, missing-value and excess arguments using 
     ["task", "query", "unexpected"],
     ["task", "logs", "task-id", "extra"],
     ["config", "set", "task.timeoutMs", "60000", "extra"],
-    ["run", "--cid", "bundle-cid", "--car", "bundle.car", "--input", "input.json"],
+    ["run", "--cid", "bundle-cid", "--car", "bundle.car", "--parameters", "input.json"],
     ["data", "prune", "--task", "task-id", "--before", "2026-11-01T00:00:00Z"],
   ];
   for (const argv of invalid) {

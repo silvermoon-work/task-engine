@@ -30,10 +30,10 @@ test("managed Kubo CAR import, reads, output persistence and offline prune never
     await writeFile(
       entry,
       `export default async (_input, context) => {
-      await context.output.write("/out.txt", new ReadableStream({
+      const cid = await context.putContent(new ReadableStream({
         start(controller) { controller.enqueue(new TextEncoder().encode("managed Kubo")); controller.close(); }
       }));
-      return "done";
+      return { done: true, cid: cid.toString() };
     };`,
     );
     const built = await buildBundleFixture({
@@ -43,7 +43,7 @@ test("managed Kubo CAR import, reads, output persistence and offline prune never
         runtime: { type: "node", minVersion: "22.15.0" },
         entry: "worker.cjs",
         binary: [],
-        inputSchema: { type: "object" },
+        parametersSchema: { type: "object" },
         resultSchema: true,
         messageSchema: false,
       },
@@ -80,7 +80,7 @@ test("managed Kubo CAR import, reads, output persistence and offline prune never
         released: false,
         roots: [cid],
         timeoutMs: 15_000,
-        input: {},
+        parameters: {},
         cid,
       });
       await shared.confirmRetained(repository.contentOwner, [cid]);
@@ -88,13 +88,18 @@ test("managed Kubo CAR import, reads, output persistence and offline prune never
       const task = repository.get(id)!;
       assert.equal(task.status, "succeeded", JSON.stringify(task));
       assert.equal(task.released, true);
-      assert.ok(task.output?.cid);
+      const stored = (task.output?.result as { data?: { cid?: string } })?.data?.cid;
+      assert.equal(typeof stored, "string");
       assert.equal(repository.car(id), undefined);
       assert.equal(repository.db.prepare("SELECT count(*) AS n FROM ipfs_blocks").get()!.n, 0);
       assert.equal((await readdir(path)).includes("blocks"), false);
-      assert.deepEqual(new Set(repository.contentRoots()), new Set([built.cid, task.output.cid]));
+      assert.deepEqual(new Set(repository.contentRoots()), new Set([built.cid, stored]));
     }
-    const output = repositories[0]!.get(ids[0]!)!.output!.cid!;
+    const result = repositories[0]!.get(ids[0]!)!.output?.result as
+      | { data?: { cid?: string } }
+      | undefined;
+    const output = result?.data?.cid;
+    assert.equal(typeof output, "string");
     const first = await pruneData(
       repositories[0]!,
       { taskIds: [ids[0]!], cache: true },
@@ -116,7 +121,7 @@ test("managed Kubo CAR import, reads, output persistence and offline prune never
     assert.equal(rpc.pins.has(output), false);
     assert.equal(rpc.calls.includes("repo/gc"), false);
     assert.equal(rpc.calls.includes("shutdown"), false);
-    const temporary = await runBundle({ cid: built.cid, input: {}, ipfsStore: shared });
+    const temporary = await runBundle({ cid: built.cid, parameters: {}, ipfsStore: shared });
     assert.equal(temporary.status, "succeeded", JSON.stringify(temporary));
     assert.ok(rpc.pins.has(built.cid), "Domain disposal does not unpin on close");
     const afterTemporary = await pruneData(repositories[0]!, { cache: true }, undefined, config);

@@ -60,7 +60,7 @@ const options: TaskBuildOptions = {
   source: {
     entry: "src/main.ts",
     contract: {
-      input: Type.Object({ text: Type.String() }),
+      parameters: Type.Object({ text: Type.String() }),
       result: Type.String(),
       message: Type.Never(),
     },
@@ -112,12 +112,12 @@ module.exports = value + suffix + cjs.suffix;`,
   const files = await collect(output);
   const checked = readTaskBundle(files);
   assert.equal(checked.declaration.$schema, taskSchemaUri);
-  assert.deepEqual(checked.declaration.inputSchema, { $ref: "schemas/input.json" });
+  assert.deepEqual(checked.declaration.parametersSchema, { $ref: "schemas/parameters.json" });
   assert.deepEqual(checked.declaration.resultSchema, { $ref: "schemas/result.json" });
   assert.deepEqual(checked.declaration.messageSchema, { $ref: "schemas/message.json" });
   assert.deepEqual([...files.keys()].sort(), [
-    "schemas/input.json",
     "schemas/message.json",
+    "schemas/parameters.json",
     "schemas/result.json",
     "task.yaml",
     "worker.cjs",
@@ -146,7 +146,7 @@ test("shared Schemas use a separate namespace and retain author IDs and offline 
     source: {
       ...options.source,
       contract: {
-        input: {
+        parameters: {
           type: "object",
           properties: { text: { $ref: id } },
           required: ["text"],
@@ -160,8 +160,8 @@ test("shared Schemas use a separate namespace and retain author IDs and offline 
 
   const files = await collect(output);
   assert.deepEqual([...files.keys()].sort(), [
-    "schemas/input.json",
     "schemas/message.json",
+    "schemas/parameters.json",
     "schemas/result.json",
     "schemas/shared/text.json",
     "task.yaml",
@@ -188,7 +188,7 @@ test("direct readers cannot mutate generated Buffer-backed Bundle files", async 
 
 test("JSON and trusted module contracts share named Schemas without changing the manifest structure", async () => {
   const contract = {
-    input: { type: "object", properties: { user: { $ref: "https://example.test/user" } } },
+    parameters: { type: "object", properties: { user: { $ref: "https://example.test/user" } } },
     result: { $ref: "https://example.test/user" },
     message: false,
     schemas: { user: { $id: "https://example.test/user", type: "object" } },
@@ -212,13 +212,13 @@ test("JSON and trusted module contracts share named Schemas without changing the
       "binary",
       "entry",
       "include",
-      "inputSchema",
       "messageSchema",
       "name",
+      "parametersSchema",
       "resultSchema",
       "runtime",
     ]);
-    assert.deepEqual(declaration.inputSchema, { $ref: "schemas/input.json" });
+    assert.deepEqual(declaration.parametersSchema, { $ref: "schemas/parameters.json" });
     assert.equal(
       JSON.parse((await bytes(output, "schemas/result.json")).toString()).$ref,
       "https://example.test/user",
@@ -235,7 +235,7 @@ test("named shared Schemas reject conflicting identities and missing offline ref
       source: {
         ...options.source,
         contract: {
-          input: { type: "object" },
+          parameters: { type: "object" },
           result: true,
           message: false,
           schemas: {
@@ -253,7 +253,7 @@ test("named shared Schemas reject conflicting identities and missing offline ref
       source: {
         ...options.source,
         contract: {
-          input: { type: "object" },
+          parameters: { type: "object" },
           result: { $ref: id },
           message: false,
           schemas: {},
@@ -435,7 +435,7 @@ test("normalized resource bytes succeed at exact file/total limits and fail one 
   for (const path of [
     "task.yaml",
     "worker.cjs",
-    "schemas/input.json",
+    "schemas/parameters.json",
     "schemas/result.json",
     "schemas/message.json",
   ])
@@ -487,7 +487,7 @@ test("trusted code contracts compile exclusively from the tree; JSON contracts n
     "src/main.ts": "export const value = 1;",
     "src/contract.ts": 'import contract from "./contract.json"; export default contract;',
     "src/contract.json": JSON.stringify({
-      input: { type: "object" },
+      parameters: { type: "object" },
       result: true,
       message: false,
     }),
@@ -524,7 +524,7 @@ export function runTask(callback) { globalThis.fixture = {callback, binding}; }`
       ...options.source,
       mode: "callback",
       contract: {
-        input: {
+        parameters: {
           type: "object",
           properties: Object.fromEntries(
             ["__proto__", "constructor", "toString"].map((key) => [key, { type: "string" }]),

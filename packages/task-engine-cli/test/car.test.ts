@@ -118,7 +118,7 @@ function bundle(extra: Record<string, Uint8Array> = {}, binary: string[] = []) {
         entry: "worker.cjs",
         include: ["task.yaml", ...files.keys()].sort(),
         binary,
-        inputSchema: { type: "object" },
+        parametersSchema: { type: "object" },
         resultSchema: true,
         messageSchema: false,
       }),
@@ -192,11 +192,11 @@ test("offline standard-library source preserves the established CAR golden and o
     ),
   );
   const bytes = await collect(encoded.stream);
-  assert.equal(encoded.cid, "bafybeiaqaprnovrabnvimctr7rn5jxkpxyv2jlqrb3sfa5gajbtp7idhwe");
-  assert.equal(bytes.length, 896);
+  assert.equal(encoded.cid, "bafybeige3vpv7m5pkkat4lhdbpl72c4g6exj6fq2ylczl4lmzvv5pauk4i");
+  assert.equal(bytes.length, 901);
   assert.equal(
     createHash("sha256").update(bytes).digest("hex"),
-    "a1ab6d9ddebbc06528f55b27524c595b7d535631430ee3451813593daf8b3f6a",
+    "a61dbea194e83091257f12b6a18b12e5b580236615bde39b072c96e11f3d4002",
   );
   const source = await openCarSource(memoryFile(bytes), { expectedCid: encoded.cid });
   assert.equal(source.cid, encoded.cid);
@@ -284,7 +284,7 @@ test("both consumers reuse Task validation for complete files, Schemas, text and
   invalid.push(undeclared);
   const schema = bundle();
   const declaration = JSON.parse(Buffer.from(schema.get("task.yaml")!).toString());
-  declaration.inputSchema = { $ref: "schemas/missing.json" };
+  declaration.parametersSchema = { $ref: "schemas/missing.json" };
   schema.set("task.yaml", Buffer.from(JSON.stringify(declaration)));
   invalid.push(schema);
   invalid.push(bundle({ "resources/CON": Buffer.from("unsafe") }));

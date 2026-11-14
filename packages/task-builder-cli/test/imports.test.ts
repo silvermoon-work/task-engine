@@ -33,7 +33,7 @@ test("CLI build delivers import metadata; a moved folder creates CAR offline and
                 entry: "worker.cjs",
                 include: ["task.yaml", "worker.cjs"],
                 binary: [],
-                inputSchema: { type: "object" },
+                parametersSchema: { type: "object" },
                 resultSchema: true,
                 messageSchema: false,
               }),
@@ -54,7 +54,7 @@ test("CLI build delivers import metadata; a moved folder creates CAR offline and
     await writeFile(
       join(project, "contract.json"),
       JSON.stringify({
-        input: { type: "object" },
+        parameters: { type: "object" },
         result: true,
         message: false,
       }),

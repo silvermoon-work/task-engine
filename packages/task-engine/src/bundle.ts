@@ -121,7 +121,7 @@ export class BundleCache {
     cid = bundleCid(validateBundleReference(cid));
     const relative = path.replace(/^\//, "");
     if (relative && !safePath(relative))
-      throw new TaskError("invalid_space", "Unsafe child SpaceRef path.");
+      throw new TaskError("invalid_path", "Unsafe child bundle path.");
     let entry: Awaited<ReturnType<IpfsStore["read"]>>;
     try {
       entry = await this.content.read(relative ? `${cid}/${relative}` : cid, {
@@ -132,12 +132,15 @@ export class BundleCache {
       if (error instanceof TaskError) throw error;
       throw new TaskError(
         "invalid_bundle",
-        "Child SpaceRef could not resolve an immutable task directory.",
+        "Child bundle path could not resolve an immutable task directory.",
       );
     }
     if (entry.type !== "directory")
       throw new TaskError("invalid_bundle", "Child Task root must be a directory.");
     return entry.cid.toV1().toString();
+  }
+  get contentStore(): IpfsStore {
+    return this.content;
   }
   source(cid: string): string {
     const prepared = this.prepared.get(cid);

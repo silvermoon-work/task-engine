@@ -6,7 +6,7 @@ export function createType() {
   return {
     type: "proof",
     version: "1",
-    inputSchema: { type: "object" },
+    parametersSchema: { type: "object" },
     resultSchema: { type: "object" },
     messageSchema: false,
     async run(input, context) {

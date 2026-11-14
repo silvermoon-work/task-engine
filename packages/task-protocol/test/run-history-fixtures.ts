@@ -149,8 +149,8 @@ export function runHistoryCases(
     for (const task of [first, second])
       assert.equal(matchedRun(store.read().facts, task)?.runId, run.runId);
     assert.equal(history.list().length, 1);
-    source.run.input = "mutated caller copy";
-    assert.deepEqual(history.readSource(run.runId, historyPolicy.now).run.input, run.input);
+    source.run.parameters = "mutated caller copy";
+    assert.deepEqual(history.readSource(run.runId, historyPolicy.now).run.parameters, run.parameters);
     assert.throws(
       () =>
         store.append("writer", before.facts.watermark, [

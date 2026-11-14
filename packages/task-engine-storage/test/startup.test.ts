@@ -58,7 +58,7 @@ for (const { boundary, effectDelayMs } of [
       type: "echo",
       version: "1",
       environment: "test",
-      inputSchema: { type: "object" },
+      parametersSchema: { type: "object" },
       resultSchema: true,
       messageSchema: false,
       module: new URL("./crash-worker.mjs", import.meta.url).href,

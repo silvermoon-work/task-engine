@@ -21,7 +21,7 @@ export const help = `Task Engine — manage a local Server and persistent tasks.
 
 Usage: task-engine <command>
   server start|status|stop  Manage a local background Server by --data-dir
-  run --cid <cid>|--car <file> --input <file|-> [--async]
+  run --cid <cid>|--car <file> --parameters <file|-> [--async]
   task query|logs|await    Query persistent tasks, logs or final results
   data prune              Offline explicit history/cache cleanup
   data import-ipns        Offline signed IPNS record provisioning
@@ -32,7 +32,7 @@ Use task-engine <command> --help for options.
 
 Examples:
   task-engine server start
-  task-engine run --car dist/my-task.car --input input.json
+  task-engine run --car dist/my-task.car --parameters input.json
   task-engine task query --status failed
 Documentation: https://github.com/silvermoon-work/task-engine/tree/main/packages/task-engine-cli
 `;
@@ -56,7 +56,7 @@ export const options: Record<string, string[]> = {
   "server start": Object.keys(startKeys),
   "server status": ["--data-dir"],
   "server stop": ["--data-dir", "--cancel-running"],
-  run: ["--cid", "--car", "--input", "--engine", "--timeout-ms", "--async"],
+  run: ["--cid", "--car", "--parameters", "--engine", "--timeout-ms", "--async"],
   "task query": ["--id", "--status", "--since", "--until", "--limit", "--cursor", "--engine"],
   "task logs": ["--engine", "--limit", "--cursor"],
   "task await": ["--engine"],
@@ -78,7 +78,7 @@ export function commandOf(argv: readonly string[]) {
 }
 export function leafHelp(command: string) {
   const usage: Record<string, string> = {
-    run: "(--cid <bundle-cid> | --car <file>) --input <file|-> [--engine <url>] [--timeout-ms <ms>] [--async]",
+    run: "(--cid <bundle-cid> | --car <file>) --parameters <file|-> [--engine <url>] [--timeout-ms <ms>] [--async]",
     "server status": "[--data-dir <path>]",
     "server stop": "[--data-dir <path>] [--cancel-running]",
     "task query": "[--id <task-id> | <filters-and-pagination>] [--engine <url>]",
@@ -133,14 +133,14 @@ export function leafHelp(command: string) {
       purpose: "Submit a persistent task to an already-running Server and wait for its result.",
       parameters: `  --cid <bundle-cid>  Bundle root CID; use exactly one of --cid or --car.
   --car <file>  Local regular CAR file uploaded to the Server; stdin CAR is not supported.
-  --input <file|->  Required UTF-8 JSON object; '-' explicitly reads stdin until EOF.
+  --parameters <file|->  Required UTF-8 JSON object; '-' explicitly reads stdin until EOF.
 ${engine}
   --timeout-ms <ms>  Positive Worker execution budget, excluding preparation/queueing;
                      default task.timeoutMs or 60000.
   --async  Return after durable acceptance, not task completion; default wait for release.`,
       examples: [
-        "run --car dist/my-task.car --input input.json",
-        "run --car dist/my-task.car --input input.json --async",
+        "run --car dist/my-task.car --parameters input.json",
+        "run --car dist/my-task.car --parameters input.json --async",
       ],
     },
     "task query": {

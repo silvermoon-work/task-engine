@@ -11,6 +11,7 @@ import {
   type JsonObject,
   json,
   reduce,
+  wrapRequestParameters,
 } from "@silvermoon-work/task-protocol";
 import { newId } from "../src/index.js";
 import { MemoryStore, VirtualClock } from "../src/testing.js";
@@ -37,7 +38,7 @@ test("initial is fact-based; identity prepare, two generic types and independent
     const finished = h.engine.getTask(task.taskId, caller);
     assert.ok(isCompleted(finished));
     assert.equal(isTimedOut(finished), true);
-    assert.deepEqual(finished.output?.result, { text: "hello" });
+    assert.deepEqual(finished.output?.result, { data: { text: "hello" }, cidPaths: [] });
     for (const key of ["type", "request", "state", "progress", "matchPolicy"])
       assert.equal(key in finished, false);
     assert.equal(typeof finished.revision, "string");
@@ -52,7 +53,10 @@ test("initial is fact-based; identity prepare, two generic types and independent
     assert.equal(h.work.at(-1)?.input.text, "5");
     await h.finish(1, { sum: 5 });
     h.engine.tick();
-    assert.deepEqual(h.engine.getTask(sum.taskId, caller).output?.result, { sum: 5 });
+    assert.deepEqual(h.engine.getTask(sum.taskId, caller).output?.result, {
+      data: { sum: 5 },
+      cidPaths: [],
+    });
   } finally {
     await h.close();
   }
@@ -120,7 +124,7 @@ test("sharing uses input, scope and eligibility; cancellation does not freeze sh
     const after = h.engine.getTask(a.taskId, caller);
     assert.ok(isCanceled(after));
     assert.equal(after.stage, "completed");
-    assert.deepEqual(after.output?.result, { text: "hello" });
+    assert.deepEqual(after.output?.result, { data: { text: "hello" }, cidPaths: [] });
     assert.ok(after.run?.completedAt);
     assert.ok(isCompleted(h.engine.getTask(b.taskId, caller)));
     assert.equal(h.engine.cancelTask(a.taskId, caller).canceledAt, frozen.canceledAt);
@@ -292,7 +296,7 @@ test("prepare validation fails before allocation; registered contracts are immut
   try {
     broken.submit({ matchPolicy: "terminates-after-eligible" });
     await broken.turn();
-    broken.type.inputSchema = { type: "object", properties: { other: { type: "number" } } };
+    broken.type.parametersSchema = { type: "object", properties: { other: { type: "number" } } };
     broken.submit({ matchPolicy: "terminates-after-eligible" });
     await broken.turn();
     assert.equal(broken.engine.errors.length, 0);
@@ -429,7 +433,7 @@ test("version-bound history and idempotency never silently use current validator
     type: "echo",
     version: "1",
     environment: "one",
-    inputSchema: {
+    parametersSchema: {
       type: "object",
       properties: { text: { type: "string" } },
       required: ["text"],
@@ -464,7 +468,7 @@ test("version-bound history and idempotency never silently use current validator
   const newer = {
     ...old,
     version: "2",
-    inputSchema: {
+    parametersSchema: {
       type: "object",
       properties: { different: { type: "number" } },
       required: ["different"],
@@ -477,7 +481,10 @@ test("version-bound history and idempotency never silently use current validator
   });
   await restored.start();
   assert.equal(restored.submit(raw, caller).taskId, task.taskId);
-  assert.deepEqual(restored.getRequest(raw.requestId, caller), raw);
+  assert.deepEqual(
+    restored.getRequest(raw.requestId, caller),
+    wrapRequestParameters({ ...raw }),
+  );
   await restored.close();
   const unsupported = createTaskEngine({
     ...options,

@@ -157,3 +157,12 @@ P2 本地验收通过，无 RC 或发布后 Smoke；I-S02/I-AC02 的完整端到
 - 本轮只复制归档根块与各 content root 的单块；更深 UnixFS 子块仍依赖归档 Store 中已有闭包，由 `prepare`/闭包校验拒绝不完整图。多块树形复制与公开协议切换属 P4/P5；隔离 Kubo、万级消息分段和 `pnpm check` 全仓属 P6。无 RC 或发布。
 
 P3 本地验收通过；I-S02 的实现工作已完成。I-AC02 仍待 P6 的隔离 Kubo 与全仓证明，不能提前 submitInner。
+
+## P4 本地验收证据
+
+- 公开交换一次性切到 `IpfsPayload`（`data` + `cidPaths`）：`parametersSchema` / `parameters`、`message`、`result`。Worker `run(parameters, context)`；CLI `--parameters`；子任务 `bundle` 为 CID（可选 path 先解析）。删除 Task 面向 Space/sid/`context.output`。`context` 提供 `readContent` / `resolveContent` / `putContent`。Schema/API 仍为 V1，SQLite facts / user_version 仍为 5；旧 `input` / `{result,cid}` 布局明确拒绝，不迁移历史库。
+- `ipfs-payload` 增加 `compileTrustedContract` / `inspectTaskSchema`，使用完整 Task Schema dialect（`$ref`、boolean schema、`prefixItems`、`allOf`），由 Engine 注入业务校验器。无判别的 `ContentRef | string` 拒绝。DAG-CBOR 在引用位存原生 CID；普通字符串与同形对象保持字符串。
+- 主 Agent 复核公开类型、Space 导出清除、`waitForIdle` 仍不等待归档，并复跑未缓存套件（Node 24.12.0）：ipfs-payload `contract`+`payload` 17/17；task-sdk 4/4；task-engine composition/drain/archive/space-worker 42/42。subagent 的 12 包 turbo lint/typecheck/test/build 48/48。
+- 内部编译契约仍保留 `InputContract.inputSchema` 字段名与部分错误文案；`run_content_access.sid` 存 CID 字符串以免升版。未引入 ipfs-tree。无 RC 或发布。
+
+P4 本地验收通过。I-S01 / I-AC01 已有包级三通道与真链接证据。I-S03 / I-AC03 仍待 P5 按需树形包与 P6 全仓证明，不能提前 submitInner。

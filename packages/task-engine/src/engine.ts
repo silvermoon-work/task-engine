@@ -8,6 +8,10 @@ import {
   type CancellationResult,
   type Clock,
   type CollectionSubscription,
+  acceptPayload,
+  emptyPayload,
+  isPayloadEnvelope,
+  wrapRequestParameters,
   canonical,
   compileInputSchema,
   compileJsonSchema,
@@ -22,6 +26,7 @@ import {
   type NewEvent,
   type Operation,
   object,
+  payloadCids,
   positive,
   project,
   projectRun,
@@ -107,7 +112,6 @@ export interface EngineLimits extends CatalogLimits, ObservationLimits {
 export interface EngineOptions {
   /** Managed domains start execution budgets when their Worker is created. */
   executionBudgetFromWorker?: boolean;
-  requestInputEnvelope?: boolean;
   durableLogs?: boolean;
   invokeTask?: import("./type-supervisor.js").TypeChannel["invokeTask"];
   confirmChildRelease?: (runId: string) => Promise<void>;
@@ -161,15 +165,6 @@ export const defaultEngineLimits: Readonly<EngineLimits> = Object.freeze({
   subscriptionBufferEvents: 64,
   subscriptionBufferBytes: 1_048_576,
 });
-const common = new Set([
-  "requestId",
-  "type",
-  "bundle",
-  "timeoutMs",
-  "eligibleAt",
-  "seriesId",
-  "matchPolicy",
-]);
 const systemClock: Clock = {
   now: () => Date.now(),
   schedule(callback, delay) {
@@ -377,7 +372,7 @@ export class TaskEngine implements TaskService {
           return Object.freeze({
             type: name,
             version,
-            inputSchema: type.inputSchema,
+            parametersSchema: type.inputSchema,
             revision: type.revision,
           });
         }),
@@ -468,7 +463,7 @@ export class TaskEngine implements TaskService {
       throw new TaskError("invalid_type", "Incomplete static type contract.");
     const key = this.key(registration);
     if (this.types.has(key)) throw new TaskError("invalid_type", "Duplicate type version.");
-    const contract = compileInputSchema(registration.inputSchema, {
+    const contract = compileInputSchema(registration.parametersSchema, {
       maxInputBytes: this.limits.maxPayloadBytes,
     });
     const resultContract = compileJsonSchema(registration.resultSchema, {
@@ -668,10 +663,10 @@ export class TaskEngine implements TaskService {
   private historical(binding: Binding): CompiledType {
     const type = this.type(binding);
     if (
-      !binding.inputSchema ||
+      !binding.parametersSchema ||
       binding.contractRevision !== type.revision ||
       binding.environment !== type.environment ||
-      canonical(binding.inputSchema) !== canonical(type.inputSchema)
+      canonical(binding.parametersSchema) !== canonical(type.inputSchema)
     )
       throw new TaskError(
         "unsupported_contract",
@@ -679,32 +674,39 @@ export class TaskEngine implements TaskService {
       );
     return type;
   }
+  private boundParameters(binding: Binding) {
+    return binding.bundle
+      ? this.boundContracts(binding).input.inputSchema
+      : this.historical(binding).inputSchema;
+  }
   private checkTask(task: TaskRecord): void {
-    if (task.binding.bundle) this.boundContracts(task.binding).input.validate(task.input);
-    else this.historical(task.binding).validate(task.input);
+    acceptPayload(task.parameters, this.boundParameters(task.binding), {
+      maxBytes: this.limits.maxPayloadBytes,
+    });
   }
   private checkRun(run: RunRecord): void {
-    if (run.binding.bundle) {
-      const contract = this.boundContracts(run.binding);
-      contract.input.validate(run.input);
-      if (run.outcome?.output !== undefined) contract.result.validate(run.outcome.output.result);
-    } else {
-      const type = this.historical(run.binding);
-      type.validate(run.input);
-      if (run.outcome?.output !== undefined)
-        type.resultContract.validate(run.outcome.output.result);
+    acceptPayload(run.parameters, this.boundParameters(run.binding), {
+      maxBytes: this.limits.maxPayloadBytes,
+    });
+    if (run.outcome?.output !== undefined) {
+      const resultSchema = run.binding.bundle
+        ? this.boundContracts(run.binding).result.schema
+        : this.historical(run.binding).resultContract.schema;
+      acceptPayload(run.outcome.output.result, resultSchema, {
+        maxBytes: this.limits.maxPayloadBytes,
+      });
     }
     if (run.progress !== undefined) validateRunProgress(run.progress, this.limits.maxPayloadBytes);
   }
   private boundContracts(binding: Binding): { input: InputContract; result: JsonContract } {
     const key = canonical({
-      input: binding.inputSchema,
+      input: binding.parametersSchema,
       result: binding.declaration!.resultSchema,
     });
     let contract = this.historyContracts.get(key);
     if (!contract) {
       contract = {
-        input: compileInputSchema(binding.inputSchema, {
+        input: compileInputSchema(binding.parametersSchema, {
           maxInputBytes: this.limits.maxPayloadBytes,
         }),
         result: compileJsonSchema(binding.declaration!.resultSchema, {
@@ -828,11 +830,10 @@ export class TaskEngine implements TaskService {
     this.authorized(caller, "submit", caller?.scope);
     const raw = object(
         request,
-        this.options.requestInputEnvelope
-          ? Math.min(Number.MAX_SAFE_INTEGER, this.limits.maxPayloadBytes + 8192)
-          : this.limits.maxPayloadBytes,
-      ),
-      requestId = ulid(raw.requestId);
+        Math.min(Number.MAX_SAFE_INTEGER, this.limits.maxPayloadBytes + 8192),
+      );
+    wrapRequestParameters(raw);
+    const requestId = ulid(raw.requestId);
     let now = this.clock.now();
     const lower = Math.max(
       this.view.facts.admissionLowerBound ?? -Number.MAX_SAFE_INTEGER,
@@ -886,14 +887,10 @@ export class TaskEngine implements TaskService {
     const policy = raw.matchPolicy ?? "starts-after-eligible";
     if (policy !== "starts-after-eligible" && policy !== "terminates-after-eligible")
       throw new TaskError("unsupported_request", "Unsupported matchPolicy.");
-    const input = type.validate(
-      prepared && this.options.requestInputEnvelope
-        ? object(prepared.intent.input, this.limits.maxPayloadBytes)
-        : Object.fromEntries(
-            Object.entries(prepared?.intent ?? raw).filter(
-              ([key]) => !common.has(key) || (prepared !== undefined && key === "type"),
-            ),
-          ),
+    const parameters = acceptPayload(
+      prepared?.intent.parameters ?? raw.parameters,
+      type.inputSchema,
+      { maxBytes: this.limits.maxPayloadBytes },
     );
     let receivedAt = at(now),
       eligibleAt = at(
@@ -924,7 +921,7 @@ export class TaskEngine implements TaskService {
       eligibleAt,
       deadlineAt: at(Date.parse(eligibleAt) + positive(raw.timeoutMs, "timeoutMs")),
       receivedSequence: this.view.facts.watermark + 1,
-      input,
+      parameters,
       request: prepared?.intent ?? (raw as TaskRequest),
       binding: {
         ...(this.view.facts.submissions[requestId]?.composition
@@ -933,7 +930,7 @@ export class TaskEngine implements TaskService {
         type: raw.type,
         version,
         contractRevision: type.revision,
-        inputSchema: structuredClone(type.inputSchema),
+        parametersSchema: structuredClone(type.inputSchema),
         environment: type.environment,
         scope: caller.scope,
         subject: caller.subject,
@@ -1116,9 +1113,13 @@ export class TaskEngine implements TaskService {
     this.accepting();
     const task = this.task(id, caller, "message"),
       key = `${id}\0${ulid(messageId)}`;
-    const value = compileJsonSchema(this.historical(task.binding).messageSchema, {
-      maxInputBytes: this.limits.maxPayloadBytes,
-    }).validate(payload);
+    const value = acceptPayload(
+      isPayloadEnvelope(payload) ? payload : emptyPayload(json(payload, this.limits.maxPayloadBytes)),
+      this.historical(task.binding).messageSchema,
+      {
+        maxBytes: this.limits.maxPayloadBytes,
+      },
+    );
     const existing = this.view.facts.messages[key];
     if (existing) {
       if (
@@ -1220,17 +1221,17 @@ export class TaskEngine implements TaskService {
     this.resolveMessage(runId, id, message, state, reason);
   }
   private compatible(
-    a: Pick<RunRecord, "binding" | "input">,
-    b: Pick<RunRecord, "binding" | "input">,
+    a: Pick<RunRecord, "binding" | "parameters">,
+    b: Pick<RunRecord, "binding" | "parameters">,
   ): boolean {
     return (
       (
         ["type", "version", "contractRevision", "environment", "scope", "compositionId"] as const
       ).every((field) => a.binding[field] === b.binding[field]) &&
-      canonical(a.binding.inputSchema) === canonical(b.binding.inputSchema) &&
+      canonical(a.binding.parametersSchema) === canonical(b.binding.parametersSchema) &&
       (a.binding.bundle ? this.boundContracts(a.binding).input : this.historical(a.binding)).equals(
-        a.input,
-        b.input,
+        (a.parameters as { data: Json }).data,
+        (b.parameters as { data: Json }).data,
       )
     );
   }
@@ -1399,7 +1400,7 @@ export class TaskEngine implements TaskService {
     group.startup = Promise.resolve()
       .then(async () => {
         if (task.binding.bundle) group.releaseBundle = await this.options.loadBundle!(task.binding);
-        await this.supervisors.get(this.key(task.binding))!.run(id, task.input, task.binding.scope);
+        await this.supervisors.get(this.key(task.binding))!.run(id, task.parameters, task.binding.scope);
       })
       .catch((error) => {
         const run = this.view.facts.runs[id];
@@ -1453,7 +1454,7 @@ export class TaskEngine implements TaskService {
       runId: id,
       generation: newId(now),
       binding: owner.binding,
-      input: owner.input,
+      parameters: owner.parameters,
       startedAt: at(now),
       updatedAt: at(now),
       startedSequence: this.view.facts.watermark + 1,
@@ -1462,6 +1463,9 @@ export class TaskEngine implements TaskService {
       this.runEvent("run.started", run, { run }, run.startedAt),
       this.runEvent("run.dispatched", run, { workerGeneration }, run.startedAt),
     ]);
+    if (this.options.store.retainRunContent)
+      for (const cid of payloadCids(owner.parameters, this.limits.maxPayloadBytes))
+        this.retainRunContent(id, cid);
     group.started = true;
     const invocation =
       this.view.facts.submissions[group.exemplar.request.requestId]?.composition?.intent;
@@ -1507,10 +1511,9 @@ export class TaskEngine implements TaskService {
         ? {
             kind: "completed",
             output: {
-              result: type.resultContract.validate(value.result),
-              ...(value.outputCid === undefined
-                ? {}
-                : { cid: validateBundleReference(value.outputCid) as string }),
+              result: acceptPayload(value.result, type.resultContract.schema, {
+                maxBytes: this.limits.maxPayloadBytes,
+              }),
             },
           }
         : {
@@ -1521,7 +1524,13 @@ export class TaskEngine implements TaskService {
             },
             ...(value.result === undefined
               ? {}
-              : { output: { result: type.resultContract.validate(value.result) } }),
+              : {
+                  output: {
+                    result: acceptPayload(value.result, type.resultContract.schema, {
+                      maxBytes: this.limits.maxPayloadBytes,
+                    }),
+                  },
+                }),
           };
     if (run.outcome) {
       const { occurredAt: _at, ...existing } = run.outcome;
@@ -1532,6 +1541,9 @@ export class TaskEngine implements TaskService {
     this.commit([
       this.runEvent("run.outcome", run, { outcome: { ...report, occurredAt } }, occurredAt),
     ]);
+    if (this.options.store.retainRunContent && report.kind === "completed")
+      for (const cid of payloadCids(report.output.result, this.limits.maxPayloadBytes))
+        this.retainRunContent(id, cid);
   }
   private exited(id: string, fact: RunWorkerExit): void {
     const run = this.view.facts.runs[id];

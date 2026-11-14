@@ -1,4 +1,4 @@
-import { at, canonical, fail, timestamp, ulid } from "./json.js";
+import { at, canonical, fail, type Json, timestamp, ulid } from "./json.js";
 import { compileInputSchema, type InputContract } from "./schema.js";
 import type { RunHistoryFinalizeOptions, RunHistorySource } from "./run-history.js";
 import type {
@@ -24,7 +24,7 @@ function assertOutputEnvelope(record: { output?: TaskOutput }, required = false)
         typeof record.output !== "object" ||
         Array.isArray(record.output) ||
         record.output.result === undefined ||
-        (record.output.cid !== undefined && typeof record.output.cid !== "string")))
+        "cid" in record.output))
   )
     fail("unsupported_version", "Unsupported Run output. Stored data is not migrated.");
 }
@@ -97,16 +97,20 @@ export function assertFactsVersion(facts: Facts): void {
           "unsupported_version",
           "Legacy child invocation facts require a new data domain; migrate and rebuild bundles.",
         );
+      if (child.source && "sid" in child.source)
+        fail(
+          "unsupported_version",
+          "Legacy child Space identity requires a new data domain; migrate and rebuild bundles.",
+        );
       if (
         !Number.isSafeInteger(child.depth) ||
         child.depth < 1 ||
         typeof child.key !== "string" ||
         !/^[a-zA-Z0-9._:-]{1,128}$/.test(child.key) ||
         typeof child.path !== "string" ||
-        !child.path.startsWith("/") ||
-        child.source?.path !== child.path ||
-        typeof child.source.sid !== "string" ||
-        !child.source.sid.startsWith("ipfs:") ||
+        typeof child.source?.cid !== "string" ||
+        !child.source.cid ||
+        (child.source.path ?? "") !== child.path ||
         typeof child.targetCid !== "string" ||
         record.request.bundle !== child.targetCid ||
         !child.intent ||
@@ -249,14 +253,20 @@ interface Index {
 }
 const indices = new WeakMap<Facts, Index>();
 const comparisonContracts = new Map<string, InputContract>();
-function group(record: Pick<TaskRecord, "binding" | "input">): string {
+function parametersData(value: Json): Json {
+  if (value && typeof value === "object" && !Array.isArray(value) && Object.hasOwn(value, "data"))
+    return (value as { data: Json }).data;
+  return value;
+}
+function group(record: Pick<TaskRecord, "binding" | "parameters">): string {
   const b = record.binding;
-  if (!b.inputSchema) fail("unsupported_contract", "Original bound inputSchema is missing.");
-  const schema = canonical(b.inputSchema);
+  if (!b.parametersSchema)
+    fail("unsupported_contract", "Original bound parametersSchema is missing.");
+  const schema = canonical(b.parametersSchema);
   let contract = comparisonContracts.get(schema);
   if (!contract) {
     // Admission validates the host payload budget; projection compares persisted facts.
-    contract = compileInputSchema(b.inputSchema, { maxInputBytes: Number.MAX_SAFE_INTEGER });
+    contract = compileInputSchema(b.parametersSchema, { maxInputBytes: Number.MAX_SAFE_INTEGER });
     if (comparisonContracts.size >= 64)
       comparisonContracts.delete(comparisonContracts.keys().next().value!);
     comparisonContracts.set(schema, contract);
@@ -269,7 +279,7 @@ function group(record: Pick<TaskRecord, "binding" | "input">): string {
     b.environment,
     b.scope,
     schema,
-    contract.equivalenceKey(record.input),
+    contract.equivalenceKey(parametersData(record.parameters)),
   ]);
 }
 function index(facts: Facts): Index {

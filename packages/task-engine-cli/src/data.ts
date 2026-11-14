@@ -37,7 +37,7 @@ export interface TaskRecord {
   released: boolean;
   roots: string[];
   timeoutMs: number;
-  input?: Record<string, Json>;
+  parameters?: Record<string, Json>;
   cid?: string;
   cancelRequested?: boolean;
   releaseProof?: Json;
@@ -313,7 +313,8 @@ export class Repository {
       if (!task.output || typeof task.output !== "object" || !Object.hasOwn(task.output, "result"))
         throw new TaskError("STORAGE_CORRUPT", "Task output must contain a business result.");
       json(task.output.result, Number.MAX_SAFE_INTEGER);
-      if (task.output.cid !== undefined) CID.parse(task.output.cid);
+      if ("cid" in task.output)
+        throw new TaskError("UNSUPPORTED_STORAGE", "Legacy output CID requires a new data directory.");
     }
     return task;
   }

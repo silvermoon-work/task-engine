@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { at, type Json, json, type Store } from "@silvermoon-work/task-protocol";
+import { at, type Json, json, type Store, wrapRequestParameters } from "@silvermoon-work/task-protocol";
 import { newId } from "../src/index.js";
 import { MemoryStore, VirtualClock } from "../src/testing.js";
 import type { LifecycleFixture } from "./driver.js";
@@ -11,7 +11,7 @@ const type = (version: string): LifecycleFixture<Json> => ({
   type: "example",
   version,
   environment: "private-runtime-secret",
-  inputSchema: { type: "object", properties: { value: { type: "number" } }, required: ["value"] },
+  parametersSchema: { type: "object", properties: { value: { type: "number" } }, required: ["value"] },
   prepare: async (value) => value,
   validatePrepared: json,
   validateResult: json,
@@ -37,11 +37,11 @@ test("discovery is immutable, current-only, submit-authorized and detached from 
   try {
     const found = engine.discoverTypes(caller);
     assert.equal(found.length, 1);
-    assert.deepEqual(Object.keys(found[0]!).sort(), ["inputSchema", "revision", "type", "version"]);
+    assert.deepEqual(Object.keys(found[0]!).sort(), ["parametersSchema", "revision", "type", "version"]);
     assert.equal(found[0]?.version, "2");
     assert.ok(!JSON.stringify(found).includes("private-runtime-secret"));
     assert.ok(Object.isFrozen(found));
-    assert.ok(Object.isFrozen(found[0]?.inputSchema));
+    assert.ok(Object.isFrozen(found[0]?.parametersSchema));
     assert.throws(() => engine.discoverTypes({ ...caller, subject: "denied" }), {
       code: "forbidden",
     });
@@ -49,7 +49,7 @@ test("discovery is immutable, current-only, submit-authorized and detached from 
       code: "unauthenticated",
     });
     currentVersions.example = "1";
-    current.inputSchema.properties = {};
+    current.parametersSchema.properties = {};
     assert.equal(engine.discoverTypes(caller)[0]?.version, "2");
     const request = {
       requestId: newId(clock.now()),
@@ -75,7 +75,10 @@ test("discovery is immutable, current-only, submit-authorized and detached from 
       { code: "idempotency_conflict" },
     );
     assert.equal(store.read().facts.tasks[created.taskId]?.binding.contractRevision, revision);
-    assert.deepEqual(store.read().facts.tasks[created.taskId]?.request, request);
+    assert.deepEqual(
+      store.read().facts.tasks[created.taskId]?.request,
+      wrapRequestParameters({ ...request }),
+    );
   } finally {
     await engine.close();
     store.close();
@@ -124,7 +127,7 @@ test("revision races fail before persistence; history never silently changes Sch
   );
   await second.close();
   const mutated = type("1");
-  mutated.inputSchema = { type: "object" };
+  mutated.parametersSchema = { type: "object" };
   const replaced = createTaskEngine({
     ...options,
     types: [mutated],
@@ -202,7 +205,7 @@ test("run records independently require the original contract identity", async (
 
 test("M01 includes allowed undeclared fields and never invokes obsolete per-demand type authorization", async () => {
   const h = await harness({
-    inputSchema: { type: "object", properties: { text: { type: "string" } }, required: ["text"] },
+    parametersSchema: { type: "object", properties: { text: { type: "string" } }, required: ["text"] },
   });
   let revoked = false;
   h.type.authorize = (input) => {

@@ -39,7 +39,7 @@ export function createTaskProject(options: TaskProjectOptions = {}): ReadonlyFil
     entry: "worker.cjs",
     include: ["task.yaml", "worker.cjs"],
     binary: [],
-    inputSchema: { type: "object" },
+    parametersSchema: { type: "object" },
     resultSchema: true,
     messageSchema: false,
   });
@@ -96,7 +96,7 @@ const Text = Type.String({ $id: textId, minLength: 1 });
 // A string-ID reference needs its referenced static type for inference.
 const TextRef = Type.Unsafe<Static<typeof Text>>(Type.Ref(textId));
 
-const InputSchema = Type.Object(
+const ParametersSchema = Type.Object(
   { text: TextRef },
   { additionalProperties: false },
 );
@@ -109,11 +109,11 @@ const ResultSchema = Type.Object(
   { additionalProperties: false },
 );
 
-export type Input = Static<typeof InputSchema>;
+export type Parameters = Static<typeof ParametersSchema>;
 export type Result = Static<typeof ResultSchema>;
 
 export default {
-  input: InputSchema,
+  parameters: ParametersSchema,
   result: ResultSchema,
   message: false,
   schemas: { text: Text },
@@ -124,11 +124,12 @@ export default {
 }
 `,
     "src/main.ts": `import { runTask } from "@silvermoon-work/task-sdk";
-import type { Input, Result } from "./contract.js";
+import type { Parameters, Result } from "./contract.js";
 import { greet } from "./helper.js";
 
-runTask<Input, Result>(async (input, context) => {
-  const greeting = await context.bundle.root.resolve("resources/greeting.txt").read();
+runTask<Parameters, Result>(async (parameters, context) => {
+  const fileCid = await context.resolveContent(context.bundle, "resources/greeting.txt");
+  const greeting = await context.readContent(fileCid);
   if (greeting.kind !== "file") throw new Error("Expected greeting file.");
   const reader = greeting.content.getReader();
   const decoder = new TextDecoder("utf-8", { fatal: true });
@@ -147,7 +148,7 @@ runTask<Input, Result>(async (input, context) => {
   } finally {
     reader.releaseLock();
   }
-  return { text: greet(prefix, input.text), bytes, chunks };
+  return { text: greet(prefix, parameters.text), bytes, chunks };
 });
 `,
     "assets/greeting.txt": "Hello\n",

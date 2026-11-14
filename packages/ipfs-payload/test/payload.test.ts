@@ -6,7 +6,6 @@ import { Value } from "@sinclair/typebox/value";
 import { CID } from "multiformats/cid";
 import {
   ContentRef,
-  ContentRefSchema,
   decodePayload,
   decodePayloadBlock,
   encodePayload,
@@ -16,6 +15,7 @@ import {
   toDagPayload,
   validatePayload,
 } from "../src/index.js";
+import { ContentRefSchema } from "../src/typebox.js";
 import { encodeDagCbor } from "../src/dag-cbor.js";
 
 const cid = CID.parse("bafkreigh2akiscaildcjlywwfme6ngynt5kwhr6bpcf3r7nnbyurphdisi");

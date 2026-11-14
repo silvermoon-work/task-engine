@@ -5,16 +5,14 @@ import { join, resolve } from "node:path";
 import test from "node:test";
 import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
-import { openContent } from "../src/content.js";
-import { taskSummary, runSummary } from "../src/catalog.js";
 import { createTaskEngine, newId } from "../src/index.js";
 import { MemoryIpfsClient, MemoryStore } from "../src/testing.js";
 
-const caller = { scope: "spaces", subject: "worker-test" };
+const caller = { scope: "content", subject: "worker-test" };
 
 for (const fail of [false, true])
-  test(`real Worker space operations ${fail ? "reject incomplete writes" : "retain final output and references"}`, async () => {
-    const directory = resolve(".cache", `space-worker-${randomUUID()}`);
+  test(`real Worker CID capabilities ${fail ? "reject incomplete writes" : "retain stored bytes and stream resources"}`, async () => {
+    const directory = resolve(".cache", `content-worker-${randomUUID()}`);
     await mkdir(directory, { recursive: true });
     const store = new MemoryStore();
     const client = new MemoryIpfsClient();
@@ -24,11 +22,11 @@ for (const fail of [false, true])
         join(directory, "task.yaml"),
         JSON.stringify({
           $schema: taskSchemaUri,
-          name: "Space integration",
+          name: "Content integration",
           runtime: { type: "node", minVersion: "22.13.0" },
           entry: "worker.cjs",
           binary: [],
-          inputSchema: { type: "object" },
+          parametersSchema: { type: "object" },
           resultSchema: true,
           messageSchema: false,
         }),
@@ -37,9 +35,9 @@ for (const fail of [false, true])
       await writeFile(
         join(directory, "callback.ts"),
         `export default async (_input, context) => {
-  if ("generation" in context || "checkpoint" in context) throw Error("Legacy API");
+  if ("generation" in context || "space" in context || "output" in context) throw Error("Legacy API");
   const abort = new AbortController();
-  const interrupted = context.output.write("/cancelled.txt", new ReadableStream({
+  const interrupted = context.putContent(new ReadableStream({
     start(controller) { controller.enqueue(new Uint8Array([1])); }
   }), {signal: abort.signal});
   await new Promise(resolve => setTimeout(resolve, 30));
@@ -47,16 +45,10 @@ for (const fail of [false, true])
   let cancelled = false;
   try { await interrupted; } catch { cancelled = true; }
   if (!cancelled) throw Error("Write cancellation not observed");
-  let partial = false;
-  try { await context.output.root.resolve("cancelled.txt").read(); partial = true; } catch {}
-  if (partial) throw Error("Cancelled file was committed");
-  const ref = context.bundle.root.resolve("resources");
-  await context.output.link("/", ref);
-  const node = await context.output.root.resolve("greeting.txt").read();
+  const greetingCid = await context.resolveContent(context.bundle, "resources/greeting.txt");
+  const node = await context.readContent(greetingCid);
   if (node.kind !== "file") throw Error("Expected file");
-  await context.output.write("/copies/greeting.txt", node.content);
-  await context.output.link("/copies/old", context.output.root.resolve("copies"));
-  const before = await context.output.getCid();
+  const copy = await context.putContent(node.content);
   const bytes = new TextEncoder().encode("generated");
   const stream = new ReadableStream({
     start(controller) {
@@ -64,11 +56,11 @@ for (const fail of [false, true])
       ${fail ? 'controller.error(new Error("producer failed"));' : "controller.close();"}
     }
   });
-  ${fail ? "" : "await"} context.output.write("/generated/result.txt", stream);
+  ${fail ? "" : "const generated = await"} context.putContent(stream);
   return {
-    bundleCid: context.bundle.cid,
-    before,
-    ref: context.output.root.resolve("generated/result.txt").toJSON()
+    bundle: context.bundle,
+    copy: copy.toString(),
+    generated: ${fail ? "undefined" : "generated.toString()"}
   };
 };`,
       );
@@ -88,65 +80,22 @@ for (const fail of [false, true])
       const run = drained.runs[0]!;
       assert.ok(run.reclaimedAt, JSON.stringify(run));
       assert.equal(run.stage, fail ? "failed" : "completed", JSON.stringify(run));
-      if (fail) {
-        assert.equal(run.output?.cid, undefined);
-        return;
-      }
-      assert.ok(run.output?.cid);
-      const task = drained.tasks.find((task) => task.requestId === requestId)!;
-      assert.equal(task.output?.cid, run.output?.cid);
-      assert.deepEqual(task.output, run.output);
-      for (const snapshot of [task, run]) {
+      assert.equal(!!(run.output && "cid" in run.output), false);
+      for (const snapshot of [drained.tasks.find((task) => task.requestId === requestId)!, run]) {
         assert.equal(Object.hasOwn(snapshot, "result"), false);
         assert.equal(Object.hasOwn(snapshot, "outputCid"), false);
       }
-      const facts = store.read().facts;
-      assert.deepEqual(taskSummary(facts.tasks[task.taskId]!, facts, Date.now()).output, {
-        cid: run.output.cid,
-      });
-      assert.deepEqual(runSummary(facts.runs[run.runId]!, facts, Date.now()).output, {
-        cid: run.output.cid,
-      });
-      assert.ok(store.readRunContentRoots(run.runId).includes(run.output?.cid));
-      assert.ok(run.contentAccess?.includes(`ipfs:${built.cid}`));
-      const result = run.output?.result as { bundleCid: string; before: string; ref: unknown };
-      assert.equal(result.bundleCid, built.cid);
-      assert.notEqual(result.before, run.output?.cid);
-      assert.deepEqual(result.ref, {
-        sid: `run:${run.runId}:output`,
-        path: "/generated/result.txt",
-      });
-      await engine.close();
-      client.blocks.clear();
-      const access = {
-        signal: new AbortController().signal,
-        retainedBlocks: new Map<string, Uint8Array>(),
-        retentionBudget: { bytes: 0, limit: 16 * 1024 * 1024 },
-        maxBlockBytes: 2 * 1024 * 1024,
-        maxDagBlocks: 1024,
+      if (fail) return;
+      const result = run.output?.result as {
+        data: { bundle: string; copy: string; generated: string };
+        cidPaths: string[];
       };
-      const local = {
-        block: {
-          async get(cid: string) {
-            const bytes = store.readContentBlock(cid);
-            assert.ok(bytes, `Missing retained block ${cid}`);
-            return bytes;
-          },
-        },
-      };
-      for (const [path, expected] of [
-        ["generated/result.txt", "generated"],
-        ["copies/old/greeting.txt", "hello spaces\n"],
-      ]) {
-        const node = await openContent(local, `${run.output?.cid}/${path}`, access);
-        assert.ok(node.type === "file" || node.type === "raw");
-        const chunks: Uint8Array[] = [];
-        for await (const chunk of node.content()) chunks.push(chunk);
-        assert.equal(Buffer.concat(chunks).toString(), expected);
-      }
-      engine = createTaskEngine({ store, ipfsClient: client, authorize: () => true });
-      await engine.start();
-      assert.equal(engine.getRun(run.runId, caller).output?.cid, run.output?.cid);
+      assert.deepEqual(result.cidPaths, []);
+      assert.equal(result.data.bundle, built.cid);
+      assert.notEqual(result.data.copy, result.data.generated);
+      assert.ok(store.readRunContentRoots(run.runId).includes(result.data.copy));
+      assert.ok(store.readRunContentRoots(run.runId).includes(result.data.generated));
+      assert.ok(run.contentAccess?.includes(built.cid) || run.contentAccess?.includes(result.data.copy));
     } finally {
       await engine?.close();
       store.close();

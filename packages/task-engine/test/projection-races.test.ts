@@ -157,7 +157,8 @@ for (const outcome of ["completed", "failed"] as const) {
         );
         assert.equal(before.stage, outcome);
         assert.ok(before.termination);
-        if (outcome === "completed") assert.deepEqual(before.output?.result, { text: "hello" });
+        if (outcome === "completed")
+          assert.deepEqual(before.output?.result, { data: { text: "hello" }, cidPaths: [] });
         else assert.equal(before.output?.result, undefined);
         assert.equal(h.engine.cancelTask(task.taskId, caller).stage, outcome);
         h.engine.tick();
@@ -217,7 +218,7 @@ test("cancel-first Task keeps its canceled fact but observes later shared comple
     assert.equal(after.canceledAt, canceled.canceledAt);
     assert.equal(after.stage, "completed");
     assert.ok(after.run?.completedAt);
-    assert.deepEqual(after.output?.result, { text: "hello" });
+    assert.deepEqual(after.output?.result, { data: { text: "hello" }, cidPaths: [] });
     assert.ok(isTimedOut(after));
     assert.notEqual(after.revision, canceled.revision);
     assert.notEqual(after.updatedAt, canceled.updatedAt);

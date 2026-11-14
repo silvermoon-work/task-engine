@@ -23,7 +23,7 @@ function files(extra: Record<string, Buffer> = {}) {
               (path) => !["task.yaml", "worker.cjs", "resources/data.bin"].includes(path),
             ),
           ],
-          inputSchema: { type: "object" },
+          parametersSchema: { type: "object" },
           resultSchema: true,
           messageSchema: false,
         }),

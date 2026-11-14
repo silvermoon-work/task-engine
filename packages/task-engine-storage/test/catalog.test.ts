@@ -55,7 +55,7 @@ test("SQLite v4 source updates, original validators, restart and protected compa
       const changedSchema = createTaskEngine({
         store,
         clock: h.clock,
-        types: [{ ...h.type, inputSchema: { type: "object" } }],
+        types: [{ ...h.type, parametersSchema: { type: "object" } }],
         currentVersions: { echo: "1" },
         authorize: () => true,
       });
@@ -91,7 +91,11 @@ test("SQLite v4 source updates, original validators, restart and protected compa
         at(h.clock.now()),
         "recovery stop is a genuine source fact, not a read-time refresh",
       );
-      assert.equal(engine.getRequest(live.requestId, caller).text, "hello");
+      assert.equal(
+        (engine.getRequest(live.requestId, caller).parameters as { data: { text: string } }).data
+          .text,
+        "hello",
+      );
       assert.equal(engine.getRequest(live.requestId, caller).version, undefined);
       await engine.close();
       const persistent = store.read();

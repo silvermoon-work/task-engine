@@ -17,7 +17,7 @@ export function createType(_configuration, resources) {
   return {
     type: "run-test",
     version: "1",
-    inputSchema,
+    parametersSchema: inputSchema,
     resultSchema: { type: "object" },
     messageSchema,
     async run(input, context) {

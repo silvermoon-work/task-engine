@@ -45,6 +45,8 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@silvermoon-work/ipfs-access": "workspace:*",
+    "@silvermoon-work/ipfs-payload": "workspace:*",
     "multiformats": "catalog:",
     "ajv": "catalog:",
     "yaml": "catalog:"

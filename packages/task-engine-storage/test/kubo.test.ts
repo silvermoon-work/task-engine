@@ -27,10 +27,10 @@ test("SQLite Engine reopen recovers stable Kubo roots, while manual block deleti
     await writeFile(
       entry,
       `export default async (_input, context) => {
-      await context.output.write("/out.txt", new ReadableStream({
+      const cid = await context.putContent(new ReadableStream({
         start(controller) { controller.enqueue(new TextEncoder().encode("persistent output")); controller.close(); }
       }));
-      return "persisted";
+      return { persisted: true, cid: cid.toString() };
     };`,
     );
     const built = await buildBundleFixture({
@@ -40,7 +40,7 @@ test("SQLite Engine reopen recovers stable Kubo roots, while manual block deleti
         runtime: { type: "node", minVersion: "22.15.0" },
         entry: "worker.cjs",
         binary: [],
-        inputSchema: { type: "object" },
+        parametersSchema: { type: "object" },
         resultSchema: true,
         messageSchema: false,
       },
@@ -54,7 +54,8 @@ test("SQLite Engine reopen recovers stable Kubo roots, while manual block deleti
     assert.deepEqual(drained.errors, []);
     assert.equal(drained.tasks[0]!.stage, "completed");
     const task = drained.tasks[0]!;
-    const output = task.output!.cid!;
+    assert.ok(task.output?.result);
+    const output = (task.output.result as { data: { cid: string } }).data.cid;
     const identity = store.read().storeId;
     await engine.close();
     store.close();

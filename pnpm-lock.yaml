@@ -317,6 +317,9 @@ importers:
       '@helia/unixfs':
         specifier: 'catalog:'
         version: 8.0.9(supports-color@10.2.2)
+      '@silvermoon-work/ipfs-access':
+        specifier: workspace:*
+        version: link:../ipfs-access
       '@silvermoon-work/ipfs-payload':
         specifier: workspace:*
         version: link:../ipfs-payload
@@ -472,6 +475,12 @@ importers:
 
   packages/task-protocol:
     dependencies:
+      '@silvermoon-work/ipfs-access':
+        specifier: workspace:*
+        version: link:../ipfs-access
+      '@silvermoon-work/ipfs-payload':
+        specifier: workspace:*
+        version: link:../ipfs-payload
       ajv:
         specifier: 'catalog:'
         version: 8.20.0
@@ -484,6 +493,12 @@ importers:
 
   packages/task-sdk:
     dependencies:
+      '@silvermoon-work/ipfs-access':
+        specifier: workspace:*
+        version: link:../ipfs-access
+      '@silvermoon-work/ipfs-payload':
+        specifier: workspace:*
+        version: link:../ipfs-payload
       '@silvermoon-work/task-protocol':
         specifier: workspace:*
         version: link:../task-protocol

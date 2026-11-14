@@ -18,7 +18,7 @@ function bundle(extra = new Map<string, Uint8Array>(), runtime = "22.13.0") {
           entry: "worker.cjs",
           binary: [...extra.keys()].filter((path) => path.startsWith("resources/")).sort(),
           include: ["task.yaml", "worker.cjs", ...extra.keys()],
-          inputSchema: { type: "object" },
+          parametersSchema: { type: "object" },
           resultSchema: true,
           messageSchema: false,
         }),
@@ -115,7 +115,7 @@ test("supplied Bundle bytes produce exact structure statistics without file IO o
     [...files.values()].reduce((sum, bytes) => sum + bytes.byteLength, 0),
   );
   assert.equal(result.declaration.runtime.minVersion, "999.0.0");
-  assert.equal(result.resolved.inputSchema.type, "object");
+  assert.equal(result.resolved.parametersSchema.type, "object");
   assert.deepEqual(result.declaration.include, [...files.keys()]);
 });
 
@@ -145,11 +145,11 @@ test("missing, undeclared, malformed Worker and Schema files fail explicitly", (
   const invalidWorker = bundle();
   invalidWorker.set("worker.cjs", new Uint8Array([0xff]));
   assert.throws(() => readTaskBundle(invalidWorker), { code: "invalid_bundle" });
-  const invalidSchema = bundle(new Map([["schemas/input.json", encode("{broken")]]));
+  const invalidSchema = bundle(new Map([["schemas/parameters.json", encode("{broken")]]));
   assert.throws(() => readTaskBundle(invalidSchema), { code: "invalid_bundle" });
-  const primitiveSchema = bundle(new Map([["schemas/input.json", encode("null")]]));
+  const primitiveSchema = bundle(new Map([["schemas/parameters.json", encode("null")]]));
   assert.throws(() => readTaskBundle(primitiveSchema), { code: "invalid_schema" });
-  const schemaWithoutId = bundle(new Map([["schemas/input.json", encode("{}")]]));
+  const schemaWithoutId = bundle(new Map([["schemas/parameters.json", encode("{}")]]));
   assert.throws(() => readTaskBundle(schemaWithoutId), { code: "invalid_schema" });
   const tooManyFiles = bundle(
     new Map(
@@ -197,7 +197,7 @@ test("Bundle Schema structure resolves only the supplied exact Schema resources"
   const files = bundle(
     new Map([
       [
-        "schemas/input.json",
+        "schemas/parameters.json",
         encode(
           JSON.stringify({
             $id: "https://example.test/input",
@@ -215,17 +215,17 @@ test("Bundle Schema structure resolves only the supplied exact Schema resources"
     entry: "worker.cjs",
     binary: [],
     include: [...files.keys()],
-    inputSchema: { $ref: "https://example.test/input" },
+    parametersSchema: { $ref: "https://example.test/input" },
     resultSchema: true,
     messageSchema: false,
   };
   files.set("task.yaml", encode(JSON.stringify(declaration)));
-  assert.deepEqual(readTaskBundle(files).resolved.inputSchema, {
+  assert.deepEqual(readTaskBundle(files).resolved.parametersSchema, {
     type: "object",
     properties: { text: { type: "string" } },
   });
   files.set(
-    "schemas/input.json",
+    "schemas/parameters.json",
     encode(JSON.stringify({ $id: "https://example.test/other", type: "object" })),
   );
   assert.throws(() => readTaskBundle(files), { code: "invalid_schema" });

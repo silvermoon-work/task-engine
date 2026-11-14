@@ -6,6 +6,7 @@ import {
   type NewEvent,
   type StoredRunLogs,
   type TaskSnapshot,
+  parametersFromJson,
   project,
   taskBundleLimits,
   TaskError,
@@ -80,7 +81,6 @@ class DurableDomain extends MemoryStore {
           record.status = statusOf(snapshot, view.facts);
           if (snapshot.output) {
             record.output = structuredClone(snapshot.output);
-            if (snapshot.output.cid) record.roots.push(snapshot.output.cid);
           }
           if (snapshot.error) record.error = snapshot.error;
           const run = snapshot.run && view.facts.runs[snapshot.run.runId];
@@ -251,7 +251,6 @@ export async function executeTask(
       retentionRoots: () => repository.contentRoots(),
       persistentContent: true,
       executionBudgetFromWorker: true,
-      requestInputEnvelope: true,
       durableLogs: true,
       ...(confirmRelease ? { confirmBundleRelease: confirmRelease } : {}),
       ...(preparingCapacity ? { preparingCapacity } : {}),
@@ -295,7 +294,10 @@ export async function executeTask(
     signal.throwIfAborted();
     await engine.submit(
       {
-        input: root.input!,
+        parameters: parametersFromJson(
+          root.parameters ?? {},
+          Number(effective(config, "server.maxPayloadBytes")),
+        ),
         requestId: id,
         bundle: cid,
         timeoutMs: 253_402_214_400_000 - Date.now(),

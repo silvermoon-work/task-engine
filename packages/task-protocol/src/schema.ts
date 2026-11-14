@@ -1,5 +1,6 @@
 import { Ajv2020 } from "ajv/dist/2020.js";
 import standaloneCode from "ajv/dist/standalone/index.js";
+import { addContentRefKeyword } from "@silvermoon-work/ipfs-payload";
 import { fail, type Json, type JsonObject } from "./json.js";
 import {
   createInputContract,
@@ -24,6 +25,7 @@ function compiler(standalone?: (source: string) => void): SchemaCompiler {
     };
     try {
       let ajv = new Ajv2020(options);
+      addContentRefKeyword(ajv);
       let validate = ajv.compile(schema);
       if (
         [...nodes].some(
@@ -55,6 +57,7 @@ function compiler(standalone?: (source: string) => void): SchemaCompiler {
         // Ajv skips properties.__proto__; validate authors' strict schema before
         // adding an equivalent, potentially overlapping compiler-owned pattern.
         ajv = new Ajv2020({ ...options, allowMatchingProperties: true });
+        addContentRefKeyword(ajv);
         validate = ajv.compile(compiledSchema);
       }
       standalone?.(standaloneCode.default(ajv, validate));
@@ -65,11 +68,17 @@ function compiler(standalone?: (source: string) => void): SchemaCompiler {
   };
 }
 
+export function compileParametersSchema<Parameters = Json>(
+  value: unknown,
+  options: Partial<SchemaLimits> = {},
+) {
+  return createInputContract<Parameters>(value, compiler(), options);
+}
 export function compileInputSchema<Input = Json>(
   value: unknown,
   options: Partial<SchemaLimits> = {},
 ) {
-  return createInputContract<Input>(value, compiler(), options);
+  return compileParametersSchema<Input>(value, options);
 }
 
 export function compileJsonSchema(value: unknown, options: Partial<SchemaLimits> = {}) {

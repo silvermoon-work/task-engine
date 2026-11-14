@@ -23,7 +23,7 @@ function bundle(extra: Readonly<Record<string, Uint8Array>> = {}, binary: string
         entry: "worker.cjs",
         include: ["task.yaml", ...files.keys()].sort(),
         binary,
-        inputSchema: { type: "object" },
+        parametersSchema: { type: "object" },
         resultSchema: true,
         messageSchema: false,
       }),
@@ -121,13 +121,13 @@ test("CAR output is deterministic across tree insertion order and independent of
   const b = await encodeTaskBundleCar(memoryTree(new Map([...files].reverse())));
   files.clear();
   assert.equal(a.cid, b.cid);
-  assert.equal(a.cid, "bafybeiaqaprnovrabnvimctr7rn5jxkpxyv2jlqrb3sfa5gajbtp7idhwe");
+  assert.equal(a.cid, "bafybeige3vpv7m5pkkat4lhdbpl72c4g6exj6fq2ylczl4lmzvv5pauk4i");
   const bytes = await collect(a.stream);
   assert.deepEqual(bytes, await collect(b.stream));
-  assert.equal(bytes.byteLength, 896);
+  assert.equal(bytes.byteLength, 901);
   assert.equal(
     createHash("sha256").update(bytes).digest("hex"),
-    "a1ab6d9ddebbc06528f55b27524c595b7d535631430ee3451813593daf8b3f6a",
+    "a61dbea194e83091257f12b6a18b12e5b580236615bde39b072c96e11f3d4002",
   );
   await a.close();
   await b.close();

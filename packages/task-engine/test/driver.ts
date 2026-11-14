@@ -50,7 +50,7 @@ export interface LifecycleFixture<Input = Json, Prepared = Input> {
   version: string;
   environment: string;
   allocationLimit?: number;
-  inputSchema: InputSchema;
+  parametersSchema: InputSchema;
   authorize?(input: Input, binding: Binding, prepared?: Prepared, result?: Json): void;
   prepare(input: Input, options: PreparationOptions): Promise<Prepared>;
   validatePrepared(value: unknown): Prepared;
@@ -72,7 +72,7 @@ export function createFixtureEngine(
         type: fixture.type,
         version: fixture.version,
         environment: fixture.environment,
-        inputSchema: fixture.inputSchema,
+        parametersSchema: fixture.parametersSchema,
         resultSchema: fixture.resultSchema,
         messageSchema: fixture.messageSchema,
         module: fixture.module,
@@ -95,12 +95,16 @@ export function createFixtureEngine(
       version: local.version,
       environment: local.environment,
       ...(local.allocationLimit === undefined ? {} : { allocationLimit: local.allocationLimit }),
-      inputSchema: local.inputSchema,
+      parametersSchema: local.parametersSchema,
       resultSchema: true,
       messageSchema: false,
       module: new URL("./fixture-worker.mjs", import.meta.url).href,
       exportName: "createFixture",
-      configuration: { type: local.type, version: local.version, inputSchema: local.inputSchema },
+      configuration: {
+        type: local.type,
+        version: local.version,
+        parametersSchema: local.parametersSchema,
+      },
       resourceLifetime: "request",
       resources: {
         async "fixture-prepare"(input, context) {

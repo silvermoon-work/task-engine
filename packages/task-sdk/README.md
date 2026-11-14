@@ -161,7 +161,7 @@ a stream or break directory iteration to release it early. Run cancellation
 aborts all operations. Request budgets are bounded.
 
 `context.generation`, `context.checkpoint` and `context.bundle.read` are
-removed. Rebuild existing Bundles: hosts explicitly require `spaceProtocol:1`
+removed. Rebuild existing Bundles: hosts explicitly require `contentProtocol:1`
 in the ready handshake and reject previously compiled SDK wrappers. The schema
 identity itself is unchanged.
 

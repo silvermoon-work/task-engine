@@ -3,19 +3,21 @@ import { asNativeCID, encodeDagCbor } from "./dag-cbor.js";
 import type { Static, TSchema } from "@sinclair/typebox";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
-import { ContentRef } from "./reference.js";
+import { inspectTaskSchema } from "./contract.js";
+import { ContentRef } from "./content-ref.js";
 import { formatCidPath, locate, parseCidPath } from "./paths.js";
 import { inspectSchema } from "./schema.js";
 import { Budget, snapshot, type JsonValue, type PayloadLimits } from "./value.js";
 
-export { ContentRef, ContentRefSchema, type TContentRef } from "./reference.js";
+export { addContentRefKeyword, inspectTaskSchema } from "./contract.js";
+export { ContentRef } from "./content-ref.js";
 export { parseCidPath, type CidPathStep } from "./paths.js";
-export { defaultPayloadLimits, type JsonValue, type PayloadLimits } from "./value.js";
+export { Budget, defaultPayloadLimits, type JsonValue, type PayloadLimits } from "./value.js";
 
-export interface IpfsPayload<T = JsonValue> {
+export type IpfsPayload<T = JsonValue> = {
   data: T;
   cidPaths: string[];
-}
+};
 export type DagValue =
   | null
   | boolean
@@ -32,8 +34,17 @@ export type JsonOf<T> = T extends ContentRef
     : T extends object
       ? { [K in keyof T]: JsonOf<T[K]> }
       : T;
+export type PayloadInspector = (
+  schema: unknown,
+  data: JsonValue,
+  budget: Budget,
+) => { expected: Map<string, string>; rules: Set<string> };
 export interface PayloadOptions {
   limits?: Partial<PayloadLimits>;
+  /** Task contracts inject inspectTaskSchema; the P1 profile remains the default. */
+  inspect?: PayloadInspector;
+  /** Host-supplied Task dialect validator; never skip business keywords. */
+  validate?: (data: JsonValue) => void;
 }
 export interface PayloadBlock {
   cid: CID;
@@ -45,7 +56,19 @@ function sameLocations(a: ReadonlyMap<string, unknown>, b: ReadonlyMap<string, u
     throw new Error("CID paths do not exactly match the content references.");
 }
 
-function checked(input: unknown, schema: unknown | undefined, budget: Budget) {
+function inspector(options: PayloadOptions): PayloadInspector {
+  if (options.inspect) return options.inspect;
+  if (options.validate)
+    return (schema, data, budget) => inspectTaskSchema(schema, data, budget, options.validate);
+  return inspectSchema;
+}
+
+function checked(
+  input: unknown,
+  schema: unknown | undefined,
+  budget: Budget,
+  options: PayloadOptions = {},
+) {
   const value = snapshot(input, budget) as Record<string, JsonValue>;
   if (
     !value ||
@@ -62,7 +85,8 @@ function checked(input: unknown, schema: unknown | undefined, budget: Budget) {
   budget.bytes(value);
   if (cidPaths.length > budget.limits.maxPaths)
     throw new Error("CID path count capacity exceeded.");
-  const contract = schema === undefined ? undefined : inspectSchema(schema, data, budget);
+  const contract =
+    schema === undefined ? undefined : inspector(options)(schema, data, budget);
   const references = new Map<string, CID>();
   const seen = new Set<string>();
   for (const path of cidPaths) {
@@ -84,6 +108,22 @@ function checked(input: unknown, schema: unknown | undefined, budget: Budget) {
   return { payload: { data, cidPaths: cidPaths as string[] }, references };
 }
 
+/** Encode ContentRef instances without a contract; lookalike strings stay ordinary. */
+export function encodeReferences(value: unknown, options: PayloadOptions = {}): IpfsPayload {
+  const budget = new Budget(options.limits);
+  const actual = new Map<string, CID>();
+  const data = snapshot(value, budget, (input, path) => {
+    if (!(input instanceof ContentRef)) return undefined;
+    actual.set(path, input.cid);
+    return { value: input.cid.toString() };
+  }) as JsonValue;
+  budget.bytes(data);
+  const cidPaths = [...actual.keys()].sort();
+  const result = { data, cidPaths };
+  checked(result, undefined, budget, options);
+  return result as IpfsPayload;
+}
+
 /** Encode author values according to their contract; strings and lookalike objects stay ordinary. */
 export function encodePayload<S extends TSchema>(
   schema: S,
@@ -98,7 +138,7 @@ export function encodePayload<S extends TSchema>(
     return { value: input.cid.toString() };
   }) as JsonValue;
   budget.bytes(data);
-  const { expected } = inspectSchema(schema, data, budget);
+  const { expected } = inspector(options)(schema, data, budget);
   sameLocations(actual, expected);
   const cidPaths: string[] = [];
   const covered = new Set<string>();
@@ -113,7 +153,7 @@ export function encodePayload<S extends TSchema>(
   cidPaths.sort();
   const result = { data, cidPaths };
   // Generated metadata follows the very same limits and strict checks as received metadata.
-  checked(result, schema, budget);
+  checked(result, schema, budget, options);
   return result as IpfsPayload<JsonOf<Static<S>>>;
 }
 
@@ -122,7 +162,7 @@ export function validatePayload(
   schema?: unknown,
   options: PayloadOptions = {},
 ): IpfsPayload {
-  return checked(payload, schema, new Budget(options.limits)).payload;
+  return checked(payload, schema, new Budget(options.limits), options).payload;
 }
 
 export function decodePayload<S extends TSchema>(
@@ -141,7 +181,7 @@ export function decodePayload(
   options: PayloadOptions = {},
 ): unknown {
   const budget = new Budget(options.limits);
-  const verified = checked(payload, schema, budget);
+  const verified = checked(payload, schema, budget, options);
   return snapshot(verified.payload.data, budget, (_value, path) => {
     const cid = verified.references.get(path);
     return cid ? { value: ContentRef.fromCID(cid) } : undefined;
@@ -155,7 +195,7 @@ export function toDagPayload(
   options: PayloadOptions = {},
 ): DagPayload {
   const budget = new Budget(options.limits);
-  const verified = checked(payload, schema, budget);
+  const verified = checked(payload, schema, budget, options);
   return {
     data: snapshot(verified.payload.data, budget, (_value, path) => {
       const cid = verified.references.get(path);
@@ -178,7 +218,7 @@ export function fromDagPayload(
     actual.set(path, cid);
     return { value: cid.toString() };
   });
-  const verified = checked(json, schema, budget);
+  const verified = checked(json, schema, budget, options);
   const expected = new Map(
     [...verified.references].map(([path, cid]) => [`$["data"]${path.slice(1)}`, cid]),
   );
@@ -218,4 +258,37 @@ export async function decodePayloadBlock(
   if (canonical.length !== owned.length || canonical.some((byte, i) => byte !== owned[i]))
     throw new Error("Non-canonical DAG-CBOR payload.");
   return payload;
+}
+
+export interface TrustedPayloadContract {
+  readonly schema: unknown;
+  encode(value: unknown): IpfsPayload;
+  decode(payload: unknown): unknown;
+  validate(payload: unknown): IpfsPayload;
+  toDag(payload: unknown): DagPayload;
+  fromDag(value: unknown): IpfsPayload;
+  encodeBlock(payload: unknown): Promise<PayloadBlock>;
+  decodeBlock(bytes: Uint8Array, cid?: CID): Promise<IpfsPayload>;
+}
+
+/** Trusted Task-dialect bridge: snapshot/path conversion plus full Schema validation. */
+export function compileTrustedContract(
+  schema: unknown,
+  options: PayloadOptions = {},
+): TrustedPayloadContract {
+  const inspect: PayloadInspector = (source, data, budget) =>
+    inspectTaskSchema(source, data, budget, options.validate);
+  const bound: PayloadOptions = { ...options, inspect };
+  return {
+    schema,
+    encode: (value) =>
+      encodePayload(schema as TSchema, value as Static<TSchema>, bound) as IpfsPayload,
+    decode: (payload) => decodePayload(payload, schema, bound),
+    validate: (payload) => validatePayload(payload, schema, bound),
+    toDag: (payload) => toDagPayload(payload, schema, bound),
+    fromDag: (value) => fromDagPayload(value, schema, bound),
+    encodeBlock: (payload) => encodePayloadBlock(payload, schema, bound),
+    decodeBlock: (bytes, cid) =>
+      decodePayloadBlock(bytes, schema, cid ? { ...bound, cid } : bound),
+  };
 }

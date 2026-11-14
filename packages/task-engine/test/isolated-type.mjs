@@ -4,7 +4,7 @@ export function createType(configuration) {
   return {
     type: "isolated",
     version: "1",
-    inputSchema: { type: "object" },
+    parametersSchema: { type: "object" },
     resultSchema: true,
     messageSchema: configuration.messageSchema,
     async run(input, context) {

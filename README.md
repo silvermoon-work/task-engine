@@ -244,9 +244,9 @@ Git tags and npm dist-tags are preserved as historical records. The verifier
 rejects new dated canaries and other prerelease channels. Publish every package
 separately after its exact workspace dependencies are available.
 
-### Typed content refs RC (in preparation)
+### Typed content refs RC
 
-Thirteen mapped packages are versioned for one authorized RC round after
+Thirteen mapped packages were published for one authorized RC round after
 `typed-content-refs` local acceptance. Tags stay gated on this commit's exact
 main push CI, then one immutable package-specific tag at a time. New packages
 start at `0.1.0-rc.0`. An RC publication never updates `latest`. Release order
@@ -268,7 +268,28 @@ follows every dependency field, including development-only edges:
 | 12    | `@silvermoon-work/task-engine-cli`     | `0.2.0-rc.12` |
 | 13    | `@silvermoon-work/task-engine-server`  | `0.2.0-rc.1`  |
 
-All nine RC packages were published from
+All thirteen RC packages were published from
+`595042a33456c49cb5fa803c8456367049bf1acd`, after successful
+[exact-commit Node 22/24 CI](https://github.com/silvermoon-work/task-engine/actions/runs/43607827498).
+Their `rc` tags select these versions; existing `latest` tags were not changed.
+
+| Package                                | Trusted publication                                                                |
+| -------------------------------------- | ---------------------------------------------------------------------------------- |
+| `@silvermoon-work/ipfs-access`         | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43609100632) |
+| `@silvermoon-work/ipfs-payload`        | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43611020376) |
+| `@silvermoon-work/ipfs-store`          | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43611272163) |
+| `@silvermoon-work/task-protocol`       | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43611548742) |
+| `@silvermoon-work/task-sdk`            | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43611986243) |
+| `@silvermoon-work/task-builder`        | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43612264897) |
+| `@silvermoon-work/task-builder-cli`    | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43612467088) |
+| `@silvermoon-work/ipfs-tree`           | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43612774197) |
+| `@silvermoon-work/task-engine`         | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43613035738) |
+| `@silvermoon-work/task-engine-http`    | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43613384295) |
+| `@silvermoon-work/task-engine-storage` | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43613707346) |
+| `@silvermoon-work/task-engine-cli`     | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43614003044) |
+| `@silvermoon-work/task-engine-server`  | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43614211152) |
+
+The previous nine RC packages were published from
 `27556d29a456ae7a2d514a7c5b6bf7b4b27d89ac`, after successful
 [exact-commit Node 22/24 CI](https://github.com/silvermoon-work/task-engine/actions/runs/43023616690).
 

@@ -1,6 +1,6 @@
 # IPFS Payload：已确认设计与实施边界
 
-本文件支持 [Implementation](Implementation.md)，记录 2026-11-14 已讨论确定的设计及其必要验证。当前仍为准备阶段，不授权实现、构想提交或发布。标为候选的字段与 API 不代表已确认。
+本文件支持 [Implementation](Implementation.md)，记录 2026-11-14 已讨论确定的设计及其必要验证。当前仍为准备阶段，局部设计确认不代表完整构想验收或发布授权。标为候选的字段与 API 不代表已确认。
 
 ## 契约命名
 
@@ -98,7 +98,7 @@ $['items'][?@['kind'] == 'reference']['value']
 以下调用形式是接口示意，不代表最终方法名：
 
 ```ts
-const bytes = await context.readContent(parameters.document.cid);
+const node = await context.readContent(parameters.document.cid);
 const reportCid = await context.putContent(reportBytes);
 return { report: ContentRef.fromCID(reportCid) };
 ```
@@ -107,9 +107,25 @@ return { report: ContentRef.fromCID(reportCid) };
 
 2026-11-14，用户进一步收敛宿主内容能力为按 CID 读取内容、用 CID 加 path 解析目标 CID、临时存入内容并返回 CID。此处 path 只用于解析，不附加到通用 ContentRef 上；新内容返回 CID 后，仍需按契约表达其引用语义，普通 CID 字符串不自动成为 ContentRef。
 
-新内容由宿主的受控写入能力存储，成功后返回 CID；失败、取消或超过预算明确失败，不能只计算 CID 后声称内容已存储。文件读取采用流，不默认将完整内容缓冲为字节数组；具体方法、raw/UnixFS/结构化节点等内容模型以及流式写入行为仍待 B-02 收敛。
+新内容由宿主的受控写入能力存储，成功后返回 CID；失败、取消或超过预算明确失败，不能只计算 CID 后声称内容已存储。文件读取采用流，不默认将完整内容缓冲为字节数组；具体方法和流式写入签名在主体世界细化。
 
 上述 ContentRef.fromCID 只是引用构造示意；作者侧如何构造 ContentRef 或在声明为引用的字段使用原生 CID 类型，需在工具包接口设计中明确，不能猜测普通字符串类型。
+
+## 节点返回形状与首期内容范围
+
+2026-11-14，用户确认读取采用文件/目录 discriminated union，沿用文件携带内容流、目录携带条目流的分流结构。共享节点与条目契约归属 ipfs-access；以下 DU 示意不提前决定 CID 参数的最终 TypeScript 表示：
+
+```ts
+type IpfsNode =
+  | { kind: "file"; content: ReadableStream<Uint8Array> }
+  | { kind: "directory"; entries: AsyncIterable<IpfsEntry> };
+```
+
+IpfsEntry 包含 name、kind 和目标 CID，不返回 SpaceRef。文件流和目录枚举都遵守宿主取消、预算及访问控制。此结构满足 ipfs-tree 的 read/list/resolve，不额外引入第四个目录枚举操作。
+
+用户确认首期覆盖 raw 及 UnixFS 文件/目录。CID 加 path 按受支持的目录语义解析，写入采用明确、固定的编码规则；流式输入与现有编码实现的具体签名在实施设计中确定，不引入未确认的动态 codec 选择。
+
+不承诺任意 DAG codec 都可按文件树读取或解析，不支持时明确失败。通用 ContentRef 仍可定位其他合法 CID，传输引用语义不等于宿主承诺能够读取任意 codec，也不要求目标块自动进入载荷 DAG/CAR。
 
 ## 全量协议替换与 Space 边界
 
@@ -154,7 +170,7 @@ SDK 与 ipfs-payload 不依赖或重新导出 ipfs-tree。使用树形 read/list
 
 命名绑定 IPFS 不等于依赖绑定完整 Store。ipfs-access 不依赖 Task SDK、ipfs-tree 或具体 Store 实现；ipfs-payload 不依赖内容 I/O。既有 Store 节点类型与共享契约须协调，不建立同名但不一致的节点模型。
 
-目录列表需要底层能提供目录条目，不能从任意文件字节流或仅解析指定 path 的能力推断出来。底层读取返回文件/目录节点（文件携带内容流、目录携带条目流），或额外提供枚举能力，仍是待明确的接口形状；只读便利层拆包不替代这一协议要求。
+目录列表由底层文件/目录 DU 中的目录条目流提供，不能从任意文件字节流或仅解析指定 path 的能力推断出来。只读便利层组合已确认的读取与解析操作，不另建 Space 或独立枚举协议。
 
 ## 工具包职责
 

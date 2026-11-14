@@ -20,3 +20,19 @@ export {
 export { newId } from "./identity.js";
 export { MemoryStore } from "./memory-store.js";
 export { retainedContentRoots } from "./retained-content.js";
+export {
+  createRunHistoryArchive,
+  decodeRunHistoryDag,
+  defaultArchivePolicy,
+  encodeRunHistoryDag,
+  publishRunHistoryArchive,
+  type RunHistoryArchive,
+  type RunHistoryArchivePolicy,
+  type RunHistoryArchivePorts,
+  type RunHistoryArchiveStatus,
+  type RunHistoryDetail,
+  readRunHistoryDetail,
+  releaseRunHistoryArchive,
+  runHistoryDagVersion,
+  verifyRunHistoryClosure,
+} from "./run-history-archive.js";

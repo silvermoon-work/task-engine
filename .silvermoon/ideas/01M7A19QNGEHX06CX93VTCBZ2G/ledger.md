@@ -5,7 +5,7 @@
 ### Implementation steps
 
 - [ ] **I-S01:** 依据确认契约实现引用往返
-- [ ] **I-S02:** 建立 SQLite 管理的历史归档
+- [x] **I-S02:** 建立 SQLite 管理的历史归档
 - [ ] **I-S03:** 完成协议切换与隔离交付
 
 ### Implementation acceptance criteria

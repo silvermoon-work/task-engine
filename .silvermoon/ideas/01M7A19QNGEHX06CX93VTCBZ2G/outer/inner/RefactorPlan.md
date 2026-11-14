@@ -147,3 +147,13 @@ P1 基础轮次本地验收通过；本 Idea 的完整 I-AC 条目仍待 P2 至 
 - P3 必须实现服务调度、实际 DAG 写入/保留/详情读取和恢复；按 lease owner 区分暂存及清理，先持久记录候选 root 再进行保留 I/O。目前 runtime 自动归档未开启，不冒充 P3 已完成。
 
 P2 本地验收通过，无 RC 或发布后 Smoke；I-S02/I-AC02 的完整端到端验收仍待 P3/P6。
+
+## P3 本地验收证据
+
+- Engine 在注入具备保留能力的 `archiveStore` 后启用归档服务：从定稿 `RunHistorySource` 生成 DAG-CBOR，`contentRoots` 与 outcome/output CID 为 tag-42 原生链接；普通 CID 字符串和同形对象保持字符串。写路径为 `${lease.owner}/archive` staging → `setArchiveRoot` → `retain`/`confirmRetained` → 闭包计量 → `completeArchive`。列表/状态读 SQLite，详情按需读 IPFS。
+- `waitForIdle` 仍只等待业务退出与 `reclaimedAt`，不阻塞于归档。归档 I/O 在 tick 之外；失败进入 `failArchive`/`failRelease`，不写入 `engine.errors`，不改 stage/outcome，不重跑 Worker。`close` 中止并结算 in-flight 归档 I/O 后再释放 Store。
+- 主 Agent 复核 DAG 编解码、lease owner 暂存/清理、write-ahead 根和详情缺失路径，并复跑未缓存套件（Node 24.12.0，`TSX_DISABLE_CACHE=1`）：`task-engine` 的 `run-history.test.ts` + `run-history-archive.test.ts` 18/18 通过；`task-engine-storage` 对应 23/23 通过。`pnpm exec turbo run lint typecheck test build --filter=@silvermoon-work/task-engine --filter=@silvermoon-work/task-engine-storage --filter=@silvermoon-work/task-protocol --concurrency=1 --output-logs=errors-only` 18/18 通过。
+- 覆盖：完整归档与 CID 真链接、drain 不等待归档、I/O 失败后完成态保持、write-ahead 根在重启后不变、release 后隔离回收块并报告 missing、迟到 completeArchive 不能复活、共享 owner pin 不受 unpin 影响。证据来自本地 `IpfsStore` dataDir / Memory，不对共享 Kubo 做 GC。
+- 本轮只复制归档根块与各 content root 的单块；更深 UnixFS 子块仍依赖归档 Store 中已有闭包，由 `prepare`/闭包校验拒绝不完整图。多块树形复制与公开协议切换属 P4/P5；隔离 Kubo、万级消息分段和 `pnpm check` 全仓属 P6。无 RC 或发布。
+
+P3 本地验收通过；I-S02 的实现工作已完成。I-AC02 仍待 P6 的隔离 Kubo 与全仓证明，不能提前 submitInner。

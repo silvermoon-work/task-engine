@@ -27,6 +27,7 @@ import {
   projectRun,
   type RegisteredType,
   type Revision,
+  type RunHistoryRecord,
   type RunLogLimits,
   type RunLogQuery,
   type RunLogSubscription,
@@ -60,9 +61,17 @@ import {
   wouldQualify,
 } from "@silvermoon-work/task-protocol";
 import { type CatalogLimits, RunCatalog, TaskCatalog } from "./catalog.js";
+import type { IpfsStore } from "./content.js";
 import { newId } from "./identity.js";
 import { RunLogs } from "./logs.js";
 import { ObservationHub, type ObservationLimits } from "./observation.js";
+import {
+  createRunHistoryArchive,
+  defaultArchivePolicy,
+  type RunHistoryArchive,
+  type RunHistoryArchivePolicy,
+  type RunHistoryDetail,
+} from "./run-history-archive.js";
 import {
   RunDispatchError,
   type RunOutcomeReport,
@@ -112,6 +121,9 @@ export interface EngineOptions {
   allocationLimits?: Readonly<Record<string, number>>;
   onError?: (error: ErrorFact) => void;
   loadBundle?: (binding: Binding) => Promise<() => void>;
+  /** Coordinated content store used only for finalized RunHistory DAG I/O. */
+  archiveStore?: IpfsStore;
+  archive?: Partial<RunHistoryArchivePolicy>;
 }
 export const defaultEngineLimits: Readonly<EngineLimits> = Object.freeze({
   maxChildDepth: 4,
@@ -222,6 +234,11 @@ export class TaskEngine implements TaskService {
   private closeAttempt: Promise<void> | undefined;
   private starting: Promise<void> | undefined;
   private readonly idleObservers = new Set<() => void>();
+  private readonly archiveAbort = new AbortController();
+  private readonly archivePolicy: RunHistoryArchivePolicy;
+  private archive: RunHistoryArchive | undefined;
+  private archivePass: Promise<void> | undefined;
+  private archiveAgain = false;
 
   /** Internal lifecycle observation; the Bundle host seals its producers separately. */
   waitForIdle(additionalIdle: () => boolean, signal?: AbortSignal): Promise<void> {
@@ -380,6 +397,61 @@ export class TaskEngine implements TaskService {
       },
       this.limits,
     );
+    this.archivePolicy = {
+      retainMs: options.archive?.retainMs ?? this.limits.retentionMs,
+      maxAttempts: options.archive?.maxAttempts ?? defaultArchivePolicy.maxAttempts,
+      retryDelayMs: options.archive?.retryDelayMs ?? defaultArchivePolicy.retryDelayMs,
+      maxSourceBytes: options.archive?.maxSourceBytes ?? defaultArchivePolicy.maxSourceBytes,
+      leaseMs: options.archive?.leaseMs ?? defaultArchivePolicy.leaseMs,
+    };
+    for (const [key, value] of Object.entries(this.archivePolicy))
+      positive(value, `archive.${key}`);
+    const content = options.archiveStore;
+    if (options.store.runHistory && content?.supportsRetention)
+      this.archive = createRunHistoryArchive({
+        owner: this.owner,
+        history: options.store.runHistory,
+        content,
+        now: () => this.clock.now(),
+        ...(options.store.readContentBlock
+          ? { readContentBlock: options.store.readContentBlock.bind(options.store) }
+          : {}),
+        signal: this.archiveAbort.signal,
+      });
+  }
+  async readRunHistoryArchive(runId: string): Promise<RunHistoryDetail> {
+    this.readable();
+    if (!this.archive) {
+      const record = this.options.store.runHistory?.read(runId);
+      return record ? { record, status: "not_archived" } : { status: "not_archived" };
+    }
+    return this.archive.read(runId);
+  }
+  requestRunHistoryRelease(runId: string): RunHistoryRecord {
+    this.readable();
+    const history = this.options.store.runHistory;
+    if (!history) throw new TaskError("invalid_config", "Store does not support RunHistory.");
+    const record = history.requestRelease(this.owner, runId, this.clock.now());
+    this.queueArchive();
+    return record;
+  }
+  private queueArchive(): void {
+    if (!this.started || this.closing || !this.archive) return;
+    if (this.archivePass) {
+      this.archiveAgain = true;
+      return;
+    }
+    const archive = this.archive;
+    this.archivePass = archive
+      .service(this.options.store, this.archivePolicy)
+      .catch(() => {})
+      .finally(() => {
+        this.archivePass = undefined;
+        if (this.archiveAgain && !this.closing) {
+          this.archiveAgain = false;
+          this.queueArchive();
+        }
+      });
   }
   private key(binding: Pick<Binding, "type" | "version">): string {
     return `${binding.type}\0${binding.version}`;
@@ -1217,6 +1289,8 @@ export class TaskEngine implements TaskService {
         else if (!run.reclaimedAt && !run.cleanupUnknown)
           this.cleanupUnknown(run.runId, "Restart has no persisted resource-release proof.");
       this.started = true;
+      this.archive?.recover();
+      this.queueArchive();
       this.schedule();
     } catch (error) {
       await Promise.allSettled(
@@ -1275,6 +1349,7 @@ export class TaskEngine implements TaskService {
     } finally {
       this.ticking = false;
       this.notifyIdle();
+      this.queueArchive();
     }
   }
   private allocate(task: TaskRecord): void {
@@ -1478,6 +1553,7 @@ export class TaskEngine implements TaskService {
       group?.releaseBundle?.();
       this.allocations.delete(id);
       this.notifyIdle();
+      this.queueArchive();
     } catch (error) {
       this.allocations.get(id)?.reject(error);
       this.diagnostic(error, "reclamation_unconfirmed");
@@ -1573,6 +1649,7 @@ export class TaskEngine implements TaskService {
     if (!this.started) return;
     this.closing = true;
     this.timer?.();
+    this.archiveAbort.abort(new TaskError("engine_closed", "Engine is closing."));
     this.notifyIdle();
     this.observations.close();
     this.catalog.clear();
@@ -1604,6 +1681,7 @@ export class TaskEngine implements TaskService {
         }),
       ]);
       await Promise.all([...this.supervisors.values()].map((supervisor) => supervisor.close()));
+      await this.archivePass;
       this.started = false;
       this.options.store.release(this.owner);
     } catch (error) {

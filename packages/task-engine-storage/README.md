@@ -86,18 +86,16 @@ now)` rejects released/expired sources; `read` returns metadata even when the
 business record or source has been removed. A repeated `finalize` returns the
 original policy/identity and never extends or re-grants retention.
 
-### Archive service handoff
+### Archive service
 
-The next integration must build/verify the complete DAG, use each lease's
-`owner` for retention and `${owner}/...` staging sessions, then conditionally
-complete the SQLite attempt. Retain the new closure before releasing old
-staging/resource protection. On cancellation or a false completion, settle
-in-flight I/O and service the recorded release intent using the Store's
-owner-aware recovery/reconciliation, never a global unpin/GC. Reconcile after
-uncertain RPCs and process restart; no Worker re-execution is an archive retry.
-Always report delayed success/failure so its stale owner can be reclaimed.
-Archive retry count is bounded; unresolved cleanup intents remain durable,
-retryable with backoff, and visible rather than silently discarded.
+Engine (`packages/task-engine/src/run-history-archive.ts`) publishes the DAG
+using each lease `owner` for Store retention and `${owner}/archive` staging.
+It records the candidate root with `setArchiveRoot` **before** retain I/O, then
+conditionally `completeArchive` with verified `blockCount`/`byteLength`. Network
+I/O runs between `runHistory.*` transactions. On cancel or a false completion it
+settles in-flight I/O and services the recorded release intent with owner-aware
+`recoverOwner`/`reconcile`, never a global unpin/GC. Restart recovers SQLite
+leases then continues I/O; archive retry is not Worker re-execution.
 
 Archive outcome, retention state and `lastRead` are independent. The latter is
 a dated `available` / `unauthorized` / `unreachable` / `missing` / `corrupt`
@@ -106,5 +104,4 @@ owner's retention was relinquished, **not** physical deletion or revoked
 external access. Store controls visibility and protects other owners.
 SQLite remains the necessary authority/backup for admission, Tasks, Runs,
 messages and expiry; IPFS must never reconstruct or resurrect those records.
-P2 includes no archive DAG I/O, retrieval/CAR path, public payload switch or
-automatic source/log retention migration.
+Public payload/Space replacement remains a later protocol switch.

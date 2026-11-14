@@ -37,6 +37,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@silvermoon-work/ipfs-payload": "workspace:*",
     "@silvermoon-work/ipfs-store": "workspace:*",
     "@helia/unixfs": "catalog:",
     "blockstore-core": "catalog:",

@@ -2,18 +2,17 @@ import {
   at,
   bundleCid,
   type Caller,
-  type WireChildTaskInvocation,
-  normalizeSpacePath,
   canonical,
   type ErrorFact,
   json,
+  normalizeSpacePath,
   object,
   project,
   projectRun,
   type RunResourceContext,
   type RunSnapshot,
-  type SpaceHost,
   requestTime,
+  type SpaceHost,
   type SubmissionRecord,
   type SubmissionResult,
   TaskError,
@@ -22,15 +21,16 @@ import {
   type TaskSnapshot,
   ulid,
   validateBundleReference,
+  type WireChildTaskInvocation,
 } from "@silvermoon-work/task-protocol";
-import { BundleCache, type BundleLimits, type BundleCacheOptions } from "./bundle.js";
+import { CID } from "multiformats/cid";
+import { BundleCache, type BundleCacheOptions, type BundleLimits } from "./bundle.js";
 import { bundleModuleURL } from "./bundle-module.js";
 import { ContentError, type IpfsClient, type IpfsStore } from "./content.js";
 import { TaskEngine as Coordinator, type EngineOptions as CoordinatorOptions } from "./engine.js";
 import { newId } from "./identity.js";
-import { createRunSpaceHost, type RunSpaceHostOptions } from "./spaces.js";
 import { retainedContentRoots } from "./retained-content.js";
-import { CID } from "multiformats/cid";
+import { createRunSpaceHost, type RunSpaceHostOptions } from "./spaces.js";
 
 export { defaultEngineLimits, type EngineLimits } from "./engine.js";
 export type SpaceLimits = Omit<
@@ -120,6 +120,8 @@ export class TaskEngine implements TaskService {
   readonly subscribeRunLogs: Coordinator["subscribeRunLogs"];
   readonly getTaskHistory: TaskService["getTaskHistory"];
   readonly getRunHistory: TaskService["getRunHistory"];
+  readonly readRunHistoryArchive: Coordinator["readRunHistoryArchive"];
+  readonly requestRunHistoryRelease: Coordinator["requestRunHistoryRelease"];
   readonly subscribeTask: TaskService["subscribeTask"];
   readonly subscribeRun: TaskService["subscribeRun"];
   readonly subscribeTasks: TaskService["subscribeTasks"];
@@ -168,6 +170,9 @@ export class TaskEngine implements TaskService {
       ...(options.bundleLimits ? { limits: options.bundleLimits } : {}),
       ...(options.allowGateway ? { allowGateway: options.allowGateway } : {}),
     });
+    const archiveStore =
+      options.archiveStore ??
+      (options.ipfsStore?.supportsRetention ? options.ipfsStore : undefined);
     this.core = new Coordinator({
       store: options.store,
       ...(options.executionBudgetFromWorker ? { executionBudgetFromWorker: true } : {}),
@@ -182,6 +187,8 @@ export class TaskEngine implements TaskService {
       ...(options.clock ? { clock: options.clock } : {}),
       ...(options.limits ? { limits: options.limits } : {}),
       ...(options.onError ? { onError: options.onError } : {}),
+      ...(archiveStore ? { archiveStore } : {}),
+      ...(options.archive ? { archive: options.archive } : {}),
       loadBundle: async (binding) => {
         const prepared = await this.cache.acquire(binding.bundle!);
         try {
@@ -204,6 +211,8 @@ export class TaskEngine implements TaskService {
     this.subscribeRunLogs = this.core.subscribeRunLogs.bind(this.core);
     this.getTaskHistory = this.core.getTaskHistory.bind(this.core);
     this.getRunHistory = this.core.getRunHistory.bind(this.core);
+    this.readRunHistoryArchive = this.core.readRunHistoryArchive.bind(this.core);
+    this.requestRunHistoryRelease = this.core.requestRunHistoryRelease.bind(this.core);
     this.subscribeTask = this.core.subscribeTask.bind(this.core);
     this.subscribeRun = this.core.subscribeRun.bind(this.core);
     this.subscribeTasks = this.core.subscribeTasks.bind(this.core);

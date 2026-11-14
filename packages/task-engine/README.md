@@ -58,12 +58,13 @@ drain 开始后该方法与 `collect()` 一样返回明确的 `engine_draining` 
 
 `MemoryStore.runHistory` also offers the optional finalized-history metadata
 capability, with the same finalization, archive lease, retention/release and
-recovery transitions as SQLite, but without durability. It is opt-in: the Engine
-does not automatically archive Runs or change current public output/Space
-behavior. Finalize only after exit, message settlement and confirmed resource
-cleanup. Archive errors never revoke a completed result or trigger Worker
-execution. See the [durable management contract](../task-engine-storage/README.md#finalized-runhistory-management-metadata-only);
-actual archive I/O and public protocol integration are separate steps.
+recovery transitions as SQLite, but without durability. When a retention-capable
+`archiveStore` (or the host `ipfsStore`) is injected, Engine finalizes a completed
+Run and publishes a RunHistory DAG with native CID links; list/status stay on
+SQLite and detail reads hit IPFS on demand. Archive I/O is queued off the tick
+stack and never delays `waitForIdle`. Archive errors never revoke a completed
+result or trigger Worker execution. Close settles in-flight archive I/O without
+re-running Workers. See the [durable management contract](../task-engine-storage/README.md#finalized-runhistory-management-metadata-only).
 
 宿主可配置 `bundleLimits`、`bundleConcurrency`（默认 4）及通用 Engine limits。
 `maxPreparing` 默认 1000，`maxWaitMs` 默认 30,000ms，

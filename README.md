@@ -254,6 +254,10 @@ return the same payload, including `data: null`; ordinary CLI lists remain
 summary-only. CID retention and child invocation consume the direct result.
 RunHistory DAG version 2 uses this shape as well.
 
+This round also fixes a baseline Kubo retention ordering gap: Worker content
+reads, path resolution and writes confirm retention before returning, and pin
+failures cannot produce a successful Task result.
+
 All CLI commands now use `{ok, output?, error?}` instead of
 `{ok, data?, error?}`. For task execution the path is `output.result.data`:
 `output` is the CLI command response, `result` is the Task payload and `data` is

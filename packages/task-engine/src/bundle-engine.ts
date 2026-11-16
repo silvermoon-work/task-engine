@@ -283,16 +283,19 @@ export class TaskEngine implements TaskService {
         const store = this.cache.contentStore;
         const signalFor = (options?: { signal?: AbortSignal }) =>
           AbortSignal.any([context.signal, ...(options?.signal ? [options.signal] : [])]);
-        const remember = (target: CID) => {
+        const remember = async (target: CID, options?: { signal?: AbortSignal }) => {
           const value = target.toV1().toString();
+          const signal = signalFor(options);
+          await this.persistentStore?.retain(this.contentOwner, [value], { signal });
           this.core.recordRunContentAccess(context.runId, value);
           this.core.retainRunContent(context.runId, value);
+          await this.persistentStore?.confirmRetained(this.contentOwner, [value], { signal });
         };
         return {
           readContent: async (cid: CID | string, options?: { signal?: AbortSignal }) => {
             const parsed = CID.parse(cid.toString());
             const node = await store.readContent(parsed, { signal: signalFor(options) });
-            remember(parsed);
+            await remember(parsed, options);
             return node;
           },
           resolveContent: async (
@@ -302,7 +305,7 @@ export class TaskEngine implements TaskService {
           ) => {
             const parsed = CID.parse(cid.toString());
             const target = await store.resolveContent(parsed, path, { signal: signalFor(options) });
-            remember(target);
+            await remember(target, options);
             return target;
           },
           putContent: async (
@@ -310,11 +313,7 @@ export class TaskEngine implements TaskService {
             options?: { signal?: AbortSignal },
           ) => {
             const stored = await store.putContent(content, { signal: signalFor(options) });
-            if (this.persistentStore)
-              await this.persistentStore.confirmRetained(this.contentOwner, [stored.toString()], {
-                signal: signalFor(options),
-              });
-            remember(stored);
+            await remember(stored, options);
             return stored;
           },
         };

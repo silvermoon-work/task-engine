@@ -154,6 +154,8 @@ Task/Run 快照、持久事实、HTTP 与 CLI 直接使用 `result: {data, cidPa
 术语一致；业务空值保留为 `result.data: null`，CID 引用由 `cidPaths` 标记。
 旧 `output` 记录不迁移，请选择新数据目录并重启 Server。
 RunHistory 使用版本 2 的 DAG；旧版本明确拒绝，不做隐式转换。
+Worker 的内容读取、路径解析与写入在返回前确认持久后端已保留对应 CID；
+保留失败明确传回 Worker，不能先报告成功再依赖异步归档补 pin。
 
 ### 历史 Run 文件空间契约（已由 IpfsPayload 替代）
 

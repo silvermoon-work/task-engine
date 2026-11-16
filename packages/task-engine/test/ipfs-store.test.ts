@@ -157,6 +157,72 @@ test("a confirmation failure after accepted metadata is reported, not silently t
   }
 });
 
+test("Kubo content retention failure reaches the Worker before a successful result", async () => {
+  const directory = resolve(".cache", `kubo-read-retention-${randomUUID()}`);
+  await mkdir(directory, { recursive: true });
+  const rpc = await kuboFixture();
+  const bytes = Buffer.from("existing unpinned content");
+  const target = CID.createV1(0x55, await sha256.digest(bytes)).toString();
+  rpc.blocks.set(target, bytes);
+  rpc.setHook((command, url, response) => {
+    if (command === "pin/add" && url.searchParams.get("arg") === target) {
+      response.writeHead(503).end('{"Message":"controlled pin failure"}');
+      return Promise.resolve(true);
+    }
+    return Promise.resolve(false);
+  });
+  const content = new IpfsStore({
+    backend: "kubo",
+    apiUrl: rpc.apiUrl,
+    coordinationDir: join(directory, "coordination"),
+  });
+  const store = new MemoryStore();
+  const engine = createTaskEngine({ store, ipfsStore: content, authorize: () => true });
+  try {
+    const entry = join(directory, "main.ts");
+    await writeFile(
+      entry,
+      `export default async (_parameters, context) => {
+        await context.readContent(${JSON.stringify(target)});
+        return "must not succeed before retention";
+      };`,
+    );
+    const built = await buildBundleFixture({
+      declaration: {
+        $schema: taskSchemaUri,
+        name: "Read retention failure",
+        runtime: { type: "node", minVersion: "22.15.0" },
+        entry: "worker.cjs",
+        binary: [],
+        parametersSchema: { type: "object" },
+        resultSchema: true,
+        messageSchema: false,
+      },
+      entry,
+      outDirectory: join(directory, "bundle"),
+    });
+    for (const [cid, block] of built.blocks) rpc.blocks.set(cid, block);
+    await engine.start();
+    const requestId = newId();
+    await engine.submit(
+      { requestId, bundle: built.cid, timeoutMs: 15_000 },
+      { scope: "retention", subject: "test" },
+    );
+    const drained = await engine.drain();
+    const task = drained.tasks.find((candidate) => candidate.requestId === requestId);
+    assert.ok(task, JSON.stringify(drained));
+    assert.equal(task.stage, "failed", JSON.stringify(drained));
+    assert.equal(task.result, undefined);
+    assert.match(task.error?.message ?? "", /pin\/add/);
+  } finally {
+    await engine.close();
+    await content.close();
+    store.close();
+    await rpc.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("Kubo Engine output bypasses business block storage and all retained Task/Run roots coordinate collection", async () => {
   const directory = resolve(".cache", `kubo-engine-${randomUUID()}`);
   await mkdir(directory, { recursive: true });

@@ -87,7 +87,8 @@ export async function processBirth(pid: number): Promise<string | undefined> {
       if (fields[0] === "Z" || fields[0] === "X") return undefined;
       return `${boot.trim()}:${fields[19]}`;
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "ENOENT" || code === "ESRCH") return undefined;
       throw error;
     }
   }

@@ -298,7 +298,7 @@ test("a real self-contained Worker reads a nested resource through only the conf
   for (;;) {
     const task = engine.getTask(decision.taskId, caller);
     if (task.stage === "completed") {
-      assert.deepEqual(task.output?.result, {
+      assert.deepEqual(task.result, {
         data: {
           length: resource.length,
           sum: resource.reduce((sum, byte) => sum + byte, 0),

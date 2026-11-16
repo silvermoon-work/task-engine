@@ -43,7 +43,7 @@ test("unknown command paths fail with and without help, suggesting but never exe
         response.error.message,
         /Did you mean "task-engine (task query|server start)"\?/,
       );
-      assert.equal(response.data, undefined);
+      assert.equal(response.output, undefined);
       assert.equal(result.stdout.trim().split("\n").length, 1);
     }
   }

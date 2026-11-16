@@ -12,6 +12,32 @@ import { managedDiagnostics } from "../src/diagnostics.js";
 import type { RunLogEntry } from "@silvermoon-work/task-protocol";
 import { IpfsStore } from "@silvermoon-work/ipfs-store";
 
+test("managed records retain direct null payloads and reject the obsolete output wrapper", async (t) => {
+  const directory = resolve(".cache", `result-contract-${randomUUID()}`);
+  await mkdir(directory, { recursive: true });
+  const repository = new Repository(directory);
+  t.after(async () => {
+    repository.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const record: TaskRecord = {
+    taskId: "result",
+    rootId: "result",
+    status: "succeeded",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    completedAt: "2026-01-01T00:00:01.000Z",
+    released: true,
+    releaseProof: { basis: "test" },
+    roots: [],
+    timeoutMs: 1000,
+    result: { data: null, cidPaths: [] },
+  };
+  repository.put(record);
+  assert.deepEqual(repository.get(record.taskId)?.result, record.result);
+  repository.put(Object.assign(record, { output: { result: record.result } }));
+  assert.throws(() => repository.get(record.taskId), { code: "UNSUPPORTED_STORAGE" });
+});
+
 test("managed content owner persists across reopen, repository relocation and Windows case aliases", async (t) => {
   const directory = resolve(".cache", `content-owner-${randomUUID()}`);
   const original = join(directory, "original"),
@@ -210,26 +236,26 @@ test("offline mark-sweep preserves shared descendants, rejects unknown graphs an
     releaseProof: { basis: "test" },
     roots: [root],
     timeoutMs: 1000,
-    output: { result: null },
+    result: null,
   });
   repository.put(record("A", a.toString()));
   repository.put(record("B", b.toString()));
   const tooEarly = await pruneData(repository, { before: "2026-01-01T12:00:00.000Z" });
   assert.equal(
-    tooEarly.data.deletedTasks,
+    tooEarly.output.deletedTasks,
     0,
     "History selection uses completion time, not creation time.",
   );
   const cache = await pruneData(repository, { cache: true });
   assert.equal(cache.ok, true);
-  assert.equal(cache.data.deletedCacheBlocks, 1);
-  assert.equal(cache.data.deletedCacheBytes, 6);
+  assert.equal(cache.output.deletedCacheBlocks, 1);
+  assert.equal(cache.output.deletedCacheBytes, 6);
   assert.equal((await readdir(join(directory, "blocks"))).includes(orphan.toString()), false);
   assert.deepEqual(await content.local(shared), Buffer.from("shared"));
   const combined = await pruneData(repository, { taskIds: ["A"], cache: true });
   assert.equal(combined.ok, true);
-  assert.equal(combined.data.deletedTasks, 1);
-  assert.equal(combined.data.deletedCacheBlocks, 1);
+  assert.equal(combined.output.deletedTasks, 1);
+  assert.equal(combined.output.deletedCacheBlocks, 1);
   assert.deepEqual(await content.local(shared), Buffer.from("shared"));
   const unknown = await put(0x55, Buffer.from("missing"));
   repository.put(record("missing", unknown.toString()));
@@ -237,23 +263,23 @@ test("offline mark-sweep preserves shared descendants, rejects unknown graphs an
   const extra = await put(0x55, Buffer.from("must survive failed mark"));
   const failed = await pruneData(repository, { taskIds: ["B"], cache: true });
   assert.equal(failed.ok, false);
-  assert.equal(failed.data.deletedTasks, 1);
-  assert.equal(failed.data.deletedCacheBlocks, 0);
+  assert.equal(failed.output.deletedTasks, 1);
+  assert.equal(failed.output.deletedCacheBlocks, 0);
   if (!failed.ok) assert.equal(failed.error.code, "CACHE_MARK_FAILED");
   assert.deepEqual(await content.local(extra), Buffer.from("must survive failed mark"));
   const history = await pruneData(repository, { taskIds: ["missing"] });
   assert.equal(history.ok, true);
-  assert.equal(Object.hasOwn(history.data, "deletedCacheBlocks"), false);
+  assert.equal(Object.hasOwn(history.output, "deletedCacheBlocks"), false);
   const empty = await pruneData(repository, { cache: true });
   assert.equal(empty.ok, true);
-  assert.equal(empty.data.deletedCacheBlocks, 3);
+  assert.equal(empty.output.deletedCacheBlocks, 3);
   repository.put({ ...record("first", a.toString()), roots: [] });
   repository.put({ ...record("second", b.toString()), roots: [] });
   const controller = new AbortController();
   setImmediate(() => controller.abort());
   const partial = await pruneData(repository, { taskIds: ["first", "second"] }, controller.signal);
   assert.equal(partial.ok, false);
-  assert.equal(partial.data.deletedTasks, 1);
+  assert.equal(partial.output.deletedTasks, 1);
   assert.equal(repository.get("first"), undefined);
   assert.ok(repository.get("second"));
   if (!partial.ok) assert.equal(partial.error.code, "INTERRUPTED");
@@ -352,18 +378,18 @@ test("offline cache cleanup preserves retained SQLite output graphs until their 
     completedAt: "2026-01-02T00:00:00.000Z",
     released: true,
     roots: [root.toString()],
-    output: { result: { data: null, cidPaths: [] } },
+    result: { data: null, cidPaths: [] },
     releaseProof: { basis: "test" },
     timeoutMs: 1000,
   });
   const retained = await pruneData(repository, { cache: true });
   assert.equal(retained.ok, true, JSON.stringify(retained));
-  assert.equal(retained.data.deletedCacheBlocks, 1);
+  assert.equal(retained.output.deletedCacheBlocks, 1);
   assert.ok(repository.readContentBlock(root.toString()));
   assert.equal(repository.readContentBlock(orphan.toString()), undefined);
   const removed = await pruneData(repository, { taskIds: ["output"], cache: true });
   assert.equal(removed.ok, true, JSON.stringify(removed));
-  assert.equal(removed.data.deletedCacheBlocks, 2);
+  assert.equal(removed.output.deletedCacheBlocks, 2);
   assert.equal(repository.readContentBlock(root.toString()), undefined);
   assert.equal(
     repository.db.prepare("SELECT count(*) AS count FROM run_content_roots").get()!.count,

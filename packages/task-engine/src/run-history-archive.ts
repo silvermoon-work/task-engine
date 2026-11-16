@@ -4,6 +4,7 @@ import { ContentError } from "@silvermoon-work/ipfs-store";
 import { contentLinks, defaultContentLimits } from "@silvermoon-work/ipfs-store/dag";
 import {
   type ErrorFact,
+  type Json,
   fail,
   isRunHistoryFinalizable,
   type RunHistoryArchiveLease,
@@ -16,13 +17,12 @@ import {
   type RunOutcome,
   type Store,
   TaskError,
-  type TaskOutput,
 } from "@silvermoon-work/task-protocol";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
 import type { IpfsStore } from "./content.js";
 
-export const runHistoryDagVersion = 1;
+export const runHistoryDagVersion = 2;
 export const defaultArchivePolicy = Object.freeze({
   maxAttempts: 8,
   retryDelayMs: 50,
@@ -92,39 +92,37 @@ function jsonEnvelope(value: unknown): unknown {
     return value;
   }
 }
-function linkedOutput(output: TaskOutput): unknown {
-  return { result: dagEnvelope(output.result) };
-}
 function linkedOutcome(outcome: RunOutcome): unknown {
-  return outcome.output ? { ...outcome, output: linkedOutput(outcome.output) } : outcome;
+  return outcome.result === undefined
+    ? outcome
+    : { ...outcome, result: dagEnvelope(outcome.result) };
 }
 function linkedRun(run: RunHistorySource["run"]): unknown {
   return {
     ...run,
     parameters: dagEnvelope(run.parameters),
-    ...(run.output ? { output: linkedOutput(run.output) } : {}),
+    ...(run.result === undefined ? {} : { result: dagEnvelope(run.result) }),
     ...(run.outcome ? { outcome: linkedOutcome(run.outcome) } : {}),
   };
-}
-function outputCid(value: unknown): TaskOutput {
-  if (!value || typeof value !== "object" || Array.isArray(value) || !("result" in value))
-    fail("history_corrupt", "Invalid archived output.");
-  return { result: jsonEnvelope((value as TaskOutput).result) as TaskOutput["result"] };
 }
 function outcomeOf(value: unknown): RunOutcome {
   if (!value || typeof value !== "object" || Array.isArray(value) || !("kind" in value))
     fail("history_corrupt", "Invalid archived delivery.");
-  const outcome = value as RunOutcome & { output?: unknown };
-  return outcome.output ? { ...outcome, output: outputCid(outcome.output) } : outcome;
+  if ("output" in value) fail("history_corrupt", "Legacy archived output is not supported.");
+  const outcome = value as RunOutcome;
+  return outcome.result === undefined
+    ? outcome
+    : { ...outcome, result: jsonEnvelope(outcome.result) as Json };
 }
 function runOf(value: unknown): RunHistorySource["run"] {
   if (!value || typeof value !== "object" || Array.isArray(value))
     fail("history_corrupt", "Invalid archived Run.");
-  const run = value as RunHistorySource["run"] & { output?: unknown; outcome?: unknown };
+  if ("output" in value) fail("history_corrupt", "Legacy archived output is not supported.");
+  const run = value as RunHistorySource["run"];
   return {
     ...run,
     parameters: jsonEnvelope(run.parameters) as RunHistorySource["run"]["parameters"],
-    ...(run.output ? { output: outputCid(run.output) } : {}),
+    ...(run.result === undefined ? {} : { result: jsonEnvelope(run.result) as Json }),
     ...(run.outcome ? { outcome: outcomeOf(run.outcome) } : {}),
   };
 }

@@ -48,7 +48,7 @@ export function historyFixture() {
     scope: "scope",
     runId: run.runId,
     occurredAt: time(4),
-    data: { outcome: { kind: "completed", occurredAt: time(4), output: { result: "done" } } },
+    data: { outcome: { kind: "completed", occurredAt: time(4), result: "done" } },
   });
   const outcome = f.events.length;
   f.append({

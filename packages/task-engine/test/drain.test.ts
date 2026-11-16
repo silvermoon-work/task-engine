@@ -133,7 +133,7 @@ test("drain seals admission while a root preparation is in flight", {
     preparation.release();
     const final = await draining;
     assert.equal(final.tasks.length, 1);
-    assert.deepEqual(final.tasks[0]!.output?.result, { data: { value: 7 }, cidPaths: [] });
+    assert.deepEqual(final.tasks[0]!.result, { data: { value: 7 }, cidPaths: [] });
     assert.ok(Object.values(store.read().facts.runs).every((run) => run.exit && run.reclaimedAt));
     store.close();
   } finally {
@@ -213,7 +213,7 @@ export default async (input,context) => {
     const final = await draining;
     assert.equal(final.tasks.length, 7);
     assert.ok(final.tasks.every((task) => task.stage === "completed"));
-    assert.deepEqual(final.tasks.find((task) => task.requestId === requestId)!.output?.result, {
+    assert.deepEqual(final.tasks.find((task) => task.requestId === requestId)!.result, {
       data: [
         [{ value: 9 }, { value: 9 }],
         [{ value: 9 }, { value: 9 }],

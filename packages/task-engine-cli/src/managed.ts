@@ -41,7 +41,7 @@ import { contentReference, serveContent } from "./content.js";
 const exec = promisify(execFile);
 export interface ResponseValue {
   ok: boolean;
-  data?: unknown;
+  output?: unknown;
   error?: { code: string; message: string };
   warnings?: { code: string; message: string }[];
 }
@@ -234,6 +234,7 @@ export async function request(
   if (
     !value ||
     typeof value.ok !== "boolean" ||
+    Object.hasOwn(value, "data") ||
     (value.error !== undefined &&
       (!value.error ||
         typeof value.error.code !== "string" ||
@@ -244,7 +245,7 @@ export async function request(
     (value.ok && value.error !== undefined)
   )
     throw new TaskError("ENGINE_UNAVAILABLE", "Engine returned an invalid result.");
-  const data = value.data as Record<string, unknown> | undefined;
+  const data = value.output as Record<string, unknown> | undefined;
   if (value.ok && (!data || typeof data !== "object" || Array.isArray(data)))
     throw new TaskError("ENGINE_UNAVAILABLE", "Engine returned no verifiable operation result.");
   if (data && route.startsWith("/cli/")) {
@@ -283,9 +284,8 @@ export async function request(
           value.ok &&
           route !== "/cli/run" &&
           (data.status !== "succeeded" ||
-            !data.output ||
-            typeof data.output !== "object" ||
-            !Object.hasOwn(data.output, "result"))
+            !Object.hasOwn(data, "result") ||
+            Object.hasOwn(data, "output"))
         )
           throw invalid();
       }
@@ -293,7 +293,7 @@ export async function request(
   }
   return {
     ok: value.ok,
-    ...(Object.hasOwn(value, "data") ? { data: value.data } : {}),
+    ...(Object.hasOwn(value, "output") ? { output: value.output } : {}),
     ...(value.error ? { error: { code: value.error.code, message: value.error.message } } : {}),
   };
 }
@@ -303,13 +303,13 @@ export async function localStatus(path: string): Promise<ResponseValue> {
     directory = await realpath(resolve(path));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT")
-      return { ok: true, data: { state: "not-started", dataDir: resolve(path) } };
+      return { ok: true, output: { state: "not-started", dataDir: resolve(path) } };
     throw error;
   }
   const record = await readInstance(directory);
   if (!record) {
     if ((await readdir(directory)).length === 0)
-      return { ok: true, data: { state: "not-started", dataDir: directory } };
+      return { ok: true, output: { state: "not-started", dataDir: directory } };
     if ((await stat(directory)).isDirectory())
       throw new TaskError(
         "LOCAL_SERVER_UNKNOWN",
@@ -321,7 +321,7 @@ export async function localStatus(path: string): Promise<ResponseValue> {
   if (liveness === "alive" && !record.engineUrl && record.state === "starting")
     return {
       ok: true,
-      data: { state: "starting", dataDir: directory, instanceId: record.instanceId },
+      output: { state: "starting", dataDir: directory, instanceId: record.instanceId },
     };
   if (liveness === "alive" && record.engineUrl) {
     try {
@@ -333,7 +333,7 @@ export async function localStatus(path: string): Promise<ResponseValue> {
         record,
       );
       if (!response.ok) throw new TaskError("LOCAL_SERVER_UNKNOWN", response.error!.message);
-      const data = response.data as { instanceId?: string; dataDir?: string };
+      const data = response.output as { instanceId?: string; dataDir?: string };
       if (data.instanceId !== record.instanceId || data.dataDir !== record.dataDir)
         throw new TaskError(
           "LOCAL_SERVER_UNKNOWN",
@@ -354,7 +354,7 @@ export async function localStatus(path: string): Promise<ResponseValue> {
       "LOCAL_SERVER_UNKNOWN",
       "Instance lock is held despite stale or unknown process evidence.",
     );
-  return { ok: true, data: { state: "stopped", dataDir: directory } };
+  return { ok: true, output: { state: "stopped", dataDir: directory } };
 }
 export async function startManaged(
   config: UserConfig,
@@ -459,9 +459,9 @@ export async function stopManaged(
     throw error;
   });
   signal?.throwIfAborted();
-  const data = status.data as { state: string; dataDir: string };
+  const data = status.output as { state: string; dataDir: string };
   if (["not-started", "stopped"].includes(data.state))
-    return { ok: true, data: { state: data.state, dataDir: data.dataDir, changed: false } };
+    return { ok: true, output: { state: data.state, dataDir: data.dataDir, changed: false } };
   const record = await readInstance(data.dataDir);
   if (!record?.engineUrl)
     throw new TaskError("LOCAL_SERVER_UNKNOWN", "Local control address is unavailable.");
@@ -491,35 +491,39 @@ export function taskResult(task: TaskRecord): ResponseValue {
   const data = {
     taskId: task.taskId,
     status: task.status,
-    ...(task.output ? { output: task.output } : {}),
+    ...(task.result === undefined ? {} : { result: task.result }),
   };
   if (!task.released)
     return {
       ok: false,
-      data,
+      output: data,
       error: {
         code: "RESOURCE_RELEASE_UNCONFIRMED",
         message: "Task and child execution-resource release is unconfirmed.",
       },
     };
   if (task.error)
-    return { ok: false, data, error: { code: task.error.code, message: task.error.message } };
+    return {
+      ok: false,
+      output: data,
+      error: { code: task.error.code, message: task.error.message },
+    };
   if (task.status !== "succeeded")
     return {
       ok: false,
-      data,
+      output: data,
       error: task.error ?? {
         code: "TASK_FAILED",
         message: `Task ended with ${task.status}.`,
       },
     };
-  if (!task.output)
+  if (task.result === undefined)
     return {
       ok: false,
-      data,
+      output: data,
       error: { code: "RESULT_UNAVAILABLE", message: "Successful task result is unavailable." },
     };
-  return { ok: true, data };
+  return { ok: true, output: data };
 }
 export async function serveManaged(
   config: UserConfig,
@@ -782,7 +786,7 @@ export async function serveManaged(
         if (url.pathname === "/_managed/status") {
           finish(outgoing, {
             ok: true,
-            data: {
+            output: {
               state: instance.state,
               dataDir: instance.dataDir,
               instanceId: instance.instanceId,
@@ -834,7 +838,7 @@ export async function serveManaged(
             );
           finish(outgoing, {
             ok: true,
-            data: {
+            output: {
               state: "stopped",
               dataDir: instance.dataDir,
               instanceId: instance.instanceId,
@@ -917,7 +921,7 @@ export async function serveManaged(
         repository!.put(task, car);
         if (task.cid && shared!.configuration.backend === "kubo")
           await shared!.confirmRetained(repository!.contentOwner, [task.cid]);
-        finish(outgoing, { ok: true, data: { taskId: id, status: "pending" } });
+        finish(outgoing, { ok: true, output: { taskId: id, status: "pending" } });
         queued.push(id);
         setImmediate(schedule);
         return;
@@ -956,11 +960,7 @@ export async function serveManaged(
         const page = items.slice(offset, offset + limit).map((task) => ({
           taskId: task.taskId,
           status: task.status,
-          ...(task.output
-            ? {
-                output: body.id === undefined ? {} : task.output,
-              }
-            : {}),
+          ...(body.id !== undefined && task.result !== undefined ? { result: task.result } : {}),
           createdAt: task.createdAt,
           ...(body.id === undefined
             ? {
@@ -973,7 +973,7 @@ export async function serveManaged(
         }));
         finish(outgoing, {
           ok: true,
-          data: {
+          output: {
             items: page,
             nextCursor:
               offset + limit < items.length ? repository!.cursor(scope, offset + limit) : null,
@@ -1020,7 +1020,7 @@ export async function serveManaged(
           const page = entries.slice(0, limit);
           finish(outgoing, {
             ok: true,
-            data: {
+            output: {
               taskId: id,
               logs: page.map(({ time, level, message }) => ({ time, level, message })),
               nextCursor:
@@ -1182,7 +1182,7 @@ export async function serveManaged(
       type: "result",
       result: {
         ok: true,
-        data: {
+        output: {
           state: "ready",
           engineUrl: instance.engineUrl,
           instanceId: instance.instanceId,

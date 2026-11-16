@@ -690,11 +690,11 @@ export class TaskEngine implements TaskService {
     acceptPayload(run.parameters, this.boundParameters(run.binding), {
       maxBytes: this.limits.maxPayloadBytes,
     });
-    if (run.outcome?.output !== undefined) {
+    if (run.outcome?.result !== undefined) {
       const resultSchema = run.binding.bundle
         ? this.boundContracts(run.binding).result.schema
         : this.historical(run.binding).resultContract.schema;
-      acceptPayload(run.outcome.output.result, resultSchema, {
+      acceptPayload(run.outcome.result, resultSchema, {
         maxBytes: this.limits.maxPayloadBytes,
       });
     }
@@ -1281,7 +1281,7 @@ export class TaskEngine implements TaskService {
       for (const run of Object.values(this.view.facts.runs)) {
         if (run.binding.bundle) continue;
         const supervisor = this.supervisors.get(this.key(run.binding))!;
-        if (run.outcome?.output !== undefined) await supervisor.verify(run.outcome.output.result);
+        if (run.outcome?.result !== undefined) await supervisor.verify(run.outcome.result);
         for (const evidence of run.evidence ?? [])
           await supervisor.verify(
             evidence.value,
@@ -1516,11 +1516,9 @@ export class TaskEngine implements TaskService {
       value.kind === "completed"
         ? {
             kind: "completed",
-            output: {
-              result: acceptPayload(value.result, type.resultContract.schema, {
-                maxBytes: this.limits.maxPayloadBytes,
-              }),
-            },
+            result: acceptPayload(value.result, type.resultContract.schema, {
+              maxBytes: this.limits.maxPayloadBytes,
+            }),
           }
         : {
             kind: "failed",
@@ -1531,11 +1529,9 @@ export class TaskEngine implements TaskService {
             ...(value.result === undefined
               ? {}
               : {
-                  output: {
-                    result: acceptPayload(value.result, type.resultContract.schema, {
-                      maxBytes: this.limits.maxPayloadBytes,
-                    }),
-                  },
+                  result: acceptPayload(value.result, type.resultContract.schema, {
+                    maxBytes: this.limits.maxPayloadBytes,
+                  }),
                 }),
           };
     if (run.outcome) {
@@ -1548,7 +1544,7 @@ export class TaskEngine implements TaskService {
       this.runEvent("run.outcome", run, { outcome: { ...report, occurredAt } }, occurredAt),
     ]);
     if (this.options.store.retainRunContent && report.kind === "completed")
-      for (const cid of payloadCids(report.output.result, this.limits.maxPayloadBytes))
+      for (const cid of payloadCids(report.result, this.limits.maxPayloadBytes))
         this.retainRunContent(id, cid);
   }
   private exited(id: string, fact: RunWorkerExit): void {

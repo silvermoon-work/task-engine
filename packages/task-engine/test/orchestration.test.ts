@@ -26,7 +26,7 @@ test("isolated admission lets executing and queued parents advance with one chil
         while (!controller.signal.aborted) {
           const snapshot = engine.getTask(child.taskId, caller);
           if (snapshot.stage === "completed")
-            return { childTaskId: child.taskId, result: snapshot.output?.result ?? null };
+            return { childTaskId: child.taskId, result: snapshot.result ?? null };
           await new Promise<void>((resolve) => setImmediate(resolve));
         }
         throw new Error("parent stopped");
@@ -93,8 +93,8 @@ test("isolated admission lets executing and queued parents advance with one chil
     for (const parent of parents) {
       const result = engine.getTask(parent.taskId, caller);
       assert.equal(result.stage, "completed");
-      assert.ok(result.output);
-      assert.deepEqual((result.output.result as { data: { result: JsonObject } }).data.result, {
+      assert.ok(result.result);
+      assert.deepEqual((result.result as { data: { result: JsonObject } }).data.result, {
         data: { value: 6 },
         cidPaths: [],
       });

@@ -65,18 +65,22 @@ task-engine config reset task.timeoutMs
 业务结果始终是 stdout 上的一个 JSON 对象及换行：
 
 ```json
-{"ok":true,"data":{"taskId":"opaque-id","status":"succeeded","output":{"cid":"bafy...","result":null}}}
+{"ok":true,"output":{"taskId":"opaque-id","status":"succeeded","result":{"data":null,"cidPaths":[]}}}
 ```
 
-成功完成的新版 Run 使用统一的 `output: {cid, result}`，`run`、`task await`
-和 `task query --id` 均可取得；普通列表仅包含 `output.cid`，不展开业务结果。
-顶层不再返回 `outputCid` 或 `result`，业务 `result` 本身不被改写。
+成功完成的新版 Run 直接返回 `result: {data, cidPaths}`，`run`、`task await`
+和 `task query --id` 均可取得；普通列表仅返回状态和简短摘要，不展开业务结果。
+任务本身不再返回旧 `output` 或 `outputCid`；业务结果位于 `output.result.data`，
+内容引用由 `result.cidPaths` 标记，合法空结果为 `data: null`。
+所有 CLI 命令的外层均使用 `{ok, output?, error?}`，不再使用外层 `data`。
+`output` 表示命令响应，IPFS 信封内部的 `data` 仍表示业务值；通用 HTTP API
+响应信封不变。客户端不会把旧 CLI Server 的 `data` 自动当作新版 `output`。
 输出文件块写入所选 IpfsStore，业务事实与保留根关联存入实例的 SQLite；
 既有 SQLite 输出块仍可由 local 宿主读取适配器获取。重启后内容可通过
-`context.space(cid)` 读取，前提是所选后端仍有内容或可从显式来源获取。
+`context.ipfs` 读取，前提是所选后端仍有内容或可从显式来源获取。
 离线 `data prune --cache` 标记保留引用，并按后端清除本系统提示及允许清理的 local 缓存。
 这是 breaking change；旧开发数据库不迁移，请使用新的数据目录，并重启新版 Server。
-`output.cid` 是内容标识，不代表内容已公开；默认 local 不会自动上传到
+结果中的 CID 是内容标识，不代表内容已公开；默认 local 不会自动上传到
 Pinboard、Kubo 或公共 Gateway。显式选择 Kubo 后端才向配置的 daemon 写块并设置具名提示，
 其他实例仍不能仅凭 CID 保证读取到这些块。
 

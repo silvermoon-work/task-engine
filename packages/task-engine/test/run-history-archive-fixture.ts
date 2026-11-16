@@ -800,7 +800,7 @@ export async function runHistoryDagCodecCase(): Promise<void> {
       outcome: {
         kind: "completed",
         occurredAt: "2020-01-01T00:00:01.000Z",
-        output: { result: { data: { ok: true }, cidPaths: [] } },
+        result: { data: { ok: true }, cidPaths: [] },
       },
       reclaimedAt: "2020-01-01T00:00:02.000Z",
       exit: { basis: "worker", occurredAt: "2020-01-01T00:00:01.000Z", sequence: 4, code: 0 },
@@ -822,9 +822,7 @@ export async function runHistoryDagCodecCase(): Promise<void> {
     bytes: contentCid.toString(),
   });
   assert.deepEqual(
-    source.run.outcome && "output" in source.run.outcome
-      ? source.run.outcome.output.result
-      : undefined,
+    source.run.outcome && "result" in source.run.outcome ? source.run.outcome.result : undefined,
     { data: { ok: true }, cidPaths: [] },
   );
   assert.deepEqual(source.contentRoots, [contentCid.toString()]);

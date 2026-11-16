@@ -99,7 +99,7 @@ export async function main(
       if (command === "config list")
         response = {
           ok: true,
-          data: {
+          output: {
             items: (Object.keys(defaults) as ConfigKey[])
               .sort()
               .map((key) => configItem(config, key)),
@@ -110,7 +110,7 @@ export async function main(
         const appliesTo = key.startsWith("server.")
           ? "next-engine-start"
           : "future-client-invocations";
-        if (command === "config get") response = { ok: true, data: configItem(config, key) };
+        if (command === "config get") response = { ok: true, output: configItem(config, key) };
         else if (command === "config set") {
           const value = validateValue(
             key,
@@ -123,7 +123,7 @@ export async function main(
             latest[key] = value;
             return changed;
           }, controller.signal);
-          response = { ok: true, data: { key, value, changed, appliesTo } };
+          response = { ok: true, output: { key, value, changed, appliesTo } };
         } else {
           const changed = await updateConfig((latest) => {
             const changed = Object.hasOwn(latest, key);
@@ -134,7 +134,7 @@ export async function main(
           const item = configItem(config, key);
           response = {
             ok: true,
-            data: {
+            output: {
               key,
               changed,
               effectiveValue: item.effectiveValue,
@@ -174,7 +174,7 @@ export async function main(
             "Stop the dedicated managed instance and confirm release before importing.",
           );
         records = new IpnsRecords(lock.directory);
-        response = { ok: true, data: await records.import(name, bytes, controller.signal) };
+        response = { ok: true, output: await records.import(name, bytes, controller.signal) };
       } finally {
         try {
           records?.close();
@@ -214,7 +214,7 @@ export async function main(
           controller.signal,
           instance.contentStore ?? instance.contentDataDir,
         );
-        const completed = response.data as { deletedTasks: number; deletedCacheBlocks?: number };
+        const completed = response.output as { deletedTasks: number; deletedCacheBlocks?: number };
         if (
           response.error?.code === "INTERRUPTED" &&
           completed.deletedTasks === 0 &&
@@ -350,7 +350,7 @@ export async function main(
       });
       if (!accepted.ok || values.has("--async")) response = accepted;
       else {
-        const id = (accepted.data as { taskId: string }).taskId;
+        const id = (accepted.output as { taskId: string }).taskId;
         try {
           response = await request(
             engine(),

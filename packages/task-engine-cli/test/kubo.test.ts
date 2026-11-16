@@ -88,16 +88,14 @@ test("managed Kubo CAR import, reads, output persistence and offline prune never
       const task = repository.get(id)!;
       assert.equal(task.status, "succeeded", JSON.stringify(task));
       assert.equal(task.released, true);
-      const stored = (task.output?.result as { data?: { cid?: string } })?.data?.cid;
+      const stored = (task.result as { data?: { cid?: string } })?.data?.cid;
       assert.equal(typeof stored, "string");
       assert.equal(repository.car(id), undefined);
       assert.equal(repository.db.prepare("SELECT count(*) AS n FROM ipfs_blocks").get()!.n, 0);
       assert.equal((await readdir(path)).includes("blocks"), false);
       assert.deepEqual(new Set(repository.contentRoots()), new Set([built.cid, stored]));
     }
-    const result = repositories[0]!.get(ids[0]!)!.output?.result as
-      | { data?: { cid?: string } }
-      | undefined;
+    const result = repositories[0]!.get(ids[0]!)!.result as { data?: { cid?: string } } | undefined;
     const output = result?.data?.cid;
     assert.equal(typeof output, "string");
     if (typeof output !== "string") throw new Error("Expected output CID.");
@@ -108,7 +106,7 @@ test("managed Kubo CAR import, reads, output persistence and offline prune never
       config,
     );
     assert.equal(first.ok, true, JSON.stringify(first));
-    assert.equal(first.data.deletedTasks, 1);
+    assert.equal(first.output.deletedTasks, 1);
     assert.ok(rpc.pins.has(built.cid));
     assert.ok(rpc.pins.has(output), "Other managed repository keeps output");
     const second = await pruneData(
@@ -168,7 +166,7 @@ test("managed Kubo CAR import, reads, output persistence and offline prune never
       config,
     );
     assert.equal(failed.ok, false);
-    assert.equal(failed.data.deletedTasks, 1);
+    assert.equal(failed.output.deletedTasks, 1);
     if (!failed.ok) assert.equal(failed.error.code, "RETENTION_UNFINISHED");
     assert.equal(repositories[0]!.get("already-committed"), undefined);
     rpc.setHook(undefined);

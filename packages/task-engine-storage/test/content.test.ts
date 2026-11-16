@@ -106,7 +106,7 @@ test("SQLite replays payload result envelope and content access without output C
     data: {
       outcome: {
         kind: "completed",
-        output: { result: { data: { ok: true }, cidPaths: [] } },
+        result: { data: { ok: true }, cidPaths: [] },
         occurredAt: time(3),
       },
     },
@@ -134,15 +134,10 @@ test("SQLite replays payload result envelope and content access without output C
       const taskSnapshot = project(view.facts, task.taskId, epoch + 5);
       const runSnapshot = projectRun(view.facts, run.runId, epoch + 5);
       assert.equal(view.facts.projectionVersion, 5);
-      assert.equal(
-        view.facts.runs[run.runId]?.output !== undefined &&
-          "cid" in view.facts.runs[run.runId]!.output!,
-        false,
-      );
       assert.equal(taskSnapshot.stage, "completed");
-      assert.deepEqual(taskSnapshot.output, { result: { data: { ok: true }, cidPaths: [] } });
-      assert.deepEqual(runSnapshot.output, taskSnapshot.output);
-      assert.equal(Object.hasOwn(runSnapshot, "result"), false);
+      assert.deepEqual(taskSnapshot.result, { data: { ok: true }, cidPaths: [] });
+      assert.deepEqual(runSnapshot.result, taskSnapshot.result);
+      assert.equal(Object.hasOwn(runSnapshot, "output"), false);
       assert.equal(Object.hasOwn(runSnapshot, "outputCid"), false);
       assert.deepEqual(runSnapshot.contentAccess, ["bundle", cid]);
       assert.deepEqual(taskSnapshot.run?.contentAccess, ["bundle", cid]);

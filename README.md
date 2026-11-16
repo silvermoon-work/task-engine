@@ -244,6 +244,34 @@ Git tags and npm dist-tags are preserved as historical records. The verifier
 rejects new dated canaries and other prerelease channels. Publish every package
 separately after its exact workspace dependencies are available.
 
+### Direct result contract RC
+
+The current result contract restores `result: {data, cidPaths}` directly on
+Task/Run facts, snapshots and HTTP/CLI responses, matching the authoring terms
+`parameters`, `message` and `result`. The obsolete `output.result` wrapper and
+standalone Space CID are removed. `run`, `task await` and `task query --id`
+return the same payload, including `data: null`; ordinary CLI lists remain
+summary-only. CID retention and child invocation consume the direct result.
+RunHistory DAG version 2 uses this shape as well.
+
+All CLI commands now use `{ok, output?, error?}` instead of
+`{ok, data?, error?}`. For task execution the path is `output.result.data`:
+`output` is the CLI command response, `result` is the Task payload and `data` is
+the IPFS envelope's business value. IPFS payloads retain `{data, cidPaths}`
+unchanged. The generic HTTP API keeps its existing response envelope; only
+CLI-owned `/cli/` and managed control responses use the new CLI envelope. Old
+CLI Servers must be restarted.
+
+This is a breaking RC update. Old `output` records and version 1 RunHistory DAGs
+are rejected, not silently migrated. Stop the old Server and select a fresh
+Engine data directory when upgrading. Existing bundle business schemas and
+callback return values do not change.
+
+The coordinated release updates Protocol and SDK to `0.2.0-rc.3`, Builder,
+Builder CLI and Engine to `0.2.0-rc.5`, HTTP, Storage and Server to
+`0.2.0-rc.2`, and Engine CLI to `0.2.0-rc.14`. Packages publish individually in
+dependency order after exact-commit main CI; `latest` is not changed.
+
 ### Unified content read CLI RC
 
 `@silvermoon-work/task-engine-cli@0.2.0-rc.13` adds one

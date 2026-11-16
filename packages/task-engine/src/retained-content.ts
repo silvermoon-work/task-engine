@@ -7,19 +7,6 @@ import {
   TaskError,
 } from "@silvermoon-work/task-protocol";
 
-function retainedOutput(output: { result?: unknown; cid?: unknown }): unknown {
-  if (
-    !output ||
-    typeof output !== "object" ||
-    Array.isArray(output) ||
-    output.result === undefined ||
-    output.result === null ||
-    "cid" in output
-  )
-    throw new TaskError("retention_unfinished", "Invalid retained output.");
-  return output.result;
-}
-
 function retainedPayloadCids(payload: unknown): string[] {
   if (
     !payload ||
@@ -52,10 +39,9 @@ export function retainedContentRoots(
     if (run.binding.bundle !== undefined) roots.add(bundleCid(run.binding.bundle));
     if (run.parameters !== undefined)
       for (const cid of retainedPayloadCids(run.parameters)) roots.add(cid);
-    if (run.output !== undefined)
-      for (const cid of retainedPayloadCids(retainedOutput(run.output))) roots.add(cid);
-    if (run.outcome?.output !== undefined)
-      for (const cid of retainedPayloadCids(retainedOutput(run.outcome.output))) roots.add(cid);
+    if (run.result !== undefined) for (const cid of retainedPayloadCids(run.result)) roots.add(cid);
+    if (run.outcome?.result !== undefined)
+      for (const cid of retainedPayloadCids(run.outcome.result)) roots.add(cid);
     for (const root of store?.readRunContentRoots?.(run.runId) ?? []) roots.add(root);
   }
   return [...roots].sort();

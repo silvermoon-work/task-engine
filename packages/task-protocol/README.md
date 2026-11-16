@@ -1,10 +1,12 @@
 # @silvermoon-work/task-protocol
 
-The 0.2.0 output contract uses `TaskOutput {cid?: string; result: Json}` in
-Task/Run snapshots, persisted outcomes and records. Bundle execution supplies the
-final Space CID on success; internal non-Bundle hosts and failure evidence may
-omit it. Collection summaries contain only the CID. The old sibling `result`
-and `outputCid` representation is rejected rather than migrated.
+The current 0.2.0 RC contract uses `result: {data, cidPaths}` directly in
+Task/Run snapshots, persisted outcomes and records, aligned with
+`parametersSchema`, `messageSchema` and `resultSchema`. There is no `output`
+wrapper or separate Space CID. Results preserve the IPFS payload envelope,
+including `data: null` and explicit CID paths. Old `output: {result}` and
+`outputCid` records are rejected rather than migrated; use a new data directory.
+RunHistory DAG version 2 uses the same direct result field.
 
 The generic protocol is already migrated and published as
 `0.1.0-canary-261109-2`. Workspace SDK, builder and Engine packages depend on

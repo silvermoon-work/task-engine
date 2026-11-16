@@ -133,7 +133,7 @@ test("verified memory-source Worker streams resources independent of author/host
       assert.equal(snapshot.stage, "completed", JSON.stringify(snapshot));
       const run = snapshot.run!.runId;
       await until(() => !!engine.getRun(run, caller).reclaimedAt);
-      const result = snapshot.output?.result as {
+      const result = snapshot.result as {
         data?: { value: number; bytes: number; chunks: number };
         cidPaths?: string[];
       };

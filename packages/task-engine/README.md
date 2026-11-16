@@ -147,7 +147,15 @@ Node 22.15.0 与 24.11.1 的 `require.resolve(ipfsURL)` 不走 hook，仍报
 运行时仍同时要求引擎最低版本及声明中的 `runtime.minVersion`；已有低版本声明
 不会因此单独被拒绝。初始化模板默认声明 22.15.0，协议/SDK 的独立 API 本身未改变。
 
-## Run 文件空间（breaking change）
+## Result 契约（breaking change）
+
+Task/Run 快照、持久事实、HTTP 与 CLI 直接使用 `result: {data, cidPaths}`，
+不再嵌套为 `output.result`。这与 `parameters`、`message`、`result` 的 Schema
+术语一致；业务空值保留为 `result.data: null`，CID 引用由 `cidPaths` 标记。
+旧 `output` 记录不迁移，请选择新数据目录并重启 Server。
+RunHistory 使用版本 2 的 DAG；旧版本明确拒绝，不做隐式转换。
+
+### 历史 Run 文件空间契约（已由 IpfsPayload 替代）
 
 `context.space(cid)` 同步创建静态只读视图，不承诺内容已经获取。
 静态 SID 为 `ipfs:<canonical-cid>`，唯一可写 output 的 SID 为

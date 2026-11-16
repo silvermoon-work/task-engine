@@ -495,10 +495,10 @@ for (const mode of [
         assert.equal(run.cleanupUnknown, undefined);
         assert.ok(run.reclaimedAt);
         if (mode === "valid-evidence")
-          assert.deepEqual(task.output?.result, { data: { text: "evidence" }, cidPaths: [] });
-        else assert.equal(task.output?.result, undefined);
+          assert.deepEqual(task.result, { data: { text: "evidence" }, cidPaths: [] });
+        else assert.equal(task.result, undefined);
         const persisted = store.read().facts.runs[runId]!;
-        assert.notDeepEqual(persisted.output?.result, { text: 1 });
+        assert.notDeepEqual(persisted.result, { text: 1 });
         assert.ok(
           !persisted.evidence?.some((entry) => JSON.stringify(entry.value) === '{"text":1}'),
         );
@@ -576,7 +576,7 @@ runTask(async(input,context)=>{
       await until(() => engine.getTask(id, caller).stage === "completed");
       const task = engine.getTask(id, caller);
       await until(() => !!engine.getRun(task.run!.runId, caller).reclaimedAt);
-      assert.deepEqual(task.output?.result, { data: { text: "message" }, cidPaths: [] });
+      assert.deepEqual(task.result, { data: { text: "message" }, cidPaths: [] });
       assert.equal(await readFile(marker, "utf8"), "callback\nmessage\n");
     } finally {
       await engine.close();

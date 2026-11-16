@@ -12,7 +12,6 @@ import { ContentError } from "@silvermoon-work/ipfs-store";
 import {
   type ErrorFact,
   type Json,
-  type TaskOutput,
   type RunLogEntry,
   json,
   TaskError,
@@ -32,7 +31,7 @@ export interface TaskRecord {
   status: Status;
   createdAt: string;
   completedAt?: string;
-  output?: TaskOutput;
+  result?: Json;
   error?: ErrorFact;
   released: boolean;
   roots: string[];
@@ -304,21 +303,12 @@ export class Repository {
         "STORAGE_CORRUPT",
         "Managed task identity or lifecycle record is invalid.",
       );
-    if ("result" in task || "outputCid" in task)
+    if ("output" in task || "outputCid" in task)
       throw new TaskError(
         "UNSUPPORTED_STORAGE",
-        "Legacy task output requires a new data directory.",
+        "Legacy task output requires a new data directory; stored data is not migrated.",
       );
-    if (task.output !== undefined) {
-      if (!task.output || typeof task.output !== "object" || !Object.hasOwn(task.output, "result"))
-        throw new TaskError("STORAGE_CORRUPT", "Task output must contain a business result.");
-      json(task.output.result, Number.MAX_SAFE_INTEGER);
-      if ("cid" in task.output)
-        throw new TaskError(
-          "UNSUPPORTED_STORAGE",
-          "Legacy output CID requires a new data directory.",
-        );
-    }
+    if (task.result !== undefined) json(task.result, Number.MAX_SAFE_INTEGER);
     return task;
   }
   put(task: TaskRecord, car?: Uint8Array): void {
@@ -643,7 +633,7 @@ export async function pruneData(
           repository.contentRoots(),
           signal ? { signal } : {},
         );
-        if (contentDirectory.backend === "kubo") return { ok: true as const, data: counts };
+        if (contentDirectory.backend === "kubo") return { ok: true as const, output: counts };
         contentDirectory = contentDirectory.dataDir;
       } catch (error) {
         if (signal?.aborted && error === signal.reason) throw error;
@@ -750,11 +740,11 @@ export async function pruneData(
           counts.deletedCacheBytes! += Number(row.size);
         }
     }
-    return { ok: true as const, data: counts };
+    return { ok: true as const, output: counts };
   } catch (error) {
     return {
       ok: false as const,
-      data: counts,
+      output: counts,
       error:
         signal?.aborted && error === signal.reason
           ? {

@@ -152,9 +152,9 @@ test("消息接纳有持久化状态与幂等身份，取消只撤回所属需�
     const finish = newId();
     h.engine.sendTaskMessage(b.taskId, finish, { kind: "finish" }, caller);
     await until(() => !!h.engine.getTask(b.taskId, caller).termination);
-    const output = h.engine.getTask(b.taskId, caller).output;
-    assert.ok(output);
-    assert.equal((output.result as { data: { total: number } }).data.total, 0);
+    const result = h.engine.getTask(b.taskId, caller).result;
+    assert.ok(result);
+    assert.equal((result as { data: { total: number } }).data.total, 0);
     assert.equal(
       (h.engine.getRequest(b.requestId, caller).parameters as { data: { text: string } }).data.text,
       "input",
@@ -184,7 +184,7 @@ test("隔离副本不能改 Engine Input；未提供的主线程状态与环境�
       { code: "forbidden" },
     );
     await until(() => !!h.engine.getTask(task.taskId, caller).termination);
-    assert.deepEqual(h.engine.getTask(task.taskId, caller).output?.result, {
+    assert.deepEqual(h.engine.getTask(task.taskId, caller).result, {
       data: {
         text: "changed",
         hostMarker: null,

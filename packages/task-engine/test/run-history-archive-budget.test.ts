@@ -55,7 +55,7 @@ async function sampleSource(count: number): Promise<{
         outcome: {
           kind: "completed",
           occurredAt: "2020-01-01T00:00:01.000Z",
-          output: { result: { data: { ok: true }, cidPaths: [] } },
+          result: { data: { ok: true }, cidPaths: [] },
         },
         reclaimedAt: "2020-01-01T00:00:02.000Z",
         exit: { basis: "worker", occurredAt: "2020-01-01T00:00:01.000Z", sequence: 4, code: 0 },

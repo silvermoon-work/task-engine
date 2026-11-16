@@ -43,7 +43,7 @@ export async function serveContent(
         "cache-control": "no-store",
       });
       outgoing.end(
-        `${JSON.stringify({ ok: true, data: { cid: cid.toString(), kind: "directory", entries } })}\n`,
+        `${JSON.stringify({ ok: true, output: { cid: cid.toString(), kind: "directory", entries } })}\n`,
       );
     } else {
       outgoing.setHeader("content-type", "application/octet-stream");
@@ -124,9 +124,9 @@ export async function readEngineContent(
         typeof value.error.message === "string"
       )
         return { ok: false, error: { code: value.error.code, message: value.error.message } };
-      if (!response.ok || value.ok !== true || !("data" in value))
+      if (!response.ok || value.ok !== true || !("output" in value) || "data" in value)
         throw new TaskError("ENGINE_UNAVAILABLE", "Engine returned an invalid content result.");
-      const data = value.data;
+      const data = value.output;
       if (
         !data ||
         typeof data !== "object" ||
@@ -156,7 +156,7 @@ export async function readEngineContent(
           "NOT_A_FILE",
           "--output requires a file; omit it to read directory entries.",
         );
-      return { ok: true, data };
+      return { ok: true, output: data };
     }
     const targetHeader = response.headers.get("x-content-cid");
     if (
@@ -191,7 +191,7 @@ export async function readEngineContent(
           );
         throw error;
       }
-      return { ok: true, data: { cid: target, kind: "file", text: parts.join(""), bytes } };
+      return { ok: true, output: { cid: target, kind: "file", text: parts.join(""), bytes } };
     }
     const destination = resolve(output);
     const temporary = await mkdtemp(join(dirname(destination), ".task-engine-content-"));
@@ -210,7 +210,7 @@ export async function readEngineContent(
       }
       signal.throwIfAborted();
       await link(file, destination);
-      return { ok: true, data: { cid: target, kind: "file", output: destination, bytes } };
+      return { ok: true, output: { cid: target, kind: "file", output: destination, bytes } };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === "EEXIST")
         throw new TaskError("OUTPUT_EXISTS", "Output already exists. Choose a new --output path.");

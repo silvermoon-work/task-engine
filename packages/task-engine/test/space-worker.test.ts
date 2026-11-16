@@ -80,13 +80,12 @@ for (const fail of [false, true])
       const run = drained.runs[0]!;
       assert.ok(run.reclaimedAt, JSON.stringify(run));
       assert.equal(run.stage, fail ? "failed" : "completed", JSON.stringify(run));
-      assert.equal(!!(run.output && "cid" in run.output), false);
       for (const snapshot of [drained.tasks.find((task) => task.requestId === requestId)!, run]) {
-        assert.equal(Object.hasOwn(snapshot, "result"), false);
+        assert.equal(Object.hasOwn(snapshot, "output"), false);
         assert.equal(Object.hasOwn(snapshot, "outputCid"), false);
       }
       if (fail) return;
-      const result = run.output?.result as {
+      const result = run.result as {
         data: { bundle: string; copy: string; generated: string };
         cidPaths: string[];
       };

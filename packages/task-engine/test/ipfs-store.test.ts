@@ -62,7 +62,7 @@ test("Builder and two Engines consume the same injected IpfsStore without owning
         const result = await engine.drain();
         assert.deepEqual(result.errors, []);
         assert.equal(result.tasks[0]?.stage, "completed");
-        assert.deepEqual(result.tasks[0]?.output?.result, {
+        assert.deepEqual(result.tasks[0]?.result, {
           data: { value: "shared object" },
           cidPaths: [],
         });
@@ -239,8 +239,8 @@ test("Kubo Engine output bypasses business block storage and all retained Task/R
     }
     await Promise.all(engines.map((engine) => engine.start()));
     const [a, b] = await Promise.all(engines.map((engine) => execute(engine, true)));
-    const storedA = (a!.output?.result as { data?: { stored?: string } })?.data?.stored;
-    const storedB = (b!.output?.result as { data?: { stored?: string } })?.data?.stored;
+    const storedA = (a!.result as { data?: { stored?: string } })?.data?.stored;
+    const storedB = (b!.result as { data?: { stored?: string } })?.data?.stored;
     assert.equal(typeof storedA, "string");
     assert.equal(storedA, storedB);
     const output = storedA!;
@@ -249,7 +249,7 @@ test("Kubo Engine output bypasses business block storage and all retained Task/R
       "Imported existing blocks receive staging protection before publication",
     );
     const jsonOnly = await execute(engines[0]!, false);
-    assert.deepEqual(jsonOnly.output?.result, { data: { json: true, stored: null }, cidPaths: [] });
+    assert.deepEqual(jsonOnly.result, { data: { json: true, stored: null }, cidPaths: [] });
     assert.equal(
       databases[0]!.readContentBlock(output),
       undefined,
@@ -264,9 +264,8 @@ test("Kubo Engine output bypasses business block storage and all retained Task/R
     );
     const pureJson = structuredClone(historical);
     for (const run of Object.values(pureJson.runs)) {
-      run.output = { result: { data: { looksLikeCid: output }, cidPaths: [] } };
-      if (run.outcome)
-        run.outcome.output = { result: { data: { looksLikeCid: output }, cidPaths: [] } };
+      run.result = { data: { looksLikeCid: output }, cidPaths: [] };
+      if (run.outcome) run.outcome.result = { data: { looksLikeCid: output }, cidPaths: [] };
     }
     assert.deepEqual(
       retainedContentRoots(pureJson),
@@ -274,7 +273,7 @@ test("Kubo Engine output bypasses business block storage and all retained Task/R
       "JSON results without a CID do not invent output roots",
     );
     const corrupt = structuredClone(historical);
-    Object.values(corrupt.runs)[0]!.output = { result: null, cid: "" } as never;
+    Object.values(corrupt.runs)[0]!.result = { result: null, cid: "" } as never;
     await assert.rejects(
       content.reconcile("invalid-snapshot", () => retainedContentRoots(corrupt)),
       { code: "retention_unfinished" },

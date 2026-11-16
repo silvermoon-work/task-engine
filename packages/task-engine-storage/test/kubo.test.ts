@@ -54,8 +54,8 @@ test("SQLite Engine reopen recovers stable Kubo roots, while manual block deleti
     assert.deepEqual(drained.errors, []);
     assert.equal(drained.tasks[0]!.stage, "completed");
     const task = drained.tasks[0]!;
-    assert.ok(task.output?.result);
-    const output = (task.output.result as { data: { cid: string } }).data.cid;
+    assert.ok(task.result);
+    const output = (task.result as { data: { cid: string } }).data.cid;
     const identity = store.read().storeId;
     await engine.close();
     store.close();

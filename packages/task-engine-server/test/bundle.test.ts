@@ -77,7 +77,7 @@ appendFileSync(${JSON.stringify(marker)},"loaded\\n");export default async input
     }
     const original = await client.getTask(accepted.taskId);
     assert.equal(original.name, "独立 Server Bundle");
-    assert.deepEqual(original.output?.result, { data: { text: "production" }, cidPaths: [] });
+    assert.deepEqual(original.result, { data: { text: "production" }, cidPaths: [] });
     assert.equal(await readFile(marker, "utf8"), "loaded\n");
     assert.equal(
       (await fetch(`${server.url}/task-types`, { headers: { Authorization: "Bearer test" } }))

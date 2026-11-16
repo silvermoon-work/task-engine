@@ -272,13 +272,13 @@ process.exitCode=await main(process.argv.slice(1));assert.ok(reads>0);`;
         assert.equal(implicit.exitCode, 0, implicit.stderr);
         const execution = JSON.parse(implicit.stdout);
         assert.equal(execution.status, "succeeded");
-        assert.deepEqual(execution.execution.tasks[0].output.result, {
+        assert.deepEqual(execution.execution.tasks[0].result, {
           data: { value: 9 },
           cidPaths: [],
         });
         const explicit = await execute([...source, "--parameters", "-"], '{"value":9}');
         assert.equal(explicit.exitCode, 0, explicit.stderr);
-        assert.deepEqual(JSON.parse(explicit.stdout).execution.tasks[0].output.result, {
+        assert.deepEqual(JSON.parse(explicit.stdout).execution.tasks[0].result, {
           data: { value: 9 },
           cidPaths: [],
         });
@@ -287,7 +287,7 @@ process.exitCode=await main(process.argv.slice(1));assert.ok(reads>0);`;
           "invalid stdin must not be consumed",
         );
         assert.equal(file.exitCode, 0, file.stderr);
-        assert.deepEqual(JSON.parse(file.stdout).execution.tasks[0].output.result, {
+        assert.deepEqual(JSON.parse(file.stdout).execution.tasks[0].result, {
           data: { value: 11 },
           cidPaths: [],
         });

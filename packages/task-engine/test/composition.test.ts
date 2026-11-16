@@ -201,7 +201,7 @@ test("generic host-mediated child Tasks", { timeout: 60_000 }, async (t) => {
       const id = await submit(engine, artifacts.nested.cid);
       const task = await settled(engine, id);
       assert.equal(task.stage, "completed", JSON.stringify(task));
-      assert.deepEqual(task.output?.result, envelope({ value: 7 }));
+      assert.deepEqual(task.result, envelope({ value: 7 }));
       assert.equal(Object.values(store.read().facts.tasks).length, 3);
       assert.deepEqual(
         Object.values(store.read().facts.submissions)
@@ -218,7 +218,7 @@ test("generic host-mediated child Tasks", { timeout: 60_000 }, async (t) => {
       const task = await settled(engine, id);
       assert.equal(task.stage, "completed", JSON.stringify(task));
       assert.deepEqual(
-        task.output?.result,
+        task.result,
         envelope({ a: { value: 7 }, b: { value: 7 }, c: { value: 7 } }),
       );
       assert.equal(
@@ -242,7 +242,7 @@ test("generic host-mediated child Tasks", { timeout: 60_000 }, async (t) => {
       const id = await submit(engine, artifacts.parent.cid, "lost-response");
       const task = await settled(engine, id);
       assert.equal(task.stage, "completed", JSON.stringify(task));
-      assert.deepEqual(task.output?.result, envelope({ value: 7 }));
+      assert.deepEqual(task.result, envelope({ value: 7 }));
       assert.equal(
         Object.values(store.read().facts.submissions).filter((record) => record.composition).length,
         1,
@@ -270,7 +270,7 @@ test("generic host-mediated child Tasks", { timeout: 60_000 }, async (t) => {
           activeStore = store;
           const task = await settled(engine, await submit(engine, artifacts.nested.cid));
           assert.equal(task.stage, "completed", JSON.stringify(task));
-          assert.deepEqual(task.output?.result, envelope({ value: 7 }));
+          assert.deepEqual(task.result, envelope({ value: 7 }));
           assert.equal(Object.keys(store.read().facts.runs).length, 3);
           assert.equal(offlineReads, 0);
         },

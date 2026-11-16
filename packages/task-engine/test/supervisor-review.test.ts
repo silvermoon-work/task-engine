@@ -147,7 +147,7 @@ test("R01 合法失败证据及无效证据的运行/恢复事实一致", async 
       assert.equal(before.stage, "failed");
       assert.deepEqual(before.error, { code: "business_failure", message: "原业务失败" });
       assert.deepEqual(
-        before.output?.result,
+        before.result,
         valid ? { data: { valid, marker: "失败证据" }, cidPaths: [] } : undefined,
       );
       if (!valid)
@@ -163,7 +163,7 @@ test("R01 合法失败证据及无效证据的运行/恢复事实一致", async 
         await reopened.start();
         const after = reopened.getTask(task.taskId, caller);
         assert.deepEqual(after.error, before.error);
-        assert.deepEqual(after.output?.result, before.output?.result);
+        assert.deepEqual(after.result, before.result);
       } finally {
         await reopened.close();
       }
@@ -178,15 +178,15 @@ test("R01 合法失败证据及无效证据的运行/恢复事实一致", async 
             const view = store.read();
             const forged = { data: { valid: false, marker: "篡改证据" }, cidPaths: [] };
             const run = view.facts.runs[before.run!.runId]!;
-            run.output = { result: forged };
-            if (run.outcome?.kind === "failed") run.outcome.output = { result: forged };
+            run.result = forged;
+            if (run.outcome?.kind === "failed") run.outcome.result = forged;
             for (const event of view.events)
               if (
                 event.runId === run.runId &&
                 event.type === "run.outcome" &&
                 event.data.outcome.kind === "failed"
               )
-                event.data.outcome.output = { result: forged };
+                event.data.outcome.result = forged;
             return view;
           },
         };

@@ -29,6 +29,7 @@ Usage: task-engine <command>
   data import-ipns        Offline signed IPNS record provisioning
   config list|get|set|reset
 Business results: one stdout JSON. stderr: logging only. Exit 0 success, 1 failure, 130 interrupted.
+JSON envelope: {ok, output?, error?}. Task payloads: output.result = {data, cidPaths}.
 No automatic Server startup, interactive prompts, dry-run or format switches.
 Use task-engine <command> --help for options.
 

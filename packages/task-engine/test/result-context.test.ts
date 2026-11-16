@@ -32,7 +32,7 @@ test("最终结果与恢复复验留在原类型 Worker，损坏业务证据不�
       await new Promise((resolve) => setTimeout(resolve, 5));
     const final = engine.getTask(task.taskId, caller);
     assert.equal(final.stage, "completed");
-    assert.deepEqual(final.output?.result, {
+    assert.deepEqual(final.result, {
       data: {
         prepared: { original: { text: "bound" } },
         value: { ok: true },
@@ -61,15 +61,15 @@ test("最终结果与恢复复验留在原类型 Worker，损坏业务证据不�
           cidPaths: [],
         };
         const run = view.facts.runs[final.run!.runId]!;
-        run.output = { result: forged };
-        if (run.outcome?.kind === "completed") run.outcome.output.result = forged;
+        run.result = forged;
+        if (run.outcome?.kind === "completed") run.outcome.result = forged;
         for (const event of view.events)
           if (
             event.runId === run.runId &&
             event.type === "run.outcome" &&
             event.data.outcome.kind === "completed"
           )
-            event.data.outcome.output.result = forged;
+            event.data.outcome.result = forged;
         return view;
       },
     };

@@ -13,11 +13,33 @@ import { sha256 } from "multiformats/hashes/sha2";
 import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { MemoryIpfsClient } from "@silvermoon-work/task-engine/testing";
-import { processBirth, stopManaged } from "../src/managed.js";
+import { processBirth, request, stopManaged } from "../src/managed.js";
 import { encodeTaskBundleCar } from "@silvermoon-work/task-builder/car";
 import { memoryTree } from "@silvermoon-work/task-builder/tree";
 import { createMemorySampler, sampleMemory } from "../src/memory.js";
 import { IpfsStore } from "@silvermoon-work/ipfs-store";
+
+test("CLI response envelopes use output without renaming IPFS payload data", async (t) => {
+  const result = { data: { output: "business output", data: "business data" }, cidPaths: [] };
+  let response: unknown = {
+    ok: true,
+    output: { taskId: "task", status: "succeeded", result },
+  };
+  const server = createServer((_incoming, outgoing) => {
+    outgoing.setHeader("content-type", "application/json");
+    outgoing.end(JSON.stringify(response));
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  const url = `http://127.0.0.1:${address.port}`;
+  const actual = await request(url, "/cli/task/task/await");
+  assert.deepEqual(actual, response);
+  assert.equal(Object.hasOwn(actual, "data"), false);
+  response = { ok: true, data: { taskId: "task", status: "succeeded", result } };
+  await assert.rejects(request(url, "/cli/task/task/await"), { code: "ENGINE_UNAVAILABLE" });
+});
 
 test("replay purpose separates conformance capacity from pressure and refuses combined arms", async () => {
   const helper = new URL(
@@ -161,7 +183,7 @@ test("paired replay ignores lifetime peaks, matches phase growth and rejects mis
 const bin = resolve("dist", "bin.js");
 interface Result {
   ok: boolean;
-  data: Record<string, unknown>;
+  output: Record<string, unknown>;
   error?: { code: string; message: string };
 }
 async function execute(
@@ -293,7 +315,7 @@ test("content read uses one command for directories, text and exact binary downl
     execute(["content", "read", root, "--engine", engine, ...args], directory);
   const listing = await read();
   assert.equal(listing.code, 0, listing.stdout + listing.stderr);
-  const entries = listing.parse().data.entries as { name: string; kind: string; cid: string }[];
+  const entries = listing.parse().output.entries as { name: string; kind: string; cid: string }[];
   assert.deepEqual(
     entries.map(({ name, kind }) => ({ name, kind })),
     [
@@ -303,28 +325,28 @@ test("content read uses one command for directories, text and exact binary downl
     ],
   );
   const nested = await read("--path", "docs");
-  assert.equal(nested.parse().data.kind, "directory");
+  assert.equal(nested.parse().output.kind, "directory");
   const file = await read("--path", "docs/hello.txt");
   assert.equal(file.code, 0, file.stdout);
-  assert.equal(file.parse().data.kind, "file");
-  assert.equal(file.parse().data.text, text);
-  assert.equal(file.parse().data.bytes, Buffer.byteLength(text));
+  assert.equal(file.parse().output.kind, "file");
+  assert.equal(file.parse().output.text, text);
+  assert.equal(file.parse().output.bytes, Buffer.byteLength(text));
   const direct = await execute(
-    ["content", "read", String(file.parse().data.cid), "--engine", engine],
+    ["content", "read", String(file.parse().output.cid), "--engine", engine],
     directory,
   );
-  assert.deepEqual(direct.parse().data, file.parse().data);
+  assert.deepEqual(direct.parse().output, file.parse().output);
   const empty = await read("--path", "empty.txt");
   assert.equal(empty.code, 0, empty.stdout);
-  assert.equal(empty.parse().data.text, "");
+  assert.equal(empty.parse().output.text, "");
   const notText = await read("--path", "data.bin");
   assert.equal(notText.code, 1);
   assert.equal(notText.parse().error?.code, "NOT_TEXT");
   const destination = join(directory, "download.bin");
   const saved = await read("--path", "data.bin", "--output", destination);
   assert.equal(saved.code, 0, saved.stdout + saved.stderr);
-  assert.equal(saved.parse().data.output, destination);
-  assert.equal(saved.parse().data.bytes, binary.length);
+  assert.equal(saved.parse().output.output, destination);
+  assert.equal(saved.parse().output.bytes, binary.length);
   assert.deepEqual(await readFile(destination), binary);
   const exists = await read("--path", "data.bin", "--output", destination);
   assert.equal(exists.code, 1);
@@ -349,7 +371,7 @@ test("content read uses one command for directories, text and exact binary downl
     directory,
   );
   assert.equal(restarted.code, 0, restarted.stdout);
-  assert.equal((await read("--path", "docs/hello.txt")).parse().data.text, text);
+  assert.equal((await read("--path", "docs/hello.txt")).parse().output.text, text);
 });
 test("two independent managed Engines execute a multi-block bundle through A's opt-in local raw/CAR gateway", async (t) => {
   const directory = resolve(".cache", `two-engines-${randomUUID()}`);
@@ -431,9 +453,8 @@ test("two independent managed Engines execute a multi-block bundle through A's o
   const input = join(directory, "input.json");
   await writeFile(input, '{"value":"independent"}');
   const primed = await run(["run", "--engine", urlA, "--car", car, "--parameters", input]);
-  assert.equal(primed.data.status, "succeeded");
-  const primedResult = (primed.data.output as { result: { data: { echo: string; cid: string } } })
-    .result;
+  assert.equal(primed.output.status, "succeeded");
+  const primedResult = primed.output.result as { data: { echo: string; cid: string } };
   assert.equal(primedResult.data.echo, "independent");
   const outputCid = CID.parse(primedResult.data.cid);
   const proofResponse = await fetch(
@@ -475,11 +496,8 @@ test("two independent managed Engines execute a multi-block bundle through A's o
   const response = await fetch(`${urlB}/ipfs/${built.cid}?format=raw`);
   assert.equal(response.status, 404);
   const executed = await run(["run", "--engine", urlB, "--cid", built.cid, "--parameters", input]);
-  assert.equal(executed.data.status, "succeeded");
-  assert.equal(
-    (executed.data.output as { result: { data: { echo: string } } }).result.data.echo,
-    "independent",
-  );
+  assert.equal(executed.output.status, "succeeded");
+  assert.equal((executed.output.result as { data: { echo: string } }).data.echo, "independent");
   const blocksA = await readdir(join(a, "content", "blocks"));
   const blocksB = await readdir(join(b, "content", "blocks"));
   assert.ok(blocksA.length > 1);
@@ -597,7 +615,7 @@ export default async (input,context)=>{
       [0, 1],
       starts.map((item) => item.stdout + item.stderr).join("\n"),
     );
-    assert.equal(starts.find((item) => item.code === 0)!.parse().data.state, "ready");
+    assert.equal(starts.find((item) => item.code === 0)!.parse().output.state, "ready");
     const alias = join(directory, "alias");
     await symlink(data, alias, process.platform === "win32" ? "junction" : "dir");
     const duplicate = await run([
@@ -610,19 +628,19 @@ export default async (input,context)=>{
     ]);
     assert.equal(duplicate.code, 1);
     const status = await run(["server", "status", "--data-dir", alias]);
-    assert.equal(status.parse().data.state, "ready");
-    const memory = status.parse().data.memory as { rss: { samples: Array<{ rss: number }> } };
+    assert.equal(status.parse().output.state, "ready");
+    const memory = status.parse().output.memory as { rss: { samples: Array<{ rss: number }> } };
     assert.ok(memory.rss.samples.length > 0 && memory.rss.samples.at(-1)!.rss > 0);
-    const unauthorized = await fetch(`${String(status.parse().data.engineUrl)}/_managed/status`);
+    const unauthorized = await fetch(`${String(status.parse().output.engineUrl)}/_managed/status`);
     const denied = (await unauthorized.json()) as Result;
     assert.equal(denied.error?.code, "LOCAL_SERVER_UNKNOWN");
-    assert.equal(denied.data?.memory, undefined);
+    assert.equal(denied.output?.memory, undefined);
     const initialIdentityPath = join(data, "instance.json"),
       initialIdentityText = await readFile(initialIdentityPath, "utf8");
     const fake = createServer((incoming, outgoing) => {
       assert.equal(incoming.headers.authorization, undefined);
       outgoing.setHeader("content-type", "application/json");
-      outgoing.end(JSON.stringify({ ok: true, data: status.parse().data }));
+      outgoing.end(JSON.stringify({ ok: true, output: status.parse().output }));
     });
     await new Promise<void>((resolve) => fake.listen(0, "127.0.0.1", resolve));
     try {
@@ -647,16 +665,14 @@ export default async (input,context)=>{
     args = ["run", "--car", built.car, "--parameters", "-", "--engine", engine];
     const success = await run(args, '{"value":7}');
     assert.equal(success.code, 0, success.stdout + success.stderr);
-    taskId = String(success.parse().data.taskId);
-    const successResult = (
-      success.parse().data.output as { result: { data: { value: number; cid: string } } }
-    ).result;
+    taskId = String(success.parse().output.taskId);
+    const successResult = success.parse().output.result as { data: { value: number; cid: string } };
     assert.equal(successResult.data.value, 7);
     outputCid = successResult.data.cid;
     assert.equal(typeof outputCid, "string");
-    assert.equal(Object.hasOwn(success.parse().data, "result"), false);
-    assert.equal(Object.hasOwn(success.parse().data, "outputCid"), false);
-    assert.deepEqual(Object.keys(success.parse()), ["ok", "data"]);
+    assert.equal(Object.hasOwn(success.parse().output, "output"), false);
+    assert.equal(Object.hasOwn(success.parse().output, "outputCid"), false);
+    assert.deepEqual(Object.keys(success.parse()), ["ok", "output"]);
     const business = {
       mode: "echo",
       requestId: "business-id",
@@ -666,13 +682,13 @@ export default async (input,context)=>{
     };
     const echoed = await run(args, JSON.stringify(business));
     assert.equal(echoed.code, 0, echoed.stdout);
-    assert.deepEqual((echoed.parse().data.output as { result: unknown }).result, {
+    assert.deepEqual(echoed.parse().output.result as unknown, {
       data: business,
       cidPaths: [],
     });
     const nullResult = await run(args, '{"mode":"null"}');
     assert.equal(nullResult.code, 0, nullResult.stdout);
-    assert.deepEqual((nullResult.parse().data.output as { result: unknown }).result, {
+    assert.deepEqual(nullResult.parse().output.result as unknown, {
       data: null,
       cidPaths: [],
     });
@@ -707,16 +723,19 @@ key:"child",bundle:context.bundle,path:"resources/child",parameters:input,timeou
       '{"value":9}',
     );
     assert.equal(childRun.code, 0, childRun.stdout);
-    assert.equal(
-      (childRun.parse().data.output as { result: { data: { value: number } } }).result.data.value,
-      9,
-    );
+    assert.equal((childRun.parse().output.result as { data: { value: number } }).data.value, 9);
     const query = await run(["task", "query", "--id", taskId, "--engine", engine]);
-    assert.equal((query.parse().data.items as unknown[]).length, 1);
+    assert.equal((query.parse().output.items as unknown[]).length, 1);
+    assert.deepEqual(
+      (query.parse().output.items as { result: unknown }[])[0]!.result,
+      success.parse().output.result,
+    );
+    const awaited = await run(["task", "await", taskId, "--engine", engine]);
+    assert.deepEqual(awaited.parse().output.result, success.parse().output.result);
     const logs = await run(["task", "logs", taskId, "--limit", "17", "--engine", engine]);
-    assert.equal((logs.parse().data.logs as unknown[]).length, 17, logs.stdout);
-    const cursor = String(logs.parse().data.nextCursor);
-    assert.equal((logs.parse().data.logs as { message: string }[])[0]!.message, "entry-0");
+    assert.equal((logs.parse().output.logs as unknown[]).length, 17, logs.stdout);
+    const cursor = String(logs.parse().output.nextCursor);
+    assert.equal((logs.parse().output.logs as { message: string }[])[0]!.message, "entry-0");
     const tail = await run([
       "task",
       "logs",
@@ -728,16 +747,16 @@ key:"child",bundle:context.bundle,path:"resources/child",parameters:input,timeou
       "--engine",
       engine,
     ]);
-    assert.equal((tail.parse().data.logs as unknown[]).length, 13);
-    assert.equal((tail.parse().data.logs as { message: string }[])[0]!.message, "entry-17");
+    assert.equal((tail.parse().output.logs as unknown[]).length, 13);
+    assert.equal((tail.parse().output.logs as { message: string }[])[0]!.message, "entry-17");
     failure = await run(args, '{"mode":"failure"}');
     assert.equal(failure.code, 1, failure.stdout);
-    assert.equal(failure.parse().data.status, "failed");
+    assert.equal(failure.parse().output.status, "failed");
   });
   await phase("query filters, cursors and invalid input", async () => {
     const query = await run(["task", "query", "--id", taskId, "--engine", engine]);
     const cursor = String(
-      (await run(["task", "logs", taskId, "--limit", "17", "--engine", engine])).parse().data
+      (await run(["task", "logs", taskId, "--limit", "17", "--engine", engine])).parse().output
         .nextCursor,
     );
     const union = await run([
@@ -750,8 +769,12 @@ key:"child",bundle:context.bundle,path:"resources/child",parameters:input,timeou
       "--engine",
       engine,
     ]);
-    const unionIds = (union.parse().data.items as { taskId: string }[]).map((item) => item.taskId);
-    assert.ok(unionIds.includes(taskId) && unionIds.includes(String(failure.parse().data.taskId)));
+    const unionIds = (union.parse().output.items as { taskId: string }[]).map(
+      (item) => item.taskId,
+    );
+    assert.ok(
+      unionIds.includes(taskId) && unionIds.includes(String(failure.parse().output.taskId)),
+    );
     const firstPage = await run(["task", "query", "--limit", "1", "--engine", engine]);
     const nextPage = await run([
       "task",
@@ -759,12 +782,12 @@ key:"child",bundle:context.bundle,path:"resources/child",parameters:input,timeou
       "--limit",
       "1",
       "--cursor",
-      String(firstPage.parse().data.nextCursor),
+      String(firstPage.parse().output.nextCursor),
       "--engine",
       engine,
     ]);
-    assert.notDeepEqual(firstPage.parse().data.items, nextPage.parse().data.items);
-    const createdAt = String((query.parse().data.items as { createdAt: string }[])[0]!.createdAt);
+    assert.notDeepEqual(firstPage.parse().output.items, nextPage.parse().output.items);
+    const createdAt = String((query.parse().output.items as { createdAt: string }[])[0]!.createdAt);
     const bounded = await run([
       "task",
       "query",
@@ -775,10 +798,10 @@ key:"child",bundle:context.bundle,path:"resources/child",parameters:input,timeou
       "--engine",
       engine,
     ]);
-    assert.equal((bounded.parse().data.items as { taskId: string }[])[0]!.taskId, taskId);
+    assert.equal((bounded.parse().output.items as { taskId: string }[])[0]!.taskId, taskId);
     const upper = await run(["task", "query", "--until", createdAt, "--engine", engine]);
     assert.equal(
-      (upper.parse().data.items as { taskId: string }[]).some((item) => item.taskId === taskId),
+      (upper.parse().output.items as { taskId: string }[]).some((item) => item.taskId === taskId),
       false,
     );
     assert.equal(
@@ -794,7 +817,7 @@ key:"child",bundle:context.bundle,path:"resources/child",parameters:input,timeou
         await run([
           "task",
           "logs",
-          String(failure.parse().data.taskId),
+          String(failure.parse().output.taskId),
           "--cursor",
           cursor,
           "--engine",
@@ -808,13 +831,13 @@ key:"child",bundle:context.bundle,path:"resources/child",parameters:input,timeou
     assert.deepEqual(Object.keys(invalid.parse().error!).sort(), ["code", "message"]);
     assert.equal((await run([...args, "--json"], "{}")).code, 1);
     const absent = await run(["task", "query", "--id", "absent", "--engine", engine]);
-    assert.deepEqual(absent.parse().data.items, []);
+    assert.deepEqual(absent.parse().output.items, []);
     assert.equal((await run(["task", "logs", "absent", "--engine", engine])).code, 1);
   });
   await phase("execution budgets, interruption and confirmed shutdown", async () => {
     const timeout = await run([...args, "--timeout-ms", "150"], '{"mode":"slow"}');
     assert.equal(timeout.code, 1, timeout.stdout);
-    assert.equal(timeout.parse().data.status, "timed_out");
+    assert.equal(timeout.parse().output.status, "timed_out");
     const bootEntry = join(directory, "boot.ts");
     await writeFile(
       bootEntry,
@@ -853,19 +876,19 @@ key:"child",bundle:context.bundle,path:"resources/child",parameters:input,timeou
       ["run", "--car", boot.car, "--parameters", "-", "--timeout-ms", "50", "--engine", engine],
       "{}",
     );
-    assert.equal(bootTimeout.parse().data.status, "timed_out", bootTimeout.stdout);
+    assert.equal(bootTimeout.parse().output.status, "timed_out", bootTimeout.stdout);
     assert.equal(bootTimeout.parse().error?.code, "TASK_TIMED_OUT");
     assert.equal(
-      Object.hasOwn(bootTimeout.parse().data, "result"),
+      Object.hasOwn(bootTimeout.parse().output, "result"),
       false,
       "Expired bootstrap must not enter task code.",
     );
     const cancelled = await run(args, '{"mode":"slow"}', 400);
     assert.equal(cancelled.code, 130, cancelled.stdout);
-    assert.equal(cancelled.parse().data.status, "cancelled");
+    assert.equal(cancelled.parse().output.status, "cancelled");
     const asyncResult = await run([...args, "--async"], '{"mode":"slow"}');
     assert.equal(asyncResult.code, 0);
-    const asyncId = String(asyncResult.parse().data.taskId);
+    const asyncId = String(asyncResult.parse().output.taskId);
     const waiting = await run(["task", "await", asyncId, "--engine", engine], undefined, 200);
     assert.equal(waiting.code, 130, waiting.stdout);
     const activeStop = await run(["server", "stop", "--data-dir", data]);
@@ -899,30 +922,24 @@ key:"child",bundle:context.bundle,path:"resources/child",parameters:input,timeou
       JSON.stringify({ ...JSON.parse(identityText), pid: process.pid, birth: previousBirth }),
     );
     assert.equal(
-      (await run(["server", "status", "--data-dir", data])).parse().data.state,
+      (await run(["server", "status", "--data-dir", data])).parse().output.state,
       "stopped",
     );
-    assert.equal((await run(["server", "stop", "--data-dir", data])).parse().data.changed, false);
+    assert.equal((await run(["server", "stop", "--data-dir", data])).parse().output.changed, false);
     process.kill(process.pid, 0);
     await writeFile(identityPath, identityText);
     assert.equal((await run([...start, "--max-payload-bytes", "131072"])).code, 0);
     const largeBusiness = { mode: "echo", text: "x".repeat(70000) };
     const large = await run(args, JSON.stringify(largeBusiness));
     assert.equal(large.code, 0, large.stdout.slice(0, 512));
-    assert.deepEqual((large.parse().data.output as { result: unknown }).result, {
+    assert.deepEqual(large.parse().output.result as unknown, {
       data: largeBusiness,
       cidPaths: [],
     });
     const retained = await run(["task", "await", taskId, "--engine", engine]);
     assert.equal(retained.code, 0, retained.stdout);
-    assert.equal(
-      (retained.parse().data.output as { result: { data: { value: number } } }).result.data.value,
-      7,
-    );
-    assert.equal(
-      (retained.parse().data.output as { result: { data: { cid: string } } }).result.data.cid,
-      outputCid,
-    );
+    assert.equal((retained.parse().output.result as { data: { value: number } }).data.value, 7);
+    assert.equal((retained.parse().output.result as { data: { cid: string } }).data.cid, outputCid);
     const crashTask = await run([...args, "--async"], '{"mode":"slow"}');
     const crashIdentity = JSON.parse(await readFile(identityPath, "utf8")) as { pid: number };
     assert.notEqual(crashIdentity.pid, identity.pid);
@@ -931,7 +948,7 @@ key:"child",bundle:context.bundle,path:"resources/child",parameters:input,timeou
     const interrupted = await run([
       "task",
       "await",
-      String(crashTask.parse().data.taskId),
+      String(crashTask.parse().output.taskId),
       "--engine",
       engine,
     ]);
@@ -940,7 +957,7 @@ key:"child",bundle:context.bundle,path:"resources/child",parameters:input,timeou
       "TASK_INTERRUPTED_BY_RESTART",
       interrupted.stdout,
     );
-    assert.equal(interrupted.parse().data.status, "failed");
+    assert.equal(interrupted.parse().output.status, "failed");
     const restartedStop = await run(["server", "stop", "--data-dir", data]);
     assert.equal(restartedStop.code, 0, restartedStop.stdout + restartedStop.stderr);
     const sharedBlocks = await readdir(join(directory, "shared-content", "blocks"));
@@ -948,20 +965,20 @@ key:"child",bundle:context.bundle,path:"resources/child",parameters:input,timeou
       "data",
       "prune",
       "--task",
-      String(failure.parse().data.taskId),
+      String(failure.parse().output.taskId),
       "--cache",
       "--data-dir",
       data,
     ]);
     assert.equal(prune.code, 0, prune.stdout);
-    assert.equal(prune.parse().data.deletedTasks, 1);
-    assert.equal(prune.parse().data.deletedLogs, 30);
-    assert.equal(prune.parse().data.deletedCacheBlocks, 0);
+    assert.equal(prune.parse().output.deletedTasks, 1);
+    assert.equal(prune.parse().output.deletedLogs, 30);
+    assert.equal(prune.parse().output.deletedCacheBlocks, 0);
     assert.deepEqual(await readdir(join(directory, "shared-content", "blocks")), sharedBlocks);
   });
   await phase("configuration and installed help", async () => {
     const listed = await run(["config", "list"]);
-    const items = listed.parse().data.items as {
+    const items = listed.parse().output.items as {
       key: string;
       effectiveValue: unknown;
       source: string;
@@ -988,10 +1005,10 @@ key:"child",bundle:context.bundle,path:"resources/child",parameters:input,timeou
     assert.equal((await run(["config", "get", "not-a-key"])).code, 1);
     assert.equal((await run(["config", "set", "server.port", "9999"])).code, 0);
     assert.equal(
-      (await run(["config", "get", "client.engine"])).parse().data.effectiveValue,
+      (await run(["config", "get", "client.engine"])).parse().output.effectiveValue,
       "http://127.0.0.1:8787",
     );
-    assert.equal((await run(["config", "get", "server.port"])).parse().data.effectiveValue, 9999);
+    assert.equal((await run(["config", "get", "server.port"])).parse().output.effectiveValue, 9999);
     const writes = await Promise.all([
       run(["config", "set", "client.engine", engine]),
       run(["config", "set", "task.timeoutMs", "4567"]),
@@ -1001,11 +1018,11 @@ key:"child",bundle:context.bundle,path:"resources/child",parameters:input,timeou
       [0, 0],
     );
     assert.equal(
-      (await run(["config", "get", "task.timeoutMs"])).parse().data.effectiveValue,
+      (await run(["config", "get", "task.timeoutMs"])).parse().output.effectiveValue,
       4567,
     );
-    assert.equal((await run(["config", "reset", "task.timeoutMs"])).parse().data.changed, true);
-    assert.equal((await run(["config", "reset", "task.timeoutMs"])).parse().data.changed, false);
+    assert.equal((await run(["config", "reset", "task.timeoutMs"])).parse().output.changed, true);
+    assert.equal((await run(["config", "reset", "task.timeoutMs"])).parse().output.changed, false);
     const configPath =
       process.platform === "win32"
         ? join(directory, "configuration", "TaskEngine", "config.json")
@@ -1086,7 +1103,7 @@ if(${uncertain})throw new Error("controlled missing release proof");}});`;
         "{}",
       );
       assert.equal(accepted.code, 0, accepted.stdout);
-      const id = String(accepted.parse().data.taskId);
+      const id = String(accepted.parse().output.taskId);
       for (;;) {
         try {
           await readFile(marker);
@@ -1098,7 +1115,7 @@ if(${uncertain})throw new Error("controlled missing release proof");}});`;
         await new Promise((resolve) => setTimeout(resolve, 20));
       }
       const query = await execute(["task", "query", "--id", id, "--engine", engine], directory);
-      assert.equal((query.parse().data.items as { status: string }[])[0]!.status, "succeeded");
+      assert.equal((query.parse().output.items as { status: string }[])[0]!.status, "succeeded");
       let completed = false;
       const waiting = execute(["task", "await", id, "--engine", engine], directory).then(
         (value) => {
@@ -1367,16 +1384,16 @@ test("CID async acceptance is durable before a blocked Gateway, prepare failure 
     "{}",
   );
   assert.equal(accepted.code, 0);
-  const id = String(accepted.parse().data.taskId);
-  assert.equal(accepted.parse().data.status, "pending");
+  const id = String(accepted.parse().output.taskId);
+  assert.equal(accepted.parse().output.status, "pending");
   const query = await run(["task", "query", "--id", id, "--engine", engine]);
-  assert.equal((query.parse().data.items as { taskId: string }[])[0]!.taskId, id);
+  assert.equal((query.parse().output.items as { taskId: string }[])[0]!.taskId, id);
   assert.ok(requests > 0);
   release();
   const failure = await run(["task", "await", id, "--engine", engine]);
   assert.equal(failure.code, 1);
-  assert.equal(failure.parse().data.taskId, id);
-  assert.equal(failure.parse().data.status, "failed");
+  assert.equal(failure.parse().output.taskId, id);
+  assert.equal(failure.parse().output.status, "failed");
   fail = false;
   const began = performance.now();
   const success = await run(
@@ -1388,7 +1405,7 @@ test("CID async acceptance is durable before a blocked Gateway, prepare failure 
     performance.now() - began > 3000,
     "Preparation must exceed the execution budget without consuming it.",
   );
-  assert.deepEqual((success.parse().data.output as { result: unknown }).result, {
+  assert.deepEqual(success.parse().output.result as unknown, {
     data: { value: 42 },
     cidPaths: [],
   });

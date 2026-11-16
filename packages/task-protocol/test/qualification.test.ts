@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  assertFactsVersion,
   emptyFacts,
   isPending,
   isTimedOut,
@@ -12,6 +13,26 @@ import {
 } from "../src/index.js";
 import { epoch, fixture, time } from "./fact-fixtures.js";
 import { sharingCases, sharingFacts } from "./sharing-fixtures.js";
+
+test("stored Runs reject the obsolete output wrapper in records and outcomes", () => {
+  const f = fixture();
+  const run = f.run(1, 0);
+  const legacyRecord = structuredClone(f.facts);
+  Object.assign(legacyRecord.runs[run.runId]!, {
+    output: { result: { data: null, cidPaths: [] } },
+  });
+  assert.throws(() => assertFactsVersion(legacyRecord), { code: "unsupported_version" });
+  const legacyOutcome = structuredClone(f.facts);
+  const outcome = {
+    kind: "completed" as const,
+    result: { data: null, cidPaths: [] },
+    occurredAt: time(1),
+  };
+  legacyOutcome.runs[run.runId]!.outcome = Object.assign(outcome, {
+    output: { result: outcome.result },
+  });
+  assert.throws(() => assertFactsVersion(legacyOutcome), { code: "unsupported_version" });
+});
 
 for (const scenario of sharingCases)
   test(`cold source projection uses bound Schema Equals: ${scenario.name}`, () => {
@@ -92,10 +113,10 @@ test("M03: pure rollback preserves matching; an actual early exit invalidates te
     scope: "scope",
     runId: run.runId,
     occurredAt: time(5),
-    data: { outcome: { kind: "completed", output: { result: { ok: true } }, occurredAt: time(5) } },
+    data: { outcome: { kind: "completed", result: { ok: true }, occurredAt: time(5) } },
   });
   assert.equal(project(f.facts, a.taskId, epoch + 5).stage, "running");
-  assert.equal(project(f.facts, a.taskId, epoch + 5).output?.result, undefined);
+  assert.equal(project(f.facts, a.taskId, epoch + 5).result, undefined);
   assert.equal(projectRun(f.facts, run.runId, epoch + 5).outcome?.kind, "completed");
   f.append({
     type: "run.exited",
@@ -107,7 +128,7 @@ test("M03: pure rollback preserves matching; an actual early exit invalidates te
   const invalidated = project(f.facts, a.taskId, epoch + 5);
   assert.equal(invalidated.stage, "initial");
   assert.equal(invalidated.run, undefined);
-  assert.equal(invalidated.output?.result, undefined);
+  assert.equal(invalidated.result, undefined);
   assert.equal(invalidated.updatedAt, time(5));
   assert.equal(invalidated.revision, "domain:6");
   assert.equal(projectRun(f.facts, run.runId, epoch + 5).stage, "completed");
@@ -123,7 +144,7 @@ test("M03: pure rollback preserves matching; an actual early exit invalidates te
   const canceled = project(f.facts, a.taskId, epoch + 1001);
   assert.equal(canceled.canceled, true);
   assert.equal(canceled.stage, "initial");
-  assert.equal(canceled.output?.result, undefined);
+  assert.equal(canceled.result, undefined);
   assert.deepEqual(
     project(reduce(emptyFacts("domain"), f.events), a.taskId, epoch + 1001),
     canceled,

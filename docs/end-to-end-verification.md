@@ -1,9 +1,11 @@
 # 端到端验证：安装 → Init → Build → Server → 持久任务
 
-0.2.0 RC 的输出封装已改为
-`data.output: {cid, result}`；本文保留的 0.1.0 验证示例使用旧的 `data.result` /
-`data.outputCid`。验证 `0.2.0-rc.0` 时，请改为检查 `data.output.result` /
-`data.output.cid`，并使用新的 Engine 数据目录。发布后实测记录见
+当前 0.2.0 RC 的 CLI 外层使用 `{ok, output?, error?}`，直接返回
+`output.result: {data, cidPaths}`，不再使用 Task 的旧 `output` 包装或独立
+`outputCid`。通用 HTTP
+API 信封不变。本文保留的 0.1.0 验证示例不代表当前结果契约；验证新版时请检查
+`output.result.data` 与
+`output.result.cidPaths`，并使用新的 Engine 数据目录。发布后实测记录见
 [0.2.0 RC 发布记录](../README.md#release-candidate-channels)。
 
 本文是 **0.1.0 / latest**

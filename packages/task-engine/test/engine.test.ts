@@ -38,7 +38,7 @@ test("initial is fact-based; identity prepare, two generic types and independent
     const finished = h.engine.getTask(task.taskId, caller);
     assert.ok(isCompleted(finished));
     assert.equal(isTimedOut(finished), true);
-    assert.deepEqual(finished.output?.result, { data: { text: "hello" }, cidPaths: [] });
+    assert.deepEqual(finished.result, { data: { text: "hello" }, cidPaths: [] });
     for (const key of ["type", "request", "state", "progress", "matchPolicy"])
       assert.equal(key in finished, false);
     assert.equal(typeof finished.revision, "string");
@@ -53,7 +53,7 @@ test("initial is fact-based; identity prepare, two generic types and independent
     assert.equal(h.work.at(-1)?.input.text, "5");
     await h.finish(1, { sum: 5 });
     h.engine.tick();
-    assert.deepEqual(h.engine.getTask(sum.taskId, caller).output?.result, {
+    assert.deepEqual(h.engine.getTask(sum.taskId, caller).result, {
       data: { sum: 5 },
       cidPaths: [],
     });
@@ -124,7 +124,7 @@ test("sharing uses input, scope and eligibility; cancellation does not freeze sh
     const after = h.engine.getTask(a.taskId, caller);
     assert.ok(isCanceled(after));
     assert.equal(after.stage, "completed");
-    assert.deepEqual(after.output?.result, { data: { text: "hello" }, cidPaths: [] });
+    assert.deepEqual(after.result, { data: { text: "hello" }, cidPaths: [] });
     assert.ok(after.run?.completedAt);
     assert.ok(isCompleted(h.engine.getTask(b.taskId, caller)));
     assert.equal(h.engine.cancelTask(a.taskId, caller).canceledAt, frozen.canceledAt);

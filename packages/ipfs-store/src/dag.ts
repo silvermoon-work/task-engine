@@ -62,11 +62,18 @@ export async function acquireBlock(
   cid: CID,
   options: { signal?: AbortSignal; blockBytes?: number; timeoutMs?: number } = {},
 ): Promise<Uint8Array> {
-  const signal = AbortSignal.any([
-    AbortSignal.timeout(options.timeoutMs ?? 30_000),
-    ...(options.signal ? [options.signal] : []),
-  ]);
+  const timeoutMs = options.timeoutMs ?? 30_000;
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 0 || timeoutMs > 4_294_967_295)
+    throw new RangeError("Invalid acquisition timeout.");
+  const timeout = new AbortController();
+  const signal = AbortSignal.any([timeout.signal, ...(options.signal ? [options.signal] : [])]);
   signal.throwIfAborted();
+  // Unlike AbortSignal.timeout(), this deadline must keep an otherwise idle
+  // process alive while an injected source has no active I/O handles.
+  const timer = setTimeout(
+    () => timeout.abort(new DOMException("Content acquisition timed out.", "TimeoutError")),
+    timeoutMs,
+  );
   let abort = () => {};
   try {
     const bytes = await Promise.race([
@@ -89,6 +96,7 @@ export async function acquireBlock(
     signal.throwIfAborted();
     return snapshot;
   } finally {
+    clearTimeout(timer);
     signal.removeEventListener("abort", abort);
   }
 }

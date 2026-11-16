@@ -7,7 +7,31 @@ Task Engine 的独立 monorepo，使用 pnpm workspaces 和 Turborepo。已从
 scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节契约及持久数据格式不因包改名而改变。已发布首轮 canary；根包
 `task-engine` 保持 private。Silvermoon 项目元数据已初始化。
 
-## 安装试用
+## 当前源码验证与迁移
+
+当前作者接口使用 typed `ContentRef`、`parameters` 和 `{data,cidPaths}`
+载荷；`context.bundle` 是 CID 字符串，内容 I/O 使用
+`resolveContent/readContent/putContent`，不再使用 SpaceRef、 `context.space` 或
+`context.output`。当前 init 默认 SDK 为
+`0.2.0-rc.3`。旧 Bundle 内嵌旧 SDK，不随 CLI 升级：必须用配套 SDK/Builder 重新构建 CAR/CID，并重建引用它的父 Bundle；不兼容旧事实须使用新的 Engine 数据目录。
+
+早期 0.2.0 RC 的 `data.output: {cid,result}` 是历史接口。当前 CLI 外层为
+`{ok,output?,error?}`，业务结果为
+`output.result:{data,cidPaths}`；核心 Task/Run 直接使用
+`result`，通用 HTTP 信封不变。命令响应 `output`
+不是文件空间，也不自动生成目录根 CID；输出文件由任务 `putContent()` 后通过 typed
+ContentRef 返回，不能冒充旧输出目录。CLI `run` 使用
+`--parameters <JSON文件|->`；已提交 CLI rc.13 的
+`content read <cid> [--path resources/file.txt] [--output .\file.txt]`
+可读取目录或文件，保存原始字节且拒绝覆盖。
+
+`--data-dir` 隔离 Engine 运行域，`--content-data-dir`
+另选内容存储；默认共享内容目录不等于 Engine 私有数据。重启须保持两者一致；本地 smoke 应另设
+`TASK_CONTENT_CONFIG`
+和用户配置目录，不使用共享 Kubo 或删除默认缓存。完整当前命令、独立源码 tarball 验证及已知差异见
+[端到端指引](docs/end-to-end-verification.md)。本地 tarball/typecheck/build/run 成功不代表修改后源码已发布；下方历史发布记录保持原样。
+
+## 安装试用（0.1.0 历史基线）
 
 使用 Node.js 22.15 或更新版本（23.x 至少 23.5，建议 Node.js
 24），安装两个已编译的 CLI。以下是 **0.1.0 / latest**
@@ -109,7 +133,7 @@ CLI 通过标准 CAR/UnixFS 库实现离线只读块源，生产安装不依赖 
 | [@silvermoon-work/task-engine-cli](./packages/task-engine-cli/README.md)         | 显式后台 Server、持久任务查询与离线清理       |
 
 Web UI、pguide CLI 和 Check/Probe 包不在本次提取范围。Task
-SDK 已迁入，保留原 Worker 运行时与 API，仅依赖本仓库 task-protocol；init 模板与作者入口使用
+SDK 已迁入，当前通过本仓库 task-protocol、ipfs-access 和 ipfs-payload 提供 Worker 与 typed 内容契约；init 模板与作者入口使用
 `@silvermoon-work/task-sdk`。当前已发布基线见「安装试用」，下方发布记录只代表各自精确的历史版本与验证边界。新增 task-builder 不依赖 pguide 命令协议：模块通过抽象文件树解析，资源按需流式读取；提供独立
 `init` / `car` export 提供模板文件树及有界流式 CAR 编码/检查。核心不含 CLI
 binary 或宿主文件系统适配；独立 task-builder-cli 库提供 `task-builder`
@@ -118,8 +142,7 @@ binary 或宿主文件系统适配；独立 task-builder-cli 库提供 `task-bui
 `ipfs-content` 不作为依赖，离线测试复用引擎的 `testing`
 支持。包内完整设计文档链接固定到来源提交，后续文档迁移不在本次范围。
 
-新增 IPFS 引用基础包目前仅在工作区本地验证，`0.0.0`
-是未发布占位版本。P1 不切换现有 Task/Space 协议、不归档活动状态、不发布 RC。Store 可验证及保留 DAG-CBOR/DAG-PB/raw 混合强闭包；资源读取仍只有文件/目录。载荷编码或 pin 不等于业务提交，SQLite 仍是权威状态源。
+IPFS 引用基础包已与当前 Task 的 typed 参数/结果契约集成；各包精确版本以 manifest 和独立发布记录为准，不把早期 P1 占位状态当作当前发布结论。Store 可验证及保留 DAG-CBOR/DAG-PB/raw 混合强闭包；资源读取仍只有文件/目录。载荷编码或 pin 不等于业务提交，SQLite 仍是权威状态源。
 
 ## Git lineage
 

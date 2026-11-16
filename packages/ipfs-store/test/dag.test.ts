@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import test from "node:test";
 import { importer } from "ipfs-unixfs-importer";
 import { fixedSize } from "ipfs-unixfs-importer/chunker";
@@ -48,18 +49,86 @@ test("nondefault UnixFS file chunks and directory metadata survive a fresh-store
   await assert.rejects(limited.prepare(imported), /capacity/);
 });
 
-test("injected uncooperative content ports cannot defeat cancellation or acquisition timeouts", async () => {
+test("acquisition timeout keeps an idle event loop alive and aborts an uncooperative source", () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "--eval",
+      `
+        import assert from "node:assert/strict";
+        import { CID } from "multiformats/cid";
+        import { acquireBlock } from ${JSON.stringify(new URL("../dist/dag.js", import.meta.url).href)};
+        const cid = CID.parse("bafkreigh2akiscaildcjlywwfme6ngynt5kwhr6bpcf3r7nnbyurphdisi");
+        let sourceSignal;
+        const source = { block: { get: async (_, { signal }) => {
+          sourceSignal = signal;
+          return new Promise(() => {});
+        } } };
+        await assert.rejects(acquireBlock(source, cid, { timeoutMs: 10 }), { name: "TimeoutError" });
+        assert.equal(sourceSignal.aborted, true);
+        assert.equal(sourceSignal.reason.name, "TimeoutError");
+        console.log("deadline observed");
+      `,
+    ],
+    { encoding: "utf8", timeout: 10_000, cwd: new URL("..", import.meta.url) },
+  );
+  assert.ifError(result.error);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /deadline observed/);
+});
+
+test("injected uncooperative content ports cannot defeat cancellation", async () => {
   const cid = CID.parse("bafkreigh2akiscaildcjlywwfme6ngynt5kwhr6bpcf3r7nnbyurphdisi");
-  const source = { block: { get: async () => new Promise<Uint8Array>(() => {}) } };
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(new Error("stop acquisition")), 100);
-  try {
-    await assert.rejects(acquireBlock(source, cid, { timeoutMs: 10 }), /timeout|aborted/i);
-    await assert.rejects(
-      acquireBlock(source, cid, { signal: controller.signal }),
-      /stop acquisition/,
-    );
-  } finally {
-    clearTimeout(timer);
+  const reason = new Error("stop acquisition");
+  let sourceSignal: AbortSignal | undefined;
+  const source = {
+    block: {
+      get: async (_cid: string, { signal }: { signal?: AbortSignal } = {}) => {
+        sourceSignal = signal;
+        controller.abort(reason);
+        return new Promise<Uint8Array>(() => {});
+      },
+    },
+  };
+  await assert.rejects(
+    acquireBlock(source, cid, { signal: controller.signal }),
+    (error) => error === reason,
+  );
+  assert.equal(sourceSignal?.aborted, true);
+  assert.equal(sourceSignal?.reason, reason);
+  await assert.rejects(
+    acquireBlock({ block: { get: async () => assert.fail("source called after abort") } }, cid, {
+      signal: controller.signal,
+    }),
+    (error) => error === reason,
+  );
+});
+
+test("acquisition clears its deadline after success or source failure", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const original = new ContentBlocks();
+  let cid: CID | undefined;
+  for await (const entry of importer([{ content: Buffer.from("verified") }], original))
+    cid = entry.cid;
+  assert.ok(cid);
+  for (const fail of [false, true]) {
+    const reason = new Error("source failed");
+    let sourceSignal: AbortSignal | undefined;
+    const source = {
+      block: {
+        get: async (value: string, { signal }: { signal?: AbortSignal } = {}) => {
+          sourceSignal = signal;
+          if (fail) throw reason;
+          return original.block.get(value);
+        },
+      },
+    };
+    const acquired = acquireBlock(source, cid, { timeoutMs: 10 });
+    if (fail) await assert.rejects(acquired, (error) => error === reason);
+    else assert.deepEqual(await acquired, await original.block.get(cid.toString()));
+    t.mock.timers.tick(10);
+    assert.equal(sourceSignal?.aborted, false, "settled acquisition retained its deadline");
   }
 });

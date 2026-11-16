@@ -1,32 +1,32 @@
 # 端到端验证：安装 → Init → Build → Server → 持久任务
 
-当前 0.2.0 RC 的 CLI 外层使用 `{ok, output?, error?}`，直接返回
-`output.result: {data, cidPaths}`，不再使用 Task 的旧 `output` 包装或独立
-`outputCid`。通用 HTTP
-API 信封不变。本文保留的 0.1.0 验证示例不代表当前结果契约；验证新版时请检查
-`output.result.data` 与
-`output.result.cidPaths`，并使用新的 Engine 数据目录。发布后实测记录见
-[0.2.0 RC 发布记录](../README.md#release-candidate-channels)。
-
-本文是 **0.1.0 / latest**
-的可重复操作指南，不是已执行的验收记录。对应版本已发布，实际安装验收边界见
-[发布记录](../README.md#stable-010-2026-11-11)；源码版本号与历史 canary 测试不能代替最终 registry 制品的安装验收。
+本文描述**当前源码的 typed ContentRef /
+parameters 接口**，不是未发布 0.2.0 正式版的安装验收记录。历史 0.1.0 的
+`data.result` / `data.outputCid` 和较早 0.2.0 RC 的 `data.output: {cid, result}`
+封装见
+[发布记录](../README.md#release-candidate-channels)，不能混用旧 Space 示例。当前 CLI 外层是
+`{ok, output?, error?}`，业务结果位于 `output.result: {data,cidPaths}`；其中
+`data` 是载荷字段，不是旧 CLI 外层。核心 Task/Run 和通用 HTTP API 直接使用
+`result`，HTTP 外层信封不变。 `output`
+只是 CLI 命令响应，不是文件空间，没有自动生成的输出目录根 CID；业务输出文件由
+`putContent()`
+返回 CID，通过结果中的 ContentRef 保留。重建旧 Bundle，并为不兼容的旧事实选择新 Engine 数据目录。
 
 下面以 PowerShell 为主；macOS/Linux 使用相同命令，把本地路径的 `.\`/`\` 换为
 `./`/`/`。每步检查退出码，失败即停止，不继续执行旧输出。示例固定用一个尚不存在的
 `task-engine-e2e` 目录，默认派生包名也为 `task-engine-e2e`。如果换目录名或
 `--package-name`，同时替换后续产物路径。
 
-## 0. 安装已发布 CLI
+## 0. 选择制品来源
 
-使用 Node.js 22.13+（建议 Node.js
+使用 Node.js 22.15+（23.x 至少 23.5，建议 Node.js
 24），无需克隆仓库或编译 CLI。使用环境已获准的 registry，不修改 registry、TLS 或用户配置来绕过失败。安装前保留实际 registry 和版本信息：
 
 ```powershell
 node --version
 npm --version
 npm config get registry
-npm install -g @silvermoon-work/task-builder-cli@0.1.0 @silvermoon-work/task-engine-cli@0.1.0
+npm install -g @silvermoon-work/task-builder-cli@0.2.0-rc.5 @silvermoon-work/task-engine-cli@0.2.0-rc.14
 task-builder --version
 task-engine --version
 task-builder --help
@@ -35,7 +35,8 @@ task-engine --help
 
 全局 npm bin 目录须在 PATH 中。scope registry
 override 和 lockfile 下载 URL 也须符合环境策略。版本不可用时报阻塞，不用 workspace、tarball 或旧版本偷偷替代。保留实际解析版本，不能仅凭
-`latest` 标签推定版本正确。
+`latest`
+标签推定版本正确。上述 registry 版本不包含本地未发布修正；要验证修改后的源码，改用文末的独立 tarball 流程，不使用全局旧 CLI。
 
 ## 1. Init → 安装项目依赖
 
@@ -48,7 +49,9 @@ npm install
 ```
 
 init 不覆盖已有目录。模板是 private 项目，依赖兼容的已发布 Builder/CLI 和本仓库 SDK；不要执行
-`npm publish`。无需另行安装旧 scope 的 SDK 或 CAR 工具。保留生成文件、package.json、安装 lockfile 和解析版本。
+`npm publish`。无需另行安装旧 scope 的 SDK 或 CAR 工具。保留生成文件、package.json、安装 lockfile 和解析版本。当前源码模板默认选择 SDK
+`0.2.0-rc.3`；已发布 Builder 同版本号的旧模板可能仍选择
+`rc.0`，故必须检查实际生成的 manifest，不能用 CLI 版本号推定模板已修正。
 
 Builder 通过 esbuild 转译；平台二进制由 optional dependency 提供。esbuild
 postinstall 可以禁用，但不要使用
@@ -78,7 +81,7 @@ dist/
 `data.cid`、 `data.module.declaration` 和
 `data.car.path`。实际输出路径以 JSON 为准。重复 build 只替换本次同名产物，不递归清空任意目录。
 
-**build 只转译，不做 TypeScript 类型检查。** 0.1.0 模板提供独立的
+**build 只转译，不做 TypeScript 类型检查。** 当前模板提供独立的
 `npm run typecheck`（`tsc --project tsconfig.json`，不发射文件），最终脚本为
 `build/car/clean/typecheck`。必须在安装后先运行 `npm run typecheck`，再运行
 `npm run build`，并确认两步都成功；不能把 build 成功当作类型正确。没有 Builder
@@ -113,31 +116,38 @@ dist/
 `--engine http://127.0.0.1:<port>`，不要停止不属于本次验证的实例。
 
 ```powershell
-task-engine server start --data-dir .\engine-data
+task-engine server start --data-dir .\engine-data --content-data-dir .\content-data
 task-engine server status --data-dir .\engine-data
 ```
 
 start 在后台 Server 就绪后返回，status 应报告 ready。Server 不会自动启动、不切换空闲端口、不复用其他实例。
 `server start/status/stop` 与 `data prune` 按 data-dir 定位本地实例；run/task 按
 `--engine` 或 `client.engine` 访问（默认
-`http://127.0.0.1:8787`），它们不根据调用目录或 data-dir 自动推导端口。
+`http://127.0.0.1:8787`），它们不根据调用目录或 data-dir 自动推导端口。每次重启均须传相同的
+`--content-data-dir`。`--data-dir`
+只隔离运行数据库、实例身份和私有缓存，不隔离公共内容配置或共享内容目录。完全隔离验证还应把
+`TASK_CONTENT_CONFIG` 指向本次自己的
+`{"backend":"local","dataDir":"<本次绝对目录>"}` 配置文件；Windows 将
+`LOCALAPPDATA` 指向本次私有目录，以免读取用户的 Engine 配置。不能删除用户的默认
+`~/.silvermoon.work/content` 或连接共享 Kubo。
 
 本地 CAR 不需要 Gateway、Kubo 或 Docker，但**必须有 Server**。这不是旧 CLI 的单次嵌入、自动退出即丢弃历史模式。只运行可信任务；本指南不证明生产认证、多租户隔离或 OS 沙箱。
 
 ## 4. Run → 查询、日志和等待
 
-`--input` 必填；只有 `--input -`
+`--parameters` 必填；只有 `--parameters -`
 才从 stdin 读取完整 JSON 对象直到 EOF。PowerShell 和 macOS/Linux
 shell 都可使用此管道（调整路径分隔符）：
 
 ```powershell
-echo '{"text":"world"}' | task-engine run --car .\dist\task-engine-e2e.car --input -
+echo '{"text":"world"}' | task-engine run --car .\dist\task-engine-e2e.car --parameters -
 ```
 
-正常退出码为 0，单个 stdout JSON 的 `data.status` 应为 `succeeded`，
-`data.result` 应包含 `{text:"Hello world",bytes:6,chunks:1}`，`data.outputCid`
-应为输出 Space 的 CID（独立于业务 result）。记录返回的
-`data.taskId`。业务结果和错误均是单个 stdout
+正常退出码为 0，单个 stdout JSON 的 `output.status` 应为 `succeeded`，
+`output.result.data` 应包含 `{text:"Hello world",bytes:6,chunks:1}`，
+`output.result.cidPaths` 为 `[]`。普通 JSON 对象在请求边界包装为
+`{data: <对象>, cidPaths: []}`；引用输入必须显式提供完整 envelope，不要把 CID 文本当作自动识别的引用。记录返回的
+`output.taskId`。业务结果和错误均是单个 stdout
 JSON，stderr 仅日志；help/version 是文本。失败退出 1，已确认用户中断退出 130。同步 run 等待本次任务及子任务资源释放；不要求已移除的公开
 `reclaimedAt` 字段。
 
@@ -162,7 +172,7 @@ task-engine task query --since 2026-11-01T00:00:00Z --until 2026-12-01T00:00:00Z
 异步流程可另提交一次：
 
 ```powershell
-echo '{"text":"async"}' | task-engine run --car .\dist\task-engine-e2e.car --input - --async
+echo '{"text":"async"}' | task-engine run --car .\dist\task-engine-e2e.car --parameters - --async
 ```
 
 保存这次新的 taskId，用 task query/logs/await 查询它。`--async`
@@ -175,23 +185,26 @@ echo '{"text":"async"}' | task-engine run --car .\dist\task-engine-e2e.car --inp
 `<bundle-cid>`：
 
 ```powershell
-echo '{"text":"cached"}' | task-engine run --cid <bundle-cid> --input -
+echo '{"text":"cached"}' | task-engine run --cid <bundle-cid> --parameters -
 ```
 
-Space 协议要求用配套 SDK 重新构建 Bundle；旧 SDK 构建的公开 Echo
+ContentRef /
+parameters 协议要求用配套 SDK/Builder 重新构建 Bundle；旧 SDK 构建的公开 Echo
 CID 不能直接作为新版成功验收样例。在线验收须上传新构建的 CAR，并使用其新 CID。
 
 需要获取缓存未命中的块时，必须在 **Server 启动时**配置受控 Gateway，例如：
 
 ```powershell
 task-engine server stop --data-dir .\engine-data
-task-engine server start --data-dir .\engine-data --ipfs-gateway http://127.0.0.1:8080
+task-engine server start --data-dir .\engine-data --content-data-dir .\content-data --ipfs-gateway http://127.0.0.1:8080
 ```
 
 仅在你已启动并确认该 Gateway 能读取目标 Bundle 时使用这个地址；CLI 不启动 Kubo、不上传或 pin、不默认探测 8080 或公共 Gateway。也可以预先设置
 `server.ipfsGateway`，但这会修改用户配置，验证时优先用启动参数。不再读取
 `TASK_ENGINE_GATEWAY`、`IPFS_PATH` 或 Kubo 配置，不接受 run 的旧
-`--gateway/--expected-cid/--max-runtime-ms`；子调用仅使用 SpaceRef，不再需要启动授权。
+`--gateway/--expected-cid/--max-runtime-ms`。子调用使用
+`{key,bundle:<CID字符串>,path?,parameters,timeoutMs}`，不再使用 SpaceRef 或
+`input`。
 
 ## 5. 停止 → 重启 → 验证历史
 
@@ -200,7 +213,7 @@ task-engine server start --data-dir .\engine-data --ipfs-gateway http://127.0.0.
 ```powershell
 task-engine server stop --data-dir .\engine-data
 task-engine server status --data-dir .\engine-data
-task-engine server start --data-dir .\engine-data
+task-engine server start --data-dir .\engine-data --content-data-dir .\content-data
 task-engine task query --id <task-id>
 task-engine task logs <task-id>
 task-engine task await <task-id>
@@ -209,9 +222,39 @@ task-engine task await <task-id>
 比较重启前后的 taskId、状态、结果和日志，已完成任务不应重跑。如需取消仍运行的本次验证任务，显式使用
 `server stop --data-dir .\engine-data --cancel-running`，确认资源释放后再继续。非正常退出后前次未完整结束的记录会保留原 ID 并标记失败及重启原因，不自动重跑；普通停止/重启只验证已完成历史，不足以证明故障恢复。故障恢复、磁盘故障和身份未知需独立隔离的测试及证据，勿强杀共享环境进程。
 
-Space 版本的安装验收还须用配套 SDK 构建一个写入输出文件的任务，保存
-`outputCid`，重启后由第二个任务通过 `context.space(outputCid)`
-读取并逐字节比较。仅比较历史中的 CID 字符串不足以证明内容仍可读取。离线执行仅清缓存的 prune 后，保留任务引用的输出仍须可读。这些块保存在本地实例，不会自动上传到公共 Gateway。
+内容持久化验收还须构建一个调用 `context.putContent(stream)` 的任务，用
+`ContentRef.fromCID(cid)` 返回该文件，结果 schema 使用 `ContentRefSchema()`（从
+`@silvermoon-work/task-protocol` 导入）。SDK 回调收到的是 typed ContentRef；对其
+`.cid` 调用 `context.readContent()`，对 Bundle 路径使用
+`context.resolveContent(context.bundle, "resources/greeting.txt")`。旧的
+`context.space`、`context.output` 和 `bundle.root` 已移除。
+
+例如有 `document: ContentRefSchema()` 的参数，CLI 输入为：
+
+```json
+{ "data": { "document": "<file-cid>" }, "cidPaths": ["$[\"document\"]"] }
+```
+
+输出引用位于 `output.result.data.document`， `output.result.cidPaths`
+标记对应路径。重启后既查询任务，又实际读取文件；仅比较 CID 字符串不足以证明内容仍可读取。内容由所选内容后端保存，不会自动公开。
+
+### 按 CID 读取目录、文件与输出（CLI rc.13）
+
+```powershell
+task-engine content read <bundle-cid>
+task-engine content read <bundle-cid> --path resources/greeting.txt
+task-engine content read <bundle-cid> --path resources/greeting.txt --output .\greeting-copy.txt
+task-engine content read <result-file-cid>
+```
+
+目录返回
+`{cid,kind:"directory",entries:[{name,kind,cid}]}`，只列一层。文件默认返回
+`{cid,kind:"file",text,bytes}`，仅支持有效 UTF-8； `--output`
+保存原始字节并返回路径及字节数，不覆盖已有文件，父目录必须存在。目录不支持
+`--output`。`--path` 使用 `/` 分隔的相对路径，不接受 `.`、`..`、前后 `/`
+或反斜杠。远程实例须加同一
+`--engine`。此命令不自动启动 Server，也不需要启用 raw/CAR 公共 Gateway；与任务查询共享可信网络边界，不受 Gateway
+token 保护。
 
 ### 后台故障诊断（当前源码新增）
 
@@ -262,8 +305,45 @@ task-engine data prune --data-dir .\engine-data --task <task-id> --cache
 未发布增强只能用明确标注的源码或本地 tarball 验证，不算 registry 安装验收。从仓库构建所需 workspace 后可运行各自
 `dist/bin.js`；打包仅用禁用 lifecycle
 hooks 的 pack，不发布、不推 tag、不改全局 CLI。新建项目如需本地依赖，由作者显式编辑 package.json 的
-`file:`
-依赖及必要的 overrides，不能请求不存在的正式版本，或隐瞒本地替代。本地包路径必须使用已存在的独立输出目录，Windows 不跨卷移动或递归清理含 pnpm 链接的目录。开发流程的安装 lockfile 不能当作已发布包来源证明。
+`file:` 依赖；pnpm 11 的传递依赖 overrides 写在
+**pnpm-workspace.yaml**，不能仅写旧的
+`package.json.pnpm.overrides`。覆盖整个内部运行依赖闭包，否则直接 CLI 虽为 tarball，Builder/SDK/Engine 仍可能来自 registry。不能请求不存在的正式版本，或隐瞒本地替代。本地包路径必须使用已存在的独立输出目录，Windows 不跨卷移动或递归清理含 pnpm 链接的目录。开发 lockfile 不能当作已发布包来源证明。
+
+在隔离 checkout 使用 Node 24.11.1 / pnpm 11.22 的可重复步骤：
+
+```powershell
+$node24 = Join-Path $env:NVM_HOME 'v24.11.1\node.exe'
+$env:PATH = "$(Split-Path $node24);$env:PATH"
+node --version
+pnpm --version
+pnpm --filter '@silvermoon-work/task-builder-cli...' --filter '@silvermoon-work/task-engine-cli...' build
+# $artifacts 须为仓库外新建的本次专用目录；每个包只打包一次。
+pnpm --dir packages\task-builder --config.ignore-scripts=true pack --pack-destination $artifacts
+```
+
+对
+`ipfs-access/ipfs-payload/ipfs-store/task-protocol/task-sdk/task-builder/ task-builder-cli/task-engine/task-engine-cli`
+共九包执行相同 pack。pnpm 11.22 的 pack 不接受
+`--ignore-scripts`，应使用上述配置参数。复用 `scripts/release.js` 的
+`selectRelease`、`validateManifest`、 `validateArtifact` 校验 packed
+manifest；**不运行发布入口或发布动作**。在仓库外建立 tools 项目，以本地 CLI
+tarball 为依赖、九包 tarball 为 overrides， `pnpm install --ignore-scripts`
+后调用其已安装 `dist/bin.js init`。生成 consumer 后先保存默认 manifest（验证 SDK
+rc.3 配对），再把内部依赖固定到同一批 tarball 并添加相同 workspace
+overrides；安装、typecheck、build/CAR、run/query/await、typed 引用的 put/read、content
+read 的目录/文件/保存、重启读取及最终停服分别保留证据。检查 lockfile 的内部包均为本地 tarball，并确认实际模块路径没有返回祖先工作区。整个过程无需 Kubo，不启用共享 Gateway，也不修改全局 Node 或用户配置。
+
+2026-11-16
+Windows 隔离源码制品验证的范围为：默认模板、类型检查、CAR、执行/查询/等待、typed 参数与结果、文件写入/读取、目录/文件读取及保存、防覆盖、重启后查询/读取与专用实例停服。旧 HEAD
+`5b131cd` 的回执曾是 `data.output.result`，不能拿它替代当前 `fabb095` 的
+`output.result` 验证；两者都不是 Space 输出目录根。 `fabb095`
+加本地准备修正的九包 tarball 已在全新仓库外 consumer 重复上述验证并通过：默认 SDK 为 rc.3，CLI 回执无外层
+`data`，run/query/await 的直接 result
+envelope 一致，引用文件保存及重启后逐字节内容一致；两个专用实例均确认 stopped。这验证当前修改后源码制品，不是 registry 的完整 Engine 安装验收。另以配套 SDK/Protocol
+0.1.0 构建负向 CAR，新 Engine 返回 `unsupported_contract` / “rebuild this
+Bundle”；仅安装新 SDK 后重跑旧 CAR 仍失败，实际重新 build/CAR 后同一源码成功。另一个无本地 overrides 的 consumer 使用环境当前 Tencent
+registry 安装依赖并通过 typecheck/build；它只验证生成项目的 registry 依赖配对，不是修改后源码的 registry 发布验收，也未验证 registry
+Engine 的完整运行。
 
 每次实际验证单独保存：OS/Node/npm（或 pnpm）、包名和准确版本、registry、lockfile/integrity、来源（registry 或本地）、命令、退出码、JSON、taskId、重启前后比较和最终停服/清理结果。发布验收还需准确 publish
 run 与制品一致性。一条教程或旧版本成功不能替代新版本测试。

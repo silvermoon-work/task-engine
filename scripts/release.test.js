@@ -4,7 +4,6 @@ import {
   mkdtempSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -16,6 +15,7 @@ import {
   readRegistryPackage,
   readRegistryVersion,
   readWorkspaceNames,
+  readWorkspaceManifests,
   selectRelease,
   validateArtifact,
   validateDependencyOrigins,
@@ -574,13 +574,16 @@ test("pnpm packs once without hooks, converts workspace dependencies and passes 
 });
 
 test("release artifact discovery supports library-only repositories and fails on invalid workspaces", () => {
-  const root = mkdtempSync(join(tmpdir(), "release-workspaces-"));
+  const root = mkdtempSync(resolve(".release-workspaces-"));
   try {
     mkdirSync(join(root, "packages", "core"), { recursive: true });
     writeFileSync(
       join(root, "packages", "core", "package.json"),
       JSON.stringify({ name: "@example/core" }),
     );
+    assert.deepEqual([...readWorkspaceNames(root)], ["@example/core"]);
+    mkdirSync(join(root, "packages", "retired", "dist"), { recursive: true });
+    writeFileSync(join(root, "packages", "artifact.txt"), "not a workspace");
     assert.deepEqual([...readWorkspaceNames(root)], ["@example/core"]);
     mkdirSync(join(root, "apps", "demo"), { recursive: true });
     writeFileSync(
@@ -591,6 +594,21 @@ test("release artifact discovery supports library-only repositories and fails on
       [...readWorkspaceNames(root)],
       ["@example/core", "@example/demo"],
     );
+    mkdirSync(join(root, "apps", "retired"), { recursive: true });
+    assert.deepEqual(
+      readWorkspaceManifests(root).map(({ manifest }) => manifest.name),
+      ["@example/core", "@example/demo"],
+    );
+    for (const invalid of [null, [], {}, { name: "" }, { name: 7 }]) {
+      writeFileSync(
+        join(root, "apps", "demo", "package.json"),
+        JSON.stringify(invalid),
+      );
+      assert.throws(
+        () => readWorkspaceNames(root),
+        /Invalid workspace manifest/,
+      );
+    }
     writeFileSync(join(root, "apps", "demo", "package.json"), "invalid JSON");
     assert.throws(() => readWorkspaceNames(root), SyntaxError);
   } finally {
@@ -724,15 +742,9 @@ test("public CLI packages install precompiled bins without consumer-side compila
 });
 
 test("workspace dependency configuration has no old-scope packages, including the lockfile", () => {
-  const manifests = ["package.json"];
-  for (const directory of ["packages", "apps"]) {
-    if (!readdirSync(".").includes(directory)) continue;
-    for (const entry of readdirSync(directory, { withFileTypes: true }))
-      if (entry.isDirectory())
-        manifests.push(resolve(directory, entry.name, "package.json"));
-  }
-  for (const path of manifests)
-    validateDependencyOrigins(JSON.parse(readFileSync(path, "utf8")));
+  validateDependencyOrigins(JSON.parse(readFileSync("package.json", "utf8")));
+  for (const { manifest } of readWorkspaceManifests())
+    validateDependencyOrigins(manifest);
   for (const path of [
     "package.json",
     "pnpm-workspace.yaml",

@@ -58,8 +58,8 @@ complement without installing Builder or grafting nodes.
 
 The existing v1 schema URI/version is retained with the updated definition;
 it does **not** imply dual-protocol compatibility. Replace old `{cid,path}`
-child calls with `bundle: context.bundle.root.resolve(path)` or
-`context.space(cid).root`, rebuild using matching SDK/Builder tools, then update
+child calls with `{bundle: context.bundle, path, parameters, key, timeoutMs}` or
+an external Bundle CID string, rebuild using matching SDK/Builder tools, then update
 parent dependency CIDs and rebuild parents. Old calls fail explicitly. Bundles
 already satisfying the new contract do not need artificial changes.
 Stored legacy child associations cannot recover the new fixed identity: choose
@@ -105,7 +105,7 @@ const output: ReadonlyFileTree = await buildTaskBundle(input, {
   source: {
     entry: "src/main.ts",
     contract: {
-      input: { type: "object", properties: { text: { type: "string" } } },
+      parameters: { type: "object", properties: { text: { type: "string" } } },
       result: { type: "string" },
       message: false,
     },
@@ -219,7 +219,7 @@ Recognized SDK `binding.js`/`binding.ts` modules are replaced with the resolved
 Bundle declaration without evaluating the Worker or author callback.
 
 `source.contract` accepts an object, a tree-relative JSON file, or a trusted
-TS/JS module default-exporting `{ input, result, message, schemas? }`. Objects
+TS/JS module default-exporting `{ parameters, result, message, schemas? }`. Objects
 can contain plain JSON Schema or supported TypeBox 0.34.52 schemas; transforms
 and unsupported metadata/format semantics are rejected. Code contracts require
 `allowContractExecution: true`. They are compiled using the same tree resolver,
@@ -234,11 +234,11 @@ logging is unaffected.
 Their `__filename`, `__dirname` and `import.meta.url` are logical `task-tree:///`
 locations, not host source paths. Use JSON contracts for non-executing builds.
 
-For example, a JSON contract can share one definition between input and result:
+For example, a JSON contract can share one definition between parameters and result:
 
 ```json
 {
-  "input": {
+  "parameters": {
     "type": "object",
     "properties": {
       "user": { "$ref": "https://example.invalid/schemas/user" }
@@ -283,8 +283,8 @@ private npm package, a TypeBox `src/contract.ts`
 contract with a named shared text Schema, typed SDK entry/helper and a streamed
 greeting resource. It performs no I/O, install or ancestor package modification.
 The generated package explicitly depends on `@sinclair/typebox@0.34.52`.
-The contract exports `Input` and `Result` using `Static<typeof ...>`; the Worker
-imports them with `import type` and calls `runTask<Input, Result>`. Its shared
+The contract exports `Parameters` and `Result` using `Static<typeof ...>`; the Worker
+imports them with `import type` and calls `runTask<Parameters, Result>`. Its shared
 text reference preserves string inference, while runtime Schemas require
 nonempty text, integer bytes >=0 and chunks >=1, forbid extra input/result
 properties, and disable messages. The TS contract is trusted executable code;
@@ -297,10 +297,12 @@ too (`skipLibCheck` is not enabled). After installing, run
 `pnpm exec tsc --project tsconfig.json`; the CLI adds `pnpm typecheck` as a
 convenience script. Build remains independently usable transpilation, not a
 typecheck gate.
-The default dependency and author import use
-`@silvermoon-work/task-sdk@0.1.0-canary-261109-2` in builder version
-`0.1.0-canary-261109-3`. Older builder versions still emit the old SDK template;
-use the version 3 core and version 3 CLI for the migrated template.
+The default dependency pins `@silvermoon-work/task-sdk@0.2.0-rc.3`, matching
+the Worker's `context.resolveContent` and `context.readContent` APIs.
+This is a template compatibility pairing, not the Builder or CLI version and
+not a remote `latest` lookup. When updating the workspace SDK release, update
+this pin together with the template; regression tests require the declared
+version to match the SDK used to typecheck the generated Worker.
 An explicit local `sdkVersion` specifier (such as `file:task-sdk.tgz`) remains
 available for development.
 `sdkVersion`, `minRuntimeVersion`, `taskName` and npm `name` can be supplied.

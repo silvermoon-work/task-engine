@@ -1092,9 +1092,9 @@ if(${uncertain})throw new Error("controlled missing release proof");}});`;
     });
     const exited = new Promise<number | null>((resolve) => child.once("close", resolve));
     try {
-      const deadline = Date.now() + 20_000;
+      const startupDeadline = performance.now() + 20_000;
       while (!stdout.includes('"ready"')) {
-        assert.ok(Date.now() < deadline, stderr);
+        assert.ok(performance.now() < startupDeadline, `Server did not become ready: ${stderr}`);
         await new Promise((resolve) => setTimeout(resolve, 20));
       }
       const accepted = await execute(
@@ -1104,6 +1104,8 @@ if(${uncertain})throw new Error("controlled missing release proof");}});`;
       );
       assert.equal(accepted.code, 0, accepted.stdout);
       const id = String(accepted.parse().output.taskId);
+      // Startup and the separately bounded submission must not consume cleanup's wait budget.
+      const cleanupDeadline = performance.now() + 20_000;
       for (;;) {
         try {
           await readFile(marker);
@@ -1111,7 +1113,10 @@ if(${uncertain})throw new Error("controlled missing release proof");}});`;
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
         }
-        assert.ok(Date.now() < deadline, "Worker did not enter physical cleanup");
+        assert.ok(
+          performance.now() < cleanupDeadline,
+          `Worker did not enter physical cleanup for ${id}: ${stderr}`,
+        );
         await new Promise((resolve) => setTimeout(resolve, 20));
       }
       const query = await execute(["task", "query", "--id", id, "--engine", engine], directory);

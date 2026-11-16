@@ -1,7 +1,7 @@
 # @silvermoon-work/task-engine-cli
 
 Task Engine 的本地后台 Server 与任务调用 CLI，要求 Node.js 22.15+（23.x 至少 23.5）。
-当前源码新增通用 imports / SpaceRef 子调用；以下历史发布记录不表示该候选已经发布。
+当前源码使用通用 imports / typed ContentRef / parameters；以下历史发布记录不表示本地修正已经发布。
 build 交付的完整目录包含 `.task-imports.car`，搬运时不可遗漏。
 离线 CAR 消费保留原始 import DAG，不把非默认分块内容重编码成新身份。
 子调用不需要 authorizeChild；具体资源入口约束和调度预算保持不变。
@@ -18,7 +18,7 @@ build 交付的完整目录包含 `.task-imports.car`，搬运时不可遗漏。
 无需开放公共 Gateway；`--output` 可保存文件原始字节，且不会覆盖已有目标。
 
 ```powershell
-npm install -g @silvermoon-work/task-engine-cli@0.2.0-rc.13
+npm install -g @silvermoon-work/task-engine-cli@0.2.0-rc.14
 task-engine --version
 ```
 
@@ -77,15 +77,15 @@ task-engine config reset task.timeoutMs
 响应信封不变。客户端不会把旧 CLI Server 的 `data` 自动当作新版 `output`。
 输出文件块写入所选 IpfsStore，业务事实与保留根关联存入实例的 SQLite；
 既有 SQLite 输出块仍可由 local 宿主读取适配器获取。重启后内容可通过
-`context.ipfs` 读取，前提是所选后端仍有内容或可从显式来源获取。
+`context.readContent(cid)` 或 `content read <cid>` 读取，前提是所选后端仍有内容或可从显式来源获取。
 离线 `data prune --cache` 标记保留引用，并按后端清除本系统提示及允许清理的 local 缓存。
 这是 breaking change；旧开发数据库不迁移，请使用新的数据目录，并重启新版 Server。
-结果中的 CID 是内容标识，不代表内容已公开；默认 local 不会自动上传到
+结果中显式 ContentRef 的 CID 是内容标识，不代表内容已公开；默认 local 不会自动上传到
 Pinboard、Kubo 或公共 Gateway。显式选择 Kubo 后端才向配置的 daemon 写块并设置具名提示，
 其他实例仍不能仅凭 CID 保证读取到这些块。
 
 失败为 `{"ok":false,"error":{"code":"…","message":"…"}}`。
-有可信任务结果或已完成的部分清理时，同一对象保留 `data`，不伪称回滚。
+有可信任务结果或已完成的部分清理时，同一对象保留 `output`，不伪称回滚。
 `error` 只有 `code/message`；stderr 仅用于实现 logging。
 退出码为 0 成功、1 失败、130 已确认的用户中断。
 业务成功不等于资源释放；不输出 `reclaimed`、`resultState` 或替代释放布尔字段。
@@ -95,6 +95,10 @@ Pinboard、Kubo 或公共 Gateway。显式选择 Kubo 后端才向配置的 daem
 `run` 必须恰选 `--cid` 或调用端本地普通 `--car` 文件，并显式提供
 `--parameters <JSON 文件|->`。只有 `--parameters -` 读取 stdin 至 EOF。
 输入必须是单个完整 JSON 对象，允许 `{}`，不自动补入输入。
+普通对象包装为 `{data:<对象>,cidPaths:[]}`；需要 typed 引用时显式提供完整 envelope，
+例如 `{"data":{"document":"<cid>"},"cidPaths":["$[\"document\"]"]}`，
+并在参数 Schema 对应字段声明 `ContentRefSchema()`。结果也使用同一 envelope，
+SDK 回调中才是具有 `.cid` 的 ContentRef；不会扫描普通字符串来猜测引用。
 业务对象与内部请求信封分离，`requestId` 等业务字段不会覆盖执行身份或预算。
 CAR 在调用端读取并传给 Server，不是远端文件路径，不能用 stdin 传 CAR。
 任务包校验复用本 CLI 的 `openCarSource` 离线块源：
@@ -128,12 +132,12 @@ status 枚举为 `pending/running/succeeded/failed/timed_out/cancelled/rejected`
 `client.engine`，不自动启动引擎。CID 可以来自任务输出或其中的内容引用；
 CID 本身不保证内容仍然存在。
 
-- 目录返回 `data: {cid, kind: "directory", entries: [{name, kind, cid}]}`，
+- 目录返回 `output: {cid, kind: "directory", entries: [{name, kind, cid}]}`，
   不递归展开；可以用条目的 CID 或原 CID 加 `--path` 继续读取。
-- 文件默认返回 `data: {cid, kind: "file", text, bytes}`，只接受有效 UTF-8，
+- 文件默认返回 `output: {cid, kind: "file", text, bytes}`，只接受有效 UTF-8，
   不自动解析 JSON。二进制文件明确失败并提示使用 `--output`。
 - `--output` 流式保存文件原始字节，返回
-  `data: {cid, kind: "file", output, bytes}`；stdout 仍是一个 JSON 对象，
+  `output: {cid, kind: "file", output, bytes}`；内层 `output` 为文件路径，stdout 仍是一个 JSON 对象，
   不混入文件数据。目录不支持 `--output`，不递归下载。
   父目录必须存在，目标文件不得已存在；下载完整且同步落盘后才原子创建目标，
   失败或中断会清理临时文件，不覆盖已有文件。

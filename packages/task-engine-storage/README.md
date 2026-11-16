@@ -4,7 +4,7 @@
 Facts projection 与 SQLite user_version 均为 5。v4、旧版本、未知格式和混合记录在写入前明确拒绝；
 不会迁移、覆盖或删除现有用户数据库，请选择新路径。
 格式预检使用同目录的临时只读副本（含存在的 WAL），不修改原数据库或 sidecar；
-兼容 Node.js 22.13，不依赖 SQLite URI 文件名支持。
+完整执行链要求 Node.js 22.15+（23.x 至少 23.5），不依赖 SQLite URI 文件名支持。
 
 Task 仅持久化受理/取消事实；必要的资格观测载荷只有 observedAt，不写绑定或 Task 权威快照。
 Run 从准备前开始；开始、投递代际、进度、结构化证据、可靠 outcome、停止请求/确认、退出、
@@ -37,10 +37,13 @@ grants. The additive `run.content-access` lifecycle event authoritatively
 projects de-duplicated SIDs onto Run snapshots and the Task snapshot's nested
 Run. Read methods do not create tables or require a lease.
 
-Completed outcomes optionally retain `outputCid` in the existing `run.outcome`
-event and its projection. Existing v5 events remain valid without it, so neither
-the projection nor SQLite format version changes; old v5 stores add the content
-tables on their first owner-authorized content mutation.
+Current completed Bundle outcomes store `result` directly as the typed
+`{data,cidPaths}` payload, including `data: null`. The old Task `output` wrapper
+and `outputCid` are rejected; there is no `TaskOutput` or automatic output-directory
+root. The CLI's outer `output` is only a command envelope. Marked ContentRef
+targets supply explicit content identities. Projection/SQLite version 5 alone does not establish
+compatibility with historical Space or input contracts. Use a fresh data domain
+for rejected legacy facts; do not silently migrate or clear them.
 
 ## Finalized RunHistory management (metadata only)
 

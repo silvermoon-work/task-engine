@@ -273,18 +273,38 @@ function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-export function readWorkspaceNames(root = ".") {
+export function readWorkspaceManifests(root = ".") {
   const directories = ["packages"];
   if (readdirSync(root).includes("apps")) directories.push("apps");
+  return directories.flatMap((directory) =>
+    readdirSync(resolve(root, directory), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .flatMap((entry) => {
+        const path = resolve(root, directory, entry.name, "package.json");
+        let manifest;
+        try {
+          manifest = readJson(path);
+        } catch (error) {
+          if (error.code === "ENOENT") return [];
+          throw error;
+        }
+        if (
+          !manifest ||
+          typeof manifest !== "object" ||
+          Array.isArray(manifest) ||
+          typeof manifest.name !== "string" ||
+          !manifest.name.trim()
+        ) {
+          throw new Error(`Invalid workspace manifest: ${path}`);
+        }
+        return [{ path, manifest }];
+      }),
+  );
+}
+
+export function readWorkspaceNames(root = ".") {
   return new Set(
-    directories.flatMap((directory) =>
-      readdirSync(resolve(root, directory), { withFileTypes: true })
-        .filter((entry) => entry.isDirectory())
-        .map(
-          (entry) =>
-            readJson(resolve(root, directory, entry.name, "package.json")).name,
-        ),
-    ),
+    readWorkspaceManifests(root).map(({ manifest }) => manifest.name),
   );
 }
 

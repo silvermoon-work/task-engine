@@ -105,6 +105,8 @@ test("recursive allowlist rejects credentials, hints, paths and normalized dupli
 });
 
 test("canonical singleflight, isolated waiter cancellation, strict only-if-cached GET/HEAD/CAR, durable warm reopen", async (t) => {
+  // HTTP probes deliberately hold an acquisition open; suite load must not spend its budget.
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   let requests = 0;
   let release!: () => void;
   const gate = new Promise<void>((done) => {
@@ -122,6 +124,7 @@ test("canonical singleflight, isolated waiter cancellation, strict only-if-cache
   await until(() => requests === 1);
   const second = fetch(`${f.url}/ipfs/${cid.toV1()}?format=raw`);
   await until(() => f.gateway.snapshot().recursive?.joined === 1);
+  t.mock.timers.tick(policy.attemptTimeoutMs - 1);
   const restricted = await fetch(`${f.url}${path}`, {
     headers: { [recursiveHopHeader]: randomUUID() },
   });
@@ -143,6 +146,7 @@ test("canonical singleflight, isolated waiter cancellation, strict only-if-cache
   const response = await second;
   assert.equal(response.status, 200);
   assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes);
+  assert.equal(f.gateway.snapshot().recursive?.timeouts, 0);
   await f.gateway.close();
   const reopened = new DiskContent(f.content.directory);
   assert.deepEqual(await reopened.local(cid), bytes);
@@ -152,6 +156,46 @@ test("canonical singleflight, isolated waiter cancellation, strict only-if-cache
   assert.deepEqual(Buffer.from(await (await fetch(`${warmUrl}${path}`)).arrayBuffer()), bytes);
   await reopened.close();
   assert.equal(requests, 1);
+  await t.test(
+    "joining a canonical flight does not restart its shared total deadline",
+    async (s) => {
+      let enter!: () => void;
+      const entered = new Promise<void>((resolve) => {
+        enter = resolve;
+      });
+      const content = await cache(s);
+      s.mock.method(globalThis, "fetch", async (_target: unknown, init?: RequestInit) => {
+        const signal = init?.signal;
+        assert.ok(signal);
+        enter();
+        return new Promise<Response>((_resolve, reject) => {
+          signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+        });
+      });
+      const client = createRecursiveGateway(
+        { ...policy, attemptTimeoutMs: policy.timeoutMs + 1, upstreams: ["http://127.0.0.1:1"] },
+        (cid, options) => content.local(cid, options),
+        (cid, bytes, signal) => content.put(cid, bytes, signal),
+      );
+      s.after(() => client.close());
+      const request = { signal: new AbortController().signal, maxBytes: policy.maxBlockBytes };
+      const first = client.read(cid, request);
+      const firstExpired = assert.rejects(first, { code: "RECURSIVE_TIMEOUT" });
+      await entered;
+      t.mock.timers.tick(policy.timeoutMs - 1);
+      const second = client.read(cid.toV1(), request);
+      const secondExpired = assert.rejects(second, { code: "RECURSIVE_TIMEOUT" });
+      await until(() => client.snapshot().joined === 1);
+      assert.equal(client.snapshot().active, 1);
+      t.mock.timers.tick(1);
+      await Promise.all([firstExpired, secondExpired]);
+      assert.equal(client.snapshot().acquisitions, 1);
+      assert.equal(client.snapshot().attempts, 1);
+      assert.equal(client.snapshot().timeouts, 1);
+      assert.equal(client.snapshot().active, 0);
+      await assert.rejects(content.local(cid), { code: "ENOENT" });
+    },
+  );
 });
 
 test("default, disabled, authentication and corrupt local cache do not acquire", async (t) => {

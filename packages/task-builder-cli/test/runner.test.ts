@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { createCliTaskProject, runTaskBuilderCli } from "../src/index.js";
 import { readBytes } from "@silvermoon-work/task-builder/tree";
 import { parse } from "yaml";
+import { createCliTaskProject, runTaskBuilderCli } from "../src/index.js";
 
 function output(tty = false) {
   let stdout = "";
@@ -132,8 +132,11 @@ test("template locks actual CLI/Builder versions and paired SDK without remote l
     );
     assert.equal(manifest.devDependencies[`@silvermoon-work/${name}`], installed.version);
   }
+  const sdk = JSON.parse(
+    await readFile(new URL("../../task-sdk/package.json", import.meta.url), "utf8"),
+  );
   assert.deepEqual(manifest.dependencies, {
-    "@silvermoon-work/task-sdk": "0.2.0-rc.0",
+    "@silvermoon-work/task-sdk": sdk.version,
     "@sinclair/typebox": "0.34.52",
   });
   assert.equal(manifest.scripts.build, "task-builder build task.build.yaml");

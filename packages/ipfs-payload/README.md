@@ -31,7 +31,8 @@ registered author-side TypeBox validator, and serializable
 `{ type: "string", "x-ipfs-content-ref": true }` semantics. The package's codecs
 validate this keyword and the complete business schema; an unrelated JSON
 Schema validator ignoring the keyword is **not** sufficient. Current Task
-Builder/Engine protocol integration is a later phase, not added by this package.
+Builder/Engine integrates these descriptors through its trusted Task-dialect
+contract; that integration belongs to those packages, not to this pure codec.
 Author fields require `ContentRef.fromCID(CID | string)`, not untyped strings,
 lookalike `{ cid }` objects or bare native CIDs. References retain immutable
 identity only; reading an exposed CID cannot mutate the original identity.

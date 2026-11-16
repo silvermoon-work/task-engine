@@ -3,7 +3,7 @@
 Generation-scoped Node Task Worker runtime (`runTask`, `RunFailure`) and
 callback/context types. It uses
 [@silvermoon-work/task-protocol](../task-protocol/README.md)'s lightweight
-`/worker` entry without Ajv, plus `multiformats/cid` for canonical Space identities.
+`/worker` entry without Ajv, plus typed ContentRef payload codecs.
 
 Migrated under the original MIT license from
 [potential-guide at 6614f46](https://github.com/shazhou-ww/potential-guide/tree/6614f46bf0f4152c61bd2c73d6c4b21ab4cf366f/packages/task-sdk).
@@ -31,11 +31,11 @@ Use the migrated workspace
 to create a private project, then build its module and CAR. Standalone `car`
 accepts `dist/<derived-package-name>/task.yaml`; CAR inspection is a library operation, not a Builder
 `check` command in the redesigned interface.
-Use the matching `0.1.0` Builder and CLI for Space-aware
-templates. Existing projects can select the SDK explicitly:
+Current source templates select SDK `0.2.0-rc.3` and require Node.js 22.15+
+(23.x at least 23.5) for Bundle execution. Existing projects can select the SDK explicitly:
 
 ```text
-pnpm add @silvermoon-work/task-sdk@0.1.0
+pnpm add @silvermoon-work/task-sdk@0.2.0-rc.3
 ```
 
 For the current workspace CLI:
@@ -47,9 +47,9 @@ task-builder init my-task
 ```ts
 import { runTask } from "@silvermoon-work/task-sdk";
 
-runTask<{ text: string }, string>(async (input, context) => {
+runTask<{ text: string }, string>(async (parameters, context) => {
   await context.progress({ stage: "execution", percent: 50, message: "Working" });
-  return input.text;
+  return parameters.text;
 });
 ```
 
@@ -61,9 +61,9 @@ configuration or `workerData`; calling the unbuilt SDK fails.
 
 ## Runtime contract
 
-The imports/SpaceRef changes below describe the current source candidate, not an
-already published SDK. The installation versions above are historical; consume
-the matching approved RC only after its publication is separately verified.
+The ContentRef / parameters contract below describes current source.
+Historical release notes above apply only to their exact artifacts; local packed
+validation is not evidence that modified source has been published.
 
 The Engine validates business input/messages, completion and
 failure evidence, plus JSON shape, byte limits, progress and logs. The SDK
@@ -79,22 +79,21 @@ failure; rejected `RunFailure` evidence is re-reported without that evidence.
 Release follows an acknowledged terminal fact; an unavailable terminal channel
 reports uncertainty. Cancellation keeps its stopping/release path.
 
-`context.invokeTask({ key, bundle: context.bundle.root.resolve("resources/child"), input, timeoutMs })` requests a child
-through the host and returns its acknowledged JSON result. The key is stable
-within the parent Run. For an external target use `bundle: context.space(cid).root`.
-The SDK requires a real SpaceRef created by this Context, not lookalike JSON.
+`context.invokeTask({ key, bundle: context.bundle, path: "resources/child", parameters, timeoutMs })`
+requests a child through the host and returns its acknowledged decoded result.
+The key is stable within the parent Run. For an external target use its Bundle
+root CID string as `bundle`; `path` is optional.
 The host resolves and durably fixes the actual CID, child requestId and deadline
 before dispatch. Replays retain that identity; changed intent conflicts.
 There is no child-start authorization or CID whitelist. Existing resource access
 constraints, independent child Runs, validation, cancellation and budgets remain.
-Writable output references are rejected. Creating a Space does not fetch it;
-external targets are completely prepared at invocation time.
+External targets are completely prepared at invocation time.
 Calls after finishing reject with `run_finished`; cancellation interrupts
 submission. Child invocations share the bounded request channel but do not
 occupy the sequential progress output queue.
 
-The former `{cid, path}` invocation is removed, not an alternate protocol.
-Update calls to SpaceRef, use matching SDK/Builder versions, rebuild bundles and
+The former `{cid, path}` and SpaceRef invocations are removed, not alternate protocols.
+Update calls to Bundle CID / optional path and `parameters`, use matching SDK/Builder versions, rebuild bundles and
 replace dependent CIDs. Existing artifacts are never rewritten. See
 [migration](../task-builder/README.md#immutable-imports-and-migration).
 
@@ -116,43 +115,48 @@ behavior. An already compiled Bundle does not acquire a new SDK automatically;
 producer-reported log loss remains explicit rather than becoming a successful
 complete log query. This source change is not evidence of an SDK release.
 
-### Spaces (breaking contract)
+<a id="spaces-breaking-contract"></a>
 
-`context.bundle` is the immutable executing `ReadonlySpace`; `context.output`
-is the Run's `ReadWriteSpace`. Both expose `sid` and `root`. Immutable Spaces
-also expose `cid`. `context.space(canonicalCid)` synchronously creates another
-immutable Space reference, not a network request. The SDK parses CIDs and
-canonicalizes them to CIDv1 base32, so CIDv0/v1 aliases share the same SID.
-The host validates canonical CID encoding, codecs, hashes, authorization and
-DAGs when used.
-There is no public constructor accepting arbitrary SIDs.
+### Typed content (breaking contract)
 
-Static SIDs are `ipfs:<canonical-cid>`; the output SID is
-`run:<runId>:output`. A `SpaceRef` exposes `space`, `path`,
-`resolve(relativePath)` and `toJSON()` (`{sid,path}`). Root paths are `/`.
-Resolution is synchronous and lexical: repeated separators and `.` normalize,
-`..` cannot escape root, backslashes and NUL are rejected. Absolute `/…`
-references resolve from the same Space root.
+Historical Space-contract links land here; that API has been replaced below.
 
-`await ref.read({signal?})` returns a discriminated `SpaceNode`: either
+`context.bundle` is the executing Bundle's root CID **string**, not a Space.
+`resolveContent(cid, path, {signal?})` resolves a content path to a native CID;
+`readContent(cid, {signal?})` returns either
 `{kind:"file",content:ReadableStream<Uint8Array>}` or
-`{kind:"directory",entries:AsyncIterable<SpaceEntry>}`. Each entry has `name`, `kind` (`file` or
-`directory`), and `ref`; follow that reference rather than rebuilding identity.
+`{kind:"directory",entries:AsyncIterable<{name,kind,cid}>}`.
+`putContent(stream, {signal?})` stores a file and returns its native CID.
+Content I/O belongs to the host, not to ContentRef.
 
 ```ts
-const file = await context.bundle.root.resolve("resources/data.bin").read();
+import { ContentRef } from "@silvermoon-work/task-sdk";
+
+const source = await context.resolveContent(context.bundle, "resources/data.bin");
+const file = await context.readContent(source);
 if (file.kind !== "file") throw new Error("Expected a file");
-await context.output.write("data.bin", file.content);
-await context.output.link("original", context.bundle.root.resolve("resources"));
-const snapshotCid = await context.output.getCid();
+const cid = await context.putContent(file.content);
+const document = ContentRef.fromCID(cid);
 ```
 
-`write(path, content, {signal?})` accepts a byte stream; `link(path, ref,
-{signal?})` links a Space reference. `getCid({signal?})` captures the current
-immutable output snapshot without closing the writer. Completion waits for
-outstanding writes/links and host finalization; failures cannot silently
-become successful completion. The host attaches the final `outputCid` to the
-completed Run outcome, not the callback's business result.
+Declare a reference field with `ContentRefSchema()` from
+`@silvermoon-work/task-protocol` (or `@silvermoon-work/ipfs-payload/typebox`);
+TypeBox `Static<>` infers `ContentRef`. Construct values with
+`ContentRef.fromCID(CID | string)`, not a CID string or lookalike `{cid}`.
+The SDK decodes parameter references and encodes result references according to
+the bound contract. Wire channels carry `{data,cidPaths}`; ordinary CID-shaped
+strings remain business text. CLI `--parameters` accepts an envelope or wraps a
+plain object with empty `cidPaths`; a reference input needs the explicit envelope.
+See [payload codecs](../ipfs-payload/README.md).
+
+Completion settles pending content writes. Core Task/Run results are directly
+`result: {data,cidPaths}`. The CLI command envelope is `{ok,output?,error?}`,
+so the CLI path is `output.result.data`, not `data.output.result.data`.
+Its `output` is not a legacy output directory or an automatic root CID.
+Content I/O confirms backend retention before reporting success.
+Return typed references to stored files in the
+business result. References retain identity, not an availability or publication
+guarantee; the host's configured backend and retention govern readability.
 
 Native transferable streams provide backpressure, bounded transport chunks,
 explicit stream errors and cancellation. A read's optional abort signal spans
@@ -160,10 +164,11 @@ both metadata lookup and the entire returned stream/iterator lifetime; cancel
 a stream or break directory iteration to release it early. Run cancellation
 aborts all operations. Request budgets are bounded.
 
-`context.generation`, `context.checkpoint` and `context.bundle.read` are
-removed. Rebuild existing Bundles: hosts explicitly require `contentProtocol:1`
-in the ready handshake and reject previously compiled SDK wrappers. The schema
-identity itself is unchanged.
+`context.generation`, `context.checkpoint`, `context.space`, `context.output`
+and `context.bundle.root` are absent. Rebuild existing Bundles with matching
+SDK/Builder, replace their CARs/CIDs and rebuild dependent parents.
+Use a fresh Engine data directory for incompatible persisted facts; upgrading
+installed packages does not rewrite a Worker embedded in an old Bundle.
 
 Do not locate resources through `__dirname`, `import.meta.url` or cwd: Workers
 can execute verified CommonJS source in memory. Workers are lifecycle/isolation

@@ -42,8 +42,9 @@ accepted 与 Task 创建原子持久化，rejected 也保留幂等依据。
 宿主仍负责内容读取、校验和授权，hook 只读当前入口，
 不联网、不将 bundle 源码落盘、不使用 eval 或加载时源码改写。
 不加载作者 factory，也不启动历史业务复验 Worker。
-`context.bundle` 是带固定 `cid` 的只读 Space；
-`context.bundle.root.resolve(path).read({signal?})` 返回文件／目录联合类型。
+`context.bundle` 是 Bundle 根 CID 字符串；
+`context.resolveContent(context.bundle, path, {signal?})` 返回原生 CID，
+再由 `context.readContent(cid, {signal?})` 返回文件／目录联合类型。
 文件的 `content` 是背压友好的字节流，目录的 `entries` 是按需消费的异步迭代。
 `signal` 覆盖节点解析和后续内容消费，所有 I/O 同时响应 Run 取消。
 不提供宿主路径或平行的整文件 API。需要完整字节时由调用方聚合。
@@ -149,43 +150,39 @@ Node 22.15.0 与 24.11.1 的 `require.resolve(ipfsURL)` 不走 hook，仍报
 
 ## Result 契约（breaking change）
 
-Task/Run 快照、持久事实、HTTP 与 CLI 直接使用 `result: {data, cidPaths}`，
+Task/Run 快照、持久事实和通用 HTTP API 直接使用 `result: {data, cidPaths}`，
 不再嵌套为 `output.result`。这与 `parameters`、`message`、`result` 的 Schema
 术语一致；业务空值保留为 `result.data: null`，CID 引用由 `cidPaths` 标记。
+CLI 外层另以 `{ok,output?,error?}` 包装命令响应，因此 CLI 路径为
+`output.result.data`，该 `output` 不是 Task 文件空间。
 旧 `output` 记录不迁移，请选择新数据目录并重启 Server。
 RunHistory 使用版本 2 的 DAG；旧版本明确拒绝，不做隐式转换。
 Worker 的内容读取、路径解析与写入在返回前确认持久后端已保留对应 CID；
 保留失败明确传回 Worker，不能先报告成功再依赖异步归档补 pin。
 
-### 历史 Run 文件空间契约（已由 IpfsPayload 替代）
+### Typed 内容引用
 
-`context.space(cid)` 同步创建静态只读视图，不承诺内容已经获取。
-静态 SID 为 `ipfs:<canonical-cid>`，唯一可写 output 的 SID 为
-`run:<run-id>:output`。SID 不是访问凭证；动态 SID 默认仅在所属 Run 有效。
-Ref 在运行时持有 Space 和路径，`resolve()` 只计算路径；`toJSON()` 输出
-`{sid,path}`，不提供任意 SID 的公开恢复接口或跨 Run 引用承诺。
+SDK 的 `ContentRef.fromCID(cid)` 只保留不可变 CID 身份，没有路径、读写方法或 SID。
+Schema 用 `ContentRefSchema()` 声明字段，SDK 将作者参数和结果与 wire
+`{data,cidPaths}` envelope 相互转换，普通字符串不自动变成引用。
+`context.putContent(stream, {signal?})` 写入文件并返回原生 CID；
+回调可将 `ContentRef.fromCID(cid)` 放入声明为引用的结果字段。
+`context.readContent(cid)` 读文件／目录，`resolveContent(cid,path)` 解析路径；
+`context.space`、`context.output` 和 `bundle.root` 已移除。
+子调用使用 `{key,bundle:<CID字符串>,path?,parameters,timeoutMs}`。
 
-`context.output.write(path, stream, {signal?})` 完整导入后原子替换文件；
-`link(path, ref, {signal?})` 在完整获取并校验源子 DAG 后原子替换目标。
-缺失的父目录自动创建；已有文件不能充当父目录。目录替换不合并，
-`link("/", ref)` 要求源为目录并整体替换根，保留导入的空目录。
-同 output 的 link 固定修改前的源内容，而非建立可变对象或符号链接。
-操作有确定顺序，失败或提交前取消不改变目标。
-
-`getCid()` 按需获取当前已提交版本，不承诺该中间版本永久保存或外部可达。
-正常完成时宿主收束写入、固化并保留完整最终 DAG，再记录 outcome 的
-`output: {cid, result}`；Run 和 Task 查询均可取得该对象，业务 result 不被改写。
-Task/Run 列表摘要仅带 `output.cid`，不展开业务结果。
-该输出封装是 breaking change，旧开发数据不迁移；Worker 的业务返回值和 Bundle 无需改动。
-读取及导入的静态 Space 入口另记录为 Run 的 `contentAccess`，不等同于永久 pin。
-失败／取消暂不发布部分产物 CID。第一版不自动回收内容块或 Run 保留根；
+历史 Space 的 `output: {cid,result}` 与后来的 Task `output: {result}` 均已替代；
+当前核心没有 `TaskOutput` 类型或自动生成的输出目录根 CID。
+Run 和 Task 查询保留直接 `result` envelope，CLI 普通列表不展开业务结果。
+内容访问入口另记录为 Run 的 `contentAccess`，不等同于永久 pin。
 只读源适配路径的业务块仍由 `MemoryStore`／SQLite Store 按原生命周期保留；
 注入具备保留能力的 IpfsStore 时，块生命周期由所选后端承担，业务 Store 保存引用。
 无论 local 还是 Kubo，人工删除缓存或块后都不承诺内容绝对可用。
 自定义 Store 必须实现内容块写入和 Run 保留能力，不能默默退回非持久内存。
 
 公开 Context 移除 `generation` 和 `checkpoint`；内部代际隔离不变。
-旧 canary Bundle 需要重新构建，不具备新 Space 协议握手的 Worker 明确拒绝。
+旧 Bundle 需要用配套 SDK/Builder 重新构建，更新 CAR/CID 及父依赖；
+旧开发事实不迁移，须使用新数据域。安装新 SDK 不会改写旧 Bundle 中的 Worker。
 
 ## 单次耗尽与关闭
 
@@ -229,8 +226,8 @@ explicitly rejected without migration. See
 
 ## 受管 CLI 的宿主策略
 
-本轮源码候选为 `0.1.0-canary-261110-1`，使用同日 1 的 Protocol/SDK；
-这里只准备版本化交付物，未因此发布。实际发布前须验证 runtime/peer 以及发布守卫
+当前源码候选与历史 canary 发布记录分开；
+本地验证不等于发布。实际发布前须验证 runtime/peer 以及发布守卫
 涵盖的内部 dev workspace 依赖均已有准确 npm 版本，不自动发布依赖。
 
 受管 CLI 在独立执行域复用同一内核，不改变嵌入调用方的默认策略。
@@ -246,8 +243,8 @@ explicitly rejected without migration. See
 An injected retention-capable `IpfsStore` can use either local storage or optional Kubo.
 Engine preserves its persistent Store identity in the content reference
 coordinator. Retained Tasks and **all** retained Runs (historical Runs and child
-tasks included) contribute their bundle roots and actual output CIDs; JSON
-result values are never interpreted as CID references.
+tasks included) contribute their bundle roots and explicitly marked ContentRef
+targets from typed payloads. Ordinary CID-shaped JSON strings are not references.
 
 Output/import blocks go directly to that injected backend. Kubo does not
 duplicate them in Engine's business block tables or application cache

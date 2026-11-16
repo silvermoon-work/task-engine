@@ -7,6 +7,10 @@ wrapper or separate Space CID. Results preserve the IPFS payload envelope,
 including `data: null` and explicit CID paths. Old `output: {result}` and
 `outputCid` records are rejected rather than migrated; use a new data directory.
 RunHistory DAG version 2 uses the same direct result field.
+The SDK maps schema-declared fields to typed `ContentRef`; ordinary strings are
+not inferred references. `parameters` replaces `input` in requests, bindings,
+contracts and child invocations. Rebuild old Bundles with matching SDK/Builder;
+projection version alone does not establish stored-contract compatibility.
 
 The generic protocol is already migrated and published as
 `0.1.0-canary-261109-2`. Workspace SDK, builder and Engine packages depend on
@@ -72,7 +76,7 @@ Task Bundle/Worker 使用唯一 `taskSchemaUri` v1，包含独立诊断日志协
 0.1.0 固定本次发布的 v1 契约；后续不兼容变更必须明确版本与升级边界，
 不能继续以“尚未发布”为由静默修改已交付契约。
 已移除的 Task v2 和未来未知 URL 明确拒绝，不做别名。
-TaskType 仅声明 type/version/inputSchema/resultSchema/messageSchema 和完整 run 入口；
+TaskType 仅声明 type/version/parametersSchema/resultSchema/messageSchema 和完整 run 入口；
 Host 用 RegisteredType 本地模块描述注册，不传动态函数对象给 Engine。
 
 matchPolicy / MatchPolicy 使用 starts-after-eligible、terminates-after-eligible 两值，after 包含等号。
@@ -108,7 +112,7 @@ messages 必选、Task 归属及确认与生命周期控制分离；checkpoint �
 Facts projection v5；Task 仅存受理/取消事实，匹配与状态按源前缀推导。
 新 submission 的 `bundleProtocol:"ipfs"` 区分当前受理记录与不支持的旧协议；
 即使新请求因非法引用而被拒绝，仍可跨重启读取其原始意图及持久拒绝结果。
-Task/Run Binding 保留原 inputSchema；实时共享与纯事实重放都使用该 Schema 编译的结构 Equals。
+Task/Run Binding 保留 parametersSchema；实时共享与纯事实重放都使用该 Schema 编译的结构 Equals。
 历史分组的 equivalenceKey 与 Equals 共用投影和序列化，由绑定 Schema 与原 Input 重建，不落盘为匹配权威。
 允许但未声明的额外字段也参与比较，不能忽略其存在或取值差异。
 Request 幂等冲突检查仍比较完整原始 Request，不使用结构 Equals。

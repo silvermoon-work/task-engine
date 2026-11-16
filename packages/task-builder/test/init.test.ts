@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import test from "node:test";
 import { execFileSync, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 import { createTaskProject } from "../src/init.js";
@@ -27,15 +27,15 @@ test("init returns a deterministic owned task template without CLI or package-ma
     await readFile(new URL("../../task-sdk/package.json", import.meta.url), "utf8"),
   );
   assert.deepEqual(manifest.dependencies, {
-    "@silvermoon-work/task-sdk": "0.2.0-rc.0",
+    "@silvermoon-work/task-sdk": sdkManifest.version,
     "@sinclair/typebox": "0.34.52",
   });
-  const candidate = createTaskProject({ name: "@example/echo", sdkVersion: sdkManifest.version });
+  const candidate = createTaskProject({ name: "@example/echo", sdkVersion: "^1.2.3" });
   const candidateManifest = JSON.parse(
     Buffer.from(await readBytes(candidate, "package.json", 65_536)).toString(),
   );
   assert.deepEqual(candidateManifest.dependencies, {
-    "@silvermoon-work/task-sdk": sdkManifest.version,
+    "@silvermoon-work/task-sdk": "^1.2.3",
     "@sinclair/typebox": "0.34.52",
   });
   assert.match(
@@ -54,7 +54,7 @@ test("init returns a deterministic owned task template without CLI or package-ma
   assert.deepEqual(await readBytes(tree, "assets/greeting.txt", 6), Buffer.from("Hello\n"));
 });
 
-test("generated TypeBox contract derives usable Parameters/Result types and typechecks the Worker", async () => {
+test("default template typechecks against its declared SDK and derives usable contract types", async () => {
   const root = resolve(".cache", `init-types-${randomUUID()}`);
   const tree = createTaskProject();
   try {
@@ -69,6 +69,19 @@ test("generated TypeBox contract derives usable Parameters/Result types and type
       await mkdir(dirname(target), { recursive: true });
       await writeFile(target, await readBytes(tree, path, 65_536));
     }
+    const sdk = join(root, "node_modules", "@silvermoon-work", "task-sdk");
+    await mkdir(sdk, { recursive: true });
+    for (const path of ["package.json", "dist"])
+      await cp(new URL(`../../task-sdk/${path}`, import.meta.url), join(sdk, path), {
+        recursive: true,
+      });
+    const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+    const sdkManifest = JSON.parse(await readFile(join(sdk, "package.json"), "utf8"));
+    assert.equal(
+      manifest.dependencies[sdkManifest.name],
+      sdkManifest.version,
+      "The default template must declare the SDK used to validate its Worker, not an older release.",
+    );
     await writeFile(
       join(root, "src/types.test.ts"),
       `import type { Parameters, Result } from "./contract.js";
@@ -98,11 +111,19 @@ const extraInput: Parameters = { text: "hello", extra: true };
           "tsconfig.json",
           "--pretty",
           "false",
+          "--listFiles",
         ],
         { cwd: root, encoding: "utf8" },
       );
     const valid = typecheck();
     assert.equal(valid.status, 0, `${valid.stdout}\n${valid.stderr}`);
+    assert.ok(
+      valid.stdout
+        .replaceAll("\\", "/")
+        .split(/\r?\n/)
+        .includes(join(sdk, "dist", "index.d.ts").replaceAll("\\", "/")),
+      "The Worker must resolve the fixture-local SDK instead of an ancestor workspace installation.",
+    );
     const contract = await readFile(join(root, "src/contract.ts"), "utf8");
     await writeFile(
       join(root, "src/contract.ts"),

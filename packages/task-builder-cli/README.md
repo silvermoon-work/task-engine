@@ -1,8 +1,8 @@
 # @silvermoon-work/task-builder-cli
 
-Task production CLI and reusable command runner. Node >=22.15 is required.
-This document describes the 0.1.0 interface; registry acceptance
-requires separately publishing compatible Builder and CLI packages.
+Task production CLI and reusable command runner. Node >=22.15 is required
+(23.x at least 23.5). This document describes the current source interface;
+registry acceptance requires separately verifying compatible Builder and CLI artifacts.
 The coordinated `0.1.0-canary-261111-2` release and installed-package smoke
 verification are recorded in the
 [release notes](../../README.md#space-context-canary-2026-11-11).
@@ -54,7 +54,7 @@ The editable template includes:
 - independent `typecheck`, build, standalone CAR and explicit `clean` scripts;
   no dependency installation.
 
-The contract exports `Input` and `Result` via `Static<typeof ...>`; the Worker
+The contract exports `Parameters` and `Result` via `Static<typeof ...>`; the Worker
 imports those types with `import type` rather than repeating the data shapes.
 The shared nonempty text reference retains its string type, and the runtime
 Schemas still reject extra properties and enforce integer byte/chunk counts
@@ -70,7 +70,7 @@ emitting files. The generated configuration uses strict NodeNext/ESM resolution,
 ES2023 libraries and Node types; it does not skip dependency declaration
 checking. Explicit development dependencies are TypeScript 5.9.3 and
 `@types/node` 22.20.5, matching the repository catalog and Node 22 minimum.
-Invalid `Input`/`Result` assignments and incompatible Worker returns fail
+Invalid `Parameters`/`Result` assignments and incompatible Worker returns fail
 typechecking. `pnpm build` remains transpilation-only and does not run
 `typecheck`; use `pnpm typecheck` before `pnpm build` when both are required.
 
@@ -86,14 +86,16 @@ Later package-name changes do not rewrite the build description or scripts.
 refusing to overwrite an existing archive, including one produced by build.
 Use `pnpm build --no-car` before `pnpm car` when no archive already exists.
 `pnpm clean` runs `rimraf dist`, deleting all modules and CARs under `dist`;
-rimraf 6.1.4 is a generated devDependency compatible with Node >=22.13.0.
+rimraf 6.1.4 is a generated devDependency; the generated project requires
+Node >=22.15.0 (23.x at least 23.5.0).
 Build never runs clean automatically: validation still precedes delivery,
 and stale unselected files remain until explicitly cleaned.
 
 CLI and Builder dependency versions come from their actual installed metadata;
-the SDK version comes from that Builder release's template (0.1.0 for this
-release). They need not match in future releases. No remote tag lookup or
-version override is performed.
+the SDK version comes from that Builder release's compatibility-tested template
+(currently `0.2.0-rc.3`, providing `context.resolveContent` and
+`context.readContent`). These three versions need not match. No remote tag lookup
+or version override is performed.
 The pnpm template allows only esbuild's postinstall (`allowBuilds.esbuild: true`);
 no other dependency build scripts are approved. Do not omit optional dependencies.
 

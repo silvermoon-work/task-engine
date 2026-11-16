@@ -244,6 +244,26 @@ Git tags and npm dist-tags are preserved as historical records. The verifier
 rejects new dated canaries and other prerelease channels. Publish every package
 separately after its exact workspace dependencies are available.
 
+### Unified content read CLI RC
+
+`@silvermoon-work/task-engine-cli@0.2.0-rc.13` adds one
+`content read <cid> [--path <path>] [--output <file>]` command for directory
+entries, UTF-8 files and non-overwriting binary downloads through the selected
+Engine's trusted content API. It does not require enabling the public Gateway.
+It also handles Linux `/proc` `ESRCH` exit races without swallowing other
+process-inspection failures.
+
+The immutable `task-engine-cli-v0.2.0-rc.13` tag points to
+`ca98b42ae4b1393a065ba9031fc63237ba17e2fc`, including the content-read change
+`5b131cd87ba3959977ad4e25a8c1f45fc0f4cc1b`. Exact-commit
+[Node 22/24 CI](https://github.com/silvermoon-work/task-engine/actions/runs/43822839154)
+passed before
+[Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/43824555094)
+published this package only, using `rc`, not `latest`. No template or other
+0.2.0 preparation changes are included. Publication succeeded; npm reported that
+registry visibility may take a few minutes. Fresh registry installation was not
+part of this verification.
+
 ### Typed content refs RC
 
 Thirteen mapped packages were published for one authorized RC round after

@@ -276,6 +276,41 @@ Builder CLI and Engine to `0.2.0-rc.5`, HTTP, Storage and Server to
 `0.2.0-rc.2`, and Engine CLI to `0.2.0-rc.14`. Packages publish individually in
 dependency order after exact-commit main CI; `latest` is not changed.
 
+All nine packages were published from
+`fabb09563656657e5ece5d78bcbee3905698ad09`, after successful
+[exact-commit Node 22/24 CI](https://github.com/silvermoon-work/task-engine/actions/runs/43831115997).
+[Registry verification](https://github.com/silvermoon-work/task-engine/actions/runs/43837063509)
+confirmed their versions, `rc` tags and published internal dependencies. The
+active local Tencent registry also returned Engine CLI `0.2.0-rc.14`. Dependency
+metadata visibility initially delayed SDK and Builder publication; only the same
+immutable tags were retried, without bypassing verification. The final Server
+catalog also needed a read-only verifier retry, not a second publication.
+Existing `latest` and historical tags were preserved.
+
+| Package                                | Version       | Trusted publication                                                                |
+| -------------------------------------- | ------------- | ---------------------------------------------------------------------------------- |
+| `@silvermoon-work/task-protocol`       | `0.2.0-rc.3`  | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43832662879) |
+| `@silvermoon-work/task-sdk`            | `0.2.0-rc.3`  | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43832799007) |
+| `@silvermoon-work/task-builder`        | `0.2.0-rc.5`  | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43833310978) |
+| `@silvermoon-work/task-builder-cli`    | `0.2.0-rc.5`  | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43834372210) |
+| `@silvermoon-work/task-engine`         | `0.2.0-rc.5`  | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43834791459) |
+| `@silvermoon-work/task-engine-http`    | `0.2.0-rc.2`  | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43835239256) |
+| `@silvermoon-work/task-engine-storage` | `0.2.0-rc.2`  | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43835703744) |
+| `@silvermoon-work/task-engine-cli`     | `0.2.0-rc.14` | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43836144526) |
+| `@silvermoon-work/task-engine-server`  | `0.2.0-rc.2`  | [Actions](https://github.com/silvermoon-work/task-engine/actions/runs/43836632915) |
+
+Validation boundaries: Linux Node 22.15.0 and 24.11.1 passed the complete
+`pnpm check`. Windows Node 24 passed the managed CLI lifecycle, run/await/query,
+null results, child execution, restart retention and content-read scenarios.
+Windows full checks did not pass as one complete run: collection/orchestration
+and recursive Gateway deadline assertions failed intermittently, then passed
+isolated reruns (18 Engine tests and the Gateway test file). A separate Windows
+Node 26.13.1 full attempt failed the IPFS module-entry finite-JSON result test;
+it is not claimed as passing acceptance. The remaining Windows workspace checks,
+test typecheck and package lint passed. No assertions were weakened or tests
+skipped to claim a full Windows pass. A fresh registry consumer install was not
+part of this verification.
+
 ### Unified content read CLI RC
 
 `@silvermoon-work/task-engine-cli@0.2.0-rc.13` adds one

@@ -36,6 +36,7 @@ import { createRawGateway, type RawGatewayOptions } from "./raw-gateway.js";
 import { IpnsRecords } from "./ipns.js";
 import { createMemorySampler } from "./memory.js";
 import { importCarContent } from "./car.js";
+import { contentReference, serveContent } from "./content.js";
 
 const exec = promisify(execFile);
 export interface ResponseValue {
@@ -850,6 +851,16 @@ export async function serveManaged(
         throw new TaskError("ARGUMENT_INVALID", "Unknown management operation.");
       }
       if (closing) throw new TaskError("ENGINE_STOPPING", "Engine is stopping.");
+      const contentMatch = /^\/cli\/content\/([^/]+)$/.exec(url.pathname);
+      if (contentMatch && incoming.method === "GET") {
+        await serveContent(
+          outgoing,
+          content!.ipfsStore,
+          contentReference(decodeURIComponent(contentMatch[1]!)),
+          url.searchParams.get("path") ?? "",
+        );
+        return;
+      }
       if (url.pathname === "/cli/run" && incoming.method === "POST") {
         const body = await bodyOf(incoming);
         if (closing)

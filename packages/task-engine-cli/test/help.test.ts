@@ -58,6 +58,7 @@ test("root, groups and every leaf provide help without requiring business argume
       [],
       ["server"],
       ["task"],
+      ["content"],
       ["data"],
       ["config"],
       ...leaves.map((leaf) => leaf.split(" ")),
@@ -73,7 +74,7 @@ test("root, groups and every leaf provide help without requiring business argume
       }
     }
   }
-  for (const path of [[], ["server"], ["task"], ["data"], ["config"]])
+  for (const path of [[], ["server"], ["task"], ["content"], ["data"], ["config"]])
     assert.equal((await execute(path)).code, 0);
 });
 

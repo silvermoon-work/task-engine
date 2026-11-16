@@ -17,6 +17,7 @@ import { processBirth, stopManaged } from "../src/managed.js";
 import { encodeTaskBundleCar } from "@silvermoon-work/task-builder/car";
 import { memoryTree } from "@silvermoon-work/task-builder/tree";
 import { createMemorySampler, sampleMemory } from "../src/memory.js";
+import { IpfsStore } from "@silvermoon-work/ipfs-store";
 
 test("replay purpose separates conformance capacity from pressure and refuses combined arms", async () => {
   const helper = new URL(
@@ -253,6 +254,103 @@ async function freePort() {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   return port;
 }
+test("content read uses one command for directories, text and exact binary downloads with Gateway disabled", async (t) => {
+  const directory = resolve(".cache", `content-read-${randomUUID()}`);
+  const data = join(directory, "engine");
+  const contentDirectory = join(directory, "shared-content");
+  await mkdir(directory, { recursive: true });
+  t.after(async () => {
+    const stopped = await stopManaged(data, true);
+    assert.equal(stopped.ok, true, JSON.stringify(stopped));
+    await rm(directory, { recursive: true, force: true });
+  });
+  const fixture = new MemoryIpfsClient();
+  const text = "hello\n\u4e16\u754c\n";
+  const binary = Buffer.alloc(800_000);
+  for (let i = 0; i < binary.length; i++) binary[i] = i % 256;
+  const root = await fixture.import(
+    new Map([
+      ["docs/hello.txt", Buffer.from(text)],
+      ["data.bin", binary],
+      ["empty.txt", Buffer.alloc(0)],
+    ]),
+  );
+  const store = new IpfsStore({ dataDir: contentDirectory });
+  try {
+    for (const [cid, bytes] of fixture.blocks) await store.put(CID.parse(cid), bytes);
+  } finally {
+    await store.close();
+  }
+  const port = await freePort();
+  const engine = `http://127.0.0.1:${port}`;
+  const start = await execute(
+    ["server", "start", "--data-dir", data, "--port", String(port)],
+    directory,
+  );
+  assert.equal(start.code, 0, start.stdout + start.stderr);
+  assert.equal((await fetch(`${engine}/ipfs/${root}?format=raw`)).status, 404);
+  const read = (...args: string[]) =>
+    execute(["content", "read", root, "--engine", engine, ...args], directory);
+  const listing = await read();
+  assert.equal(listing.code, 0, listing.stdout + listing.stderr);
+  const entries = listing.parse().data.entries as { name: string; kind: string; cid: string }[];
+  assert.deepEqual(
+    entries.map(({ name, kind }) => ({ name, kind })),
+    [
+      { name: "data.bin", kind: "file" },
+      { name: "docs", kind: "directory" },
+      { name: "empty.txt", kind: "file" },
+    ],
+  );
+  const nested = await read("--path", "docs");
+  assert.equal(nested.parse().data.kind, "directory");
+  const file = await read("--path", "docs/hello.txt");
+  assert.equal(file.code, 0, file.stdout);
+  assert.equal(file.parse().data.kind, "file");
+  assert.equal(file.parse().data.text, text);
+  assert.equal(file.parse().data.bytes, Buffer.byteLength(text));
+  const direct = await execute(
+    ["content", "read", String(file.parse().data.cid), "--engine", engine],
+    directory,
+  );
+  assert.deepEqual(direct.parse().data, file.parse().data);
+  const empty = await read("--path", "empty.txt");
+  assert.equal(empty.code, 0, empty.stdout);
+  assert.equal(empty.parse().data.text, "");
+  const notText = await read("--path", "data.bin");
+  assert.equal(notText.code, 1);
+  assert.equal(notText.parse().error?.code, "NOT_TEXT");
+  const destination = join(directory, "download.bin");
+  const saved = await read("--path", "data.bin", "--output", destination);
+  assert.equal(saved.code, 0, saved.stdout + saved.stderr);
+  assert.equal(saved.parse().data.output, destination);
+  assert.equal(saved.parse().data.bytes, binary.length);
+  assert.deepEqual(await readFile(destination), binary);
+  const exists = await read("--path", "data.bin", "--output", destination);
+  assert.equal(exists.code, 1);
+  assert.equal(exists.parse().error?.code, "OUTPUT_EXISTS");
+  assert.deepEqual(await readFile(destination), binary);
+  const directoryOutput = await read("--output", join(directory, "not-a-file"));
+  assert.equal(directoryOutput.code, 1);
+  assert.equal(directoryOutput.parse().error?.code, "NOT_A_FILE");
+  for (const path of ["../data.bin", "docs\\hello.txt", "missing.txt"]) {
+    const result = await read("--path", path);
+    assert.equal(result.code, 1, result.stdout);
+    assert.equal(result.parse().ok, false);
+  }
+  const invalid = await execute(["content", "read", "not-a-cid", "--engine", engine], directory);
+  assert.equal(invalid.parse().error?.code, "INVALID_CID");
+  const names = await readdir(directory);
+  assert.ok(!names.some((name) => name.startsWith(".task-engine-content-")));
+  const stopped = await execute(["server", "stop", "--data-dir", data], directory);
+  assert.equal(stopped.code, 0, stopped.stdout);
+  const restarted = await execute(
+    ["server", "start", "--data-dir", data, "--port", String(port)],
+    directory,
+  );
+  assert.equal(restarted.code, 0, restarted.stdout);
+  assert.equal((await read("--path", "docs/hello.txt")).parse().data.text, text);
+});
 test("two independent managed Engines execute a multi-block bundle through A's opt-in local raw/CAR gateway", async (t) => {
   const directory = resolve(".cache", `two-engines-${randomUUID()}`);
   await mkdir(directory, { recursive: true });

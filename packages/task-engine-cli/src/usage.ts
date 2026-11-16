@@ -9,6 +9,7 @@ export const leaves = [
   "task query",
   "task logs",
   "task await",
+  "content read",
   "data prune",
   "data import-ipns",
   "config list",
@@ -16,13 +17,14 @@ export const leaves = [
   "config set",
   "config reset",
 ] as const;
-export const groups = ["server", "task", "data", "config"];
+export const groups = ["server", "task", "content", "data", "config"];
 export const help = `Task Engine — manage a local Server and persistent tasks.
 
 Usage: task-engine <command>
   server start|status|stop  Manage a local background Server by --data-dir
   run --cid <cid>|--car <file> --parameters <file|-> [--async]
   task query|logs|await    Query persistent tasks, logs or final results
+  content read <cid>      Read a directory or file from the selected Server
   data prune              Offline explicit history/cache cleanup
   data import-ipns        Offline signed IPNS record provisioning
   config list|get|set|reset
@@ -34,6 +36,7 @@ Examples:
   task-engine server start
   task-engine run --car dist/my-task.car --parameters input.json
   task-engine task query --status failed
+  task-engine content read <cid> --path report.txt
 Documentation: https://github.com/silvermoon-work/task-engine/tree/main/packages/task-engine-cli
 `;
 export const startKeys: Record<string, ConfigKey> = {
@@ -60,6 +63,7 @@ export const options: Record<string, string[]> = {
   "task query": ["--id", "--status", "--since", "--until", "--limit", "--cursor", "--engine"],
   "task logs": ["--engine", "--limit", "--cursor"],
   "task await": ["--engine"],
+  "content read": ["--path", "--output", "--engine"],
   "data prune": ["--task", "--before", "--cache", "--data-dir"],
   "data import-ipns": ["--key", "--record", "--data-dir"],
   "config list": [],
@@ -84,6 +88,7 @@ export function leafHelp(command: string) {
     "task query": "[--id <task-id> | <filters-and-pagination>] [--engine <url>]",
     "task logs": "<task-id> [--engine <url>] [--limit <1-1000>] [--cursor <token>]",
     "task await": "<task-id> [--engine <url>]",
+    "content read": "<cid> [--path <path>] [--output <file>] [--engine <url>]",
     "data prune": "[--task <task-id> ... | --before <time>] [--cache] [--data-dir <path>]",
     "data import-ipns": "--key <ipns-key> --record <file> [--data-dir <path>]",
     "config list": "",
@@ -176,6 +181,26 @@ ${engine}`,
 ${engine}
   Interrupting this command stops waiting; it does not cancel the task.`,
       examples: ["task await task-id"],
+    },
+    "content read": {
+      purpose:
+        "Read CID content: directory entries or UTF-8 file text; optionally save file bytes.",
+      parameters: `  <cid>  Required content CID, including CIDs returned in task results.
+  --path <path>  Directory-relative IPFS path; default the CID itself.
+                 Use '/' separators; no empty segments, '.', '..' or backslashes.
+  --output <file>  Save a file's exact bytes to a new local file instead of returning text.
+                   Existing destinations are never overwritten. Parent directory must exist.
+${engine}
+  Directory results contain kind, cid and entries (name, kind, cid).
+  File results contain kind, cid, text and bytes; --output replaces text with output.
+  Binary files require --output. Directories cannot be saved with --output.
+  Uses the trusted task API and the Server's content source/budgets, not the public Gateway.
+  Does not start a Server, publish content or fall back to another Engine/source.`,
+      examples: [
+        "content read bafy...",
+        "content read bafy... --path reports/summary.txt",
+        "content read bafy... --path images/chart.png --output chart.png",
+      ],
     },
     "data import-ipns": {
       purpose:
@@ -311,7 +336,7 @@ export function parseArguments(argv: readonly string[], forHelp = false) {
   const count =
     command === "config set"
       ? 2
-      : ["config get", "config reset", "task logs", "task await"].includes(command)
+      : ["config get", "config reset", "task logs", "task await", "content read"].includes(command)
         ? 1
         : 0;
   if (positional.length > count || (!forHelp && positional.length !== count))

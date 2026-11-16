@@ -14,8 +14,11 @@ build 交付的完整目录包含 `.task-imports.car`，搬运时不可遗漏。
 见[发布记录](../../README.md#release-candidate-channels)。CLI Spec v1.0 是规范版本，
 不是 npm 包的 1.0.0 或已发布声明。
 
+`0.2.0-rc.13` 新增统一的 `content read`，按 CID（及可选路径）读取目录或文件，
+无需开放公共 Gateway；`--output` 可保存文件原始字节，且不会覆盖已有目标。
+
 ```powershell
-npm install -g @silvermoon-work/task-engine-cli@0.2.0-rc.0
+npm install -g @silvermoon-work/task-engine-cli@0.2.0-rc.13
 task-engine --version
 ```
 
@@ -33,6 +36,9 @@ task-engine task query
 task-engine task query --id <task-id>
 task-engine task logs <task-id> --limit 100
 task-engine task await <task-id>
+task-engine content read <cid>
+task-engine content read <cid> --path reports/summary.txt
+task-engine content read <cid> --path images/chart.png --output .\chart.png
 task-engine server status
 task-engine server stop
 task-engine data prune --task <task-id> --cache
@@ -54,8 +60,8 @@ task-engine config reset task.timeoutMs
 
 ## 命令和结果
 
-12 个叶命令为 `server start/status/stop`、`run`、
-`task query/logs/await`、`data prune`、`config list/get/set/reset`。
+叶命令包括 `server start/status/stop`、`run`、
+`task query/logs/await`、`content read`、`data prune/import-ipns`、`config list/get/set/reset`。
 业务结果始终是 stdout 上的一个 JSON 对象及换行：
 
 ```json
@@ -110,6 +116,33 @@ status 枚举为 `pending/running/succeeded/failed/timed_out/cancelled/rejected`
 保持 `items` 数组，未匹配为空数组；不返回日志或等待完成。
 列表和日志 `--limit` 默认 100、范围 1–1000，`--cursor` 是绑定服务及筛选的不透明游标。
 日志按持久化追加顺序分页，只有 time/level/message，不混入完整业务结果。
+
+### 按 CID 读取内容
+
+`content read <cid> [--path <path>] [--output <file>] [--engine <url>]`
+统一读取目录和文件，不需要预先判断内容类型。`--engine` 沿用
+`client.engine`，不自动启动引擎。CID 可以来自任务输出或其中的内容引用；
+CID 本身不保证内容仍然存在。
+
+- 目录返回 `data: {cid, kind: "directory", entries: [{name, kind, cid}]}`，
+  不递归展开；可以用条目的 CID 或原 CID 加 `--path` 继续读取。
+- 文件默认返回 `data: {cid, kind: "file", text, bytes}`，只接受有效 UTF-8，
+  不自动解析 JSON。二进制文件明确失败并提示使用 `--output`。
+- `--output` 流式保存文件原始字节，返回
+  `data: {cid, kind: "file", output, bytes}`；stdout 仍是一个 JSON 对象，
+  不混入文件数据。目录不支持 `--output`，不递归下载。
+  父目录必须存在，目标文件不得已存在；下载完整且同步落盘后才原子创建目标，
+  失败或中断会清理临时文件，不覆盖已有文件。
+- `--path` 默认为空（读取 CID 本身），使用 `/` 分隔的目录相对路径；
+  不接受前导或末尾 `/`、空路径段、`.`、`..`、反斜杠或 NUL。
+
+服务端入口为 `GET /cli/content/{cid}?path=<encoded-path>`，目录及错误为 JSON，
+文件为 `application/octet-stream`，并通过 `X-Content-Cid` 返回解析后的文件 CID。
+它与任务查询共享既有可信网络访问边界，**不受 raw/CAR Gateway token 保护**；
+无需启用公共 Gateway，也不因这项功能改变 Gateway 默认禁用的行为。
+读取复用所选 Server 的 IpfsStore（含旧持久输出块读取端口）、后端、显式内容来源及
+每次读取的字节、块数和深度预算；不隐式使用公共网关，也不绕过后端配置。
+只支持普通 raw/UnixFS 文件及目录，不把任意 IPLD 块或 CAR 当成文件解码。
 
 ## 实例、持久化和清理
 

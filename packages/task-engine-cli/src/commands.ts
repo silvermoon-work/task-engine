@@ -31,6 +31,7 @@ import {
 } from "./managed.js";
 import { commandOf, leafHelp, parseArguments, startKeys } from "./usage.js";
 import { IpnsRecords, ipnsName, readIpnsFile } from "./ipns.js";
+import { readEngineContent } from "./content.js";
 function timestamp(value: string): string {
   const parts = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)/.exec(value);
   if (
@@ -65,6 +66,7 @@ export async function main(
     "task query",
     "task logs",
     "task await",
+    "content read",
     "config list",
     "config get",
   ].includes(command);
@@ -223,6 +225,14 @@ export async function main(
         repository?.close();
         lock.close();
       }
+    } else if (command === "content read") {
+      response = await readEngineContent(
+        engine(),
+        positional[0]!,
+        get("--path") ?? "",
+        get("--output"),
+        controller.signal,
+      );
     } else if (command === "task query") {
       const statuses = values.get("--status") ?? [];
       if (

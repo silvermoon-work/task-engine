@@ -8,7 +8,7 @@ build 交付的完整目录包含 `.task-imports.car`，搬运时不可遗漏。
 旧 CID/path 调用须更新 SDK 并重建；旧子调用持久事实须使用新数据域。
 已发布 `0.1.0-canary-261111-2` 提供受管 Server、持久任务和 Space 输出；
 旧 `0.1.0-canary-261110-1` 是单次嵌入执行命令，不具有下列接口。
-本文描述 **0.2.0 RC** 的接口，保留 0.1.0 的帮助纠错和后台故障诊断。
+本文描述 **0.2.0 正式版准备源码**的接口，保留 0.1.0 的帮助纠错和后台故障诊断；不表示正式版已发布。
 0.1.0 正式版已完成验收，见[发布记录](../../README.md#stable-010-2026-11-11)。
 `0.2.0-rc.0` 已发布并完成 office-ubuntu 实测；
 见[发布记录](../../README.md#release-candidate-channels)。CLI Spec v1.0 是规范版本，
@@ -18,7 +18,8 @@ build 交付的完整目录包含 `.task-imports.car`，搬运时不可遗漏。
 无需开放公共 Gateway；`--output` 可保存文件原始字节，且不会覆盖已有目标。
 
 ```powershell
-npm install -g @silvermoon-work/task-engine-cli@0.2.0-rc.14
+# 仅在 0.2.0 正式发布并确认 registry 可用后执行
+npm install -g @silvermoon-work/task-engine-cli@0.2.0
 task-engine --version
 ```
 
@@ -512,8 +513,9 @@ bundleMaxBytes=67108864、maxConnections=256。
 旧省略输入改为显式 `--parameters -`；不再使用 `--allow-children`、
 `--expected-cid` 或 `--max-runtime-ms`。已提供的子任务能力直接按服务预算执行。
 
-发布映射为 `task-engine-cli`。当前正式版为 `0.1.0`（npm `latest`），
-本轮已发布 `0.2.0-rc.0`（npm `rc`），未修改 `latest` 或历史 `canary`；
+发布映射为 `task-engine-cli`。历史正式版 `0.1.0` 发布至 npm `latest`，
+历史 `0.2.0-rc.0` 发布至 npm `rc`，当时未修改 `latest` 或历史 `canary`。
+当前源码版本 `0.2.0` 仅为正式版发布准备，不宣称发布或 registry 安装验收成功；
 每个包独立发布，不因 Builder 发布而自动发布。
 每次只能发布一个明确授权的映射包。
 内部 runtime/peer 及当前发布守卫检查的 dev workspace 依赖必须已有匹配发布版本；

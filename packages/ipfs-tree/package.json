@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/ipfs-tree",
-  "version": "0.1.0-rc.0",
+  "version": "0.1.0",
   "description": "On-demand read-only CID path tree over host IpfsAccess.",
   "type": "module",
   "sideEffects": false,

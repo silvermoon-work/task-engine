@@ -93,9 +93,10 @@ and stale unselected files remain until explicitly cleaned.
 
 CLI and Builder dependency versions come from their actual installed metadata;
 the SDK version comes from that Builder release's compatibility-tested template
-(currently `0.2.0-rc.3`, providing `context.resolveContent` and
+(currently `0.2.0`, providing `context.resolveContent` and
 `context.readContent`). These three versions need not match. No remote tag lookup
-or version override is performed.
+or version override is performed. The source versions are stable release
+preparation, not a claim that those artifacts are published or registry-accepted.
 The pnpm template allows only esbuild's postinstall (`allowBuilds.esbuild: true`);
 no other dependency build scripts are approved. Do not omit optional dependencies.
 

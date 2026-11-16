@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/ipfs-access",
-  "version": "0.1.0-rc.0",
+  "version": "0.1.0",
   "description": "Type-only CID content access and streaming file/directory contracts.",
   "type": "module",
   "sideEffects": false,

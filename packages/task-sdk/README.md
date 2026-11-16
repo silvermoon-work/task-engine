@@ -11,8 +11,8 @@ The initial migration preserved the runtime and public API; package imports use 
 `@silvermoon-work` workspace. The initial `0.1.0-canary-261109-1` was published through
 [Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/42588331015)
 with an exact dependency on protocol `0.1.0-canary-261109-2`.
-The current stable release is `0.1.0`, paired with protocol `0.1.0`, on `latest`.
-Publication and installed acceptance are recorded in the
+The historical stable `0.1.0` release was paired with protocol `0.1.0` on `latest`.
+Its publication and installed acceptance are recorded in the
 [release notes](../../README.md#stable-010-2026-11-11).
 
 The published `0.1.0-canary-261111-2` introduced the breaking Space context
@@ -31,11 +31,13 @@ Use the migrated workspace
 to create a private project, then build its module and CAR. Standalone `car`
 accepts `dist/<derived-package-name>/task.yaml`; CAR inspection is a library operation, not a Builder
 `check` command in the redesigned interface.
-Current source templates select SDK `0.2.0-rc.3` and require Node.js 22.15+
-(23.x at least 23.5) for Bundle execution. Existing projects can select the SDK explicitly:
+Current source templates select SDK `0.2.0`, paired with Protocol `0.2.0`, and
+require Node.js 22.15+ (23.x at least 23.5) for Bundle execution. These stable
+versions are prepared in source, not yet publication or registry acceptance
+claims. After publication, existing projects can select the SDK explicitly:
 
 ```text
-pnpm add @silvermoon-work/task-sdk@0.2.0-rc.3
+pnpm add @silvermoon-work/task-sdk@0.2.0
 ```
 
 For the current workspace CLI:

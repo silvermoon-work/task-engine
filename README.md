@@ -13,7 +13,7 @@ scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节�
 载荷；`context.bundle` 是 CID 字符串，内容 I/O 使用
 `resolveContent/readContent/putContent`，不再使用 SpaceRef、 `context.space` 或
 `context.output`。当前 init 默认 SDK 为
-`0.2.0-rc.3`。旧 Bundle 内嵌旧 SDK，不随 CLI 升级：必须用配套 SDK/Builder 重新构建 CAR/CID，并重建引用它的父 Bundle；不兼容旧事实须使用新的 Engine 数据目录。
+`0.2.0`。旧 Bundle 内嵌旧 SDK，不随 CLI 升级：必须用配套 SDK/Builder 重新构建 CAR/CID，并重建引用它的父 Bundle；不兼容旧事实须使用新的 Engine 数据目录。
 
 早期 0.2.0 RC 的 `data.output: {cid,result}` 是历史接口。当前 CLI 外层为
 `{ok,output?,error?}`，业务结果为
@@ -30,6 +30,39 @@ ContentRef 返回，不能冒充旧输出目录。CLI `run` 使用
 `TASK_CONTENT_CONFIG`
 和用户配置目录，不使用共享 Kubo 或删除默认缓存。完整当前命令、独立源码 tarball 验证及已知差异见
 [端到端指引](docs/end-to-end-verification.md)。本地 tarball/typecheck/build/run 成功不代表修改后源码已发布；下方历史发布记录保持原样。
+
+### Stable release preparation (not published)
+
+The current source prepares all nine mapped `task-*` packages at `0.2.0` and all
+four mapped `ipfs-*` packages at `0.1.0`. The generated Worker pins SDK `0.2.0`,
+paired with Protocol `0.2.0`. These are preparation versions, not registry
+availability or `latest` claims; local validation is not publication or
+installed-registry acceptance.
+
+Each package requires its own authorized `<package-id>-v<version>` tag and
+Actions publication to `latest`, after exact-commit main CI and registry checks.
+Do not batch-publish or automatically release dependencies. A deterministic
+dependency-first order (lexicographically choosing each next ready package),
+including runtime, optional, peer and development dependencies, is:
+
+1. `ipfs-access` — `0.1.0`
+2. `ipfs-payload` — `0.1.0`
+3. `ipfs-store` — `0.1.0`
+4. `task-protocol` — `0.2.0`
+5. `task-sdk` — `0.2.0`
+6. `task-builder` — `0.2.0`
+7. `ipfs-tree` — `0.1.0`
+8. `task-builder-cli` — `0.2.0`
+9. `task-engine` — `0.2.0`
+10. `task-engine-cli` — `0.2.0`
+11. `task-engine-http` — `0.2.0`
+12. `task-engine-storage` — `0.2.0`
+13. `task-engine-server` — `0.2.0`
+
+In particular, `ipfs-tree` has a development dependency on Builder, and Engine
+has a development dependency on Builder CLI. Confirm each exact dependency is
+visible before proceeding. Historical RC/canary versions and dist-tags remain
+unchanged.
 
 ## 安装试用（0.1.0 历史基线）
 

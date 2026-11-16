@@ -26,7 +26,8 @@ parameters 接口**，不是未发布 0.2.0 正式版的安装验收记录。历
 node --version
 npm --version
 npm config get registry
-npm install -g @silvermoon-work/task-builder-cli@0.2.0-rc.5 @silvermoon-work/task-engine-cli@0.2.0-rc.14
+# 仅在两个 0.2.0 正式版分别发布并确认 registry 可用后执行
+npm install -g @silvermoon-work/task-builder-cli@0.2.0 @silvermoon-work/task-engine-cli@0.2.0
 task-builder --version
 task-engine --version
 task-builder --help
@@ -35,8 +36,8 @@ task-engine --help
 
 全局 npm bin 目录须在 PATH 中。scope registry
 override 和 lockfile 下载 URL 也须符合环境策略。版本不可用时报阻塞，不用 workspace、tarball 或旧版本偷偷替代。保留实际解析版本，不能仅凭
-`latest`
-标签推定版本正确。上述 registry 版本不包含本地未发布修正；要验证修改后的源码，改用文末的独立 tarball 流程，不使用全局旧 CLI。
+`latest` 标签推定版本正确。上述 `0.2.0`
+是源码准备版本，不表示已发布；发布前验证源码时，改用文末的独立 tarball 流程，不使用全局旧 CLI，也不把本地结果称为 registry 安装验收。
 
 ## 1. Init → 安装项目依赖
 
@@ -50,8 +51,8 @@ npm install
 
 init 不覆盖已有目录。模板是 private 项目，依赖兼容的已发布 Builder/CLI 和本仓库 SDK；不要执行
 `npm publish`。无需另行安装旧 scope 的 SDK 或 CAR 工具。保留生成文件、package.json、安装 lockfile 和解析版本。当前源码模板默认选择 SDK
-`0.2.0-rc.3`；已发布 Builder 同版本号的旧模板可能仍选择
-`rc.0`，故必须检查实际生成的 manifest，不能用 CLI 版本号推定模板已修正。
+`0.2.0`，与 Protocol `0.2.0` 配套；旧 RC Builder 的模板可能仍选择
+`rc.0`，故必须检查实际生成的 manifest，不能用 CLI 版本号推定模板已修正。该稳定版本配对是源码准备状态，不是发布完成声明。
 
 Builder 通过 esbuild 转译；平台二进制由 optional dependency 提供。esbuild
 postinstall 可以禁用，但不要使用

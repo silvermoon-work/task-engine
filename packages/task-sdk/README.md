@@ -33,8 +33,9 @@ accepts `dist/<derived-package-name>/task.yaml`; CAR inspection is a library ope
 `check` command in the redesigned interface.
 Current source templates select SDK `0.2.0`, paired with Protocol `0.2.0`, and
 require Node.js 22.15+ (23.x at least 23.5) for Bundle execution. These stable
-versions are prepared in source, not yet publication or registry acceptance
-claims. After publication, existing projects can select the SDK explicitly:
+versions are published and passed independent registry consumer acceptance;
+see the [release record](../../README.md#stable-020-2026-11-16).
+Existing projects can select the SDK explicitly:
 
 ```text
 pnpm add @silvermoon-work/task-sdk@0.2.0

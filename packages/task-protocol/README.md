@@ -1,6 +1,6 @@
 # @silvermoon-work/task-protocol
 
-The current source contract, prepared for stable 0.2.0, uses `result: {data, cidPaths}` directly in
+The stable 0.2.0 contract uses `result: {data, cidPaths}` directly in
 Task/Run snapshots, persisted outcomes and records, aligned with
 `parametersSchema`, `messageSchema` and `resultSchema`. There is no `output`
 wrapper or separate Space CID. Results preserve the IPFS payload envelope,
@@ -20,8 +20,9 @@ dependencies.
 
 The historical stable `0.1.0` release was published to `latest`; publication and installed
 acceptance are recorded in the [release notes](../../README.md#stable-010-2026-11-11).
-Source Protocol and SDK versions are now paired at `0.2.0` for release preparation;
-this is not a publication or registry availability claim. Published versions are immutable.
+Protocol and SDK `0.2.0` are published to `latest` and paired in the registry-tested
+template; see the [stable release record](../../README.md#stable-020-2026-11-16).
+Published versions are immutable.
 
 ## Task Bundle bytes and structure
 

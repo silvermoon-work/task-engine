@@ -1,14 +1,15 @@
 # @silvermoon-work/task-engine-cli
 
 Task Engine 的本地后台 Server 与任务调用 CLI，要求 Node.js 22.15+（23.x 至少 23.5）。
-当前源码使用通用 imports / typed ContentRef / parameters；以下历史发布记录不表示本地修正已经发布。
+0.2.0 正式版使用通用 imports / typed ContentRef / parameters；
+发布和独立 registry 验收见[正式版记录](../../README.md#stable-020-2026-11-16)。
 build 交付的完整目录包含 `.task-imports.car`，搬运时不可遗漏。
 离线 CAR 消费保留原始 import DAG，不把非默认分块内容重编码成新身份。
 子调用不需要 authorizeChild；具体资源入口约束和调度预算保持不变。
 旧 CID/path 调用须更新 SDK 并重建；旧子调用持久事实须使用新数据域。
 已发布 `0.1.0-canary-261111-2` 提供受管 Server、持久任务和 Space 输出；
 旧 `0.1.0-canary-261110-1` 是单次嵌入执行命令，不具有下列接口。
-本文描述 **0.2.0 正式版准备源码**的接口，保留 0.1.0 的帮助纠错和后台故障诊断；不表示正式版已发布。
+本文描述 **0.2.0 正式版**的接口，保留 0.1.0 的帮助纠错和后台故障诊断。
 0.1.0 正式版已完成验收，见[发布记录](../../README.md#stable-010-2026-11-11)。
 `0.2.0-rc.0` 已发布并完成 office-ubuntu 实测；
 见[发布记录](../../README.md#release-candidate-channels)。CLI Spec v1.0 是规范版本，
@@ -18,7 +19,6 @@ build 交付的完整目录包含 `.task-imports.car`，搬运时不可遗漏。
 无需开放公共 Gateway；`--output` 可保存文件原始字节，且不会覆盖已有目标。
 
 ```powershell
-# 仅在 0.2.0 正式发布并确认 registry 可用后执行
 npm install -g @silvermoon-work/task-engine-cli@0.2.0
 task-engine --version
 ```

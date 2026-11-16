@@ -21,7 +21,7 @@ scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节�
 `result`，通用 HTTP 信封不变。命令响应 `output`
 不是文件空间，也不自动生成目录根 CID；输出文件由任务 `putContent()` 后通过 typed
 ContentRef 返回，不能冒充旧输出目录。CLI `run` 使用
-`--parameters <JSON文件|->`；已提交 CLI rc.13 的
+`--parameters <JSON文件|->`；CLI 0.2.0 的
 `content read <cid> [--path resources/file.txt] [--output .\file.txt]`
 可读取目录或文件，保存原始字节且拒绝覆盖。
 
@@ -31,19 +31,18 @@ ContentRef 返回，不能冒充旧输出目录。CLI `run` 使用
 和用户配置目录，不使用共享 Kubo 或删除默认缓存。完整当前命令、独立源码 tarball 验证及已知差异见
 [端到端指引](docs/end-to-end-verification.md)。本地 tarball/typecheck/build/run 成功不代表修改后源码已发布；下方历史发布记录保持原样。
 
-### Stable release preparation (not published)
+### Stable 0.2.0 (2026-11-16)
 
-The current source prepares all nine mapped `task-*` packages at `0.2.0` and all
-four mapped `ipfs-*` packages at `0.1.0`. The generated Worker pins SDK `0.2.0`,
-paired with Protocol `0.2.0`. These are preparation versions, not registry
-availability or `latest` claims; local validation is not publication or
-installed-registry acceptance.
+All nine mapped `task-*` packages at `0.2.0` and all four mapped `ipfs-*`
+packages at `0.1.0` were published to `latest` from
+[`90352b4`](https://github.com/silvermoon-work/task-engine/commit/90352b46ce33c8c729ac04995229392a470b6941).
+The generated Worker pins SDK `0.2.0`, paired with Protocol `0.2.0`.
 
-Each package requires its own authorized `<package-id>-v<version>` tag and
-Actions publication to `latest`, after exact-commit main CI and registry checks.
-Do not batch-publish or automatically release dependencies. A deterministic
-dependency-first order (lexicographically choosing each next ready package),
-including runtime, optional, peer and development dependencies, is:
+Each package used its own immutable `<package-id>-v<version>` tag and Actions
+Trusted Publishing run after successful exact-commit
+[Node 22.15.0 / 24.11.1 main CI](https://github.com/silvermoon-work/task-engine/actions/runs/43864985373).
+The individual publication order included runtime, optional, peer and
+development dependencies:
 
 1. `ipfs-access` — `0.1.0`
 2. `ipfs-payload` — `0.1.0`
@@ -60,15 +59,46 @@ including runtime, optional, peer and development dependencies, is:
 13. `task-engine-server` — `0.2.0`
 
 In particular, `ipfs-tree` has a development dependency on Builder, and Engine
-has a development dependency on Builder CLI. Confirm each exact dependency is
-visible before proceeding. Historical RC/canary versions and dist-tags remain
-unchanged.
+has a development dependency on Builder CLI. Each exact published dependency was
+verified before proceeding. npm processing delayed metadata visibility; only
+read-only verification was retried, without moving tags or republishing. A
+queued Storage verification delayed the final Server publication.
+
+The final
+[all-package registry verification](https://github.com/silvermoon-work/task-engine/actions/runs/43888373360)
+confirmed all 13 exact versions, `latest` tags and published internal
+dependencies. Existing `rc` tags retain their RC versions; historical versions
+and Git tags were not removed or moved.
+
+Independent registry-only acceptance on Node 24.11.1 used a fresh consumer
+outside the workspace and the unchanged local registry configuration. The
+nine-package CLI/Builder closure resolved to the exact stable versions, with
+lockfile URLs and integrities checked against registry metadata. The unmodified
+generated SDK `0.2.0` project passed typecheck, build, CAR and execution. A
+separate typed ContentRef fixture passed parameters/results, query/await,
+directory/file reads, download/no-overwrite and restart persistence. The owned
+daemon stopped and its port closed. This is CLI consumer acceptance, not an
+independent installed Server/Kubo deployment claim.
+
+The final local Node 24 `pnpm check` passed all 56 Turbo tasks, including 100
+passing CLI tests and one Linux-only skip. The earlier intermittent Windows
+fixture-cleanup `EBUSY` was not reproduced in the final checks or instrumented
+investigation; it was accepted as nonblocking, not claimed fixed.
+
+```powershell
+npm install -g @silvermoon-work/task-builder-cli@0.2.0 @silvermoon-work/task-engine-cli@0.2.0
+```
+
+Follow the [current end-to-end guide](docs/end-to-end-verification.md). Rebuild
+old Bundles with the paired SDK/Builder and use a fresh Engine data directory
+for incompatible persisted contracts.
 
 ## 安装试用（0.1.0 历史基线）
 
 使用 Node.js 22.15 或更新版本（23.x 至少 23.5，建议 Node.js
-24），安装两个已编译的 CLI。以下是 **0.1.0 / latest**
-已发布并完成真实 registry 安装验证。命令失败时先排查，不继续使用旧产物：
+24），安装两个已编译的 CLI。以下是当时的 **0.1.0 / latest**
+发布与真实 registry 安装验证基线；当前 `latest`
+已更新为上方的 0.2.0。命令失败时先排查，不继续使用旧产物：
 
 ```powershell
 npm install -g @silvermoon-work/task-builder-cli@0.1.0 @silvermoon-work/task-engine-cli@0.1.0

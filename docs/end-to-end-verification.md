@@ -1,9 +1,9 @@
 # 端到端验证：安装 → Init → Build → Server → 持久任务
 
-本文描述**当前源码的 typed ContentRef /
-parameters 接口**，不是未发布 0.2.0 正式版的安装验收记录。历史 0.1.0 的
-`data.result` / `data.outputCid` 和较早 0.2.0 RC 的 `data.output: {cid, result}`
-封装见
+本文描述**0.2.0 正式版的 typed ContentRef /
+parameters 接口**；发布和独立 registry 安装验收范围见
+[正式版记录](../README.md#stable-020-2026-11-16)。历史 0.1.0 的 `data.result` /
+`data.outputCid` 和较早 0.2.0 RC 的 `data.output: {cid, result}` 封装见
 [发布记录](../README.md#release-candidate-channels)，不能混用旧 Space 示例。当前 CLI 外层是
 `{ok, output?, error?}`，业务结果位于 `output.result: {data,cidPaths}`；其中
 `data` 是载荷字段，不是旧 CLI 外层。核心 Task/Run 和通用 HTTP API 直接使用
@@ -26,7 +26,6 @@ parameters 接口**，不是未发布 0.2.0 正式版的安装验收记录。历
 node --version
 npm --version
 npm config get registry
-# 仅在两个 0.2.0 正式版分别发布并确认 registry 可用后执行
 npm install -g @silvermoon-work/task-builder-cli@0.2.0 @silvermoon-work/task-engine-cli@0.2.0
 task-builder --version
 task-engine --version
@@ -36,8 +35,8 @@ task-engine --help
 
 全局 npm bin 目录须在 PATH 中。scope registry
 override 和 lockfile 下载 URL 也须符合环境策略。版本不可用时报阻塞，不用 workspace、tarball 或旧版本偷偷替代。保留实际解析版本，不能仅凭
-`latest` 标签推定版本正确。上述 `0.2.0`
-是源码准备版本，不表示已发布；发布前验证源码时，改用文末的独立 tarball 流程，不使用全局旧 CLI，也不把本地结果称为 registry 安装验收。
+`latest` 标签推定版本正确。上述 `0.2.0` 已发布并通过独立 CLI
+consumer 验收；验证后续未发布的源码修改时，改用文末的独立 tarball 流程，不使用全局旧 CLI，也不把本地结果称为 registry 安装验收。
 
 ## 1. Init → 安装项目依赖
 
@@ -52,7 +51,8 @@ npm install
 init 不覆盖已有目录。模板是 private 项目，依赖兼容的已发布 Builder/CLI 和本仓库 SDK；不要执行
 `npm publish`。无需另行安装旧 scope 的 SDK 或 CAR 工具。保留生成文件、package.json、安装 lockfile 和解析版本。当前源码模板默认选择 SDK
 `0.2.0`，与 Protocol `0.2.0` 配套；旧 RC Builder 的模板可能仍选择
-`rc.0`，故必须检查实际生成的 manifest，不能用 CLI 版本号推定模板已修正。该稳定版本配对是源码准备状态，不是发布完成声明。
+`rc.0`，故必须检查实际生成的 manifest，不能用 CLI 版本号推定模板已修正。正式版已验证默认 SDK
+`0.2.0` 配对。
 
 Builder 通过 esbuild 转译；平台二进制由 optional dependency 提供。esbuild
 postinstall 可以禁用，但不要使用

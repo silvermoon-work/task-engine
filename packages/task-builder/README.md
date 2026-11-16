@@ -299,8 +299,8 @@ convenience script. Build remains independently usable transpilation, not a
 typecheck gate.
 The default dependency pins `@silvermoon-work/task-sdk@0.2.0`, matching
 the Worker's `context.resolveContent` and `context.readContent` APIs.
-This stable version is prepared in source; it does not claim publication or
-registry availability.
+This stable pairing was published and passed independent registry consumer
+acceptance; see the [release record](../../README.md#stable-020-2026-11-16).
 This is a template compatibility pairing, not the Builder or CLI version and
 not a remote `latest` lookup. When updating the workspace SDK release, update
 this pin together with the template; regression tests require the declared

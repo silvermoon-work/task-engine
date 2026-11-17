@@ -11,9 +11,29 @@ scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节�
 
 当前 CLI 包已改名为 `@silvermoon-work/ipfspawn`，命令为 `ipfspawn`，不保留
 `task-engine` 命令别名。核心依赖 `@silvermoon-work/task-engine`
-保持原名，现有数据目录、用户配置路径、环境变量与通信协议不变。新包尚未发布；下方旧包发布记录、版本与 tag 保留历史原貌。源码用法见
+保持原名，现有数据目录、用户配置路径、环境变量与通信协议不变。新包 `0.2.1`
+已发布到 `latest`；下方旧包发布记录、版本与 tag 保留历史原貌。源码用法见
 [ipfspawn README](packages/ipfspawn/README.md)，独立制品验证见
 [端到端指引](docs/end-to-end-verification.md)。
+
+### ipfspawn 0.2.1 (2026-11-17)
+
+`@silvermoon-work/ipfspawn@0.2.1` was published to `latest` from
+[`9f4e81c`](https://github.com/silvermoon-work/task-engine/commit/9f4e81c81062700dedd75ef0d599a579ab6a91e1)
+using the immutable `ipfspawn-v0.2.1` tag and
+[Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/44074298562).
+Only ipfspawn was published; existing engine and other package releases were
+unchanged. The exact commit passed
+[main CI on Node 22.15.0 and 24.11.1](https://github.com/silvermoon-work/task-engine/actions/runs/44072422208).
+[Registry version, latest tag and dependency verification](https://github.com/silvermoon-work/task-engine/actions/runs/44074503870)
+passed after a read-only retry for metadata propagation; no tag was moved and no
+publication was repeated. This verifies publication metadata, not a separate
+registry-installed end-to-end consumer run.
+
+```powershell
+npm install -g @silvermoon-work/ipfspawn@0.2.1
+ipfspawn --help
+```
 
 当前作者接口使用 typed `ContentRef`、`parameters` 和 `{data,cidPaths}`
 载荷；`context.bundle` 是 CID 字符串，内容 I/O 使用

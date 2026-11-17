@@ -5,7 +5,8 @@ Task Engine 的本地后台 Server 与任务调用 CLI，要求 Node.js 22.15+�
 `@silvermoon-work/ipfspawn`，仅提供 `ipfspawn` 命令，不保留 `task-engine`
 命令别名。核心依赖 `@silvermoon-work/task-engine` 保持原名；现有数据目录、
 用户配置路径、环境变量及通信协议不因改名改变。
-新包尚未发布；下述旧版本发布记录属于旧包，不表示新包已在 npm 可用。
+新包 `0.2.1` 已发布至 `latest`；下述旧版本发布记录属于旧包。
+本次发布及 registry 元数据验证见[发布记录](../../README.md#ipfspawn-021-2026-11-17)。
 0.2.0 正式版使用通用 imports / typed ContentRef / parameters；
 发布和独立 registry 验收见[正式版记录](../../README.md#stable-020-2026-11-16)。
 build 交付的完整目录包含 `.task-imports.car`，搬运时不可遗漏。
@@ -24,8 +25,8 @@ build 交付的完整目录包含 `.task-imports.car`，搬运时不可遗漏。
 无需开放公共 Gateway；`--output` 可保存文件原始字节，且不会覆盖已有目标。
 
 ```powershell
-pnpm --filter '@silvermoon-work/ipfspawn...' build
-node packages\ipfspawn\dist\bin.js --version
+npm install -g @silvermoon-work/ipfspawn@0.2.1
+ipfspawn --version
 ```
 
 完整的 npm 安装 Builder CLI、init、安装依赖和 build 流程见

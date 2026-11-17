@@ -1,5 +1,11 @@
 # 端到端验证：安装 → Init → Build → Server → 持久任务
 
+当前源码 CLI 包为 `@silvermoon-work/ipfspawn`，仅提供 `ipfspawn` 命令；
+`@silvermoon-work/task-engine`
+核心包、数据与配置路径保持不变。新包尚未发布，须先按文末流程构建并在隔离 tools 项目安装本地 tarball，将该 tools 项目的 bin 目录加入本次终端 PATH，再运行下列
+`ipfspawn` 示例。旧 `@silvermoon-work/task-engine-cli@0.2.0`
+的 registry 验收属于历史记录，其 `task-engine` 命令不能替代新包验收。
+
 本文描述**0.2.0 正式版的 typed ContentRef /
 parameters 接口**；发布和独立 registry 安装验收范围见
 [正式版记录](../README.md#stable-020-2026-11-16)。历史 0.1.0 的 `data.result` /
@@ -26,17 +32,18 @@ parameters 接口**；发布和独立 registry 安装验收范围见
 node --version
 npm --version
 npm config get registry
-npm install -g @silvermoon-work/task-builder-cli@0.2.0 @silvermoon-work/task-engine-cli@0.2.0
+npm install -g @silvermoon-work/task-builder-cli@0.2.0
 task-builder --version
-task-engine --version
+ipfspawn --version
 task-builder --help
-task-engine --help
+ipfspawn --help
 ```
 
 全局 npm bin 目录须在 PATH 中。scope registry
 override 和 lockfile 下载 URL 也须符合环境策略。版本不可用时报阻塞，不用 workspace、tarball 或旧版本偷偷替代。保留实际解析版本，不能仅凭
-`latest` 标签推定版本正确。上述 `0.2.0` 已发布并通过独立 CLI
-consumer 验收；验证后续未发布的源码修改时，改用文末的独立 tarball 流程，不使用全局旧 CLI，也不把本地结果称为 registry 安装验收。
+`latest` 标签推定版本正确。Builder `0.2.0` 已发布并通过独立 CLI
+consumer 验收；当前 ipfspawn 使用文末的独立 tarball 流程，不使用全局旧 Engine
+CLI，也不把本地结果称为 registry 安装验收。
 
 ## 1. Init → 安装项目依赖
 
@@ -117,8 +124,8 @@ dist/
 `--engine http://127.0.0.1:<port>`，不要停止不属于本次验证的实例。
 
 ```powershell
-task-engine server start --data-dir .\engine-data --content-data-dir .\content-data
-task-engine server status --data-dir .\engine-data
+ipfspawn server start --data-dir .\engine-data --content-data-dir .\content-data
+ipfspawn server status --data-dir .\engine-data
 ```
 
 start 在后台 Server 就绪后返回，status 应报告 ready。Server 不会自动启动、不切换空闲端口、不复用其他实例。
@@ -141,7 +148,7 @@ start 在后台 Server 就绪后返回，status 应报告 ready。Server 不会�
 shell 都可使用此管道（调整路径分隔符）：
 
 ```powershell
-echo '{"text":"world"}' | task-engine run --car .\dist\task-engine-e2e.car --parameters -
+echo '{"text":"world"}' | ipfspawn run --car .\dist\task-engine-e2e.car --parameters -
 ```
 
 正常退出码为 0，单个 stdout JSON 的 `output.status` 应为 `succeeded`，
@@ -155,11 +162,11 @@ JSON，stderr 仅日志；help/version 是文本。失败退出 1，已确认用
 将下文 `<task-id>` 替换为本次真实回执中的 ID，不要直接复制占位字符串：
 
 ```powershell
-task-engine task query --id <task-id>
-task-engine task logs <task-id> --limit 100
-task-engine task await <task-id>
-task-engine task query --status succeeded --limit 20
-task-engine task query --since 2026-11-01T00:00:00Z --until 2026-12-01T00:00:00Z
+ipfspawn task query --id <task-id>
+ipfspawn task logs <task-id> --limit 100
+ipfspawn task await <task-id>
+ipfspawn task query --status succeeded --limit 20
+ipfspawn task query --since 2026-11-01T00:00:00Z --until 2026-12-01T00:00:00Z
 ```
 
 命令是单数 `task query`，不是 `tasks query`。当前源码对错误路径（包括带
@@ -173,7 +180,7 @@ task-engine task query --since 2026-11-01T00:00:00Z --until 2026-12-01T00:00:00Z
 异步流程可另提交一次：
 
 ```powershell
-echo '{"text":"async"}' | task-engine run --car .\dist\task-engine-e2e.car --parameters - --async
+echo '{"text":"async"}' | ipfspawn run --car .\dist\task-engine-e2e.car --parameters - --async
 ```
 
 保存这次新的 taskId，用 task query/logs/await 查询它。`--async`
@@ -186,7 +193,7 @@ echo '{"text":"async"}' | task-engine run --car .\dist\task-engine-e2e.car --par
 `<bundle-cid>`：
 
 ```powershell
-echo '{"text":"cached"}' | task-engine run --cid <bundle-cid> --parameters -
+echo '{"text":"cached"}' | ipfspawn run --cid <bundle-cid> --parameters -
 ```
 
 ContentRef /
@@ -196,8 +203,8 @@ CID 不能直接作为新版成功验收样例。在线验收须上传新构建�
 需要获取缓存未命中的块时，必须在 **Server 启动时**配置受控 Gateway，例如：
 
 ```powershell
-task-engine server stop --data-dir .\engine-data
-task-engine server start --data-dir .\engine-data --content-data-dir .\content-data --ipfs-gateway http://127.0.0.1:8080
+ipfspawn server stop --data-dir .\engine-data
+ipfspawn server start --data-dir .\engine-data --content-data-dir .\content-data --ipfs-gateway http://127.0.0.1:8080
 ```
 
 仅在你已启动并确认该 Gateway 能读取目标 Bundle 时使用这个地址；CLI 不启动 Kubo、不上传或 pin、不默认探测 8080 或公共 Gateway。也可以预先设置
@@ -212,12 +219,12 @@ task-engine server start --data-dir .\engine-data --content-data-dir .\content-d
 先等待上面所有任务完成。stop 默认拒绝在途任务，不把拒绝当成功：
 
 ```powershell
-task-engine server stop --data-dir .\engine-data
-task-engine server status --data-dir .\engine-data
-task-engine server start --data-dir .\engine-data --content-data-dir .\content-data
-task-engine task query --id <task-id>
-task-engine task logs <task-id>
-task-engine task await <task-id>
+ipfspawn server stop --data-dir .\engine-data
+ipfspawn server status --data-dir .\engine-data
+ipfspawn server start --data-dir .\engine-data --content-data-dir .\content-data
+ipfspawn task query --id <task-id>
+ipfspawn task logs <task-id>
+ipfspawn task await <task-id>
 ```
 
 比较重启前后的 taskId、状态、结果和日志，已完成任务不应重跑。如需取消仍运行的本次验证任务，显式使用
@@ -242,10 +249,10 @@ task-engine task await <task-id>
 ### 按 CID 读取目录、文件与输出（CLI rc.13）
 
 ```powershell
-task-engine content read <bundle-cid>
-task-engine content read <bundle-cid> --path resources/greeting.txt
-task-engine content read <bundle-cid> --path resources/greeting.txt --output .\greeting-copy.txt
-task-engine content read <result-file-cid>
+ipfspawn content read <bundle-cid>
+ipfspawn content read <bundle-cid> --path resources/greeting.txt
+ipfspawn content read <bundle-cid> --path resources/greeting.txt --output .\greeting-copy.txt
+ipfspawn content read <result-file-cid>
 ```
 
 目录返回
@@ -275,8 +282,8 @@ effort，不能宣称无限可靠。此接口须以包含该增强的新制品�
 `--task` 传多个 ID：
 
 ```powershell
-task-engine server stop --data-dir .\engine-data
-task-engine data prune --data-dir .\engine-data --task <task-id> --cache
+ipfspawn server stop --data-dir .\engine-data
+ipfspawn data prune --data-dir .\engine-data --task <task-id> --cache
 ```
 
 只删除已终结且释放确认的任务及日志；`--cache`
@@ -317,13 +324,13 @@ $node24 = Join-Path $env:NVM_HOME 'v24.11.1\node.exe'
 $env:PATH = "$(Split-Path $node24);$env:PATH"
 node --version
 pnpm --version
-pnpm --filter '@silvermoon-work/task-builder-cli...' --filter '@silvermoon-work/task-engine-cli...' build
+pnpm --filter '@silvermoon-work/task-builder-cli...' --filter '@silvermoon-work/ipfspawn...' build
 # $artifacts 须为仓库外新建的本次专用目录；每个包只打包一次。
 pnpm --dir packages\task-builder --config.ignore-scripts=true pack --pack-destination $artifacts
 ```
 
 对
-`ipfs-access/ipfs-payload/ipfs-store/task-protocol/task-sdk/task-builder/ task-builder-cli/task-engine/task-engine-cli`
+`ipfs-access/ipfs-payload/ipfs-store/task-protocol/task-sdk/task-builder/ task-builder-cli/task-engine/ipfspawn`
 共九包执行相同 pack。pnpm 11.22 的 pack 不接受
 `--ignore-scripts`，应使用上述配置参数。复用 `scripts/release.js` 的
 `selectRelease`、`validateManifest`、 `validateArtifact` 校验 packed

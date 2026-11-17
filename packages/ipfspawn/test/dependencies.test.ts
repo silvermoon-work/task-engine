@@ -62,7 +62,7 @@ return nextResolve(specifier,context);
   const source = `import * as module from "node:module";
 if(typeof module.registerHooks==="function")module.registerHooks({resolve:${loader.replace("export ", "")}});
 else module.register(${JSON.stringify(`data:text/javascript,${encodeURIComponent(loader)}`)},import.meta.url);
-const {main}=await import("@silvermoon-work/task-engine-cli");
+const {main}=await import("@silvermoon-work/ipfspawn");
 await main(["--help"]);await main(["--version"]);await main(["server"]);`;
   const { stdout, stderr } = await promisify(execFile)(
     process.execPath,
@@ -72,7 +72,7 @@ await main(["--help"]);await main(["--version"]);await main(["server"]);`;
       env: { ...process.env, NODE_OPTIONS: "" },
     },
   );
-  assert.match(stdout, /Usage: task-engine <command>/);
+  assert.match(stdout, /Usage: ipfspawn <command>/);
   assert.match(stdout, /Commands: start, status, stop/);
   assert.equal(stderr, "");
 });

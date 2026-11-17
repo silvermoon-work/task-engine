@@ -1,6 +1,11 @@
-# @silvermoon-work/task-engine-cli
+# @silvermoon-work/ipfspawn
 
 Task Engine 的本地后台 Server 与任务调用 CLI，要求 Node.js 22.15+（23.x 至少 23.5）。
+当前源码已从 `@silvermoon-work/task-engine-cli` 改名为
+`@silvermoon-work/ipfspawn`，仅提供 `ipfspawn` 命令，不保留 `task-engine`
+命令别名。核心依赖 `@silvermoon-work/task-engine` 保持原名；现有数据目录、
+用户配置路径、环境变量及通信协议不因改名改变。
+新包尚未发布；下述旧版本发布记录属于旧包，不表示新包已在 npm 可用。
 0.2.0 正式版使用通用 imports / typed ContentRef / parameters；
 发布和独立 registry 验收见[正式版记录](../../README.md#stable-020-2026-11-16)。
 build 交付的完整目录包含 `.task-imports.car`，搬运时不可遗漏。
@@ -19,8 +24,8 @@ build 交付的完整目录包含 `.task-imports.car`，搬运时不可遗漏。
 无需开放公共 Gateway；`--output` 可保存文件原始字节，且不会覆盖已有目标。
 
 ```powershell
-npm install -g @silvermoon-work/task-engine-cli@0.2.0
-task-engine --version
+pnpm --filter '@silvermoon-work/ipfspawn...' build
+node packages\ipfspawn\dist\bin.js --version
 ```
 
 完整的 npm 安装 Builder CLI、init、安装依赖和 build 流程见
@@ -30,33 +35,33 @@ task-engine --version
 以下示例假定已构建 `my-task`，`<...>` 须替换为实际回执：
 
 ```powershell
-task-engine server start
-'{"text":"world"}' | task-engine run --car .\dist\my-task.car --parameters -
-task-engine run --cid <bundle-cid> --parameters .\input.json --async
-task-engine task query
-task-engine task query --id <task-id>
-task-engine task logs <task-id> --limit 100
-task-engine task await <task-id>
-task-engine content read <cid>
-task-engine content read <cid> --path reports/summary.txt
-task-engine content read <cid> --path images/chart.png --output .\chart.png
-task-engine server status
-task-engine server stop
-task-engine data prune --task <task-id> --cache
-task-engine config list
-task-engine config get client.engine
-task-engine config set task.timeoutMs 120000
-task-engine config reset task.timeoutMs
+ipfspawn server start
+'{"text":"world"}' | ipfspawn run --car .\dist\my-task.car --parameters -
+ipfspawn run --cid <bundle-cid> --parameters .\input.json --async
+ipfspawn task query
+ipfspawn task query --id <task-id>
+ipfspawn task logs <task-id> --limit 100
+ipfspawn task await <task-id>
+ipfspawn content read <cid>
+ipfspawn content read <cid> --path reports/summary.txt
+ipfspawn content read <cid> --path images/chart.png --output .\chart.png
+ipfspawn server status
+ipfspawn server stop
+ipfspawn data prune --task <task-id> --cache
+ipfspawn config list
+ipfspawn config get client.engine
+ipfspawn config set task.timeoutMs 120000
+ipfspawn config reset task.timeoutMs
 ```
 
 仓库内先 `pnpm build`，再使用 private launcher
 `pnpm --filter task-engine-app start --help`，或
-`node packages\task-engine-cli\dist\bin.js --help`。
+`node packages\ipfspawn\dist\bin.js --help`。
 所有层级支持 `--help`/`-h`；根入口支持 `--version`。
 根或分组无子命令只显示帮助，不连接服务或创建数据。
 帮助文本写 stdout、退出 0，不产生业务副作用。错误路径即使加 `--help`
 也返回失败 JSON/退出 1；例如 `tasks query --help` 会建议
-`task-engine task query`，不会自动纠正执行，也没有复数 alias。
+`ipfspawn task query`，不会自动纠正执行，也没有复数 alias。
 叶帮助允许省略尚未填写的必填参数，但不掩盖未知/重复选项、多余参数或互斥组合。
 
 ## 命令和结果
@@ -208,14 +213,14 @@ CID 只标识内容，不是访问凭证。开启 `public` 会允许所有可连
 为兼容已有配置，`server.rawGatewayAccess/Token` 同时控制 raw 与 CAR。
 
 ```powershell
-task-engine config set server.rawGatewayAccess public
-task-engine server start --data-dir .\engine-a --port 8787
+ipfspawn config set server.rawGatewayAccess public
+ipfspawn server start --data-dir .\engine-a --port 8787
 # 改配置不会热更新已有 Server；重启后才生效。
 # 可改为独立 bearer 访问策略（用随机 32–256 位 URL-safe token 替换占位符）：
-task-engine config set server.rawGatewayToken <random-token>
-task-engine config set server.rawGatewayAccess token
+ipfspawn config set server.rawGatewayToken <random-token>
+ipfspawn config set server.rawGatewayAccess token
 # 禁用：
-task-engine config reset server.rawGatewayAccess
+ipfspawn config reset server.rawGatewayAccess
 ```
 
 配置 `token` 但没有合法 token 时启动失败。请求使用
@@ -258,13 +263,13 @@ HTTP listener、连接上限 `server.maxConnections` 和事件循环仍由宿主
 ### 显式受控递归回源（迭代 6）
 
 ```powershell
-task-engine config set server.rawGatewayAccess public
-task-engine config set server.gatewayMode recursive
-task-engine config set server.recursiveGatewayUpstreams http://127.0.0.1:8080,https://approved.example
+ipfspawn config set server.rawGatewayAccess public
+ipfspawn config set server.gatewayMode recursive
+ipfspawn config set server.recursiveGatewayUpstreams http://127.0.0.1:8080,https://approved.example
 # 重启后生效；上述地址是运维明确批准的完整 origin，而非请求者提供的目标。
-task-engine server start --data-dir .\recursive-engine --port 8787
+ipfspawn server start --data-dir .\recursive-engine --port 8787
 # 回到严格本地：
-task-engine config reset server.gatewayMode
+ipfspawn config reset server.gatewayMode
 ```
 
 允许列表独立于任务 acquisition：必须显式配置 1–2 个固定 HTTP(S) origin（无路径、
@@ -445,11 +450,11 @@ public/token、CORS、并发和超时策略；即使开启 recursive block 模�
 standalone CLI 使用宿主拥有的离线导入；先建立并停止一个专用实例：
 
 ```sh
-task-engine server start --data-dir ./ipns-instance --port 8788
-task-engine server stop --data-dir ./ipns-instance
-task-engine data import-ipns --data-dir ./ipns-instance --key k51... --record record.ipns-record
-task-engine config set server.rawGatewayAccess public
-task-engine server start --data-dir ./ipns-instance --port 8788
+ipfspawn server start --data-dir ./ipns-instance --port 8788
+ipfspawn server stop --data-dir ./ipns-instance
+ipfspawn data import-ipns --data-dir ./ipns-instance --key k51... --record record.ipns-record
+ipfspawn config set server.rawGatewayAccess public
+ipfspawn server start --data-dir ./ipns-instance --port 8788
 curl 'http://127.0.0.1:8788/ipns/k51...?format=ipns-record'
 curl -H 'Accept: application/vnd.ipfs.ipns-record' 'http://127.0.0.1:8788/ipns/k51...'
 ```
@@ -513,9 +518,11 @@ bundleMaxBytes=67108864、maxConnections=256。
 旧省略输入改为显式 `--parameters -`；不再使用 `--allow-children`、
 `--expected-cid` 或 `--max-runtime-ms`。已提供的子任务能力直接按服务预算执行。
 
-发布映射为 `task-engine-cli`。历史正式版 `0.1.0` 发布至 npm `latest`，
+发布映射为 `ipfspawn`，新发布 tag 使用 `ipfspawn-v<version>`。
+首次发布前须确认新 npm 包对应的 Trusted Publisher 绑定。
+旧包的历史正式版 `0.1.0` 发布至 npm `latest`，
 历史 `0.2.0-rc.0` 发布至 npm `rc`，当时未修改 `latest` 或历史 `canary`。
-当前源码版本 `0.2.0` 仅为正式版发布准备，不宣称发布或 registry 安装验收成功；
+当前源码版本以 package.json 为准，不宣称新包发布或 registry 安装验收成功；
 每个包独立发布，不因 Builder 发布而自动发布。
 每次只能发布一个明确授权的映射包。
 内部 runtime/peer 及当前发布守卫检查的 dev workspace 依赖必须已有匹配发布版本；

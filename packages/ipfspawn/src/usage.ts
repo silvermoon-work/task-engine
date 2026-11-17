@@ -18,9 +18,9 @@ export const leaves = [
   "config reset",
 ] as const;
 export const groups = ["server", "task", "content", "data", "config"];
-export const help = `Task Engine — manage a local Server and persistent tasks.
+export const help = `ipfspawn — manage a local Task Engine Server and persistent tasks.
 
-Usage: task-engine <command>
+Usage: ipfspawn <command>
   server start|status|stop  Manage a local background Server by --data-dir
   run --cid <cid>|--car <file> --parameters <file|-> [--async]
   task query|logs|await    Query persistent tasks, logs or final results
@@ -31,14 +31,14 @@ Usage: task-engine <command>
 Business results: one stdout JSON. stderr: logging only. Exit 0 success, 1 failure, 130 interrupted.
 JSON envelope: {ok, output?, error?}. Task payloads: output.result = {data, cidPaths}.
 No automatic Server startup, interactive prompts, dry-run or format switches.
-Use task-engine <command> --help for options.
+Use ipfspawn <command> --help for options.
 
 Examples:
-  task-engine server start
-  task-engine run --car dist/my-task.car --parameters input.json
-  task-engine task query --status failed
-  task-engine content read <cid> --path report.txt
-Documentation: https://github.com/silvermoon-work/task-engine/tree/main/packages/task-engine-cli
+  ipfspawn server start
+  ipfspawn run --car dist/my-task.car --parameters input.json
+  ipfspawn task query --status failed
+  ipfspawn content read <cid> --path report.txt
+Documentation: https://github.com/silvermoon-work/task-engine/tree/main/packages/ipfspawn
 `;
 export const startKeys: Record<string, ConfigKey> = {
   "--host": "server.host",
@@ -258,14 +258,14 @@ ${directory}
     },
   };
   const detail = details[command]!;
-  return `${detail.purpose}\n\nUsage: task-engine ${command}${usage[command] ? ` ${usage[command]}` : ""}
+  return `${detail.purpose}\n\nUsage: ipfspawn ${command}${usage[command] ? ` ${usage[command]}` : ""}
 
 Parameters:
 ${detail.parameters}
   -h, --help  Show this help without executing the command.
 
 Examples:
-${detail.examples.map((example) => `  task-engine ${example}`).join("\n")}
+${detail.examples.map((example) => `  ipfspawn ${example}`).join("\n")}
 
 Business results: one stdout JSON. stderr: logging only. Help: stdout text.
 Exit 0 success, 1 failure, 130 interrupted.
@@ -298,11 +298,11 @@ export function unknownCommand(argv: readonly string[]): TaskError {
     .sort((left, right) => left.distance - right.distance);
   const suggestion =
     candidates[0] && (!candidates[1] || candidates[0].distance < candidates[1].distance)
-      ? ` Did you mean "task-engine ${candidates[0].candidate}"?`
+      ? ` Did you mean "ipfspawn ${candidates[0].candidate}"?`
       : "";
   return new TaskError(
     "ARGUMENT_INVALID",
-    `Unknown command "${path || argv[0] || ""}".${suggestion} Run "task-engine --help" for commands.`,
+    `Unknown command "${path || argv[0] || ""}".${suggestion} Run "ipfspawn --help" for commands.`,
   );
 }
 

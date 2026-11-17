@@ -224,8 +224,8 @@ export async function runBundle(options: RunBundleOptions): Promise<ExecutionRes
   );
 }
 
-const legacyHelp = `Usage: task-engine run <bundle-cid> [--gateway <base-url>] [--parameters <file|->] [options]
-       task-engine run --car <file.car> [--parameters <file|->] [options]
+const legacyHelp = `Usage: ipfspawn run <bundle-cid> [--gateway <base-url>] [--parameters <file|->] [options]
+       ipfspawn run --car <file.car> [--parameters <file|->] [options]
 
 Run an embedded engine in a fresh, disposable in-memory data domain.
 No task HTTP service is required. Select CID/Gateway or a local CAR, never both.

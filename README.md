@@ -9,6 +9,12 @@ scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节�
 
 ## 当前源码验证与迁移
 
+当前 CLI 包已改名为 `@silvermoon-work/ipfspawn`，命令为 `ipfspawn`，不保留
+`task-engine` 命令别名。核心依赖 `@silvermoon-work/task-engine`
+保持原名，现有数据目录、用户配置路径、环境变量与通信协议不变。新包尚未发布；下方旧包发布记录、版本与 tag 保留历史原貌。源码用法见
+[ipfspawn README](packages/ipfspawn/README.md)，独立制品验证见
+[端到端指引](docs/end-to-end-verification.md)。
+
 当前作者接口使用 typed `ContentRef`、`parameters` 和 `{data,cidPaths}`
 载荷；`context.bundle` 是 CID 字符串，内容 I/O 使用
 `resolveContent/readContent/putContent`，不再使用 SpaceRef、 `context.space` 或
@@ -239,7 +245,7 @@ postinstall 仍可构建，不要同时使用
 配置；不读取旧 Kubo 环境变量。只执行可信任务代码，全局 npm 的 bin 目录须在 PATH 中。
 
 完整配置、持久化、离线清理与旧接口迁移见
-[Engine CLI README](packages/task-engine-cli/README.md)；重启后按 taskId 查询和离线清理的完整操作见[端到端验证指引](docs/end-to-end-verification.md)。源码打包制品已在 Linux
+[ipfspawn README](packages/ipfspawn/README.md)；重启后按 taskId 查询和离线清理的完整操作见[端到端验证指引](docs/end-to-end-verification.md)。源码打包制品已在 Linux
 x64 / Node
 24 验证安装、在线 CID、持久日志与重启；正式版本仍须通过发布后真实 registry 安装验证。
 
@@ -280,7 +286,7 @@ CLI 通过标准 CAR/UnixFS 库实现离线只读块源，生产安装不依赖 
 | [@silvermoon-work/task-engine-server](./packages/task-engine-server/README.md)   | Node HTTP/SSE 服务组装                        |
 | [@silvermoon-work/task-builder](./packages/task-builder/README.md)               | 只读文件树转换、esbuild 构建与流式资源        |
 | [@silvermoon-work/task-builder-cli](./packages/task-builder-cli/README.md)       | Commander 命令交互、本地文件适配与模板组装    |
-| [@silvermoon-work/task-engine-cli](./packages/task-engine-cli/README.md)         | 显式后台 Server、持久任务查询与离线清理       |
+| [@silvermoon-work/ipfspawn](./packages/ipfspawn/README.md)                       | 显式后台 Server、持久任务查询与离线清理       |
 
 Web UI、pguide CLI 和 Check/Probe 包不在本次提取范围。Task
 SDK 已迁入，当前通过本仓库 task-protocol、ipfs-access 和 ipfs-payload 提供 Worker 与 typed 内容契约；init 模板与作者入口使用
@@ -341,7 +347,7 @@ packages/
   task-engine-server/
   task-builder/
   task-builder-cli/
-  task-engine-cli/
+  ipfspawn/
 pnpm-workspace.yaml
 turbo.json
 ```

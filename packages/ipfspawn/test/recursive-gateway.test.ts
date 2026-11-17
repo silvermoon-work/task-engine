@@ -277,6 +277,7 @@ test("wrong CID, content type, declared/streamed oversize, redirect and stalled 
 });
 
 test("ordered fallback has a shared byte/deadline budget and never hides persistence errors", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   let first = 0,
     second = 0;
   const upstreams = [
@@ -316,17 +317,32 @@ test("ordered fallback has a shared byte/deadline budget and never hides persist
   );
   assert.equal(first, 1);
   assert.equal(second, 2);
-  const stalled = await listen(t, () => {});
+  let stalledEntered!: () => void;
+  const entered = new Promise<void>((resolve) => {
+    stalledEntered = resolve;
+  });
+  const stalled = await listen(t, () => stalledEntered());
   const fallback = createRecursiveGateway(
     { ...policy, upstreams: [stalled, upstreams[1]!] },
     (cid, opts) => content.local(cid, opts),
     (cid, bytes, signal) => content.put(cid, bytes, signal),
   );
   t.after(() => fallback.close());
-  assert.deepEqual(
-    await fallback.read(cid, { signal: new AbortController().signal, maxBytes: 1024 }),
-    bytes,
-  );
+  const result = fallback.read(cid, {
+    signal: new AbortController().signal,
+    maxBytes: 1024,
+  });
+  try {
+    await entered;
+    t.mock.timers.tick(policy.attemptTimeoutMs - 1);
+    assert.equal(fallback.snapshot().attempts, 1);
+    assert.equal(fallback.snapshot().timeouts, 0);
+    t.mock.timers.tick(1);
+    assert.deepEqual(await result, bytes);
+  } finally {
+    await fallback.close();
+    await Promise.allSettled([result]);
+  }
   assert.equal(fallback.snapshot().timeouts, 1);
   assert.equal(fallback.snapshot().attempts, 2);
 });

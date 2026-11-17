@@ -628,7 +628,7 @@ test("the release registry contains the core packages, builder CLI and finite ex
     "task-protocol",
     "task-sdk",
     "task-engine",
-    "task-engine-cli",
+    "ipfspawn",
     "task-engine-storage",
     "task-engine-http",
     "task-engine-server",
@@ -684,7 +684,7 @@ test("Engine production workspace closures exclude compilers and the retired CAR
     "@silvermoon-work/task-bundle-car",
   ]);
   for (const root of [
-    "@silvermoon-work/task-engine-cli",
+    "@silvermoon-work/ipfspawn",
     "@silvermoon-work/task-engine",
   ]) {
     const visited = new Set();
@@ -722,7 +722,7 @@ test("Engine production workspace closures exclude compilers and the retired CAR
 test("public CLI packages install precompiled bins without consumer-side compilation hooks", () => {
   for (const [id, command] of [
     ["task-builder-cli", "task-builder"],
-    ["task-engine-cli", "task-engine"],
+    ["ipfspawn", "ipfspawn"],
   ]) {
     const directory = resolve("packages", id);
     const manifest = JSON.parse(
@@ -730,6 +730,7 @@ test("public CLI packages install precompiled bins without consumer-side compila
     );
     assert.equal(manifest.private, undefined);
     assert.equal(manifest.bin[command], "./dist/bin.js");
+    assert.deepEqual(Object.keys(manifest.bin), [command]);
     assert.ok(manifest.files.includes("dist"));
     for (const hook of ["preinstall", "install", "postinstall", "prepare"])
       assert.equal(manifest.scripts[hook], undefined, `${id}: ${hook}`);

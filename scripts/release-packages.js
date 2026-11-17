@@ -45,9 +45,9 @@ export const releasePackages = [
     name: "@silvermoon-work/task-engine",
   },
   {
-    id: "task-engine-cli",
-    directory: "packages/task-engine-cli",
-    name: "@silvermoon-work/task-engine-cli",
+    id: "ipfspawn",
+    directory: "packages/ipfspawn",
+    name: "@silvermoon-work/ipfspawn",
   },
   {
     id: "task-engine-storage",

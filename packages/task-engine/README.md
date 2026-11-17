@@ -143,7 +143,8 @@ bootstrap 自己以本地 URL 创建 require，再加载 IPFS 入口；作者不
 新 ESM 保留原生 `import.meta.url`，为打包的 CJS 依赖提供 builtin require 桥接，
 但不承诺入口存在于 CJS cache 或提供全局 `module`。
 Node 22.15.0 与 24.11.1 的 `require.resolve(ipfsURL)` 不走 hook，仍报
-`MODULE_NOT_FOUND`，不承诺通用 IPFS require/resolve API。
+`MODULE_NOT_FOUND`；Node 26.13.1 可通过 hook 返回规范入口 URL。
+这是原生 Node 版本差异，不承诺通用 IPFS require/resolve API。
 
 需要正确模块地址的旧产物须用新版 Builder 重新构建、重新生成 CAR/CID，再提交新 CID。
 历史地址生成修正不改写旧 CID；ESM 构建则改变入口、manifest 和 CAR，必须使用
@@ -218,7 +219,7 @@ cleanup unknown 或基础设施失败会拒绝并尝试正常关闭；AbortSigna
 
 drain 自己持有且最终清除一个存活句柄，保证只有 preparation 或未来等待时进程也不会
 提前自然退出；常驻 tick 的原有 unref 行为不变。独立命令与退出码见
-[Task Engine CLI](../task-engine-cli/README.md)。
+[ipfspawn CLI](../ipfspawn/README.md)。
 
 `createIpfsGatewayClient()` 返回的 client 新增 `close()`：创建方可封闭读取、
 取消在途获取，并等待临时 Helia 节点实际停止，清理不确认则拒绝。

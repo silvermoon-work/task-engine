@@ -6,6 +6,6 @@
     "outDir": "dist",
     "tsBuildInfoFile": "./.cache/tsconfig.tsbuildinfo"
   },
-  "references": [{ "path": "../../packages/task-engine-cli" }],
+  "references": [{ "path": "../../packages/ipfspawn" }],
   "include": ["src/**/*.ts"]
 }

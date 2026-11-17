@@ -39,10 +39,7 @@ test("unknown command paths fail with and without help, suggesting but never exe
       assert.equal(response.ok, false);
       assert.equal(response.error.code, "ARGUMENT_INVALID");
       assert.match(response.error.message, /Unknown command/);
-      assert.match(
-        response.error.message,
-        /Did you mean "task-engine (task query|server start)"\?/,
-      );
+      assert.match(response.error.message, /Did you mean "ipfspawn (task query|server start)"\?/);
       assert.equal(response.output, undefined);
       assert.equal(result.stdout.trim().split("\n").length, 1);
     }
@@ -66,10 +63,10 @@ test("root, groups and every leaf provide help without requiring business argume
       const result = await execute([...path, flag]);
       assert.equal(result.code, 0, path.join(" "));
       assert.equal(result.stderr, "");
-      assert.match(result.stdout, /Usage: task-engine/);
+      assert.match(result.stdout, /Usage: ipfspawn/);
       if (leaves.includes(path.join(" ") as (typeof leaves)[number])) {
         assert.match(result.stdout, /Parameters:/);
-        assert.match(result.stdout, /Examples:\n {2}task-engine/);
+        assert.match(result.stdout, /Examples:\n {2}ipfspawn/);
         assert.match(result.stdout, /Help: stdout text/);
       }
     }

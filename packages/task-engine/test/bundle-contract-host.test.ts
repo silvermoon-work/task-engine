@@ -88,13 +88,14 @@ const state = globalThis;
 state.moduleEvaluations = (state.moduleEvaluations ?? 0) + 1;
 runTask(async () => {
   let ipfsResolve;
-  try { require.resolve(__filename); } catch (error) { ipfsResolve = error.code; }
+  try { ipfsResolve = require.resolve(__filename); } catch (error) { ipfsResolve = error.code; }
   return {
     url: import.meta.url, filename: __filename, dirname: __dirname,
     require: typeof require, cache: typeof require.cache,
     resolve: require.resolve("node:path"), paths: typeof require.resolve.paths,
     module: typeof module,
-    evaluations: state.moduleEvaluations, ipfsResolve,
+    evaluations: state.moduleEvaluations,
+    ipfsResolve: ipfsResolve === __filename || ipfsResolve === "MODULE_NOT_FOUND",
     builtin: typeof require("node:crypto").createHash,
     options: process.env.NODE_OPTIONS, sourceVisible: "bundleSource" in require("node:worker_threads").workerData
   };
@@ -111,7 +112,7 @@ runTask(async () => {
       paths: "function",
       module: "undefined",
       evaluations: 1,
-      ipfsResolve: "MODULE_NOT_FOUND",
+      ipfsResolve: true,
       builtin: "function",
       options: "",
       sourceVisible: false,

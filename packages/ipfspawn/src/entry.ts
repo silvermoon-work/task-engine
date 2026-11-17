@@ -37,7 +37,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
         .filter((leaf) => leaf.startsWith(`${command} `))
         .map((leaf) => leaf.split(" ")[1]!);
       process.stdout.write(
-        `Usage: task-engine ${command} <command>\nCommands: ${children.join(", ")}\nUse task-engine ${command} <command> --help for options.\n`,
+        `Usage: ipfspawn ${command} <command>\nCommands: ${children.join(", ")}\nUse ipfspawn ${command} <command> --help for options.\n`,
       );
       return 0;
     }

@@ -262,11 +262,13 @@ test("forced exit stops exactly one Run; independent host proof is required for 
     const blocked = f.engine.submit(f.request({ kind: "ignore-cancel" }), caller);
     const healthy = f.engine.submit(f.request(), caller);
     f.engine.tick();
-    await until(
-      () =>
+    await until(() => {
+      f.engine.tick();
+      return (
         !!f.engine.getTask(blocked.taskId, caller).run &&
-        !!f.engine.getTask(healthy.taskId, caller).run,
-    );
+        !!f.engine.getTask(healthy.taskId, caller).run
+      );
+    });
     const blockedRun = f.engine.getTask(blocked.taskId, caller).run!.runId;
     const healthyRun = f.engine.getTask(healthy.taskId, caller).run!.runId;
     await until(

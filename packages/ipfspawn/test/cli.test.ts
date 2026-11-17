@@ -486,7 +486,7 @@ process.exitCode=await main(process.argv.slice(1));clearTimeout(timer);`;
 test("help exits naturally without requiring a Gateway", async () => {
   const output = await execute(["--help"]);
   assert.equal(output.exitCode, 0);
-  assert.match(output.stdout, /Usage: task-engine run/);
+  assert.match(output.stdout, /Usage: ipfspawn run/);
 });
 
 test("SIGINT interrupts default stdin waiting without leaving a live input handle", async () => {

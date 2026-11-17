@@ -301,6 +301,14 @@ test("Kubo Engine output bypasses business block storage and all retained Task/R
       await engine.waitForTaskRelease(decision.taskId, caller);
       const result = engine.getTask(decision.taskId, caller);
       assert.equal(result.stage, "completed", JSON.stringify(result));
+      const runId = result.run?.runId;
+      assert.ok(runId);
+      const history = databases[engines.indexOf(engine)]!.runHistory;
+      // Worker release does not settle the archive's independent staging pins.
+      while (!history.read(runId)?.archive.published) {
+        assert.ok(Date.now() < deadline, JSON.stringify(history.read(runId)));
+        await new Promise((done) => setTimeout(done, 10));
+      }
       return result;
     }
     await Promise.all(engines.map((engine) => engine.start()));

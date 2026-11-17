@@ -1,5 +1,10 @@
 # Task Engine CLI 需求模型
 
+> 2026-11-17 命名更新：当前 CLI 包为 `@silvermoon-work/ipfspawn`，命令为
+> `ipfspawn`，核心 `@silvermoon-work/task-engine`
+> 不改名。本文及 HTML 保留原批准基线；当前接口以
+> [ipfspawn README](../packages/ipfspawn/README.md) 为准。
+
 > **本轮设计已批准并定稿：2026-11-10 19:37。**
 > 前 15 项逐项确认完成后，用户对剩余第 16–21 项回复“这些项目都没有问题，可以确认。”。本文件及
 > [CLI Spec](./task-engine-cli-spec.html)

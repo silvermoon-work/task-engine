@@ -525,7 +525,7 @@ test("宿主存储拒绝进度会拒绝上报，不返回业务成功", async ()
   }
 });
 
-test("卡死的类型不会卡死宿主，健康恢复不自动重跑旧 Run", async () => {
+test("卡死的类型不会卡死宿主，健康恢复不自动重跑旧 Run", async (t) => {
   const f = fixture();
   const supervisor = new TypeSupervisor(f.registration, f.channel, {
     heartbeatMs: 20,
@@ -534,7 +534,13 @@ test("卡死的类型不会卡死宿主，健康恢复不自动重跑旧 Run", a
     maxPayloadBytes: 65_536,
   });
   try {
-    await supervisor.run("blocked", { kind: "block" }, "scope");
+    // Test the live health boundary, not OS scheduling during Worker startup.
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    try {
+      await supervisor.run("blocked", { kind: "block" }, "scope");
+    } finally {
+      t.mock.timers.reset();
+    }
     await delay(30);
     let responsive = false;
     await new Promise<void>((resolve) =>
@@ -547,7 +553,12 @@ test("卡死的类型不会卡死宿主，健康恢复不自动重跑旧 Run", a
     assert.deepEqual(await f.loss.promise, ["blocked"]);
     assert.equal(f.results.has("blocked"), false);
     assert.equal(f.released.has("blocked"), false);
-    await supervisor.run("fresh", {}, "scope");
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    try {
+      await supervisor.run("fresh", {}, "scope");
+    } finally {
+      t.mock.timers.reset();
+    }
     await until(() => f.released.has("fresh"));
     assert.equal(f.results.has("blocked"), false);
     assert.ok(f.results.has("fresh"));

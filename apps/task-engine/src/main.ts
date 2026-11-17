@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { main } from "@silvermoon-work/task-engine-cli";
+import { main } from "@silvermoon-work/ipfspawn";
 
 void main().then(
   (code) => {

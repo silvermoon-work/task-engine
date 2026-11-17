@@ -31,6 +31,45 @@ ContentRef 返回，不能冒充旧输出目录。CLI `run` 使用
 和用户配置目录，不使用共享 Kubo 或删除默认缓存。完整当前命令、独立源码 tarball 验证及已知差异见
 [端到端指引](docs/end-to-end-verification.md)。本地 tarball/typecheck/build/run 成功不代表修改后源码已发布；下方历史发布记录保持原样。
 
+### Runtime declaration RC 0.2.1-rc.0 (2026-11-17)
+
+Only `@silvermoon-work/task-protocol` and `@silvermoon-work/task-engine` were
+published as `0.2.1-rc.0` to `rc` from
+[`7835e79`](https://github.com/silvermoon-work/task-engine/commit/7835e797a6bf4c7ee44c93ae6f111646239254c8).
+Other package versions and both packages' `latest: 0.2.0` remain unchanged.
+
+The Task declaration now recognizes `browser`, `browser-worker` and
+`cloudflare-worker`, without Node's `minVersion` field. Worker and Durable
+Object share the Cloudflare runtime type; DO host requirements and compatibility
+configuration are not added. The Node Engine rejects all three non-Node runtimes
+with `unsupported_runtime` before executing their entry. This release does not
+add browser/Cloudflare builds, loaders or execution hosts; Builder still targets
+Node/CommonJS and the existing `worker.cjs` entry contract is unchanged.
+
+The exact release commit passed
+[Node 22.15.0 / 24.11.1 main CI](https://github.com/silvermoon-work/task-engine/actions/runs/44023753465).
+Separate immutable tags triggered Trusted Publishing for
+[Protocol](https://github.com/silvermoon-work/task-engine/actions/runs/44025198415)
+and then
+[Engine](https://github.com/silvermoon-work/task-engine/actions/runs/44025454904),
+after Protocol's exact-version metadata became visible. Both passed
+[registry version, dependency and dist-tag verification](https://github.com/silvermoon-work/task-engine/actions/runs/44025985691).
+
+An isolated Ubuntu consumer on Node 24.22.2 installed both exact RCs from its
+unchanged registry configuration and verified downloaded tarball integrity. All
+three declarations passed parsing and were rejected by a real Node Engine
+without evaluating their entry; invalid runtime fields/types were rejected.
+Using published Builder, Builder CLI and SDK `0.2.0`, a normal Node Task built
+to CAR, read a normalized non-ASCII resource, returned the expected IPFS payload
+and confirmed Worker reclamation. Engine resolved Protocol `0.2.1-rc.0`; the
+unchanged authoring packages retained their Protocol `0.2.0` dependencies. No
+existing remote service, shared content store or global package installation was
+changed.
+
+```powershell
+npm install --save-exact @silvermoon-work/task-protocol@0.2.1-rc.0 @silvermoon-work/task-engine@0.2.1-rc.0
+```
+
 ### Stable 0.2.0 (2026-11-16)
 
 All nine mapped `task-*` packages at `0.2.0` and all four mapped `ipfs-*`

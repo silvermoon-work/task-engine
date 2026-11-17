@@ -52,3 +52,19 @@ Builder 展开后用原块 graft，展开副本不是 import 身份来源。
   [内容桥接](../../../../../../packages/task-engine/test/spaces.test.ts)：不是 parser mock。
 
 这些是现格式的已存在测试入口，不是新公共格式已实现或已通过的声明。
+
+## 准备阶段基线验证（非新格式验收）
+
+2026-11-17，本次只增加 Idea 文档和事件，未修改产品代码：
+
+- `silvermoon check --worktree --audience agent` / `--staged` 通过；42 个本地文档链接及脚手架替换检查通过。
+- Node 26.13.1 的 `pnpm check` 失败于 Engine 的模块地址/隔离用例，业务返回 invalid_payload；
+  同一用例在 Node 24.11.1 单独复验通过。未确认根因，不能宣称已修复或支持所有 Node 26 行为。
+- Node 24.11.1 完整 `pnpm check` 的 Engine 测试通过，但 CLI 的
+  “controlled cache ENOSPC makes a real Server fail-exit without filling the machine disk”
+  在等待 Server ready 的 20 秒窗口超时，Turbo 为 49 successful / 54 total，后续门限未全部执行。
+- Node 24.11.1 使用 `pnpm --filter @silvermoon-work/task-engine-cli exec tsx --test --test-name-pattern='controlled cache ENOSPC' test\managed.test.ts`
+  单独复验该用例通过。这不能替代完整检查，也不能据此断言只有环境抖动。
+
+因此**当前基线未获得完整质量门限通过**；没有屏蔽、放宽超时或修改无关代码。
+后续实施验收仍要求完整 pnpm check 通过；若复现，应隔离定位而非把此次文档准备视为修复。

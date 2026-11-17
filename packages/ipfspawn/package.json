@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/ipfspawn",
-  "version": "0.2.1-rc.0",
+  "version": "0.2.1",
   "description": "ipfspawn: managed local Task Engine server and persistent task CLI.",
   "type": "module",
   "sideEffects": false,

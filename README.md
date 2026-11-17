@@ -37,6 +37,55 @@ ContentRef 返回，不能冒充旧输出目录。CLI `run` 使用
 和用户配置目录，不使用共享 Kubo 或删除默认缓存。完整当前命令、独立源码 tarball 验证及已知差异见
 [端到端指引](docs/end-to-end-verification.md)。本地 tarball/typecheck/build/run 成功不代表修改后源码已发布；下方历史发布记录保持原样。
 
+### Stable 0.2.1 (2026-11-17)
+
+The five ESM runtime toolchain packages were individually published as `0.2.1`
+to `latest` from
+[`efc5ae2`](https://github.com/silvermoon-work/task-engine/commit/efc5ae25605b50b11f9e2ab5b75543b928201d0d).
+This promotes the verified RC implementation without product code changes. Task
+and task-build schema URIs remain **v1**. SDK stays at `0.2.0`; IPFS, Storage,
+HTTP and Server package versions were not changed or published. Historical
+versions, immutable tags and `rc`/legacy dist-tags remain intact.
+
+| Package                             | Version | Trusted publication                                                                    |
+| ----------------------------------- | ------- | -------------------------------------------------------------------------------------- |
+| `@silvermoon-work/task-protocol`    | `0.2.1` | [Protocol](https://github.com/silvermoon-work/task-engine/actions/runs/44052641791)    |
+| `@silvermoon-work/task-builder`     | `0.2.1` | [Builder](https://github.com/silvermoon-work/task-engine/actions/runs/44053056801)     |
+| `@silvermoon-work/task-builder-cli` | `0.2.1` | [Builder CLI](https://github.com/silvermoon-work/task-engine/actions/runs/44053646676) |
+| `@silvermoon-work/task-engine`      | `0.2.1` | [Engine](https://github.com/silvermoon-work/task-engine/actions/runs/44054099447)      |
+| `@silvermoon-work/task-engine-cli`  | `0.2.1` | [Engine CLI](https://github.com/silvermoon-work/task-engine/actions/runs/44054529601)  |
+
+The complete local `pnpm check` and the release commit's
+[Linux Node 22.15.0 / 24.11.1 main CI](https://github.com/silvermoon-work/task-engine/actions/runs/44050555062)
+passed. Each package was built, packed once, checked and published separately
+through Actions after its dependencies were published. The
+[five-package registry/latest/dependency verification](https://github.com/silvermoon-work/task-engine/actions/runs/44054709465)
+passed after a read-only retry for registry metadata propagation; no publication
+was repeated and no release tag was moved.
+
+An independent Windows Node 24.11.1 consumer installed the exact stable versions
+through the existing local registry with lifecycle scripts disabled. Initial
+metadata propagation caused `ETARGET`; after synchronization, installation with
+an isolated cache succeeded without changing registry. Installed tarball
+integrities matched registry records, the five updated production dependencies
+resolved to `0.2.1`, and SDK retained its Protocol `0.2.0` dependency.
+CLI-to-CAR builds and packaged resource/export consumption passed for all four
+runtimes. Node Engine rejected the non-Node targets with `unsupported_runtime`;
+a real Node ESM Task returned the expected payload and confirmed Worker
+reclamation. Installed Task/build schema URIs were verified as v1. The stable
+smoke reproduced the RC fixture's root CIDs and Node CAR SHA-256.
+
+This does not add a browser/Cloudflare execution host or Cloudflare deployment
+validation. `office-ubuntu` remained unreachable over SSH, so this release does
+not claim a new independent Ubuntu consumer run; Linux execution was covered by
+the exact-commit CI. New builds use `main.mjs`; follow the ESM migration and
+runtime boundaries below, rebuild under new CIDs, and pair the updated tools.
+
+```powershell
+npm install --save-exact @silvermoon-work/task-protocol@0.2.1 @silvermoon-work/task-engine@0.2.1
+npm install --save-dev --save-exact @silvermoon-work/task-builder@0.2.1 @silvermoon-work/task-builder-cli@0.2.1
+```
+
 ### ESM runtime build RCs (2026-11-17)
 
 The following exact versions were individually published to `rc` from

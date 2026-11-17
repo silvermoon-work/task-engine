@@ -79,7 +79,7 @@ async function compile(directory: string, source: string, schemas: Record<string
 }
 type Built = Awaited<ReturnType<typeof compile>>;
 
-test("IPFS module entry preserves Builder URLs, CJS APIs, cache and per-Run isolation", async () => {
+test("ESM entry preserves Builder URLs, builtin require and per-Run isolation", async () => {
   await fixture(async (directory) => {
     const built = await compile(
       directory,
@@ -87,33 +87,29 @@ test("IPFS module entry preserves Builder URLs, CJS APIs, cache and per-Run isol
 const state = globalThis;
 state.moduleEvaluations = (state.moduleEvaluations ?? 0) + 1;
 runTask(async () => {
-  const cached = require.cache[__filename];
-  const first = module.require(__filename);
-  const second = module.require(__filename);
   let ipfsResolve;
   try { require.resolve(__filename); } catch (error) { ipfsResolve = error.code; }
   return {
     url: import.meta.url, filename: __filename, dirname: __dirname,
     require: typeof require, cache: typeof require.cache,
     resolve: require.resolve("node:path"), paths: typeof require.resolve.paths,
-    cached: Boolean(cached), same: first === second && cached.exports === first,
+    module: typeof module,
     evaluations: state.moduleEvaluations, ipfsResolve,
-    builtin: typeof module.require("node:crypto").createHash,
-    options: process.env.NODE_OPTIONS, sourceVisible: "bundleSource" in module.require("node:worker_threads").workerData
+    builtin: typeof require("node:crypto").createHash,
+    options: process.env.NODE_OPTIONS, sourceVisible: "bundleSource" in require("node:worker_threads").workerData
   };
 });`,
       { resultSchema: true },
     );
     const expected = {
-      url: `ipfs://${built.cid}/worker.cjs`,
-      filename: `ipfs://${built.cid}/worker.cjs`,
+      url: `ipfs://${built.cid}/main.mjs`,
+      filename: `ipfs://${built.cid}/main.mjs`,
       dirname: `ipfs://${built.cid}`,
       require: "function",
       cache: "object",
       resolve: "node:path",
       paths: "function",
-      cached: true,
-      same: true,
+      module: "undefined",
       evaluations: 1,
       ipfsResolve: "MODULE_NOT_FOUND",
       builtin: "function",
@@ -132,7 +128,7 @@ test("IPFS module hook rejects non-entry addresses without disclosing credential
       directory,
       `import {runTask} from "@silvermoon-work/task-sdk";
 runTask(async () => {
-  const cid = __filename.slice(7, -11);
+  const cid = new URL(import.meta.url).hostname;
   const requests = [
     "ipfs://" + cid + "/resources/data.js",
     "ipfs://bafybeigdyrzt5sfp7udm7hu76u7cnngv7cbd3gbta6ipjcnpf7bh6zyvle/worker.cjs",
@@ -148,7 +144,7 @@ runTask(async () => {
     "unbundled-package"
   ];
   return requests.map(request => {
-    try { Reflect.apply(module.require, module, [request]); return {loaded: true}; }
+    try { Reflect.apply(require, undefined, [request]); return {loaded: true}; }
     catch (error) { return {code: error.code, message: error.message}; }
   });
 });`,
@@ -170,7 +166,7 @@ runTask(async () => {
       assert.ok(error && typeof error === "object" && !Array.isArray(error));
       assert.equal(error.code, "unsupported_module");
       assert.ok(typeof error.message === "string");
-      assert.match(error.message, new RegExp(`ipfs://${built.cid}/worker.cjs`));
+      assert.match(error.message, new RegExp(`ipfs://${built.cid}/main.mjs`));
       assert.doesNotMatch(error.message, /secret|host-secret|user:/);
     }
     const local = new URL("./isolated-type.mjs", import.meta.url).href;
@@ -210,10 +206,10 @@ runTask(async (input, context) => {
           environment: "ipfs-lifecycle",
           ...built.resolved,
           bundle: { cid: built.cid, declaration: built.resolved },
-          module: `ipfs://${built.cid}/worker.cjs`,
+          module: `ipfs://${built.cid}/${built.resolved.entry}`,
           exportName: "",
           configuration: null,
-          getBundleSource: () => built.contents.get("worker.cjs")!.toString(),
+          getBundleSource: () => built.contents.get(built.resolved.entry)!.toString(),
         },
         {
           async progress(_run, value) {
@@ -323,7 +319,7 @@ async function supervise(
       module: "",
       exportName: "",
       configuration: {},
-      getBundleSource: () => built.contents.get("worker.cjs")!.toString(),
+      getBundleSource: () => built.contents.get(built.resolved.entry)!.toString(),
     },
     channel,
     { heartbeatMs: 20, healthMs: 5000, maxInFlight: 8, maxPayloadBytes: 65536 },

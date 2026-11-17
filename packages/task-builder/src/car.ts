@@ -316,12 +316,12 @@ async function inspectTree(
       if (control) parts.push(chunk);
     }
     normalizer?.finish();
-    if (path === "worker.cjs" && !length) throw new Error("Bundle Worker must not be empty.");
+    if (path === declaration.entry && !length) throw new Error("Bundle entry must not be empty.");
     controls.set(
       path,
       control
         ? Buffer.concat(parts, length)
-        : path === "worker.cjs"
+        : path === declaration.entry
           ? Uint8Array.of(32)
           : new Uint8Array(),
     );

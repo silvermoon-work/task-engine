@@ -109,6 +109,16 @@ CLI paths are relative to cwd; description paths are relative to the description
 Within pnpm workspaces, the existing workspace tree supplies installed
 dependencies; imports never fall back to the CLI's dependencies.
 
+New builds emit `main.mjs` as ESM for Node, `browser`, `browser-worker` and
+`cloudflare-worker`; the exact entry is recorded in `task.yaml`.
+For non-Node builds set `runtime: { type: browser }` (or either Worker type),
+use the default `source.mode: explicit`, and export the API your host will call.
+Do not import the Node Task SDK or select its `callback` wrapper for these targets.
+The same build/CAR pipeline includes resources and immutable imports.
+See [Builder runtime rules](../task-builder/README.md#modules-and-contracts)
+for dependency conditions and limits. New Node ESM Bundles require the matching
+updated Engine; standalone CAR also continues to accept old `worker.cjs` Bundles.
+
 The default CAR is the module directory's sibling `<directory-basename>.car`.
 Both the module and CAR remain after success. `--no-car` does not update or
 delete an older CAR: `data.car: null` describes this invocation only.
@@ -120,7 +130,7 @@ delete an older CAR: `data.car: null` describes this invocation only.
     "module": {
       "directory": "<absolute module directory>",
       "declaration": "<absolute task.yaml>",
-      "files": ["task.yaml", "worker.cjs", "schemas/parameters.json", "schemas/result.json", "schemas/message.json"]
+      "files": ["main.mjs", "schemas/message.json", "schemas/parameters.json", "schemas/result.json", "task.yaml"]
     },
     "cid": "<verified module CID>",
     "car": { "path": "<absolute CAR>" }

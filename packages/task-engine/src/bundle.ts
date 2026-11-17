@@ -303,7 +303,7 @@ export class BundleCache {
         ...inspected,
         bytes: total,
         cid,
-        source: files.get("worker.cjs")!.toString("utf8"),
+        source: files.get(inspected.declaration.entry)!.toString("utf8"),
         childRoot: async (path, signal) => {
           if (
             !safePath(path) ||

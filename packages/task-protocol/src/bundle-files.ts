@@ -31,7 +31,7 @@ export function readTaskBundle(
     if (!isTaskBundlePath(path) || seen.has(path.toLowerCase()))
       fail("invalid_bundle", "Unsafe or duplicate Bundle path.");
     if (
-      !["task.yaml", "worker.cjs"].includes(path) &&
+      !["task.yaml", "main.mjs", "worker.cjs"].includes(path) &&
       !path.startsWith("schemas/") &&
       !path.startsWith("resources/")
     )
@@ -62,9 +62,7 @@ export function readTaskBundle(
     }
   }
   const yaml = files.get("task.yaml");
-  const worker = files.get("worker.cjs");
-  if (!yaml || !worker?.byteLength)
-    fail("invalid_bundle", "Bundle requires task.yaml and nonempty worker.cjs.");
+  if (!yaml) fail("invalid_bundle", "Bundle requires task.yaml.");
   validateTaskText(yaml, "task.yaml");
   const parsed = parseTaskBundleYaml(yaml);
   if (
@@ -80,6 +78,9 @@ export function readTaskBundle(
     fail("invalid_bundle", `Unsupported Bundle path: ${unsupportedPaths[0]}.`);
   }
   const declaration = validateTaskBundle(parsed);
+  const worker = files.get(declaration.entry);
+  if (!worker?.byteLength)
+    fail("invalid_bundle", `Bundle requires nonempty entry: ${declaration.entry}.`);
   validateTaskBundleFiles(declaration, files.keys());
   const binary = new Set(declaration.binary);
   for (const [path, content] of files) if (!binary.has(path)) validateTaskText(content, path);

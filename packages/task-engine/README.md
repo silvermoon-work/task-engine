@@ -37,7 +37,8 @@ accepted 与 Task 创建原子持久化，rejected 也保留幂等依据。
 `getRequest` 读取原始意图，`getRequestStatus` 独立读取处理结果。
 
 每 Run 由引擎随包分发的本地 bootstrap 启动 Worker，在 Worker 内安装同步模块 hook，
-再以 `ipfs://<canonical-cid>/worker.cjs` 加载已验证的内存 CommonJS source。
+再按 `task.yaml.entry` 加载已验证的内存 source：
+新制品为 `ipfs://<canonical-cid>/main.mjs`（ESM），旧制品仍为 `worker.cjs`（CommonJS）。
 最低 Node 为 22.15.0；23.x 需至少 23.5.0，精确范围为 `^22.15.0 || >=23.5.0`。
 宿主仍负责内容读取、校验和授权，hook 只读当前入口，
 不联网、不将 bundle 源码落盘、不使用 eval 或加载时源码改写。
@@ -127,9 +128,10 @@ Worker 不是 OS 安全沙箱。
 
 ## IPFS 模块地址与重建
 
-首期仅支持已验证 bundle 的单文件 CJS 入口及 Node 内置模块。其他 CID、资源路径、
+支持已验证 bundle 声明的单文件 ESM `main.mjs` 或旧 CJS `worker.cjs` 入口及 Node 内置模块。
+ESM 使用原生 import，支持顶层 await；旧 CJS 保留原加载方式。其他 CID、资源路径、
 路径穿越、编码路径、凭据、查询和片段明确拒绝；不开放本地模块、node_modules、
-其他协议或运行时模块图。CIDv0 别名规范化到相同 CIDv1 入口及 CJS cache 身份。
+其他协议或运行时模块图。CIDv0 别名规范化到相同 CIDv1 声明入口及其模块 cache 身份。
 hook 是每 Worker 的加载适配，不是安全沙箱，不改变内置模块已有能力，
 也不为任务创建的子 Worker 自动安装 hook。宿主的模块加载行为不变。
 
@@ -137,17 +139,19 @@ hook 是每 Worker 的加载适配，不是安全沙箱，不改变内置模块�
 `__dirname` 为 `ipfs://<canonical-cid>`，二者不是宿主文件路径。
 不要对其调用 `fileURLToPath`、`pathToFileURL`、`createRequire` 或依赖磁盘路径拼接。
 bootstrap 自己以本地 URL 创建 require，再加载 IPFS 入口；作者不需要新增启动 API。
-原生 `require.cache`、`require.resolve`、`require.resolve.paths` 及内置模块保留；
+旧 CJS 保留原生 `require.cache`、`require.resolve`、`require.resolve.paths` 及内置模块；
+新 ESM 保留原生 `import.meta.url`，为打包的 CJS 依赖提供 builtin require 桥接，
+但不承诺入口存在于 CJS cache 或提供全局 `module`。
 Node 22.15.0 与 24.11.1 的 `require.resolve(ipfsURL)` 不走 hook，仍报
 `MODULE_NOT_FOUND`，不承诺通用 IPFS require/resolve API。
 
 需要正确模块地址的旧产物须用新版 Builder 重新构建、重新生成 CAR/CID，再提交新 CID。
-这只是地址生成修正：不改变 `task.yaml`、`taskSchemaUri`、SDK 握手、Space protocol
-或业务 schema，不新增 loaderVersion，不根据 Builder 版本拒绝旧产物。
-旧产物不保证自动获得修正后的 `import.meta.url`，也没有兼容 eval 分支。
+历史地址生成修正不改写旧 CID；ESM 构建则改变入口、manifest 和 CAR，必须使用
+配套新版 Protocol/Builder/Engine 重建，父包引用也须替换。旧 `worker.cjs` 仍按 CJS 加载，
+但不会自动获得新构建的 ESM 行为；没有兼容 eval 分支。
 Task 声明可表示 `node`、`browser`、`browser-worker` 和 `cloudflare-worker`，
 但本 Engine 仅执行 `node`。其他三个 runtime 在 Bundle 检查阶段以
-`unsupported_runtime` 拒绝，不启动 Worker；格式支持不代表已实现对应的构建或执行。
+`unsupported_runtime` 拒绝，不启动 Worker；Builder 已支持这些环境的 ESM 构建，但不代表本 Engine 可执行它们。
 Cloudflare Worker 与 Durable Object 共用 `cloudflare-worker` runtime；
 DO 需求属于宿主契约，本次不增加 DO 或 Cloudflare compatibility 配置字段。
 Node 运行时仍同时要求引擎最低版本及声明中的 `runtime.minVersion`；已有低版本声明

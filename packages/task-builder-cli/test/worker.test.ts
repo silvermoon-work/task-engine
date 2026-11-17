@@ -4,6 +4,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
 import { test } from "node:test";
 import { Worker } from "node:worker_threads";
+import { pathToFileURL } from "node:url";
 import { readTaskBundle } from "@silvermoon-work/task-protocol";
 import { buildTaskBundle } from "@silvermoon-work/task-builder";
 import { directoryTree, writeDirectory } from "../src/node.js";
@@ -59,11 +60,9 @@ for (const mode of ["explicit", "callback"] as const)
       for (const path of paths)
         files.set(path, await readFile(join(directory, ...path.split("/"))));
       const checked = readTaskBundle(files);
-      const source = files.get("worker.cjs");
-      assert.ok(source);
+      assert.equal(checked.declaration.entry, "main.mjs");
       const generation = randomUUID();
-      worker = new Worker(Buffer.from(source).toString(), {
-        eval: true,
+      worker = new Worker(pathToFileURL(join(directory, checked.declaration.entry)), {
         execArgv: [],
         workerData: {
           generation,

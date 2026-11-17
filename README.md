@@ -33,6 +33,15 @@ ContentRef 返回，不能冒充旧输出目录。CLI `run` 使用
 
 ### Runtime declaration RC 0.2.1-rc.0 (2026-11-17)
 
+This earlier RC added declaration recognition only. Current source additionally
+builds `main.mjs` ESM for every runtime and loads the declared ESM entry in the
+Node Engine, while retaining old `worker.cjs` loading. The paired source
+versions are Protocol/Engine `0.2.1-rc.1` and Builder/Builder CLI/Engine CLI
+`0.2.1-rc.0`; publication status is recorded separately from source validation.
+Use the matching toolchain to rebuild and update exact CIDs; existing CARs are
+not rewritten. Browser/Worker/Cloudflare builds retain author exports and
+require an appropriate host; they do not become executable in the Node Engine.
+
 Only `@silvermoon-work/task-protocol` and `@silvermoon-work/task-engine` were
 published as `0.2.1-rc.0` to `rc` from
 [`7835e79`](https://github.com/silvermoon-work/task-engine/commit/7835e797a6bf4c7ee44c93ae6f111646239254c8).

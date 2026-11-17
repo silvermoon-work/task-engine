@@ -38,13 +38,14 @@ The runtime declaration accepts four environments:
 
 Non-Node declarations do not accept `minVersion` or other runtime fields,
 including Cloudflare compatibility dates, flags or Durable Object settings.
-Unknown runtime types are rejected. This is declaration support, not non-Node
-build or execution support: Builder still produces Node/CommonJS, and the Node
-Engine rejects all three non-Node runtimes with `unsupported_runtime` before execution.
-The existing `worker.cjs` entry name and all other Bundle constraints remain
-unchanged; changing the runtime declaration does not make that entry compatible
-with another environment.
-Existing Node declarations and their encoded bytes are unchanged.
+Unknown runtime types are rejected. Builder supports self-contained ESM output
+for all four runtimes, using `entry: main.mjs`; the Node Engine still rejects
+all three non-Node runtimes with `unsupported_runtime` before execution.
+`entry` accepts `main.mjs` (ESM) or `worker.cjs` (legacy CommonJS), and must name a
+nonempty included UTF-8 file. Engine and CAR inspection follow this declaration.
+Old Node declarations and their encoded bytes are unchanged; new builds require
+matching ESM-capable Protocol/Builder/Engine versions. No browser/Cloudflare
+execution host or automatic cross-environment API compatibility is provided.
 
 The Bundle protocol owns `taskBundleLimits`, `TaskBundleFileLimits`,
 `isTaskBundlePath`, `parseTaskBundleYaml`, and `readTaskBundle`.

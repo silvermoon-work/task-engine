@@ -148,6 +148,30 @@ test("runtime declarations accept non-Node environments without Node version req
   }
 });
 
+test("the declared ESM entry, not a legacy filename, determines required executable bytes", () => {
+  const files = bundle();
+  const parsed = parseTaskBundleYaml(files.get("task.yaml")!);
+  assert.ok(parsed && typeof parsed === "object" && !Array.isArray(parsed));
+  files.set(
+    "task.yaml",
+    encode(
+      JSON.stringify({
+        ...parsed,
+        entry: "main.mjs",
+        include: ["task.yaml", "main.mjs"],
+      }),
+    ),
+  );
+  files.delete("worker.cjs");
+  files.set("main.mjs", encode("export default async () => 42;"));
+  assert.equal(readTaskBundle(files).declaration.entry, "main.mjs");
+  files.set("main.mjs", new Uint8Array());
+  assert.throws(() => readTaskBundle(files), { code: "invalid_bundle" });
+  files.delete("main.mjs");
+  files.set("worker.cjs", encode("module.exports = {};"));
+  assert.throws(() => readTaskBundle(files), { code: "invalid_bundle" });
+});
+
 test("file, path and byte capacities enforce exact boundaries and reject invalid limits", () => {
   const files = bundle(new Map([["resources/data.bin", encode("data")]]));
   const bytes = [...files.values()].reduce((sum, value) => sum + value.byteLength, 0);

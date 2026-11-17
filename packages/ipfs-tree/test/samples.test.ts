@@ -37,7 +37,7 @@ async function workerBytes(kind: "plain-task" | "tree-task"): Promise<Buffer> {
     ],
     [
       "node_modules/@silvermoon-work/task-sdk/index.js",
-      Buffer.from("export function runTask(callback) { globalThis.__task = callback; }\n"),
+      Buffer.from("export function runTask(callback) { globalThis.__ipfsTreeTask = callback; }\n"),
     ],
   ]);
   if (kind === "plain-task")
@@ -63,7 +63,7 @@ async function workerBytes(kind: "plain-task" | "tree-task"): Promise<Buffer> {
   const input = memoryTree(files);
   const parsed = await readTaskBuild(input, "task.build.yaml");
   const output = await buildTaskBundle(input, parsed.options);
-  const reader = (await output.read("worker.cjs")).getReader();
+  const reader = (await output.read("main.mjs")).getReader();
   const parts: Uint8Array[] = [];
   try {
     for (;;) {
@@ -91,13 +91,16 @@ test("plain Task bundles omit the ipfs-tree runtime; importing it enables read/l
   console.log(
     `ipfs-tree sample workers: plain=${plain.byteLength}B with-tree=${withTree.byteLength}B delta=${withTree.byteLength - plain.byteLength}B`,
   );
-  const sandbox: { __task?: (parameters: unknown, context: unknown) => Promise<unknown> } = {};
-  new Function("globalThis", "require", "__filename", treeSource)(
-    sandbox,
-    () => ({ pathToFileURL: () => new URL("file:///worker.cjs") }),
-    "worker.cjs",
-  );
-  const callback = sandbox.__task;
+  const globals: typeof globalThis & {
+    __ipfsTreeTask?: (parameters: unknown, context: unknown) => Promise<unknown>;
+  } = globalThis;
+  let callback: typeof globals.__ipfsTreeTask;
+  try {
+    await import(`data:text/javascript;base64,${withTree.toString("base64")}`);
+    callback = globals.__ipfsTreeTask;
+  } finally {
+    delete globals.__ipfsTreeTask;
+  }
   if (typeof callback !== "function")
     throw new Error("Tree sample Worker did not export a callback.");
   const root = await cidOf("bundle");

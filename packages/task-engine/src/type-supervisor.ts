@@ -170,7 +170,7 @@ class RunWorker {
         throw new TaskError("invalid_bundle", "Verified Bundle source is required.");
       this.registration = {
         ...registration,
-        module: bundleModuleURL(registration.bundle.cid),
+        module: bundleModuleURL(registration.bundle.cid, registration.bundle.declaration.entry),
         moduleDigest: registration.bundle.cid,
       };
       return;

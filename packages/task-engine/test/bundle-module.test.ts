@@ -8,12 +8,46 @@ import { bundleModuleURL } from "../src/bundle-module.js";
 const cid = "bafybeigdyrzt5sfp7udm7hu76u7cnngv7cbd3gbta6ipjcnpf7bh6zyvle";
 const entry = bundleModuleURL(cid);
 
-function worker(source: string) {
+function worker(source: string, entry = "worker.cjs") {
   return new Worker(new URL("../dist/bundle-worker.js", import.meta.url), {
     execArgv: [],
-    workerData: { bundle: { cid }, bundleSource: source },
+    workerData: { bundle: { cid, declaration: { entry } }, bundleSource: source },
   });
 }
+
+test("ESM bootstrap loads the declared main entry with top-level await and native module identity", async () => {
+  const address = bundleModuleURL(cid, "main.mjs");
+  const run = worker(
+    `
+  import {parentPort} from "node:worker_threads";
+  await Promise.resolve();
+  globalThis.evaluations = (globalThis.evaluations ?? 0) + 1;
+  export const marker = true;
+  setImmediate(async () => {
+    const imported = await import(import.meta.url);
+    const failures = [];
+    for (const path of ["./resources/data.mjs", ${JSON.stringify(entry)}, ${JSON.stringify(address + "?")}]) {
+      try { await import(path); failures.push(null); }
+      catch (error) { failures.push(error.code); }
+    }
+    parentPort.postMessage({url:import.meta.url, marker:imported.marker, evaluations:globalThis.evaluations, failures});
+  });`,
+    "main.mjs",
+  );
+  const exited = new Promise<number>((resolve) => run.once("exit", resolve));
+  try {
+    const [message] = await once(run, "message");
+    assert.deepEqual(message, {
+      url: address,
+      marker: true,
+      evaluations: 1,
+      failures: ["unsupported_module", "unsupported_module", "unsupported_module"],
+    });
+    assert.equal(await exited, 0);
+  } finally {
+    await run.terminate();
+  }
+});
 
 test("IPFS bootstrap canonicalizes CID aliases to one CJS cache identity", async () => {
   const alias = CID.parse(cid).toV0().toString();

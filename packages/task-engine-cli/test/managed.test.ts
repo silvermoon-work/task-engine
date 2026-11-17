@@ -458,7 +458,7 @@ test("two independent managed Engines execute a multi-block bundle through A's o
   assert.equal(primedResult.data.echo, "independent");
   const outputCid = CID.parse(primedResult.data.cid);
   const proofResponse = await fetch(
-    `${urlA}/ipfs/${built.cid}/worker.cjs?format=car&dag-scope=block`,
+    `${urlA}/ipfs/${built.cid}/main.mjs?format=car&dag-scope=block`,
   );
   assert.equal(proofResponse.status, 200);
   const proof = await CarReader.fromBytes(new Uint8Array(await proofResponse.arrayBuffer()));
@@ -469,9 +469,7 @@ test("two independent managed Engines execute a multi-block bundle through A's o
   }
   assert.equal(proofBlocks.length, 2);
   assert.equal(proofBlocks[0]!.cid.toV1().toString(), CID.parse(built.cid).toV1().toString());
-  const worker = dagPb
-    .decode(proofBlocks[0]!.bytes)
-    .Links.find((link) => link.Name === "worker.cjs");
+  const worker = dagPb.decode(proofBlocks[0]!.bytes).Links.find((link) => link.Name === "main.mjs");
   assert.ok(worker);
   assert.equal(proofBlocks[1]!.cid.toV1().toString(), worker.Hash.toV1().toString());
   const outputCar = await fetch(`${urlA}/ipfs/${outputCid}?format=car&dag-scope=block`);
@@ -860,10 +858,10 @@ key:"child",bundle:context.bundle,path:"resources/child",parameters:input,timeou
     });
     const delayedFiles = new Map(boot.files);
     delayedFiles.set(
-      "worker.cjs",
+      "main.mjs",
       Buffer.concat([
         Buffer.from("const bootstrapUntil=Date.now()+500;while(Date.now()<bootstrapUntil){};"),
-        delayedFiles.get("worker.cjs")!,
+        delayedFiles.get("main.mjs")!,
       ]),
     );
     const delayedCar = await encodeTaskBundleCar(memoryTree(delayedFiles));

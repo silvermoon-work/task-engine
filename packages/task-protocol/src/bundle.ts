@@ -15,7 +15,7 @@ export { taskSchemaUri } from "./task-schema-uri.js";
 export const taskBundleSchema = {
   $id: taskSchemaUri,
   $comment:
-    "IPFS UnixFS directory root CID identity. Runtime declaration does not establish host execution support. Node uses one CommonJS Worker per Run; generation-scoped business messages and independent log/log-ack, bounded cumulative log-drop/log-drop-ack diagnostics.",
+    "IPFS UnixFS directory root CID identity. Runtime declaration does not establish host execution support. Node uses one Worker per Run with a declared ESM or legacy CommonJS entry; generation-scoped business messages and independent log/log-ack, bounded cumulative log-drop/log-drop-ack diagnostics.",
   type: "object",
   additionalProperties: false,
   required: [
@@ -61,7 +61,7 @@ export const taskBundleSchema = {
         },
       ],
     },
-    entry: { const: "worker.cjs" },
+    entry: { enum: ["main.mjs", "worker.cjs"] },
     include: {
       type: "array",
       minItems: 2,
@@ -70,7 +70,7 @@ export const taskBundleSchema = {
       items: {
         type: "string",
         pattern:
-          "^(?:task\\.yaml|worker\\.cjs|(?:schemas|resources)/[^\\\\:*?<>|\\u0000-\\u001f]+)$",
+          "^(?:task\\.yaml|main\\.mjs|worker\\.cjs|(?:schemas|resources)/[^\\\\:*?<>|\\u0000-\\u001f]+)$",
       },
     },
     parametersSchema: { type: "object" },
@@ -96,7 +96,7 @@ export interface TaskBundleDeclaration {
   runtime:
     | { type: "node"; minVersion: string }
     | { type: "browser" | "browser-worker" | "cloudflare-worker" };
-  entry: "worker.cjs";
+  entry: "main.mjs" | "worker.cjs";
   include: string[];
   binary: string[];
   imports?: Record<string, string>;
@@ -184,8 +184,11 @@ export function validateTaskBundle(value: unknown): TaskBundleDeclaration {
   for (const path of declaration.include)
     if (declaration.include.some((parent) => path.startsWith(`${parent}/`)))
       fail("invalid_bundle", "Task Bundle include has a file/directory collision.");
-  if (!folded.has("task.yaml") || !folded.has("worker.cjs"))
-    fail("invalid_bundle", "Task Bundle include must contain task.yaml and worker.cjs.");
+  if (
+    !declaration.include.includes("task.yaml") ||
+    !declaration.include.includes(declaration.entry)
+  )
+    fail("invalid_bundle", "Task Bundle include must contain task.yaml and its declared entry.");
   for (const [index, path] of declaration.binary.entries())
     if (
       !isTaskBundlePath(path) ||

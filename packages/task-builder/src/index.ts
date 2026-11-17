@@ -10,6 +10,7 @@ import {
   taskSchemaUri,
   validateTaskBundle,
   validateTaskImports,
+  type TaskBundleDeclaration,
 } from "@silvermoon-work/task-protocol";
 import type { IpfsStore } from "@silvermoon-work/ipfs-store";
 import { ContentBlocks } from "@silvermoon-work/ipfs-store/dag";
@@ -62,7 +63,9 @@ export interface TaskContract {
 
 export interface TaskBuildOptions extends ReadOptions {
   readonly name: string;
-  readonly runtime: { readonly minVersion: string };
+  readonly runtime:
+    | { readonly type?: "node"; readonly minVersion: string }
+    | { readonly type: "browser" | "browser-worker" | "cloudflare-worker" };
   readonly source: {
     readonly entry: string;
     readonly contract: string | TaskContract;
@@ -76,6 +79,29 @@ export interface TaskBuildOptions extends ReadOptions {
   readonly content?: IpfsStore;
   readonly allowContractExecution?: boolean;
   readonly limits?: Partial<BuilderLimits>;
+}
+
+function buildRuntime(value: unknown): TaskBundleDeclaration["runtime"] {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("Invalid Task runtime.");
+  const runtime = json(value);
+  if (!runtime || typeof runtime !== "object" || Array.isArray(runtime))
+    throw new Error("Invalid Task runtime.");
+  if (
+    (runtime.type === undefined || runtime.type === "node") &&
+    Object.keys(runtime).every((key) => key === "type" || key === "minVersion") &&
+    typeof runtime.minVersion === "string" &&
+    /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(runtime.minVersion)
+  )
+    return { type: "node", minVersion: runtime.minVersion };
+  if (
+    Object.keys(runtime).length === 1 &&
+    (runtime.type === "browser" ||
+      runtime.type === "browser-worker" ||
+      runtime.type === "cloudflare-worker")
+  )
+    return { type: runtime.type };
+  throw new Error("Invalid Task runtime.");
 }
 
 function limitsFor(options: TaskBuildOptions): BuilderLimits {
@@ -167,6 +193,12 @@ export async function buildTaskBundle(
   options: TaskBuildOptions,
 ): Promise<ReadonlyFileTree> {
   options.signal?.throwIfAborted();
+  const runtime = buildRuntime(options.runtime);
+  if (
+    runtime.type !== "node" &&
+    (options.source.mode === "callback" || options.source.sdk !== undefined)
+  )
+    throw new Error("Non-Node builds require explicit mode without a Node Task SDK wrapper.");
   checkTreePath(options.source.entry);
   if (!options.source.entry) throw new Error("Task entry must be a file.");
   if (options.source.mode !== undefined && !["callback", "explicit"].includes(options.source.mode))
@@ -231,7 +263,7 @@ export async function buildTaskBundle(
     generated.set(path, Buffer.from(`${JSON.stringify(document, null, 2)}\n`));
   const include = [
     "task.yaml",
-    "worker.cjs",
+    "main.mjs",
     ...generated.keys(),
     ...resources.keys(),
     ...imported.keys(),
@@ -239,8 +271,8 @@ export async function buildTaskBundle(
   const declaration = validateTaskBundle({
     $schema: taskSchemaUri,
     name: options.name,
-    runtime: { type: "node", minVersion: options.runtime.minVersion },
-    entry: "worker.cjs",
+    runtime,
+    entry: "main.mjs",
     include,
     binary: [
       ...new Set([...selectTaskBinary(include, options.binary ?? []), ...imported.keys()]),
@@ -253,26 +285,27 @@ export async function buildTaskBundle(
   generated.set("task.yaml", Buffer.from(stringify(declaration)));
   // Empty resource placeholders check manifest and Schema closure, not deferred resource bytes.
   const structuralFiles = new Map(generated);
-  structuralFiles.set("worker.cjs", Buffer.from("/* pending compilation */"));
+  structuralFiles.set(declaration.entry, Buffer.from("/* pending compilation */"));
   for (const path of resources.keys()) structuralFiles.set(path, new Uint8Array());
   for (const path of imported.keys()) structuralFiles.set(path, new Uint8Array());
   const { resolved } = readTaskBundle(structuralFiles, limits);
   generated.set(
-    "worker.cjs",
+    declaration.entry,
     normalizeTaskText(
       await compileTree(input, options.source.entry, {
         ...limits,
         ...(options.signal ? { signal: options.signal } : {}),
         binding: resolved,
+        runtime: runtime.type,
         ...(options.source.mode === "callback"
           ? { callbackExport: options.source.exportName ?? "default" }
           : {}),
         ...(options.source.sdk ? { sdk: options.source.sdk } : {}),
       }),
-      "worker.cjs",
+      declaration.entry,
     ),
   );
-  structuralFiles.set("worker.cjs", generated.get("worker.cjs")!);
+  structuralFiles.set(declaration.entry, generated.get(declaration.entry)!);
   for (const [path, bytes] of imported) structuralFiles.set(path, bytes);
   readTaskBundle(structuralFiles, limits);
   options.signal?.throwIfAborted();
@@ -318,14 +351,9 @@ export async function readTaskBuild(
     (value.outDirectory !== undefined && typeof value.outDirectory !== "string")
   )
     throw new Error("Invalid Task build file fields.");
-  const runtime = value.runtime;
+  const runtime = buildRuntime(value.runtime);
   const source = value.source;
   if (
-    !runtime ||
-    typeof runtime !== "object" ||
-    Array.isArray(runtime) ||
-    Object.keys(runtime).some((key) => key !== "minVersion") ||
-    typeof runtime.minVersion !== "string" ||
     !source ||
     typeof source !== "object" ||
     Array.isArray(source) ||
@@ -375,7 +403,7 @@ export async function readTaskBuild(
     }
   const buildOptions: TaskBuildOptions = {
     name: value.name,
-    runtime: { minVersion: runtime.minVersion },
+    runtime,
     source: {
       entry: relative(source.entry),
       contract: relative(source.contract),

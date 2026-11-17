@@ -203,11 +203,38 @@ dependencies never fall back to the builder's own node_modules.
 Dependencies must be present in the input tree. There is no install, network
 resolver, automatic tsconfig discovery, tsconfig path mapping, arbitrary asset
 loader or externally supplied esbuild plugin in this first implementation.
-Compilation targets Node 22 CommonJS and rejects non-static import/require calls.
+New builds use `entry: main.mjs` and self-contained ESM for every runtime.
+Node targets Node 22; `browser`, `browser-worker` and `cloudflare-worker` target
+ES2022. Runtime may be `{ minVersion: "22.15.0" }` (the existing Node shorthand),
+`{ type: "node", minVersion: "22.15.0" }`, or `{ type: "browser" }`,
+`{ type: "browser-worker" }`, `{ type: "cloudflare-worker" }`.
+Non-Node declarations reject `minVersion` and unknown fields.
+The same shapes work in `task.build.yaml` and the library.
+
+Non-Node builds bundle the author entry directly and retain its exports, with
+no Node SDK wrapper or Node globals/banner. Only `explicit` mode (also the
+default) is supported there; `callback` and `source.sdk` are rejected.
+The corresponding host must load and call the exported API according to its
+own contract. This does not add a browser/Cloudflare execution host or imply
+that a Task callback is a Cloudflare event handler.
+Browser resolution selects `browser` conditions/fields; browser Workers also
+select `worker`; Cloudflare also selects `workerd`. Node-only builtins are
+rejected for every non-Node target, including Cloudflare (no implicit
+`nodejs_compat`). Non-static import/require calls remain rejected.
+CSS and other assets still use `include`/`binary`; this does not add CSS imports
+or rewrite asset URLs. Cloudflare DO bindings and compatibility settings remain
+deployment/host concerns.
+
+Node ESM preserves native `import.meta.url` and provides `require` for bundled
+CommonJS dependencies and builtins, plus logical `__filename`/`__dirname`.
+The Engine restricts that require to its verified entry and builtins.
+Old `worker.cjs` Bundles remain readable by CAR tools and executable by the
+updated Node Engine; new ESM Bundles require the matching updated Protocol,
+Builder/CAR tools and Engine. Rebuild under a new CID; old CARs are not rewritten.
 The build host must use Node >=22.15; execution runtime eligibility belongs to
 the Engine.
 
-`source.mode` defaults to `explicit`: the entry calls the SDK's `runTask`
+For Node, `source.mode` defaults to `explicit`: the entry calls the SDK's `runTask`
 itself. `callback` wraps a lazily imported callback; `exportName` defaults to
 `default` and is only accepted in that mode. `source.sdk` defaults to
 `@silvermoon-work/task-sdk` for callback wrappers and can explicitly select an

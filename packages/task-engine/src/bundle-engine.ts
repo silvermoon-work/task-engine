@@ -274,7 +274,7 @@ export class TaskEngine implements TaskService {
       parametersSchema: bundle.resolved.parametersSchema,
       resultSchema: bundle.resolved.resultSchema,
       messageSchema: bundle.resolved.messageSchema,
-      module: bundleModuleURL(bundle.cid),
+      module: bundleModuleURL(bundle.cid, bundle.declaration.entry),
       exportName: "unused",
       configuration: null,
       bundle: { cid: bundle.cid, declaration: bundle.resolved },

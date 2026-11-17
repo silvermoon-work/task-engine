@@ -133,7 +133,7 @@ test("r14 examples 3–4: default CAR, repeat build, selected files and no-car r
     assert.equal(readTaskBundle(files).declaration.name, "CLI task");
     assert.equal(Buffer.from(files.get("resources/text.txt")!).toString(), "hello\nstream\nworld");
     assert.equal(
-      (await execute(process.execPath, [join(root, "dist", "worker.cjs")])).stdout.trim(),
+      (await execute(process.execPath, [join(root, "dist", "main.mjs")])).stdout.trim(),
       "virtual-tree-cli",
     );
     const before = await readFile(join(root, "dist.car"));
@@ -146,6 +146,7 @@ test("r14 examples 3–4: default CAR, repeat build, selected files and no-car r
     const archived = await readTaskBundleCar(await (await directoryTree(root)).read("dist.car"), {
       expectedCid: repeat.data.cid,
     });
+
     await assert.rejects(archived.tree.read("resources/old.txt"));
     await archived.close();
     await writeFile(join(root, "main.ts"), 'console.log("new");');
@@ -157,6 +158,31 @@ test("r14 examples 3–4: default CAR, repeat build, selected files and no-car r
       await readFile(join(root, "dist", "resources", "old.txt"), "utf8"),
       "not selected",
     );
+  });
+});
+
+test("CLI build delivers main.mjs and a complete CAR for each non-Node runtime", async () => {
+  await fixture(async (root) => {
+    const config = JSON.parse(await readFile(join(root, "task.build.yaml"), "utf8"));
+    await writeFile(join(root, "main.ts"), "export default async (context) => context.value;");
+    for (const type of ["browser", "browser-worker", "cloudflare-worker"]) {
+      await writeFile(
+        join(root, "task.build.yaml"),
+        JSON.stringify({ ...config, runtime: { type } }),
+      );
+      const built = await invoke(root, ["build"]);
+      const archive = await readTaskBundleCar(await (await directoryTree(root)).read("dist.car"), {
+        expectedCid: built.data.cid,
+      });
+      try {
+        assert.deepEqual(archive.declaration.runtime, { type });
+        assert.equal(archive.declaration.entry, "main.mjs");
+        assert.ok(built.data.module.files.includes("main.mjs"));
+        assert.equal(built.data.module.files.includes("worker.cjs"), false);
+      } finally {
+        await archive.close();
+      }
+    }
   });
 });
 
@@ -258,12 +284,12 @@ test("initialized scripts keep named outputs fixed, preserve builds and refuse C
       not: {},
     });
     assert.doesNotMatch(
-      await readFile(join(built.data.module.directory, "worker.cjs"), "utf8"),
+      await readFile(join(built.data.module.directory, "main.mjs"), "utf8"),
       /@sinclair\/typebox|TypeBox\.Kind/,
     );
     const paths = [
       "dist/acme-echo-task/task.yaml",
-      "dist/acme-echo-task/worker.cjs",
+      "dist/acme-echo-task/main.mjs",
       "dist/acme-echo-task.car",
     ];
     const before = await snapshot(project, paths);
@@ -290,7 +316,7 @@ test("initialized scripts keep named outputs fixed, preserve builds and refuse C
 test("r14 examples 5–6: forbidden contract output and missing source leave existing bytes untouched", async () => {
   await fixture(async (root) => {
     await invoke(root, ["build"]);
-    const paths = ["dist.car", "dist/task.yaml", "dist/worker.cjs"];
+    const paths = ["dist.car", "dist/task.yaml", "dist/main.mjs"];
     const before = await snapshot(root, paths);
     const config = JSON.parse(await readFile(join(root, "task.build.yaml"), "utf8"));
     config.source.contract = "contract.ts";
@@ -328,17 +354,17 @@ test("r14 examples 8–10: standalone declaration selection, missing worker, dir
     const built = await invoke(root, ["build", "--no-car"]);
     await writeFile(join(root, "dist", "notes.txt"), Buffer.from([255]));
     await writeFile(join(root, "task.build.yaml"), "invalid build description, must not be read");
-    const original = await snapshot(root, ["dist/task.yaml", "dist/worker.cjs"]);
+    const original = await snapshot(root, ["dist/task.yaml", "dist/main.mjs"]);
     const archived = await invoke(root, ["car", "dist/task.yaml"]);
     assert.equal(archived.data.cid, built.data.cid);
     assert.equal(archived.data.car, join(root, "dist.car"));
     assert.equal(archived.data.declaration, join(root, "dist", "task.yaml"));
     assert.deepEqual(archived.data.files, built.data.module.files);
-    assert.deepEqual(await snapshot(root, ["dist/task.yaml", "dist/worker.cjs"]), original);
+    assert.deepEqual(await snapshot(root, ["dist/task.yaml", "dist/main.mjs"]), original);
     const before = await readFile(join(root, "dist.car"));
     assert.equal((await invoke(root, ["car", "dist/task.yaml"], 1)).error.code, "OUTPUT_EXISTS");
     assert.deepEqual(await readFile(join(root, "dist.car")), before);
-    await rm(join(root, "dist", "worker.cjs"));
+    await rm(join(root, "dist", "main.mjs"));
     assert.equal(
       (await invoke(root, ["car", "dist/task.yaml", "--output", "missing.car"], 1)).error.code,
       "MODULE_FILE_MISSING",
@@ -478,13 +504,10 @@ test("standalone CAR rejects linked input module and ancestor aliases without ch
 test("invalid resource bytes fail before replacing module or CAR; symlink outputs never redirect writes", async () => {
   await fixture(async (root) => {
     await invoke(root, ["build"]);
-    const before = await snapshot(root, ["dist/task.yaml", "dist/worker.cjs", "dist.car"]);
+    const before = await snapshot(root, ["dist/task.yaml", "dist/main.mjs", "dist.car"]);
     await writeFile(join(root, "assets", "text.txt"), Buffer.from([255]));
     await invoke(root, ["build"], 1);
-    assert.deepEqual(
-      await snapshot(root, ["dist/task.yaml", "dist/worker.cjs", "dist.car"]),
-      before,
-    );
+    assert.deepEqual(await snapshot(root, ["dist/task.yaml", "dist/main.mjs", "dist.car"]), before);
     await mkdir(join(root, "outside"));
     await symlink(
       join(root, "outside"),
@@ -502,8 +525,8 @@ test("invalid resource bytes fail before replacing module or CAR; symlink output
 test("partial module update is uncertain rather than a false rollback or trusted partial result", async () => {
   await fixture(async (root) => {
     await invoke(root, ["build"]);
-    await rm(join(root, "dist", "worker.cjs"));
-    await mkdir(join(root, "dist", "worker.cjs"));
+    await rm(join(root, "dist", "main.mjs"));
+    await mkdir(join(root, "dist", "main.mjs"));
     const failed = await invoke(root, ["build"], 1);
     assert.equal(failed.error.code, "DELIVERY_UNCERTAIN");
     assert.equal(failed.data, undefined);

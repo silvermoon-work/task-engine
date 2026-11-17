@@ -3,7 +3,7 @@ import { fork } from "node:child_process";
 import { posix } from "node:path";
 import enhancedResolve, { type FileSystem } from "enhanced-resolve";
 import { build, type Loader, type Plugin } from "esbuild";
-import type { ResolvedTaskBundle } from "@silvermoon-work/task-protocol";
+import type { ResolvedTaskBundle, TaskBundleDeclaration } from "@silvermoon-work/task-protocol";
 import { listTree, readBytes, treeError, type ReadonlyFileTree, type ReadOptions } from "./tree.js";
 
 const root = "/task-tree";
@@ -45,6 +45,7 @@ export interface CompileOptions extends ReadOptions {
   readonly binding?: ResolvedTaskBundle;
   readonly callbackExport?: string;
   readonly sdk?: string;
+  readonly runtime?: TaskBundleDeclaration["runtime"]["type"];
 }
 
 export async function compileTree(
@@ -52,6 +53,15 @@ export async function compileTree(
   entry: string,
   options: CompileOptions,
 ): Promise<Uint8Array> {
+  const node = options.runtime === undefined || options.runtime === "node";
+  const esm = options.runtime !== undefined;
+  const conditions = node
+    ? ["node"]
+    : options.runtime === "cloudflare-worker"
+      ? ["workerd", "worker", "browser"]
+      : options.runtime === "browser-worker"
+        ? ["worker", "browser"]
+        : ["browser"];
   const directories = new Map<string, Promise<readonly import("./tree.js").TreeEntry[]>>();
   const contents = new Map<string, Promise<Uint8Array>>();
   let sourceBytes = 0;
@@ -142,8 +152,9 @@ export async function compileTree(
       useSyncFileSystemCalls: false,
       extensions: Object.keys(loaders),
       extensionAlias: { ".js": [".ts", ".js"], ".mjs": [".mts", ".mjs"], ".cjs": [".cts", ".cjs"] },
-      conditionNames: ["node", require ? "require" : "import", "default"],
-      mainFields: ["main"],
+      conditionNames: [...conditions, require ? "require" : "import", "default"],
+      mainFields: node ? ["main"] : ["browser", "module", "main"],
+      aliasFields: node ? [] : ["browser"],
       modules: ["node_modules"],
       symlinks: true,
       fallback: {},
@@ -161,7 +172,11 @@ export async function compileTree(
     setup(api) {
       api.onResolve({ filter: /.*/ }, async (args) => {
         options.signal?.throwIfAborted();
-        if (isBuiltin(args.path)) return { path: args.path, external: true };
+        if (isBuiltin(args.path)) {
+          if (!node)
+            throw new Error(`Node builtin ${args.path} is unavailable for ${options.runtime}.`);
+          return { path: args.path, external: true };
+        }
         if (args.kind === "entry-point")
           return {
             path: options.callbackExport === undefined ? `${root}/${entry}` : wrapper,
@@ -237,17 +252,25 @@ runTask(async (input, context) => {
   const result = await build({
     entryPoints: [entry],
     bundle: true,
-    platform: "node",
-    target: "node22",
-    format: "cjs",
+    platform: node ? "node" : "browser",
+    target: node ? "node22" : "es2022",
+    format: esm ? "esm" : "cjs",
     write: false,
     tsconfigRaw: {},
-    define: { "import.meta.url": "__artifactURL" },
-    banner: {
-      js: options.binding
-        ? 'const __artifactURL = __filename.startsWith("ipfs://") ? __filename : require("node:url").pathToFileURL(__filename).href;'
-        : `const __filename=${JSON.stringify(`task-tree:///${entry}`)};const __dirname=${JSON.stringify(`task-tree:///${posix.dirname(entry)}`)};const __artifactURL=__filename;`,
-    },
+    ...(!esm
+      ? {
+          define: { "import.meta.url": "__artifactURL" },
+          banner: {
+            js: `const __filename=${JSON.stringify(`task-tree:///${entry}`)};const __dirname=${JSON.stringify(`task-tree:///${posix.dirname(entry)}`)};const __artifactURL=__filename;`,
+          },
+        }
+      : node
+        ? {
+            banner: {
+              js: 'import {createRequire as __taskCreateRequire} from "node:module";import {fileURLToPath as __taskFileURLToPath} from "node:url";const require=__taskCreateRequire(import.meta.url.startsWith("file:")?import.meta.url:process.execPath);const __filename=import.meta.url.startsWith("file:")?__taskFileURLToPath(import.meta.url):import.meta.url;const __dirname=__filename.slice(0,Math.max(__filename.lastIndexOf("/"),__filename.lastIndexOf("\\\\")));',
+            },
+          }
+        : {}),
     metafile: true,
     minify: true,
     legalComments: "eof",

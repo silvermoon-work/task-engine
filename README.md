@@ -31,16 +31,55 @@ ContentRef 返回，不能冒充旧输出目录。CLI `run` 使用
 和用户配置目录，不使用共享 Kubo 或删除默认缓存。完整当前命令、独立源码 tarball 验证及已知差异见
 [端到端指引](docs/end-to-end-verification.md)。本地 tarball/typecheck/build/run 成功不代表修改后源码已发布；下方历史发布记录保持原样。
 
+### ESM runtime build RCs (2026-11-17)
+
+The following exact versions were individually published to `rc` from
+[`b5b6981`](https://github.com/silvermoon-work/task-engine/commit/b5b698191e144dc496872328fedb34eab39d4614):
+
+| Package                             | Version      | Trusted publication                                                                    |
+| ----------------------------------- | ------------ | -------------------------------------------------------------------------------------- |
+| `@silvermoon-work/task-protocol`    | `0.2.1-rc.1` | [Protocol](https://github.com/silvermoon-work/task-engine/actions/runs/44035519375)    |
+| `@silvermoon-work/task-builder`     | `0.2.1-rc.0` | [Builder](https://github.com/silvermoon-work/task-engine/actions/runs/44035988096)     |
+| `@silvermoon-work/task-builder-cli` | `0.2.1-rc.0` | [Builder CLI](https://github.com/silvermoon-work/task-engine/actions/runs/44036292891) |
+| `@silvermoon-work/task-engine`      | `0.2.1-rc.1` | [Engine](https://github.com/silvermoon-work/task-engine/actions/runs/44036570479)      |
+| `@silvermoon-work/task-engine-cli`  | `0.2.1-rc.0` | [Engine CLI](https://github.com/silvermoon-work/task-engine/actions/runs/44037075696)  |
+
+New builds emit self-contained ESM `main.mjs` for Node, `browser`,
+`browser-worker` and `cloudflare-worker`. Protocol, CAR tools and Node Engine
+follow `task.yaml.entry`; old `worker.cjs` Bundles still load as CommonJS.
+Rebuild with this paired toolchain and update exact CIDs; existing CARs are not
+rewritten. Non-Node builds use `explicit` mode, retain author exports and reject
+Node SDK wrappers/builtins. The corresponding host calls that API and injects
+its context; Node Engine still rejects non-Node runtimes. This does not add CSS
+imports/URL rewriting, Cloudflare deployment, DO/compatibility configuration or
+a browser execution host.
+
+The complete local `pnpm check` passed all 56 Turbo tasks, and the exact release
+commit passed
+[Linux Node 22.15.0 / 24.11.1 main CI](https://github.com/silvermoon-work/task-engine/actions/runs/44034024589).
+Each package used its own immutable tag in dependency order, including Engine's
+development dependency on Builder CLI. Registry metadata propagation required
+waiting and read-only verification retries, not republishing or moving tags.
+[All-five-package registry/dependency/dist-tag verification](https://github.com/silvermoon-work/task-engine/actions/runs/44037223204)
+passed. Every `latest` remains `0.2.0`; unchanged SDK `0.2.0` remains paired for
+Node authoring.
+
+A real browser page and module Worker loaded CAR-derived ESM with injected
+resource reads: the page rendered normalized text while the Worker had no DOM.
+An independent Windows Node 24.11.1 consumer installed the exact published
+versions through its existing registry, with scripts disabled, and passed CLI
+builds/CAR reads for all four targets. Non-Node exported functions consumed
+their packaged resources and were rejected by Node Engine with
+`unsupported_runtime`; a normal Node ESM Task returned its expected IPFS payload
+and confirmed physical Worker reclamation. This round is not an Ubuntu consumer
+claim: `office-ubuntu` SSH timed out. Cloudflare output was built and its
+exports invoked as standard ESM, not deployed to Cloudflare. The temporary
+browser fixture server and its Worker were stopped.
+
 ### Runtime declaration RC 0.2.1-rc.0 (2026-11-17)
 
-This earlier RC added declaration recognition only. Current source additionally
-builds `main.mjs` ESM for every runtime and loads the declared ESM entry in the
-Node Engine, while retaining old `worker.cjs` loading. The paired source
-versions are Protocol/Engine `0.2.1-rc.1` and Builder/Builder CLI/Engine CLI
-`0.2.1-rc.0`; publication status is recorded separately from source validation.
-Use the matching toolchain to rebuild and update exact CIDs; existing CARs are
-not rewritten. Browser/Worker/Cloudflare builds retain author exports and
-require an appropriate host; they do not become executable in the Node Engine.
+This earlier RC added declaration recognition only; the ESM build release above
+supersedes that limitation.
 
 Only `@silvermoon-work/task-protocol` and `@silvermoon-work/task-engine` were
 published as `0.2.1-rc.0` to `rc` from

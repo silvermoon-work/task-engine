@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readTaskBundle, taskBundleLimits, taskSchemaUri } from "@silvermoon-work/task-protocol";
+import {
+  parseTaskBundleYaml,
+  readTaskBundle,
+  taskBundleLimits,
+  taskSchemaUri,
+} from "@silvermoon-work/task-protocol";
 import { defaultBundleLimits, inspectTaskBundle } from "../src/bundle.js";
 
 function files(runtime = "22.13.0") {
@@ -39,9 +44,25 @@ test("Engine inspection reuses the Bundle reader while retaining host execution 
 
 test("runtime eligibility remains an Engine check, not a Bundle protocol parsing rule", () => {
   const future = files("999.0.0");
-  assert.equal(readTaskBundle(future).declaration.runtime.minVersion, "999.0.0");
+  const { runtime } = readTaskBundle(future).declaration;
+  assert.ok(runtime.type === "node");
+  assert.equal(runtime.minVersion, "999.0.0");
   assert.throws(() => inspectTaskBundle(future), { code: "unsupported_runtime" });
   const invalid = files();
   invalid.set("worker.cjs", Buffer.from([0xff]));
   assert.throws(() => inspectTaskBundle(invalid), { code: "invalid_bundle" });
+});
+
+test("Node Engine rejects non-Node runtimes during inspection before executing their entry", () => {
+  const bundle = files();
+  const declaration = parseTaskBundleYaml(bundle.get("task.yaml")!);
+  assert.ok(declaration && typeof declaration === "object" && !Array.isArray(declaration));
+  for (const type of ["browser", "browser-worker", "cloudflare-worker"]) {
+    bundle.set("task.yaml", Buffer.from(JSON.stringify({ ...declaration, runtime: { type } })));
+    assert.equal(readTaskBundle(bundle).declaration.runtime.type, type);
+    assert.throws(() => inspectTaskBundle(bundle), {
+      code: "unsupported_runtime",
+      message: `Bundle runtime ${type} is unsupported by the Node Engine.`,
+    });
+  }
 });

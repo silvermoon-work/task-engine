@@ -48,6 +48,11 @@ export function inspectTaskBundle(
     files: limits.files,
     paths: limits.paths,
   });
+  if (inspected.declaration.runtime.type !== "node")
+    throw new TaskError(
+      "unsupported_runtime",
+      `Bundle runtime ${inspected.declaration.runtime.type} is unsupported by the Node Engine.`,
+    );
   if (
     !satisfies(process.versions.node, "^22.15.0 || >=23.5.0") ||
     !gte(process.versions.node, inspected.declaration.runtime.minVersion)

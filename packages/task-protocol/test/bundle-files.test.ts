@@ -114,9 +114,38 @@ test("supplied Bundle bytes produce exact structure statistics without file IO o
     result.bytes,
     [...files.values()].reduce((sum, bytes) => sum + bytes.byteLength, 0),
   );
+  assert.ok(result.declaration.runtime.type === "node");
   assert.equal(result.declaration.runtime.minVersion, "999.0.0");
   assert.equal(result.resolved.parametersSchema.type, "object");
   assert.deepEqual(result.declaration.include, [...files.keys()]);
+});
+
+test("runtime declarations accept non-Node environments without Node version requirements", () => {
+  const files = bundle();
+  const declaration = parseTaskBundleYaml(files.get("task.yaml")!);
+  assert.ok(declaration && typeof declaration === "object" && !Array.isArray(declaration));
+  for (const type of ["browser", "browser-worker", "cloudflare-worker"]) {
+    const runtime = { type };
+    files.set("task.yaml", encode(JSON.stringify({ ...declaration, runtime })));
+    assert.deepEqual(readTaskBundle(files).declaration.runtime, runtime);
+  }
+  for (const runtime of [
+    { type: "node" },
+    { type: "node", minVersion: "22" },
+    { type: "browser", minVersion: "22.15.0" },
+    { type: "browser-worker", minVersion: "22.15.0" },
+    { type: "cloudflare-worker", minVersion: "22.15.0" },
+    { type: "browser", unknown: true },
+    { type: "browser-worker", unknown: true },
+    { type: "cloudflare-worker", compatibility_date: "2026-11-17" },
+    { type: "cloudflare-worker", durableObject: true },
+    { type: "cloudflare-do" },
+    { type: "deno" },
+    {},
+  ]) {
+    files.set("task.yaml", encode(JSON.stringify({ ...declaration, runtime })));
+    assert.throws(() => readTaskBundle(files), { code: "invalid_bundle" });
+  }
 });
 
 test("file, path and byte capacities enforce exact boundaries and reject invalid limits", () => {

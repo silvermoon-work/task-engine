@@ -39,6 +39,8 @@ export async function buildBundleFixture(options: BundleFixtureOptions) {
     include: ["task.yaml", "worker.cjs", ...resources.map(([path]) => path)].sort(),
     binary: options.binary ?? declaration.binary,
   });
+  if (contract.runtime.type !== "node")
+    throw new Error("Bundle build fixtures require the Node runtime.");
   const directory = resolve(options.outDirectory);
   const resourceDirectory = `${directory}.resources`;
   for (const [path, source] of resources) {

@@ -145,7 +145,12 @@ Node 22.15.0 与 24.11.1 的 `require.resolve(ipfsURL)` 不走 hook，仍报
 这只是地址生成修正：不改变 `task.yaml`、`taskSchemaUri`、SDK 握手、Space protocol
 或业务 schema，不新增 loaderVersion，不根据 Builder 版本拒绝旧产物。
 旧产物不保证自动获得修正后的 `import.meta.url`，也没有兼容 eval 分支。
-运行时仍同时要求引擎最低版本及声明中的 `runtime.minVersion`；已有低版本声明
+Task 声明可表示 `node`、`browser`、`browser-worker` 和 `cloudflare-worker`，
+但本 Engine 仅执行 `node`。其他三个 runtime 在 Bundle 检查阶段以
+`unsupported_runtime` 拒绝，不启动 Worker；格式支持不代表已实现对应的构建或执行。
+Cloudflare Worker 与 Durable Object 共用 `cloudflare-worker` runtime；
+DO 需求属于宿主契约，本次不增加 DO 或 Cloudflare compatibility 配置字段。
+Node 运行时仍同时要求引擎最低版本及声明中的 `runtime.minVersion`；已有低版本声明
 不会因此单独被拒绝。初始化模板默认声明 22.15.0，协议/SDK 的独立 API 本身未改变。
 
 ## Result 契约（breaking change）

@@ -26,6 +26,26 @@ Published versions are immutable.
 
 ## Task Bundle bytes and structure
 
+The runtime declaration accepts four environments:
+
+- `{ type: "node", minVersion: "22.15.0" }`: Node.js; an exact three-part
+  minimum version is required.
+- `{ type: "browser" }`: a browser page environment.
+- `{ type: "browser-worker" }`: a browser Worker environment without direct DOM access.
+- `{ type: "cloudflare-worker" }`: the Cloudflare Workers runtime, shared by
+  ordinary Workers and Durable Objects. Durable Object requirements belong to
+  a host contract, not a separate runtime type.
+
+Non-Node declarations do not accept `minVersion` or other runtime fields,
+including Cloudflare compatibility dates, flags or Durable Object settings.
+Unknown runtime types are rejected. This is declaration support, not non-Node
+build or execution support: Builder still produces Node/CommonJS, and the Node
+Engine rejects all three non-Node runtimes with `unsupported_runtime` before execution.
+The existing `worker.cjs` entry name and all other Bundle constraints remain
+unchanged; changing the runtime declaration does not make that entry compatible
+with another environment.
+Existing Node declarations and their encoded bytes are unchanged.
+
 The Bundle protocol owns `taskBundleLimits`, `TaskBundleFileLimits`,
 `isTaskBundlePath`, `parseTaskBundleYaml`, and `readTaskBundle`.
 Limits preserve the 64 MiB total/per-file, 256-file, 512-path and 72 MiB CAR

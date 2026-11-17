@@ -15,7 +15,7 @@ export { taskSchemaUri } from "./task-schema-uri.js";
 export const taskBundleSchema = {
   $id: taskSchemaUri,
   $comment:
-    "IPFS UnixFS directory root CID identity. One CommonJS Worker per Run; generation-scoped business messages and independent log/log-ack, bounded cumulative log-drop/log-drop-ack diagnostics.",
+    "IPFS UnixFS directory root CID identity. Runtime declaration does not establish host execution support. Node uses one CommonJS Worker per Run; generation-scoped business messages and independent log/log-ack, bounded cumulative log-drop/log-drop-ack diagnostics.",
   type: "object",
   additionalProperties: false,
   required: [
@@ -38,16 +38,28 @@ export const taskBundleSchema = {
         "^[^\\s\\u0000-\\u001f\\u007f-\\u009f](?:(?:[^\\s\\u0000-\\u001f\\u007f-\\u009f]| )*[^\\s\\u0000-\\u001f\\u007f-\\u009f])?$",
     },
     runtime: {
-      type: "object",
-      additionalProperties: false,
-      required: ["type", "minVersion"],
-      properties: {
-        type: { const: "node" },
-        minVersion: {
-          type: "string",
-          pattern: "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      oneOf: [
+        {
+          type: "object",
+          additionalProperties: false,
+          required: ["type", "minVersion"],
+          properties: {
+            type: { const: "node" },
+            minVersion: {
+              type: "string",
+              pattern: "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+            },
+          },
         },
-      },
+        {
+          type: "object",
+          additionalProperties: false,
+          required: ["type"],
+          properties: {
+            type: { enum: ["browser", "browser-worker", "cloudflare-worker"] },
+          },
+        },
+      ],
     },
     entry: { const: "worker.cjs" },
     include: {
@@ -81,7 +93,9 @@ export * from "./bundle-reference.js";
 export interface TaskBundleDeclaration {
   $schema: typeof taskSchemaUri;
   name: string;
-  runtime: { type: "node"; minVersion: string };
+  runtime:
+    | { type: "node"; minVersion: string }
+    | { type: "browser" | "browser-worker" | "cloudflare-worker" };
   entry: "worker.cjs";
   include: string[];
   binary: string[];

@@ -152,6 +152,7 @@ class RunWorker {
     private readonly channel: TypeChannel,
     private readonly limits: SupervisorLimits,
     budget: ChannelBudget,
+    private readonly workerEnv: Readonly<Record<string, string>> | undefined,
   ) {
     this.inFlight = budget.inFlight;
     this.resourceProofs = budget.resourceProofs;
@@ -214,11 +215,7 @@ class RunWorker {
         execArgv: [],
         stdout: true,
         stderr: true,
-        env: {
-          NODE_OPTIONS: "",
-          ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}),
-          ...(process.env.WINDIR ? { WINDIR: process.env.WINDIR } : {}),
-        },
+        ...(this.workerEnv ? { env: { ...this.workerEnv } } : {}),
         resourceLimits: { maxOldGenerationSizeMb: 128 },
         workerData: {
           module: this.registration.module,
@@ -1320,6 +1317,7 @@ export class TypeSupervisor {
     registration: TypeWorkerRegistration,
     private readonly channel: TypeChannel,
     private readonly limits: SupervisorLimits,
+    private readonly workerEnv?: Readonly<Record<string, string>>,
   ) {
     for (const [name, value] of Object.entries(limits))
       if (
@@ -1328,10 +1326,13 @@ export class TypeSupervisor {
           : !Number.isSafeInteger(value) || value <= 0
       )
         throw new TaskError("invalid_type", `${name} 必须是正整数。`);
-    this.verifier = new RunWorker(registration, channel, limits, {
-      inFlight: this.inFlight,
-      resourceProofs: this.resourceProofs,
-    });
+    this.verifier = new RunWorker(
+      registration,
+      channel,
+      limits,
+      { inFlight: this.inFlight, resourceProofs: this.resourceProofs },
+      this.workerEnv,
+    );
     this.registration = this.verifier.registration;
   }
   async start(): Promise<void> {
@@ -1355,10 +1356,13 @@ export class TypeSupervisor {
         this.channel.lost(ids, error);
       },
     };
-    const worker = new RunWorker(this.registration, channel, this.limits, {
-      inFlight: this.inFlight,
-      resourceProofs: this.resourceProofs,
-    });
+    const worker = new RunWorker(
+      this.registration,
+      channel,
+      this.limits,
+      { inFlight: this.inFlight, resourceProofs: this.resourceProofs },
+      this.workerEnv,
+    );
     this.workers.set(runId, worker);
     const previous = this.startup;
     let release!: () => void;
@@ -1431,9 +1435,12 @@ export class TypeSupervisor {
     for (const worker of workers) this.retired.add(worker);
     await Promise.all(workers.map((worker) => worker.retire(reason)));
     await this.verifier.retire(reason);
-    this.verifier = new RunWorker(this.registration, this.channel, this.limits, {
-      inFlight: this.inFlight,
-      resourceProofs: this.resourceProofs,
-    });
+    this.verifier = new RunWorker(
+      this.registration,
+      this.channel,
+      this.limits,
+      { inFlight: this.inFlight, resourceProofs: this.resourceProofs },
+      this.workerEnv,
+    );
   }
 }

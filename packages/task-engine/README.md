@@ -126,6 +126,111 @@ MemoryStore，并提供 VirtualClock；旧协调器资源 fixtures
 Worker 不是 OS 安全沙箱。
 关闭和退休共享同一个 Worker 终止 Promise，等待实际退出，不重复请求终止。
 
+## 宿主控制的 Node Worker 环境
+
+**默认不设置 Worker 的 `env`**，使用 Node 原生行为：每个 Worker 创建时获得宿主
+`process.env` 的独立副本，包括 PATH、HOME、NVM/PNPM 等工具链字段。
+无需把设备环境塞进 Task parameters，也无需为普通设备工具检查配置映射。
+这有意改变此前仅传 `SystemRoot` / `WINDIR`、清空 `NODE_OPTIONS` 的默认行为，
+不以环境裁剪充当安全沙箱。默认也会继承凭据等其他宿主环境，宿主只应执行可信 Task。
+
+受信任的执行宿主可在公开 `createTaskEngine()` / `new TaskEngine()` 初始化时设置
+`workerEnv?: Readonly<Record<string, string | undefined>>`，选择**显式替换**环境。
+这是键值映射，不是向默认环境追加字段，也不是 Task 参数；
+Engine 不读取 Task 提交者指定的环境策略。例如需要固定工具链环境的宿主：
+
+```ts
+import { createTaskEngine } from "@silvermoon-work/task-engine";
+
+const engine = createTaskEngine({
+  store,
+  ipfsStore,
+  authorize,
+  workerEnv: {
+    // 可选：由宿主选择固定字段；不配置 workerEnv 时原生继承全部环境。
+    PATH: process.env.PATH,
+    PATHEXT: process.env.PATHEXT,
+    HOME: process.env.HOME,
+    USERPROFILE: process.env.USERPROFILE,
+    APPDATA: process.env.APPDATA,
+    LOCALAPPDATA: process.env.LOCALAPPDATA,
+    XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME,
+    NVM_DIR: process.env.NVM_DIR,
+    NVM_HOME: process.env.NVM_HOME,
+    NVM_SYMLINK: process.env.NVM_SYMLINK,
+    PNPM_HOME: process.env.PNPM_HOME,
+  },
+});
+await engine.start();
+```
+
+映射可包含任意非保留环境变量，不耦合具体 Check；值也可来自宿主自己的配置，
+不必来自 `process.env`。业务 parameters 仍只传版本下限、追加包等业务输入，
+不传 PATH、HOME、环境策略或业务 context。HTTP/CLI 的任务提交接口不因此新增环境配置。
+
+- **默认与显式空映射**：省略 `workerEnv` / 传 `undefined` 使用原生继承。
+  显式传 `{}` 则选择最小替换环境：仅宿主非空的 `SystemRoot` / `WINDIR`，
+  并固定 `NODE_OPTIONS: ""`；它不等于省略配置。
+- **快照时机**：默认由 Node 在每个 Worker 创建时复制当时宿主环境，不提前在 Engine
+  构造时固定。显式映射则在 Engine 构造期间同步复制映射和上述系统字段，
+  后续修改原映射或 `process.env` 不影响该实例的替换环境。改变显式映射须新建 Engine，
+  重启须由宿主重新提供，不从历史事实恢复。
+- **显式映射的缺失与优先级**：映射中的 `undefined` 省略，不回读同名宿主变量；
+  空字符串保留。显式字符串覆盖系统字段默认值；系统字段的 `undefined` 仍保留默认值。
+  非字符串、NUL 值、空名称或含 `=` / NUL 的名称以 `invalid_config` 拒绝。
+- **Windows 名称**：Windows Worker 的 `process.env` 与主线程不同，是大小写敏感的。
+  默认继承保留 Node 自身的字段拼写；本 Engine 不规范化或裁剪默认环境。
+  显式映射为避免 `Path` / `PATH` 的枚举顺序改变工具选择，Windows 下统一为大写键
+  （兼容字段 `SystemRoot` 保留该拼写）。相同值的大小写别名合并；不同值的别名在构造时
+  以 `invalid_config` 拒绝，错误不回显名称或值。默认系统字段的宿主别名冲突也拒绝，
+  除非映射显式覆盖该字段。  使用显式映射的 Worker 内请用 `process.env.PATH` 等规范键读取。
+  非 Windows 保持名称大小写，`Path` 和 `PATH` 是不同变量。
+- **显式映射的启动保护**：不区分大小写地拒绝 `NODE_*`、`UV_*`、`LD_*`、`DYLD_*`、
+  `OPENSSL_*`，即使其值为空或 `undefined`。调用者不能借此启用 Node 启动选项、
+  模块路径、原生预加载或 OpenSSL 启动配置；显式替换环境的 `NODE_OPTIONS` 固定为空。
+  默认原生继承不做此过滤或清空，`process.env.NODE_OPTIONS` 可见性遵循 Node 原生行为。
+  两种模式都保留 `execArgv: []` 和原有 128 MiB Worker old-generation 限制。
+- **执行范围**：同一 Engine 的所有 Bundle Run、内部普通类型 Run / 复验 Worker、
+  退休后重新创建的 Worker 及所有层级子 Task 都遵守同一宿主模式。
+  默认各自在创建时原生继承宿主；显式映射模式使用同一构造时快照。
+  子 Task 不是复制父 Worker 当前环境；父 Task 的本地修改不影响子 Task 或宿主。
+  不使用 `SHARE_ENV`。
+- **数据边界**：Engine 不把映射放入 Task/Run parameters、类型 configuration、
+  配置快照、Worker data、日志、错误详情或 IPFS/RunHistory 制品。
+  这不阻止受信任 Task 主动读取并输出自己的环境；不要批准任务无须访问的凭据。
+  环境及策略不参与业务输入判等；同一数据域应保持一致的执行宿主策略，
+  如需隔离不同设备或策略的历史匹配，请使用独立 Store 数据域。
+
+此能力不是安全沙箱；Task 仍可使用 Node 内置模块。取消、超时、启动参数保护、
+子 Task / 子进程与其他资源的既有回收边界不变，环境传递不新增 OS 隔离承诺。
+
+### 未发布源码接入
+
+本功能尚未发布，既有 `0.2.1-rc.1` / `0.2.1` 安装不包含它；
+仅更换业务参数或重建 Check 无法启用。宿主须使用包含本变更提交的 Engine 构建。
+在该提交的仓库根目录，使用已配置的 registry 和满足项目要求的 Node / pnpm：
+
+```powershell
+pnpm install --frozen-lockfile
+pnpm exec turbo run build --filter=@silvermoon-work/task-engine...
+$artifacts = (New-Item -ItemType Directory -Force .\artifacts).FullName
+pnpm --filter @silvermoon-work/task-engine --config.ignore-scripts=true pack --pack-destination $artifacts
+```
+
+`pack` 将 `workspace:*` 改写为当前精确依赖版本；这是 Engine 本地源码 tarball，
+即使 manifest 仍显示 `0.2.1`，也不是 registry 的同版本已发布字节。
+保存源码提交 SHA 与 tarball SHA-256，消费方显式安装该文件，并确认内部依赖版本已可用：
+
+```powershell
+Get-FileHash .\artifacts\silvermoon-work-task-engine-0.2.1.tgz -Algorithm SHA256
+# 在宿主项目中执行，路径替换为上一步 tarball 的绝对路径：
+pnpm add --save-exact 'D:\path\to\silvermoon-work-task-engine-0.2.1.tgz'
+```
+
+也可在本 workspace 内依赖该源码包并运行同一 build。
+本步骤不发布、不移动 tag、不修改 registry 或设备工具配置。
+正式发布需另获授权，按仓库单包、不可变 tag 和 GitHub Actions Trusted Publishing 流程执行。
+
 ## IPFS 模块地址与重建
 
 支持已验证 bundle 声明的单文件 ESM `main.mjs` 或旧 CJS `worker.cjs` 入口及 Node 内置模块。

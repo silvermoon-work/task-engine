@@ -170,7 +170,7 @@ test("消息接纳有持久化状态与幂等身份，取消只撤回所属需�
   }
 });
 
-test("隔离副本不能改 Engine Input；未提供的主线程状态与环境不进入类型堆", async () => {
+test("隔离副本不能改 Engine Input；主线程堆不共享，环境默认原生继承", async () => {
   const globals = globalThis as typeof globalThis & { __runHostMarker?: string };
   globals.__runHostMarker = "host-only";
   process.env.RUN_TEST_HOST_MARKER = "host-only";
@@ -188,7 +188,7 @@ test("隔离副本不能改 Engine Input；未提供的主线程状态与环境�
       data: {
         text: "changed",
         hostMarker: null,
-        inheritedEnv: null,
+        inheritedEnv: "host-only",
       },
       cidPaths: [],
     } as Json);

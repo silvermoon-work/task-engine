@@ -7,6 +7,11 @@ Task Engine 的本地后台 Server 与任务调用 CLI，要求 Node.js 22.15+�
 用户配置路径、环境变量及通信协议不因改名改变。
 新包 `0.2.1` 已发布至 `latest`；下述旧版本发布记录属于旧包。
 本次发布及 registry 元数据验证见[发布记录](../../README.md#ipfspawn-021-2026-11-17)。
+已发布的 `ipfspawn@0.2.1` 精确依赖 `task-engine@0.2.1`，不会随 Engine 的
+`latest` 更新而自动获得 `0.2.2` 的原生 Worker 环境继承行为。
+该 CLI 需要单独发版以升级打包后的 Engine 依赖；仅升级宿主项目的 Engine
+并不保证替换 CLI 的传递依赖。不要把本 workspace 的 `workspace:*` 源码运行
+误当作已发布 `ipfspawn@0.2.1` 的行为。
 0.2.0 正式版使用通用 imports / typed ContentRef / parameters；
 发布和独立 registry 验收见[正式版记录](../../README.md#stable-020-2026-11-16)。
 build 交付的完整目录包含 `.task-imports.car`，搬运时不可遗漏。

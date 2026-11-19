@@ -16,6 +16,47 @@ scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节�
 [ipfspawn README](packages/ipfspawn/README.md)，独立制品验证见
 [端到端指引](docs/end-to-end-verification.md)。
 
+### Engine 0.2.2: native Worker environment (2026-11-20)
+
+Engine `0.2.2` promotes the verified `0.2.2-rc.0` runtime without product code
+changes. Workers now use Node's native host-environment inheritance by default;
+trusted hosts can explicitly replace it with a constructor-time `workerEnv`
+snapshot. This intentionally changes the previous minimal default environment.
+It is not a security sandbox. See the
+[Engine API and migration notes](packages/task-engine/README.md#宿主控制的-node-worker-环境).
+
+The immutable RC tag `task-engine-v0.2.2-rc.0` identifies
+[`7545695`](https://github.com/silvermoon-work/task-engine/commit/75456959ffa9dfd38f0f411ab1cb9003e9754f5a),
+which passed
+[exact-commit Node 22.15.0 / 24.11.1 main CI](https://github.com/silvermoon-work/task-engine/actions/runs/44565225067).
+[RC Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/44567862590)
+and
+[registry/dependency/dist-tag verification](https://github.com/silvermoon-work/task-engine/actions/runs/44568131602)
+succeeded; only read-only verification was retried for metadata propagation.
+
+An independent Windows Node 26.13.1 consumer installed the exact published RC
+and Builder/CLI `0.2.1`, Protocol `0.2.1`, SDK `0.2.0` and IPFS Store `0.1.0`
+through the active device registry, with scripts disabled and no workspace,
+tarball or dependency overrides. Its Engine lockfile integrity matched the
+published artifact. Real CAR parent/child execution passed for native
+inheritance, explicit replacement and the explicit empty mapping. Controlled
+fake command lookup, constructor snapshot timing, Windows alias conflict
+rejection, startup guards, independent Worker environments, confirmed physical
+reclamation, and absence of automatic environment persistence in
+facts/logs/RunHistory/IPFS were verified. No installed nvm/npm was used as the
+test oracle. The stable promotion retains `rc: 0.2.2-rc.0`; its own exact-commit
+main CI and single-package Trusted Publishing remain mandatory before the stable
+install below is available.
+
+```powershell
+pnpm add --save-exact @silvermoon-work/task-engine@0.2.2
+```
+
+Only Engine is promoted in this release. Published `ipfspawn@0.2.1` pins Engine
+`0.2.1` exactly and needs a separately authorized CLI release to adopt `0.2.2`;
+it does not automatically track Engine's `latest` tag. Other workspace versions
+and historical package/Git tags are unchanged.
+
 ### ipfspawn 0.2.1 (2026-11-17)
 
 `@silvermoon-work/ipfspawn@0.2.1` was published to `latest` from

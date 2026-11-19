@@ -204,18 +204,18 @@ await engine.start();
 此能力不是安全沙箱；Task 仍可使用 Node 内置模块。取消、超时、启动参数保护、
 子 Task / 子进程与其他资源的既有回收边界不变，环境传递不新增 OS 隔离承诺。
 
-### RC 与源码接入
+### 0.2.2 与源码接入
 
-本功能的候选版本为 `0.2.2-rc.0`，既有 `0.2.1-rc.1` / `0.2.1` 安装不包含它；
-仅更换业务参数或重建 Check 无法启用。确认该候选版已经通过仓库发布流程后，
+本功能在 `0.2.2-rc.0` 验证后以 `0.2.2` 转正，既有 `0.2.1-rc.1` / `0.2.1` 安装不包含它；
+仅更换业务参数或重建 Check 无法启用。确认该版本已经通过仓库发布流程后，
 消费宿主可精确安装（不会升级 Task SDK 或修改业务输入）：
 
 ```powershell
-pnpm add --save-exact @silvermoon-work/task-engine@0.2.2-rc.0
+pnpm add --save-exact @silvermoon-work/task-engine@0.2.2
 ```
 
-本候选版有意改变默认环境继承行为；显式映射可用 `{}` 恢复此前的最小环境。
-`latest` 稳定通道不因 RC 发布改变。
+本版本有意改变默认环境继承行为；显式映射可用 `{}` 恢复此前的最小环境。
+正式版发布至 `latest`；原 `rc` 通道仍保留 `0.2.2-rc.0`，历史版本及 tag 不变。
 如需验证源码，在包含本变更的仓库根目录，使用已配置的 registry 和满足项目要求的 Node / pnpm：
 
 ```powershell
@@ -230,9 +230,9 @@ pnpm --filter @silvermoon-work/task-engine --config.ignore-scripts=true pack --p
 保存源码提交 SHA 与 tarball SHA-256，消费方显式安装该文件，并确认内部依赖版本已可用：
 
 ```powershell
-Get-FileHash .\artifacts\silvermoon-work-task-engine-0.2.2-rc.0.tgz -Algorithm SHA256
+Get-FileHash .\artifacts\silvermoon-work-task-engine-0.2.2.tgz -Algorithm SHA256
 # 在宿主项目中执行，路径替换为上一步 tarball 的绝对路径：
-pnpm add --save-exact 'D:\path\to\silvermoon-work-task-engine-0.2.2-rc.0.tgz'
+pnpm add --save-exact 'D:\path\to\silvermoon-work-task-engine-0.2.2.tgz'
 ```
 
 也可在本 workspace 内依赖该源码包并运行同一 build。

@@ -44,9 +44,23 @@ fake command lookup, constructor snapshot timing, Windows alias conflict
 rejection, startup guards, independent Worker environments, confirmed physical
 reclamation, and absence of automatic environment persistence in
 facts/logs/RunHistory/IPFS were verified. No installed nvm/npm was used as the
-test oracle. The stable promotion retains `rc: 0.2.2-rc.0`; its own exact-commit
-main CI and single-package Trusted Publishing remain mandatory before the stable
-install below is available.
+test oracle.
+
+Stable `@silvermoon-work/task-engine@0.2.2` was published from
+[`502d95a`](https://github.com/silvermoon-work/task-engine/commit/502d95a3e13c50038219baa66659c7f139431c1d)
+using the immutable `task-engine-v0.2.2` tag after the complete local
+`pnpm check` (56/56 Turbo tasks) and
+[exact-commit Node 22.15.0 / 24.11.1 main CI](https://github.com/silvermoon-work/task-engine/actions/runs/44572038454)
+passed.
+[Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/44574069549)
+and
+[registry/dependency/dist-tag verification](https://github.com/silvermoon-work/task-engine/actions/runs/44574829878)
+succeeded: `latest` is `0.2.2`, while `rc` remains `0.2.2-rc.0`. The isolated
+Windows consumer then installed the exact stable version from the active
+registry, verified its lockfile integrity, and repeated all three environment
+modes, real CAR parent/child execution, controlled command lookup, alias/startup
+guards, physical release and data-boundary checks successfully. No runtime
+source changed between the RC and stable tags.
 
 ```powershell
 pnpm add --save-exact @silvermoon-work/task-engine@0.2.2

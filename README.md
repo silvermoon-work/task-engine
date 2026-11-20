@@ -11,10 +11,32 @@ scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节�
 
 当前 CLI 包已改名为 `@silvermoon-work/ipfspawn`，命令为 `ipfspawn`，不保留
 `task-engine` 命令别名。核心依赖 `@silvermoon-work/task-engine`
-保持原名，现有数据目录、用户配置路径、环境变量与通信协议不变。新包 `0.2.1`
-已发布到 `latest`；下方旧包发布记录、版本与 tag 保留历史原貌。源码用法见
+保持原名，现有数据目录、用户配置路径、环境变量与通信协议不变。当前 CLI `0.2.2`
+单独升级 Engine 依赖到
+`0.2.2`；下方历史发布记录、版本与 tag 保留原貌。源码用法见
 [ipfspawn README](packages/ipfspawn/README.md)，独立制品验证见
 [端到端指引](docs/end-to-end-verification.md)。
+
+### ipfspawn 0.2.2: Engine dependency update (2026-11-20)
+
+`@silvermoon-work/ipfspawn@0.2.2` adopts the already-published
+`@silvermoon-work/task-engine@0.2.2`; the workspace source keeps `workspace:*`,
+which packs to that exact Engine version. Only ipfspawn is selected for this
+release; Engine and all other workspace versions are unchanged. The release
+requires its own exact-commit main CI, immutable `ipfspawn-v0.2.2` tag, Trusted
+Publishing, and published dependency/dist-tag verification.
+
+After upgrading, stop the old Server and restart it from a terminal with the
+intended toolchain environment. New Workers inherit the Server's environment,
+not the environment of each later client command; an existing Server does not
+reload an upgraded package or a client's changed environment. This is native
+Node behavior, not a security sandbox.
+
+```powershell
+npm install -g @silvermoon-work/ipfspawn@0.2.2
+ipfspawn server stop
+ipfspawn server start
+```
 
 ### Engine 0.2.2: native Worker environment (2026-11-20)
 

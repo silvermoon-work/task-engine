@@ -22,9 +22,29 @@ scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节�
 `@silvermoon-work/ipfspawn@0.2.2` adopts the already-published
 `@silvermoon-work/task-engine@0.2.2`; the workspace source keeps `workspace:*`,
 which packs to that exact Engine version. Only ipfspawn is selected for this
-release; Engine and all other workspace versions are unchanged. The release
-requires its own exact-commit main CI, immutable `ipfspawn-v0.2.2` tag, Trusted
-Publishing, and published dependency/dist-tag verification.
+release; Engine and all other workspace versions are unchanged.
+
+Published from
+[`8b7fdd6`](https://github.com/silvermoon-work/task-engine/commit/8b7fdd6c33adb072bcd6e3f3fe040035cfe9751c)
+using the immutable `ipfspawn-v0.2.2` tag after the complete local `pnpm check`
+(56/56 Turbo tasks) and
+[exact-commit Node 22.15.0 / 24.11.1 main CI](https://github.com/silvermoon-work/task-engine/actions/runs/44646219802)
+passed.
+[Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/44648131870)
+and
+[registry/dependency/dist-tag verification](https://github.com/silvermoon-work/task-engine/actions/runs/44648734126)
+succeeded; ipfspawn's `latest` is `0.2.2`. No package or Git tag was moved, and
+no publication was repeated.
+
+An independent Windows Node 26.13.1 consumer installed the exact published CLI
+with lifecycle scripts disabled and no workspace/tarball/dependency overrides.
+Its packed dependency and the Engine resolved from the CLI both selected
+`0.2.2`. Real CLI CAR execution with a child Task confirmed inherited Server
+toolchain variables and controlled fake command lookup through PATH, even when
+the invoking client's environment differed. Task queries preserved the same
+result after stopping and restarting the dedicated Server; final status
+confirmed that the test instance was stopped. User device configuration and
+other managed instances were not changed.
 
 After upgrading, stop the old Server and restart it from a terminal with the
 intended toolchain environment. New Workers inherit the Server's environment,

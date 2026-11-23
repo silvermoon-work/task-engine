@@ -168,6 +168,7 @@ export class TaskEngine implements TaskService {
       (options.ipfsStore?.supportsRetention ? options.ipfsStore : undefined);
     this.core = new Coordinator({
       store: options.store,
+      ...(options.workerEnv !== undefined ? { workerEnv: options.workerEnv } : {}),
       ...(options.executionBudgetFromWorker ? { executionBudgetFromWorker: true } : {}),
       ...(options.durableLogs ? { durableLogs: true } : {}),
       types: [],

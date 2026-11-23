@@ -70,6 +70,7 @@ import type { IpfsStore } from "./content.js";
 import { newId } from "./identity.js";
 import { RunLogs } from "./logs.js";
 import { ObservationHub, type ObservationLimits } from "./observation.js";
+import { snapshotWorkerEnvironment } from "./worker-env.js";
 import {
   createRunHistoryArchive,
   defaultArchivePolicy,
@@ -110,6 +111,8 @@ export interface EngineLimits extends CatalogLimits, ObservationLimits {
   inFlight: number;
 }
 export interface EngineOptions {
+  /** Omit for native Worker inheritance; an explicit host-only mapping is copied at construction. */
+  workerEnv?: Readonly<Record<string, string | undefined>>;
   /** Managed domains start execution budgets when their Worker is created. */
   executionBudgetFromWorker?: boolean;
   durableLogs?: boolean;
@@ -201,6 +204,7 @@ interface Group {
   releaseBundle?: () => void;
 }
 export class TaskEngine implements TaskService {
+  private readonly workerEnv: Readonly<Record<string, string>> | undefined;
   private readonly logs: RunLogs;
   private logSubscriptions = 0;
   private readonly owner = newId();
@@ -336,6 +340,7 @@ export class TaskEngine implements TaskService {
   }
 
   constructor(private readonly options: EngineOptions) {
+    this.workerEnv = snapshotWorkerEnvironment(options.workerEnv);
     this.clock = options.clock ?? systemClock;
     this.logs = new RunLogs(
       options.store,
@@ -608,6 +613,7 @@ export class TaskEngine implements TaskService {
         stopGraceMs: this.limits.stopGraceMs,
         forceExitWaitMs: this.limits.forceExitWaitMs,
       },
+      this.workerEnv,
     );
     const revision = createHash("sha256")
       .update(

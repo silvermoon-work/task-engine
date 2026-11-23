@@ -97,7 +97,7 @@ runTask(async () => {
     evaluations: state.moduleEvaluations,
     ipfsResolve: ipfsResolve === __filename || ipfsResolve === "MODULE_NOT_FOUND",
     builtin: typeof require("node:crypto").createHash,
-    options: process.env.NODE_OPTIONS, sourceVisible: "bundleSource" in require("node:worker_threads").workerData
+    options: process.env.NODE_OPTIONS ?? null, sourceVisible: "bundleSource" in require("node:worker_threads").workerData
   };
 });`,
       { resultSchema: true },
@@ -114,7 +114,7 @@ runTask(async () => {
       evaluations: 1,
       ipfsResolve: true,
       builtin: "function",
-      options: "",
+      options: process.env.NODE_OPTIONS ?? null,
       sourceVisible: false,
     };
     const runs = await Promise.all([supervise(built, {}), supervise(built, {})]);

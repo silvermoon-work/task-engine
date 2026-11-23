@@ -11,9 +11,126 @@ scope。原始 MIT 许可证随每个包保留，原协议 URI、Bundle 字节�
 
 当前 CLI 包已改名为 `@silvermoon-work/ipfspawn`，命令为 `ipfspawn`，不保留
 `task-engine` 命令别名。核心依赖 `@silvermoon-work/task-engine`
-保持原名，现有数据目录、用户配置路径、环境变量与通信协议不变。新包尚未发布；下方旧包发布记录、版本与 tag 保留历史原貌。源码用法见
+保持原名，现有数据目录、用户配置路径、环境变量与通信协议不变。当前 CLI `0.2.2`
+单独升级 Engine 依赖到
+`0.2.2`；下方历史发布记录、版本与 tag 保留原貌。源码用法见
 [ipfspawn README](packages/ipfspawn/README.md)，独立制品验证见
 [端到端指引](docs/end-to-end-verification.md)。
+
+### ipfspawn 0.2.2: Engine dependency update (2026-11-20)
+
+`@silvermoon-work/ipfspawn@0.2.2` adopts the already-published
+`@silvermoon-work/task-engine@0.2.2`; the workspace source keeps `workspace:*`,
+which packs to that exact Engine version. Only ipfspawn is selected for this
+release; Engine and all other workspace versions are unchanged.
+
+Published from
+[`8b7fdd6`](https://github.com/silvermoon-work/task-engine/commit/8b7fdd6c33adb072bcd6e3f3fe040035cfe9751c)
+using the immutable `ipfspawn-v0.2.2` tag after the complete local `pnpm check`
+(56/56 Turbo tasks) and
+[exact-commit Node 22.15.0 / 24.11.1 main CI](https://github.com/silvermoon-work/task-engine/actions/runs/44646219802)
+passed.
+[Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/44648131870)
+and
+[registry/dependency/dist-tag verification](https://github.com/silvermoon-work/task-engine/actions/runs/44648734126)
+succeeded; ipfspawn's `latest` is `0.2.2`. No package or Git tag was moved, and
+no publication was repeated.
+
+An independent Windows Node 26.13.1 consumer installed the exact published CLI
+with lifecycle scripts disabled and no workspace/tarball/dependency overrides.
+Its packed dependency and the Engine resolved from the CLI both selected
+`0.2.2`. Real CLI CAR execution with a child Task confirmed inherited Server
+toolchain variables and controlled fake command lookup through PATH, even when
+the invoking client's environment differed. Task queries preserved the same
+result after stopping and restarting the dedicated Server; final status
+confirmed that the test instance was stopped. User device configuration and
+other managed instances were not changed.
+
+After upgrading, stop the old Server and restart it from a terminal with the
+intended toolchain environment. New Workers inherit the Server's environment,
+not the environment of each later client command; an existing Server does not
+reload an upgraded package or a client's changed environment. This is native
+Node behavior, not a security sandbox.
+
+```powershell
+npm install -g @silvermoon-work/ipfspawn@0.2.2
+ipfspawn server stop
+ipfspawn server start
+```
+
+### Engine 0.2.2: native Worker environment (2026-11-20)
+
+Engine `0.2.2` promotes the verified `0.2.2-rc.0` runtime without product code
+changes. Workers now use Node's native host-environment inheritance by default;
+trusted hosts can explicitly replace it with a constructor-time `workerEnv`
+snapshot. This intentionally changes the previous minimal default environment.
+It is not a security sandbox. See the
+[Engine API and migration notes](packages/task-engine/README.md#宿主控制的-node-worker-环境).
+
+The immutable RC tag `task-engine-v0.2.2-rc.0` identifies
+[`7545695`](https://github.com/silvermoon-work/task-engine/commit/75456959ffa9dfd38f0f411ab1cb9003e9754f5a),
+which passed
+[exact-commit Node 22.15.0 / 24.11.1 main CI](https://github.com/silvermoon-work/task-engine/actions/runs/44565225067).
+[RC Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/44567862590)
+and
+[registry/dependency/dist-tag verification](https://github.com/silvermoon-work/task-engine/actions/runs/44568131602)
+succeeded; only read-only verification was retried for metadata propagation.
+
+An independent Windows Node 26.13.1 consumer installed the exact published RC
+and Builder/CLI `0.2.1`, Protocol `0.2.1`, SDK `0.2.0` and IPFS Store `0.1.0`
+through the active device registry, with scripts disabled and no workspace,
+tarball or dependency overrides. Its Engine lockfile integrity matched the
+published artifact. Real CAR parent/child execution passed for native
+inheritance, explicit replacement and the explicit empty mapping. Controlled
+fake command lookup, constructor snapshot timing, Windows alias conflict
+rejection, startup guards, independent Worker environments, confirmed physical
+reclamation, and absence of automatic environment persistence in
+facts/logs/RunHistory/IPFS were verified. No installed nvm/npm was used as the
+test oracle.
+
+Stable `@silvermoon-work/task-engine@0.2.2` was published from
+[`502d95a`](https://github.com/silvermoon-work/task-engine/commit/502d95a3e13c50038219baa66659c7f139431c1d)
+using the immutable `task-engine-v0.2.2` tag after the complete local
+`pnpm check` (56/56 Turbo tasks) and
+[exact-commit Node 22.15.0 / 24.11.1 main CI](https://github.com/silvermoon-work/task-engine/actions/runs/44572038454)
+passed.
+[Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/44574069549)
+and
+[registry/dependency/dist-tag verification](https://github.com/silvermoon-work/task-engine/actions/runs/44574829878)
+succeeded: `latest` is `0.2.2`, while `rc` remains `0.2.2-rc.0`. The isolated
+Windows consumer then installed the exact stable version from the active
+registry, verified its lockfile integrity, and repeated all three environment
+modes, real CAR parent/child execution, controlled command lookup, alias/startup
+guards, physical release and data-boundary checks successfully. No runtime
+source changed between the RC and stable tags.
+
+```powershell
+pnpm add --save-exact @silvermoon-work/task-engine@0.2.2
+```
+
+Only Engine is promoted in this release. Published `ipfspawn@0.2.1` pins Engine
+`0.2.1` exactly and needs a separately authorized CLI release to adopt `0.2.2`;
+it does not automatically track Engine's `latest` tag. Other workspace versions
+and historical package/Git tags are unchanged.
+
+### ipfspawn 0.2.1 (2026-11-17)
+
+`@silvermoon-work/ipfspawn@0.2.1` was published to `latest` from
+[`9f4e81c`](https://github.com/silvermoon-work/task-engine/commit/9f4e81c81062700dedd75ef0d599a579ab6a91e1)
+using the immutable `ipfspawn-v0.2.1` tag and
+[Trusted Publishing](https://github.com/silvermoon-work/task-engine/actions/runs/44074298562).
+Only ipfspawn was published; existing engine and other package releases were
+unchanged. The exact commit passed
+[main CI on Node 22.15.0 and 24.11.1](https://github.com/silvermoon-work/task-engine/actions/runs/44072422208).
+[Registry version, latest tag and dependency verification](https://github.com/silvermoon-work/task-engine/actions/runs/44074503870)
+passed after a read-only retry for metadata propagation; no tag was moved and no
+publication was repeated. This verifies publication metadata, not a separate
+registry-installed end-to-end consumer run.
+
+```powershell
+npm install -g @silvermoon-work/ipfspawn@0.2.1
+ipfspawn --help
+```
 
 当前作者接口使用 typed `ContentRef`、`parameters` 和 `{data,cidPaths}`
 载荷；`context.bundle` 是 CID 字符串，内容 I/O 使用

@@ -1,10 +1,11 @@
 # 端到端验证：安装 → Init → Build → Server → 持久任务
 
 当前源码 CLI 包为 `@silvermoon-work/ipfspawn`，仅提供 `ipfspawn` 命令；
-`@silvermoon-work/task-engine`
-核心包、数据与配置路径保持不变。新包尚未发布，须先按文末流程构建并在隔离 tools 项目安装本地 tarball，将该 tools 项目的 bin 目录加入本次终端 PATH，再运行下列
-`ipfspawn` 示例。旧 `@silvermoon-work/task-engine-cli@0.2.0`
-的 registry 验收属于历史记录，其 `task-engine` 命令不能替代新包验收。
+`@silvermoon-work/task-engine` 核心包、数据与配置路径保持不变。当前 CLI `0.2.2`
+精确依赖 Engine
+`0.2.2`；确认发布完成后可按下列步骤从 registry 安装。升级后先停止旧 Server，再从目标工具链环境的终端重新启动；Worker 继承的是 Server 环境，不是后续客户端命令的环境。验证未发布源码时仍使用文末的独立 tarball 流程。旧
+`@silvermoon-work/task-engine-cli@0.2.0` 的 registry 验收属于历史记录，其
+`task-engine` 命令不能替代新包验收。
 
 本文描述**0.2.0 正式版的 typed ContentRef /
 parameters 接口**；发布和独立 registry 安装验收范围见
@@ -32,7 +33,7 @@ parameters 接口**；发布和独立 registry 安装验收范围见
 node --version
 npm --version
 npm config get registry
-npm install -g @silvermoon-work/task-builder-cli@0.2.0
+npm install -g @silvermoon-work/task-builder-cli@0.2.1 @silvermoon-work/ipfspawn@0.2.2
 task-builder --version
 ipfspawn --version
 task-builder --help
@@ -41,9 +42,9 @@ ipfspawn --help
 
 全局 npm bin 目录须在 PATH 中。scope registry
 override 和 lockfile 下载 URL 也须符合环境策略。版本不可用时报阻塞，不用 workspace、tarball 或旧版本偷偷替代。保留实际解析版本，不能仅凭
-`latest` 标签推定版本正确。Builder `0.2.0` 已发布并通过独立 CLI
-consumer 验收；当前 ipfspawn 使用文末的独立 tarball 流程，不使用全局旧 Engine
-CLI，也不把本地结果称为 registry 安装验收。
+`latest` 标签推定版本正确。ipfspawn 的确切发布提交、CI、版本和依赖验证证据见
+[发布记录](../README.md#ipfspawn-022-engine-dependency-update-2026-11-20)；仅 registry 元数据通过不等于独立 consumer 完整运行验收。不要使用全局旧 Engine
+CLI，也不把本地 tarball 结果称为 registry 安装验收。
 
 ## 1. Init → 安装项目依赖
 

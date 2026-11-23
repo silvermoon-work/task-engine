@@ -1,0 +1,37 @@
+[
+  {
+    "command": [
+      "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.bin\\task-builder.cmd",
+      "init",
+      "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\shim-demo",
+      "--package-name",
+      "demo"
+    ],
+    "exitCode": 0,
+    "stdout": "{\"ok\":true,\"data\":{\"directory\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\shim-demo\",\"files\":[\".gitignore\",\"assets/greeting.txt\",\"package.json\",\"pnpm-workspace.yaml\",\"src/contract.json\",\"src/helper.ts\",\"src/main.ts\",\"task.build.yaml\"],\"nextSteps\":[\"Enter the project directory, install dependencies as needed, and edit the task.\",\"Run task-builder build.\"]}}\n",
+    "stderr": null
+  },
+  {
+    "command": [
+      "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.bin\\task-builder.cmd",
+      "build"
+    ],
+    "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\shim-demo",
+    "exitCode": 0,
+    "stdout": "{\"ok\":true,\"data\":{\"module\":{\"directory\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\shim-demo\\\\dist\",\"declaration\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\shim-demo\\\\dist\\\\task.yaml\",\"files\":[\"resources/greeting.txt\",\"schemas/input.json\",\"schemas/message.json\",\"schemas/result.json\",\"schemas/shared/text.json\",\"task.yaml\",\"worker.cjs\"]},\"cid\":\"bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm\",\"car\":{\"path\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\shim-demo\\\\dist.car\"}}}\n",
+    "stderr": null
+  },
+  {
+    "command": [
+      "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\node_modules\\.bin\\task-builder.cmd",
+      "car",
+      "dist\\task.yaml",
+      "--output",
+      "standalone.car"
+    ],
+    "cwd": "D:\\Code\\task-engine.worktrees\\task-builder-cli-redesign-setup\\.cache\\builder-consumer\\shim-demo",
+    "exitCode": 0,
+    "stdout": "{\"ok\":true,\"data\":{\"car\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\shim-demo\\\\standalone.car\",\"cid\":\"bafybeihrumldid2zbwulodw7h6rpaue7vhbfbecj2ajq6p3mfywwgdbzzm\",\"declaration\":\"D:\\\\Code\\\\task-engine.worktrees\\\\task-builder-cli-redesign-setup\\\\.cache\\\\builder-consumer\\\\shim-demo\\\\dist\\\\task.yaml\",\"files\":[\"resources/greeting.txt\",\"schemas/input.json\",\"schemas/message.json\",\"schemas/result.json\",\"schemas/shared/text.json\",\"task.yaml\",\"worker.cjs\"]}}\n",
+    "stderr": null
+  }
+]

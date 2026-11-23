@@ -3,7 +3,6 @@
   "timestamp": "2026-11-09T07:48:30.252Z",
   "node": "v24.11.1",
   "platform": "win32",
-  "registry": "https://mirrors.cloud.tencent.com/npm/",
   "root": "D:\\Code\\task-engine-registry-smoke-7c074a1b",
   "packages": [
     {

@@ -2,9 +2,9 @@ import {
   at,
   bundleCid,
   type Caller,
-  type ChildTaskInvocation,
   canonical,
   type ErrorFact,
+  wrapRequestParameters,
   json,
   object,
   project,
@@ -20,11 +20,15 @@ import {
   type TaskSnapshot,
   ulid,
   validateBundleReference,
+  type WireChildTaskInvocation,
 } from "@silvermoon-work/task-protocol";
-import { BundleCache, type BundleLimits } from "./bundle.js";
-import type { IpfsClient } from "./content.js";
+import { CID } from "multiformats/cid";
+import { BundleCache, type BundleCacheOptions, type BundleLimits } from "./bundle.js";
+import { bundleModuleURL } from "./bundle-module.js";
+import { ContentError, type IpfsClient, type IpfsStore } from "./content.js";
 import { TaskEngine as Coordinator, type EngineOptions as CoordinatorOptions } from "./engine.js";
 import { newId } from "./identity.js";
+import { retainedContentRoots } from "./retained-content.js";
 
 export { defaultEngineLimits, type EngineLimits } from "./engine.js";
 export interface EngineOptions
@@ -37,19 +41,20 @@ export interface EngineOptions
     | "invokeTask"
     | "confirmChildRelease"
   > {
-  ipfsClient: IpfsClient;
+  ipfsStore?: IpfsStore;
+  /** @deprecated Prefer an explicit, caller-owned IpfsStore. */
+  ipfsClient?: IpfsClient;
+  persistentContent?: boolean;
+  /** Stable shared business identity; defaults to the persistent Store's storeId. */
+  retentionOwner?: string;
+  /** Shared hosts supply their entire persisted Task/Run root set, not just this execution. */
+  retentionRoots?: () => readonly string[];
+  confirmBundleRelease?: (context: RunResourceContext) => Promise<void>;
+  preparingCapacity?: { enter(): (() => void) | undefined };
   bundleLimits?: Partial<BundleLimits>;
   bundleConcurrency?: number;
-  bundlePrefetch?: boolean;
+  bundlePreparation?: BundleCacheOptions["preparation"];
   allowGateway?: (url: URL) => boolean;
-  /** Deny by default. Caller identity is inherited, never supplied by the Worker. */
-  authorizeChild?: (request: {
-    caller: Caller;
-    parentCid: string;
-    cid: string;
-    path: string;
-    depth: number;
-  }) => boolean;
 }
 function bounded<T>(action: () => Promise<T>, signal: AbortSignal): Promise<T> {
   signal.throwIfAborted();
@@ -70,9 +75,11 @@ async function pause(signal: AbortSignal): Promise<void> {
 }
 function failure(error: unknown, fallback = "invalid_bundle"): ErrorFact {
   return {
-    code: error instanceof TaskError ? error.code : fallback,
+    code: error instanceof TaskError || error instanceof ContentError ? error.code : fallback,
     message:
-      error instanceof TaskError ? error.message.slice(0, 512) : "Bundle preparation failed.",
+      error instanceof TaskError || error instanceof ContentError
+        ? error.message.slice(0, 512)
+        : "Bundle preparation failed.",
   };
 }
 export interface DrainResult {
@@ -92,6 +99,7 @@ export class TaskEngine implements TaskService {
   private sealed = false;
   private admissions = 0;
   private readonly processing = new Map<string, Promise<void>>();
+  private readonly preparationReleases = new Map<string, () => void>();
   private readonly waiters = new Map<string, Set<() => void>>();
   private readonly invocations = new Map<
     string,
@@ -105,6 +113,8 @@ export class TaskEngine implements TaskService {
   readonly subscribeRunLogs: Coordinator["subscribeRunLogs"];
   readonly getTaskHistory: TaskService["getTaskHistory"];
   readonly getRunHistory: TaskService["getRunHistory"];
+  readonly readRunHistoryArchive: Coordinator["readRunHistoryArchive"];
+  readonly requestRunHistoryRelease: Coordinator["requestRunHistoryRelease"];
   readonly subscribeTask: TaskService["subscribeTask"];
   readonly subscribeRun: TaskService["subscribeRun"];
   readonly subscribeTasks: TaskService["subscribeTasks"];
@@ -116,8 +126,15 @@ export class TaskEngine implements TaskService {
   readonly sendTaskMessage: TaskService["sendTaskMessage"];
   readonly getTaskMessage: TaskService["getTaskMessage"];
   readonly waitForTaskRelease: Coordinator["waitForTaskRelease"];
-  readonly collect: Coordinator["collect"];
+  readonly collect: () => Promise<void>;
+  private readonly contentOwner: string;
   constructor(private readonly options: EngineOptions) {
+    this.contentOwner = options.retentionOwner ?? options.store.read().storeId;
+    if (Object.hasOwn(options, "authorizeChild") || Object.hasOwn(options, "bundlePrefetch"))
+      throw new TaskError(
+        "invalid_config",
+        "authorizeChild and lazy/prefetch configuration are removed; migrate to CID bundle calls and complete preparation.",
+      );
     for (const key of [
       "types",
       "currentVersions",
@@ -127,17 +144,33 @@ export class TaskEngine implements TaskService {
     ])
       if (Object.hasOwn(options, key))
         throw new TaskError("invalid_config", "Bundle Engine does not accept a type registry.");
+    for (const method of [
+      "readContentBlock",
+      "writeContentBlock",
+      "retainRunContent",
+      "readRunContentRoots",
+    ] as const)
+      if (typeof options.store[method] !== "function")
+        throw new TaskError("invalid_config", `Store must implement ${method} for Run content.`);
     this.cache = new BundleCache({
-      ipfsClient: options.ipfsClient,
+      ...(options.ipfsStore ? { ipfsStore: options.ipfsStore } : {}),
+      ...(options.ipfsClient ? { ipfsClient: options.ipfsClient } : {}),
+      ...(options.persistentContent ? { persistentContent: true } : {}),
+      ...(options.bundlePreparation ? { preparation: options.bundlePreparation } : {}),
       ...(options.bundleConcurrency !== undefined
         ? { concurrency: options.bundleConcurrency }
         : {}),
       ...(options.bundleLimits ? { limits: options.bundleLimits } : {}),
       ...(options.allowGateway ? { allowGateway: options.allowGateway } : {}),
-      ...(options.bundlePrefetch !== undefined ? { prefetch: options.bundlePrefetch } : {}),
     });
+    const archiveStore =
+      options.archiveStore ??
+      (options.ipfsStore?.supportsRetention ? options.ipfsStore : undefined);
     this.core = new Coordinator({
       store: options.store,
+      ...(options.workerEnv !== undefined ? { workerEnv: options.workerEnv } : {}),
+      ...(options.executionBudgetFromWorker ? { executionBudgetFromWorker: true } : {}),
+      ...(options.durableLogs ? { durableLogs: true } : {}),
       types: [],
       currentVersions: {},
       authorize: options.authorize,
@@ -147,10 +180,21 @@ export class TaskEngine implements TaskService {
       ...(options.clock ? { clock: options.clock } : {}),
       ...(options.limits ? { limits: options.limits } : {}),
       ...(options.onError ? { onError: options.onError } : {}),
+      ...(archiveStore ? { archiveStore } : {}),
+      ...(options.archive ? { archive: options.archive } : {}),
       loadBundle: async (binding) => {
         const prepared = await this.cache.acquire(binding.bundle!);
-        this.install(prepared);
-        return prepared.release;
+        try {
+          await this.protect(prepared.cid);
+          await this.persistentStore?.confirmRetained(this.contentOwner, [prepared.cid], {
+            signal: this.lifetime.signal,
+          });
+          this.install(prepared);
+          return prepared.release;
+        } catch (error) {
+          prepared.release();
+          throw error;
+        }
       },
     });
     this.getTask = this.core.getTask.bind(this.core);
@@ -160,6 +204,8 @@ export class TaskEngine implements TaskService {
     this.subscribeRunLogs = this.core.subscribeRunLogs.bind(this.core);
     this.getTaskHistory = this.core.getTaskHistory.bind(this.core);
     this.getRunHistory = this.core.getRunHistory.bind(this.core);
+    this.readRunHistoryArchive = this.core.readRunHistoryArchive.bind(this.core);
+    this.requestRunHistoryRelease = this.core.requestRunHistoryRelease.bind(this.core);
     this.subscribeTask = this.core.subscribeTask.bind(this.core);
     this.subscribeRun = this.core.subscribeRun.bind(this.core);
     this.subscribeTasks = this.core.subscribeTasks.bind(this.core);
@@ -174,7 +220,39 @@ export class TaskEngine implements TaskService {
     this.collect = () => {
       if (this.sealed) throw new TaskError("engine_draining", "Collection is sealed during drain.");
       this.core.collect();
+      return this.collectContent();
     };
+  }
+  private async collectContent(): Promise<void> {
+    if (!this.options.retentionRoots)
+      await this.persistentStore?.recoverOwner(this.contentOwner, () => this.contentRoots(), {
+        signal: this.lifetime.signal,
+        isIdle: () =>
+          !this.processing.size &&
+          !this.admissions &&
+          Object.values(this.options.store.read().facts.runs).every((run) => !!run.reclaimedAt),
+      });
+    await this.reconcileContent();
+  }
+  private get persistentStore(): IpfsStore | undefined {
+    return this.options.ipfsStore?.supportsRetention ? this.options.ipfsStore : undefined;
+  }
+  private protect(root: string): Promise<void> {
+    return (
+      this.persistentStore?.retain(this.contentOwner, [root], { signal: this.lifetime.signal }) ??
+      Promise.resolve()
+    );
+  }
+  async reconcileContent(): Promise<void> {
+    await this.persistentStore?.reconcile(this.contentOwner, () => this.contentRoots(), {
+      signal: this.lifetime.signal,
+    });
+  }
+  private contentRoots(): readonly string[] {
+    return (
+      this.options.retentionRoots?.() ??
+      retainedContentRoots(this.options.store.read().facts, this.options.store)
+    );
   }
   get limits() {
     return this.core.limits;
@@ -194,21 +272,63 @@ export class TaskEngine implements TaskService {
       type: "bundle",
       version: bundle.cid,
       environment: "node",
-      inputSchema: bundle.resolved.inputSchema,
+      parametersSchema: bundle.resolved.parametersSchema,
       resultSchema: bundle.resolved.resultSchema,
       messageSchema: bundle.resolved.messageSchema,
-      module: `ipfs://${bundle.cid}/worker.cjs`,
+      module: bundleModuleURL(bundle.cid, bundle.declaration.entry),
       exportName: "unused",
       configuration: null,
       bundle: { cid: bundle.cid, declaration: bundle.resolved },
       getBundleSource: () => this.cache.source(cid),
-      readBundle: (path: string, signal: AbortSignal) => this.cache.read(cid, path, signal),
+      createContent: (context: RunResourceContext) => {
+        const store = this.cache.contentStore;
+        const signalFor = (options?: { signal?: AbortSignal }) =>
+          AbortSignal.any([context.signal, ...(options?.signal ? [options.signal] : [])]);
+        const remember = async (target: CID, options?: { signal?: AbortSignal }) => {
+          const value = target.toV1().toString();
+          const signal = signalFor(options);
+          await this.persistentStore?.retain(this.contentOwner, [value], { signal });
+          this.core.recordRunContentAccess(context.runId, value);
+          this.core.retainRunContent(context.runId, value);
+          await this.persistentStore?.confirmRetained(this.contentOwner, [value], { signal });
+        };
+        return {
+          readContent: async (cid: CID | string, options?: { signal?: AbortSignal }) => {
+            const parsed = CID.parse(cid.toString());
+            const node = await store.readContent(parsed, { signal: signalFor(options) });
+            await remember(parsed, options);
+            return node;
+          },
+          resolveContent: async (
+            cid: CID | string,
+            path: string,
+            options?: { signal?: AbortSignal },
+          ) => {
+            const parsed = CID.parse(cid.toString());
+            const target = await store.resolveContent(parsed, path, { signal: signalFor(options) });
+            await remember(target, options);
+            return target;
+          },
+          putContent: async (
+            content: ReadableStream<Uint8Array>,
+            options?: { signal?: AbortSignal },
+          ) => {
+            const stored = await store.putContent(content, { signal: signalFor(options) });
+            await remember(stored, options);
+            return stored;
+          },
+        };
+      },
+      ...(this.options.confirmBundleRelease
+        ? { confirmResourceRelease: this.options.confirmBundleRelease }
+        : {}),
     };
     this.core.installBundle(registration);
     return registration;
   }
   async start(): Promise<void> {
     const facts = this.core.facts().facts;
+    this.persistentStore?.registerOwner(this.contentOwner, this.contentRoots());
     for (const record of [...Object.values(facts.tasks), ...Object.values(facts.runs)])
       if (!record.binding.bundle || !record.binding.declaration)
         throw new TaskError(
@@ -249,6 +369,10 @@ export class TaskEngine implements TaskService {
         );
     await this.core.start();
     try {
+      if (!this.options.retentionRoots)
+        await this.persistentStore?.recoverOwner(this.contentOwner, this.contentRoots(), {
+          signal: this.lifetime.signal,
+        });
       if (this.core.facts().facts.admissionLowerBound === null) {
         const now = this.now();
         this.core.commitAdmission([
@@ -321,7 +445,12 @@ export class TaskEngine implements TaskService {
   ): Promise<SubmissionResult> {
     this.readable();
     this.core.authorizeAdmission(caller, "submit", caller?.scope);
-    const raw = object(json(value, this.limits.maxPayloadBytes));
+    const raw = object(
+      value,
+      Math.min(Number.MAX_SAFE_INTEGER, this.limits.maxPayloadBytes + 8192),
+    );
+    wrapRequestParameters(raw);
+    object(raw.parameters, this.limits.maxPayloadBytes);
     const id = ulid(raw.requestId);
     const now = this.now();
     const lower = Math.max(
@@ -348,10 +477,16 @@ export class TaskEngine implements TaskService {
       (!Object.hasOwn(raw, "bundle") && ["type", "version"].some((key) => Object.hasOwn(raw, key)))
     )
       throw new TaskError("unsupported_request", "Legacy type/version requests are not supported.");
+    const releasePreparation = this.options.preparingCapacity?.enter();
     const overloaded =
+      (this.options.preparingCapacity !== undefined && releasePreparation === undefined) ||
       Object.values(this.core.facts().facts.submissions).filter(
         (record) => record.decision.status === "preparing",
       ).length >= this.limits.maxPreparing;
+    if (releasePreparation) {
+      if (overloaded) releasePreparation();
+      else this.preparationReleases.set(id, releasePreparation);
+    }
     const record: SubmissionRecord = {
       ...(composition ? { composition } : {}),
       bundleProtocol: "ipfs",
@@ -436,49 +571,28 @@ export class TaskEngine implements TaskService {
     };
   }
   private async invokeTask(
-    value: ChildTaskInvocation,
+    value: WireChildTaskInvocation,
     context: RunResourceContext,
   ): Promise<import("@silvermoon-work/task-protocol").Json> {
     this.readable();
     context.signal.throwIfAborted();
     const raw = object(json(value, this.limits.maxPayloadBytes));
     if (
-      Object.keys(raw).some((key) => !["key", "cid", "path", "input", "timeoutMs"].includes(key)) ||
+      Object.keys(raw).some(
+        (key) => !["key", "bundle", "path", "parameters", "timeoutMs"].includes(key),
+      ) ||
       typeof raw.key !== "string" ||
       !/^[a-zA-Z0-9._:-]{1,128}$/.test(raw.key) ||
-      typeof raw.path !== "string" ||
+      typeof raw.bundle !== "string" ||
+      (raw.path !== undefined && (typeof raw.path !== "string" || raw.path.length > 4096)) ||
       !Number.isSafeInteger(raw.timeoutMs) ||
       (raw.timeoutMs as number) < 1 ||
       (raw.timeoutMs as number) > this.limits.childTimeoutMs
     )
       throw new TaskError("invalid_request", "Invalid child invocation identity or deadline.");
-    const cid = bundleCid(validateBundleReference(raw.cid));
-    const input = object(raw.input);
-    if (
-      Object.keys(input).some((key) =>
-        [
-          "requestId",
-          "bundle",
-          "type",
-          "timeoutMs",
-          "eligibleAt",
-          "seriesId",
-          "matchPolicy",
-        ].includes(key),
-      )
-    )
-      throw new TaskError("invalid_input", "Child input collides with the Task envelope.");
+    bundleCid(validateBundleReference(raw.bundle));
+    object(raw.parameters, this.limits.maxPayloadBytes);
     const parent = this.parent(context);
-    if (
-      this.options.authorizeChild?.({
-        caller: parent.caller,
-        parentCid: bundleCid(parent.run.binding.bundle!),
-        cid,
-        path: raw.path,
-        depth: parent.depth,
-      }) !== true
-    )
-      throw new TaskError("forbidden", "Host child policy denied access.");
     this.core.authorizeAdmission(parent.caller, "submit", parent.caller.scope);
     const records = Object.values(this.core.facts().facts.submissions);
     const existing = records.find(
@@ -495,7 +609,7 @@ export class TaskEngine implements TaskService {
       return running.operation;
     }
     const operation = this.invokeChild(
-      raw as unknown as ChildTaskInvocation,
+      raw as unknown as WireChildTaskInvocation,
       context,
       parent,
       existing,
@@ -509,7 +623,7 @@ export class TaskEngine implements TaskService {
     }
   }
   private async invokeChild(
-    request: ChildTaskInvocation,
+    request: WireChildTaskInvocation,
     context: RunResourceContext,
     parent: ReturnType<TaskEngine["parent"]>,
     existing?: SubmissionRecord,
@@ -517,32 +631,27 @@ export class TaskEngine implements TaskService {
     const deadline = existing
       ? Date.parse(existing.composition!.deadlineAt)
       : Math.min(
-          this.now() + request.timeoutMs,
+          this.options.executionBudgetFromWorker
+            ? Number.MAX_SAFE_INTEGER
+            : this.now() + request.timeoutMs,
           parent.deadlineAt,
           Date.parse(parent.run.startedAt) + this.limits.executionWallMs,
         );
     const controller = new AbortController();
-    const timer = setTimeout(
-      () => controller.abort(new TaskError("child_timeout", "Child deadline exceeded.")),
-      Math.max(1, deadline - this.now()),
-    );
+    const timer = this.options.executionBudgetFromWorker
+      ? undefined
+      : setTimeout(
+          () => controller.abort(new TaskError("child_timeout", "Child deadline exceeded.")),
+          Math.max(1, deadline - this.now()),
+        );
     const signal = AbortSignal.any([controller.signal, context.signal, this.lifetime.signal]);
     let record = existing;
     try {
-      const prepared = await bounded(async () => {
-        const lease = await this.cache.acquire(parent.run.binding.bundle!);
-        if (signal.aborted) {
-          lease.release();
-          signal.throwIfAborted();
-        }
-        return lease;
-      }, signal);
-      try {
-        if ((await bounded(() => prepared.childRoot(request.path, signal), signal)) !== request.cid)
-          throw new TaskError("invalid_bundle", "Child subtree does not match the requested CID.");
-      } finally {
-        prepared.release();
-      }
+      let cid = record?.composition?.targetCid;
+      if (!cid)
+        cid = request.path
+          ? await this.cache.resolve(request.bundle, request.path, signal)
+          : bundleCid(validateBundleReference(request.bundle));
       this.parent(context);
       signal.throwIfAborted();
       if (!record) {
@@ -571,18 +680,24 @@ export class TaskEngine implements TaskService {
         // admit persists association and intent before its first asynchronous boundary.
         const admission = this.admit(
           {
-            ...object(request.input),
             requestId,
-            bundle: request.cid,
+            bundle: cid,
             timeoutMs: Math.max(1, deadline - this.now()),
+            parameters: object(request.parameters, this.limits.maxPayloadBytes),
           },
           parent.caller,
           {
+            invocationVersion: 1,
+            targetCid: cid,
+            source: {
+              cid: request.bundle,
+              ...(request.path ? { path: request.path } : {}),
+            },
             parentRunId: context.runId,
             rootRunId: parent.rootRunId,
             depth: parent.depth,
             key: request.key,
-            path: request.path,
+            path: request.path ?? "",
             intent: json(request),
             deadlineAt: at(deadline),
           },
@@ -598,7 +713,7 @@ export class TaskEngine implements TaskService {
           throw new TaskError(decision.error.code, decision.error.message);
         if (decision.status === "accepted") {
           const task = this.getTask(decision.taskId, parent.caller);
-          if (!task.bundle || bundleCid(task.bundle) !== request.cid)
+          if (!task.bundle || bundleCid(task.bundle) !== cid)
             throw new TaskError("invalid_response", "Child result identity mismatch.");
           if (task.stage === "completed") {
             await bounded(() => this.waitForTaskRelease(task.taskId, parent.caller), signal);
@@ -718,11 +833,15 @@ export class TaskEngine implements TaskService {
           this.core.facts().facts.submissions[id]?.decision.status !== "preparing"
         )
           return;
-        const prepared = await this.cache.acquire(validateBundleReference(record.request.bundle));
+        const reference = validateBundleReference(record.request.bundle, this.cache.limits.hints);
+        const protectedBeforeRead = this.persistentStore?.configuration.backend === "kubo";
+        if (protectedBeforeRead) await this.protect(bundleCid(reference));
+        const prepared = await this.cache.acquire(reference);
         try {
           if (this.closing) return;
           const current = this.core.facts().facts.submissions[id]!;
           if (current.decision.status !== "preparing") return;
+          if (!protectedBeforeRead) await this.protect(prepared.cid);
           const registration = this.install(prepared);
           this.core.submit(
             { ...record.request, type: registration.type },
@@ -730,18 +849,27 @@ export class TaskEngine implements TaskService {
             {},
             { registration, intent: record.request },
           );
+          await this.persistentStore?.confirmRetained(this.contentOwner, [prepared.cid], {
+            signal: this.lifetime.signal,
+          });
         } finally {
           prepared.release();
         }
       })
       .catch((error) => {
         try {
-          this.reject(id, error);
+          if (this.core.facts().facts.submissions[id]?.decision.status === "accepted")
+            this.core.reportError(
+              error instanceof ContentError ? new TaskError(error.code, error.message) : error,
+            );
+          else this.reject(id, error);
         } catch (failure) {
           this.core.reportError(failure);
         }
       })
       .finally(() => {
+        this.preparationReleases.get(id)?.();
+        this.preparationReleases.delete(id);
         this.processing.delete(id);
         for (const wake of this.waiters.get(id) ?? []) wake();
         this.core.notifyIdle();
@@ -868,6 +996,8 @@ export class TaskEngine implements TaskService {
     void coreClose.catch(() => {});
     await this.cache.close();
     await Promise.allSettled([...this.processing.values()]);
+    for (const release of this.preparationReleases.values()) release();
+    this.preparationReleases.clear();
     await Promise.allSettled([...this.invocations.values()].map(({ operation }) => operation));
     for (const pending of this.waiters.values()) for (const wake of pending) wake();
     await coreClose;

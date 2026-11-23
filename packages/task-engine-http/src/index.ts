@@ -437,6 +437,12 @@ export function createTaskHandler(
         await noBody(request);
         return response(options.service.cancelTask(task[1], caller));
       }
+      const archive = /^\/runs\/([0-9A-Z]+)\/archive$/.exec(path);
+      if (archive?.[1] && request.method === "GET") {
+        if (!options.service.readRunHistoryArchive)
+          fail("unsupported_version", "RunHistory archive unsupported by this host.");
+        return response(await options.service.readRunHistoryArchive(archive[1], caller));
+      }
       const entity = /^\/(tasks|runs)\/([0-9A-Z]+)\/(history|events)$/.exec(path);
       const logs = /^\/runs\/([0-9A-Z]+)\/logs(\/events)?$/.exec(path);
       if (logs?.[1] && request.method === "GET") {

@@ -1,0 +1,48 @@
+﻿{
+  "ok": true,
+  "observedAt": "2026-11-12T16:06:54.020Z",
+  "releaseCommit": "95b1cdbf76c70faf550b174fff97ca7df4d830cb",
+  "passedChecks": [
+    "registry-identity",
+    "local-default",
+    "raw-dag-fidelity",
+    "persistent-roots-restart-gc",
+    "manual-pin-removal",
+    "rpc-failure-db-independent",
+    "last-reference-prune",
+    "foreign-pin-name",
+    "registry-managed-cli",
+    "external-clearing-errors",
+    "store-close-borrows-daemon"
+  ],
+  "daemons": [
+    {
+      "pid": 3122116,
+      "exitCode": 0,
+      "present": false
+    },
+    {
+      "pid": 3122436,
+      "exitCode": 0,
+      "present": false
+    },
+    {
+      "pid": 3122539,
+      "exitCode": 0,
+      "present": false
+    },
+    {
+      "pid": 3122975,
+      "exitCode": 0,
+      "present": false
+    }
+  ],
+  "managed": {
+    "pid": 3123001,
+    "state": "stopped",
+    "released": true,
+    "present": false
+  },
+  "driverSha256": "0e9cbeb5cdad2ec191e2023566b64d544fd207e802ecbfe52ab3a0eb037f615f",
+  "resultSha256": "15f56929eb745eab2a9138226562dde43847e1ed2d0cbb42ace15aa44b36cd0c"
+}

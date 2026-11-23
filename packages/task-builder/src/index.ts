@@ -1,4 +1,4 @@
-import { posix } from "node:path";
+import { isAbsolute, posix } from "node:path";
 import {
   json,
   normalizeTaskText,
@@ -9,7 +9,14 @@ import {
   taskBundlePattern,
   taskSchemaUri,
   validateTaskBundle,
+  validateTaskImports,
+  type TaskBundleDeclaration,
 } from "@silvermoon-work/task-protocol";
+import type { IpfsStore } from "@silvermoon-work/ipfs-store";
+import { ContentBlocks } from "@silvermoon-work/ipfs-store/dag";
+import { expandContent } from "./content.js";
+import { CID } from "multiformats/cid";
+import { importSidecar, encodeImportBlocks } from "./imports.js";
 import { stringify } from "yaml";
 import { contractSchemas } from "./contract.js";
 import { compileTree, evaluateContract } from "./esbuild.js";
@@ -48,7 +55,7 @@ export const defaultBuilderLimits: BuilderLimits = Object.freeze({
 });
 
 export interface TaskContract {
-  readonly input: unknown;
+  readonly parameters: unknown;
   readonly result: unknown;
   readonly message: unknown;
   readonly schemas?: Readonly<Record<string, unknown>>;
@@ -56,7 +63,9 @@ export interface TaskContract {
 
 export interface TaskBuildOptions extends ReadOptions {
   readonly name: string;
-  readonly runtime: { readonly minVersion: string };
+  readonly runtime:
+    | { readonly type?: "node"; readonly minVersion: string }
+    | { readonly type: "browser" | "browser-worker" | "cloudflare-worker" };
   readonly source: {
     readonly entry: string;
     readonly contract: string | TaskContract;
@@ -66,8 +75,33 @@ export interface TaskBuildOptions extends ReadOptions {
   };
   readonly include?: readonly { readonly from: string; readonly to: string }[];
   readonly binary?: readonly string[];
+  readonly imports?: Readonly<Record<string, string>>;
+  readonly content?: IpfsStore;
   readonly allowContractExecution?: boolean;
   readonly limits?: Partial<BuilderLimits>;
+}
+
+function buildRuntime(value: unknown): TaskBundleDeclaration["runtime"] {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("Invalid Task runtime.");
+  const runtime = json(value);
+  if (!runtime || typeof runtime !== "object" || Array.isArray(runtime))
+    throw new Error("Invalid Task runtime.");
+  if (
+    (runtime.type === undefined || runtime.type === "node") &&
+    Object.keys(runtime).every((key) => key === "type" || key === "minVersion") &&
+    typeof runtime.minVersion === "string" &&
+    /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(runtime.minVersion)
+  )
+    return { type: "node", minVersion: runtime.minVersion };
+  if (
+    Object.keys(runtime).length === 1 &&
+    (runtime.type === "browser" ||
+      runtime.type === "browser-worker" ||
+      runtime.type === "cloudflare-worker")
+  )
+    return { type: runtime.type };
+  throw new Error("Invalid Task runtime.");
 }
 
 function limitsFor(options: TaskBuildOptions): BuilderLimits {
@@ -130,7 +164,11 @@ function outputTree(
   binary: ReadonlySet<string>,
   limits: BuilderLimits,
 ): ReadonlyFileTree {
-  const sizes = new Map([...generated].map(([path, bytes]) => [path, bytes.byteLength]));
+  const sizes = new Map(
+    [...generated]
+      .filter(([path]) => path !== importSidecar)
+      .map(([path, bytes]) => [path, bytes.byteLength]),
+  );
   let total = [...sizes.values()].reduce((a, b) => a + b, 0);
   const observe = (path: string, bytes: number) => {
     const previous = sizes.get(path) ?? 0;
@@ -155,6 +193,12 @@ export async function buildTaskBundle(
   options: TaskBuildOptions,
 ): Promise<ReadonlyFileTree> {
   options.signal?.throwIfAborted();
+  const runtime = buildRuntime(options.runtime);
+  if (
+    runtime.type !== "node" &&
+    (options.source.mode === "callback" || options.source.sdk !== undefined)
+  )
+    throw new Error("Non-Node builds require explicit mode without a Node Task SDK wrapper.");
   checkTreePath(options.source.entry);
   if (!options.source.entry) throw new Error("Task entry must be a file.");
   if (options.source.mode !== undefined && !["callback", "explicit"].includes(options.source.mode))
@@ -163,69 +207,111 @@ export async function buildTaskBundle(
     throw new Error("Only callback entries can select an export.");
   const limits = limitsFor(options);
   const resources = await selectResources(input, options.include ?? [], limits, options);
+  const imports = validateTaskImports(options.imports ?? {});
+  const imported = new Map<string, Uint8Array>();
+  let importedBytes = 0;
+  const blocks = new ContentBlocks(options.content);
+  for (const [destination, cid] of Object.entries(imports)) {
+    if (!options.content) throw new Error("Imports require an IpfsStore content object.");
+    for (const local of resources.keys())
+      if (
+        local.toLowerCase() === destination.toLowerCase() ||
+        local.toLowerCase().startsWith(`${destination.toLowerCase()}/`) ||
+        destination.toLowerCase().startsWith(`${local.toLowerCase()}/`)
+      )
+        throw new Error(`Import/include collision: ${destination}`);
+    const files = await expandContent(CID.parse(cid), options.content, {
+      ...options,
+      files: taskBundleLimits.files - imported.size,
+      paths: limits.traversalPaths,
+      bytes: limits.bytes - importedBytes,
+      fileBytes: limits.fileBytes,
+    });
+    for (const file of files) {
+      const path = file.path ? `${destination}/${file.path}` : destination;
+      checkTreePath(path);
+      imported.set(path, file.bytes);
+      importedBytes += file.bytes.byteLength;
+    }
+  }
   let contract: unknown = options.source.contract;
+  let evaluated: ReturnType<typeof contractSchemas> | undefined;
   if (typeof contract === "string") {
     checkTreePath(contract);
     if (posix.extname(contract) === ".json")
       contract = parseTaskBundleYaml(await readBytes(input, contract, 65_536, options));
     else {
       if (!options.allowContractExecution)
-        throw new Error(
-          "Code contracts require allowContractExecution: true (CLI --trusted-contract).",
-        );
-      contract = evaluateContract(
+        throw new Error("Code contracts require allowContractExecution: true.");
+      evaluated = await evaluateContract(
         await compileTree(input, contract, {
           ...limits,
           ...(options.signal ? { signal: options.signal } : {}),
         }),
+        options,
       );
     }
   }
-  const schemas = contractSchemas(contract);
+  const schemas = evaluated ?? contractSchemas(contract);
   const primarySchemaPaths = [
-    "schemas/input.json",
+    "schemas/parameters.json",
     "schemas/result.json",
     "schemas/message.json",
   ] as const;
   const generated = new Map<string, Uint8Array>();
   for (const { path, document } of schemas)
     generated.set(path, Buffer.from(`${JSON.stringify(document, null, 2)}\n`));
-  const include = ["task.yaml", "worker.cjs", ...generated.keys(), ...resources.keys()].sort();
+  const include = [
+    "task.yaml",
+    "main.mjs",
+    ...generated.keys(),
+    ...resources.keys(),
+    ...imported.keys(),
+  ].sort();
   const declaration = validateTaskBundle({
     $schema: taskSchemaUri,
     name: options.name,
-    runtime: { type: "node", minVersion: options.runtime.minVersion },
-    entry: "worker.cjs",
+    runtime,
+    entry: "main.mjs",
     include,
-    binary: selectTaskBinary(include, options.binary ?? []),
-    inputSchema: { $ref: primarySchemaPaths[0] },
+    binary: [
+      ...new Set([...selectTaskBinary(include, options.binary ?? []), ...imported.keys()]),
+    ].sort(),
+    ...(Object.keys(imports).length ? { imports } : {}),
+    parametersSchema: { $ref: primarySchemaPaths[0] },
     resultSchema: { $ref: primarySchemaPaths[1] },
     messageSchema: { $ref: primarySchemaPaths[2] },
   });
   generated.set("task.yaml", Buffer.from(stringify(declaration)));
   // Empty resource placeholders check manifest and Schema closure, not deferred resource bytes.
   const structuralFiles = new Map(generated);
-  structuralFiles.set("worker.cjs", Buffer.from("/* pending compilation */"));
+  structuralFiles.set(declaration.entry, Buffer.from("/* pending compilation */"));
   for (const path of resources.keys()) structuralFiles.set(path, new Uint8Array());
+  for (const path of imported.keys()) structuralFiles.set(path, new Uint8Array());
   const { resolved } = readTaskBundle(structuralFiles, limits);
   generated.set(
-    "worker.cjs",
+    declaration.entry,
     normalizeTaskText(
       await compileTree(input, options.source.entry, {
         ...limits,
         ...(options.signal ? { signal: options.signal } : {}),
         binding: resolved,
+        runtime: runtime.type,
         ...(options.source.mode === "callback"
           ? { callbackExport: options.source.exportName ?? "default" }
           : {}),
         ...(options.source.sdk ? { sdk: options.source.sdk } : {}),
       }),
-      "worker.cjs",
+      declaration.entry,
     ),
   );
-  structuralFiles.set("worker.cjs", generated.get("worker.cjs")!);
+  structuralFiles.set(declaration.entry, generated.get(declaration.entry)!);
+  for (const [path, bytes] of imported) structuralFiles.set(path, bytes);
   readTaskBundle(structuralFiles, limits);
   options.signal?.throwIfAborted();
+  for (const [path, bytes] of imported) generated.set(path, bytes);
+  if (Object.keys(imports).length)
+    generated.set(importSidecar, await encodeImportBlocks(imports, blocks, options));
   return outputTree(input, generated, resources, new Set(declaration.binary), limits);
 }
 
@@ -237,7 +323,10 @@ export interface TaskBuildFile {
 export async function readTaskBuild(
   input: ReadonlyFileTree,
   path: string,
-  options: ReadOptions & { readonly allowContractExecution?: boolean } = {},
+  options: ReadOptions & {
+    readonly allowContractExecution?: boolean;
+    readonly outDirectory?: string;
+  } = {},
 ): Promise<TaskBuildFile> {
   checkTreePath(path);
   const value = parseTaskBundleYaml(await readBytes(input, path, 65_536, options));
@@ -247,22 +336,24 @@ export async function readTaskBuild(
     (value.$schema !== undefined && value.$schema !== taskBuildSchemaUri) ||
     Object.keys(value).some(
       (key) =>
-        !["$schema", "name", "runtime", "source", "include", "binary", "outDirectory"].includes(
-          key,
-        ),
+        ![
+          "$schema",
+          "name",
+          "runtime",
+          "source",
+          "include",
+          "binary",
+          "imports",
+          "outDirectory",
+        ].includes(key),
     ) ||
     typeof value.name !== "string" ||
-    typeof value.outDirectory !== "string"
+    (value.outDirectory !== undefined && typeof value.outDirectory !== "string")
   )
     throw new Error("Invalid Task build file fields.");
-  const runtime = value.runtime;
+  const runtime = buildRuntime(value.runtime);
   const source = value.source;
   if (
-    !runtime ||
-    typeof runtime !== "object" ||
-    Array.isArray(runtime) ||
-    Object.keys(runtime).some((key) => key !== "minVersion") ||
-    typeof runtime.minVersion !== "string" ||
     !source ||
     typeof source !== "object" ||
     Array.isArray(source) ||
@@ -312,7 +403,7 @@ export async function readTaskBuild(
     }
   const buildOptions: TaskBuildOptions = {
     name: value.name,
-    runtime: { minVersion: runtime.minVersion },
+    runtime,
     source: {
       entry: relative(source.entry),
       contract: relative(source.contract),
@@ -322,10 +413,18 @@ export async function readTaskBuild(
     },
     include,
     binary,
+    imports: validateTaskImports(value.imports ?? {}),
     ...options,
   };
-  const outDirectory = relative(value.outDirectory);
+  const selectedOutput = options.outDirectory ?? value.outDirectory ?? "dist";
+  if (typeof selectedOutput !== "string" || !selectedOutput.trim())
+    throw new Error("Output directory must not be empty.");
+  const outDirectory = isAbsolute(selectedOutput)
+    ? selectedOutput
+    : posix.normalize(posix.join(base, selectedOutput.replaceAll("\\", "/")));
   if (
+    outDirectory === "." ||
+    outDirectory.split("/").every((part) => part === "..") ||
     [path, buildOptions.source.entry, String(buildOptions.source.contract)].some(
       (inputPath) => inputPath === outDirectory || inputPath.startsWith(`${outDirectory}/`),
     )

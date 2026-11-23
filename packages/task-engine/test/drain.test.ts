@@ -3,8 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { createTaskEngine as createCoordinator } from "../src/engine.js";
 import { createTaskEngine, MemoryStore, newId } from "../src/index.js";
@@ -47,14 +46,14 @@ async function artifact(
   await mkdir(directory, { recursive: true });
   const entry = join(directory, "main.ts");
   await writeFile(entry, code);
-  const built = await buildTaskBundle({
+  const built = await buildBundleFixture({
     declaration: {
       $schema: taskSchemaUri,
       name: "Drain fixture",
       runtime: { type: "node", minVersion: "22.13.0" },
       entry: "worker.cjs",
       binary: [],
-      inputSchema: {
+      parametersSchema: {
         type: "object",
         properties: { value: { type: "number" } },
         required: ["value"],
@@ -74,7 +73,7 @@ async function artifact(
         )
       : {},
   });
-  const files = (await readTaskArtifact(built.car)).files;
+  const files = built.files;
   assert.equal(await client.import(files), built.cid);
   return { cid: built.cid, directory: built.directory, files };
 }
@@ -134,7 +133,7 @@ test("drain seals admission while a root preparation is in flight", {
     preparation.release();
     const final = await draining;
     assert.equal(final.tasks.length, 1);
-    assert.deepEqual(final.tasks[0]!.result, { value: 7 });
+    assert.deepEqual(final.tasks[0]!.result, { data: { value: 7 }, cidPaths: [] });
     assert.ok(Object.values(store.read().facts.runs).every((run) => run.exit && run.reclaimedAt));
     store.close();
   } finally {
@@ -155,12 +154,12 @@ test("the last active Run admits a delayed child after drain; parallel nested cl
     client,
   );
   const marker = join(directory, "continue");
-  const wrapper = (cid: string, wait: boolean) => `
+  const wrapper = (_cid: string, wait: boolean) => `
 import {existsSync} from "node:fs";
 import {setTimeout as delay} from "node:timers/promises";
 export default async (input,context) => {
  ${wait ? `while(!existsSync(${JSON.stringify(marker)})) await delay(5,undefined,{signal:context.signal});` : ""}
- return await Promise.all(["a","b"].map(key=>context.invokeTask({key,cid:${JSON.stringify(cid)},path:"resources/child",input:{value:input.value},timeoutMs:5000})));
+ return await Promise.all(["a","b"].map(key=>context.invokeTask({key,bundle:context.bundle,path:"resources/child",parameters:{value:input.value},timeoutMs:5000})));
 };`;
   const parent = await artifact(join(directory, "parent"), wrapper(leaf.cid, false), client, leaf);
   const root = await artifact(join(directory, "root"), wrapper(parent.cid, true), client, parent);
@@ -170,15 +169,19 @@ export default async (input,context) => {
   const engine = createTaskEngine({
     store,
     authorize: () => true,
-    authorizeChild: () => true,
     limits: { maxConcurrent: 1, childTimeoutMs: 10_000 },
+    bundlePreparation: {
+      acquire: async () => {
+        if (Object.keys(store.read().facts.runs).length) {
+          held = true;
+          await preparation.promise;
+        }
+        return () => {};
+      },
+    },
     ipfsClient: {
       block: {
         async get(cid, options) {
-          if (cid === parent.cid && Object.keys(store.read().facts.runs).length) {
-            held = true;
-            await preparation.promise;
-          }
           return client.block.get(cid, options);
         },
       },
@@ -210,10 +213,13 @@ export default async (input,context) => {
     const final = await draining;
     assert.equal(final.tasks.length, 7);
     assert.ok(final.tasks.every((task) => task.stage === "completed"));
-    assert.deepEqual(final.tasks.find((task) => task.requestId === requestId)!.result, [
-      [{ value: 9 }, { value: 9 }],
-      [{ value: 9 }, { value: 9 }],
-    ]);
+    assert.deepEqual(final.tasks.find((task) => task.requestId === requestId)!.result, {
+      data: [
+        [{ value: 9 }, { value: 9 }],
+        [{ value: 9 }, { value: 9 }],
+      ],
+      cidPaths: [],
+    });
     assert.ok(Object.values(store.read().facts.runs).every((run) => run.exit && run.reclaimedAt));
     store.close();
   } finally {
@@ -297,7 +303,7 @@ test("logical completion is insufficient until host resource release; uncertaint
               type: "run-test",
               version: "1",
               environment: "trusted",
-              inputSchema: {
+              parametersSchema: {
                 type: "object",
                 properties: {
                   mode: { enum: ["work", "messages", "mutate"] },

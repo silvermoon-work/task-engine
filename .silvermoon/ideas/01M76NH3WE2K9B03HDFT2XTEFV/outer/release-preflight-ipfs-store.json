@@ -1,0 +1,213 @@
+{
+  "phase": "deployment-planning-only",
+  "planApproval": "pending_parent_review",
+  "authorizesPublicationNow": false,
+  "acceptedImplementationRevision": "bbca358050dda9b26c645266dcca67a47197623b",
+  "acceptancePrimaryCommit": "f330abbc14f1900da33453c2d2f9d70976b241ac",
+  "eventDigestAtStart": "766cc41afb0f2c71654b2e7a4e53086b6ccfadc2",
+  "futureReleaseCommit": null,
+  "publishedByThisTask": false,
+  "releaseTagsCreatedByThisTask": false,
+  "versionsModifiedByThisTask": false,
+  "remotePackagesInstalledByThisTask": false,
+  "registryObservation": {
+    "transport": "existing office-ubuntu Node; verified HTTPS; official public npm endpoints; no auth",
+    "officialRegistry": "https://registry.npmjs.org/",
+    "metadataWindow": ["2026-11-12T08:42:06.140Z", "2026-11-12T08:42:14.882Z"],
+    "ipfsStoreNextCandidateObservedAt": "2026-11-12T08:42:58.918Z",
+    "ipfsStoreExistingVersions": ["0.0.0-stage", "0.1.0-rc.0"],
+    "ipfsStoreRejectedOldCandidate": {
+      "version": "0.1.0-rc.0",
+      "status": 200,
+      "name": "@silvermoon-work/ipfs-store",
+      "matchingReleaseGitTagObserved": false,
+      "wasTrustedPublisherMarker": false,
+      "hasAttestations": false,
+      "doesNotProveCurrentBindingAbsent": true,
+      "notUsedAsThisIdeasImplementation": true
+    },
+    "placeholder": {
+      "status": 200,
+      "name": "@silvermoon-work/ipfs-store",
+      "version": "0.0.0-stage",
+      "integrity": "sha512-voLBNLpvdXHK6L8or3SzM8dkN4HVe1klBO0e1In0et0D23YcYy05P4vx4oqhRMCG5sf4xqjrisz4QQIrMspI2A==",
+      "preserveVersionAndDistTags": true,
+      "runtimeDependency": false
+    },
+    "packages": [
+      {
+        "order": 1,
+        "id": "ipfs-store",
+        "name": "@silvermoon-work/ipfs-store",
+        "currentManifest": "0.1.0-rc.0",
+        "candidate": "0.1.0-rc.1",
+        "exactStatus": 404,
+        "gitTag": "ipfs-store-v0.1.0-rc.1",
+        "gitTagExists": false,
+        "distTags": { "latest": "0.1.0-rc.0", "rc": "0.1.0-rc.0" },
+        "internalDependencies": [],
+        "internalDevDependencies": []
+      },
+      {
+        "order": 2,
+        "id": "task-protocol",
+        "name": "@silvermoon-work/task-protocol",
+        "currentManifest": "0.2.0-rc.0",
+        "candidate": "0.2.0-rc.1",
+        "exactStatus": 404,
+        "gitTag": "task-protocol-v0.2.0-rc.1",
+        "gitTagExists": false,
+        "distTags": { "latest": "0.1.0", "canary": "0.2.0-canary-261111-1", "rc": "0.2.0-rc.0" },
+        "internalDependencies": [],
+        "internalDevDependencies": []
+      },
+      {
+        "order": 3,
+        "id": "task-sdk",
+        "name": "@silvermoon-work/task-sdk",
+        "currentManifest": "0.2.0-rc.0",
+        "candidate": "0.2.0-rc.1",
+        "exactStatus": 404,
+        "gitTag": "task-sdk-v0.2.0-rc.1",
+        "gitTagExists": false,
+        "distTags": { "latest": "0.1.0", "canary": "0.2.0-canary-261111-1", "rc": "0.2.0-rc.0" },
+        "internalDependencies": ["task-protocol@0.2.0-rc.1"],
+        "internalDevDependencies": []
+      },
+      {
+        "order": 4,
+        "id": "task-builder",
+        "name": "@silvermoon-work/task-builder",
+        "currentManifest": "0.2.0-rc.1",
+        "candidate": "0.2.0-rc.2",
+        "exactStatus": 404,
+        "gitTag": "task-builder-v0.2.0-rc.2",
+        "gitTagExists": false,
+        "distTags": { "latest": "0.1.0", "canary": "0.2.0-canary-261111-1", "rc": "0.2.0-rc.1" },
+        "internalDependencies": ["ipfs-store@0.1.0-rc.1", "task-protocol@0.2.0-rc.1"],
+        "internalDevDependencies": ["task-sdk@0.2.0-rc.1"]
+      },
+      {
+        "order": 5,
+        "id": "task-builder-cli",
+        "name": "@silvermoon-work/task-builder-cli",
+        "currentManifest": "0.2.0-rc.1",
+        "candidate": "0.2.0-rc.2",
+        "exactStatus": 404,
+        "gitTag": "task-builder-cli-v0.2.0-rc.2",
+        "gitTagExists": false,
+        "distTags": { "latest": "0.1.0", "canary": "0.2.0-canary-261111-1", "rc": "0.2.0-rc.1" },
+        "internalDependencies": ["ipfs-store@0.1.0-rc.1", "task-protocol@0.2.0-rc.1", "task-builder@0.2.0-rc.2"],
+        "internalDevDependencies": ["task-sdk@0.2.0-rc.1"]
+      },
+      {
+        "order": 6,
+        "id": "task-engine",
+        "name": "@silvermoon-work/task-engine",
+        "currentManifest": "0.2.0-rc.1",
+        "candidate": "0.2.0-rc.2",
+        "exactStatus": 404,
+        "gitTag": "task-engine-v0.2.0-rc.2",
+        "gitTagExists": false,
+        "distTags": { "latest": "0.1.0", "canary": "0.2.0-canary-261111-1", "rc": "0.2.0-rc.1" },
+        "internalDependencies": ["ipfs-store@0.1.0-rc.1", "task-protocol@0.2.0-rc.1"],
+        "internalDevDependencies": ["task-sdk@0.2.0-rc.1", "task-builder@0.2.0-rc.2", "task-builder-cli@0.2.0-rc.2"]
+      },
+      {
+        "order": 7,
+        "id": "task-engine-cli",
+        "name": "@silvermoon-work/task-engine-cli",
+        "currentManifest": "0.2.0-rc.9",
+        "candidate": "0.2.0-rc.10",
+        "exactStatus": 404,
+        "gitTag": "task-engine-cli-v0.2.0-rc.10",
+        "gitTagExists": false,
+        "distTags": { "latest": "0.1.0", "canary": "0.2.0-canary-261111-1", "rc": "0.2.0-rc.9" },
+        "internalDependencies": ["ipfs-store@0.1.0-rc.1", "task-protocol@0.2.0-rc.1", "task-engine@0.2.0-rc.2"],
+        "internalDevDependencies": ["task-sdk@0.2.0-rc.1", "task-builder@0.2.0-rc.2", "task-builder-cli@0.2.0-rc.2"]
+      }
+    ]
+  },
+  "dependencyOrderVerification": {
+    "source": "seven manifests at acceptancePrimaryCommit",
+    "allInternalRanges": "workspace:*",
+    "fieldsChecked": ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"],
+    "internalPeerDependencies": [],
+    "internalOptionalDependencies": [],
+    "allInternalDependenciesEarlierInOrder": true,
+    "ipfsStoreHasProtocolDependency": false,
+    "builderCliBeforeEngineIncludesDevelopmentEdge": true
+  },
+  "gitObservation": {
+    "sevenExactCandidateTagQueryExitCode": 0,
+    "sevenExactCandidateTagsAbsent": true,
+    "existingFourPackageModuleReleaseCommit": "b6044673239005bd219494972e9ca5822d31dd05",
+    "historicalTagsPreserved": true
+  },
+  "ciObservation": {
+    "runId": 43184831356,
+    "url": "https://github.com/silvermoon-work/task-engine/actions/runs/43184831356",
+    "headSha": "f330abbc14f1900da33453c2d2f9d70976b241ac",
+    "event": "push",
+    "branch": "main",
+    "status": "in_progress",
+    "conclusion": "",
+    "nodeJobs": [
+      { "name": "Node.js 22.15.0", "status": "in_progress", "conclusion": "" },
+      { "name": "Node.js 24.11.1", "status": "in_progress", "conclusion": "" }
+    ],
+    "aggregateReported": false,
+    "implementationCommitRun": { "runId": 43184109287, "conclusion": "cancelled" },
+    "submissionCommitRun": { "runId": 43184409304, "conclusion": "cancelled" },
+    "permitsFutureReleaseCommit": false
+  },
+  "publisherPreflight": {
+    "userConfirmedIpfsStorePlaceholderAndBinding": true,
+    "otherSixBindingReconfirmationRequested": false,
+    "existingOtherSixCurrentRcTrustedPublisherAndAttestationMarkers": true,
+    "githubEnvironment": { "name": "npm", "protectionRuleTypes": [], "deploymentBranchPolicy": null },
+    "workflow": ".github/workflows/publish-npm.yaml",
+    "tagPattern": "*-v*",
+    "oidcPermission": "id-token: write",
+    "allowedRealReleaseEvent": "push tag only",
+    "publishAction": "direct npm publish of the one verified tarball with tag rc",
+    "privateNpmBindingIndependentlyAudited": false,
+    "actualOidcAttemptPerformed": false,
+    "actualOidcOrPermissionFailureBlocksWithoutBypass": true
+  },
+  "remoteReadOnlyPreflight": {
+    "observedAt": "2026-11-12T08:42:58.918Z",
+    "target": "scottwei@office-ubuntu",
+    "sshReady": true,
+    "node": "v24.22.2",
+    "npm": "12.2.2",
+    "registry": "https://registry.npmjs.org/",
+    "existingGlobalTaskBuilder": true,
+    "existingGlobalTaskEngine": true,
+    "availableKiB": 1773818772,
+    "pathChange": "current SSH command only; existing NVM bin",
+    "explicitFilesWritten": false,
+    "packagesInstalled": false,
+    "servicesChanged": false,
+    "globalToolsChanged": false,
+    "otherSessionDirectoryAccessed": false,
+    "hostKeyOrTlsVerificationDisabled": false
+  },
+  "remainingExecutionGates": [
+    "parent review of this updated exact seven-package plan",
+    "future version-preparation commit V and its successful exact main push CI",
+    "fresh version/tag/dist-tag/dependency observations before each authorized tag",
+    "actual Actions OIDC publication and immutable version visibility",
+    "isolated registry-only remote smoke after all seven releases"
+  ],
+  "localCandidateChecks": {
+    "sevenCandidateAndFourDependencyFieldEvidenceMatchesManifests": true,
+    "formatCheckExitCode": 0,
+    "releaseTests": { "tests": 21, "passed": 21, "failed": 0 },
+    "silvermoonWorktreeCheckExitCode": 0,
+    "runtimeCodeChanged": false,
+    "manifestOrLockfileChanged": false,
+    "innerOrIdealChanged": false,
+    "readmeOnlyFix": "remove repeated ContentBlocks fragment"
+  }
+}

@@ -47,19 +47,12 @@ commit 和 CI 证据，不会在此之前抢先创建发布标签、使用 token
 发布、依赖发布与标签授权只在具备准确目标及前置条件后执行，不自动批量发布。部署开始前先同步这份契约，随后对该准确 deployment
 revision 执行并记录证据。
 
-## 已知网络策略前置条件
+## 网络与发布前置条件
 
-当前会话的包 metadata 和下载仅允许 Tencent mirror：
-`https://mirrors.cloud.tencent.com/npm/`，禁止访问官方 npm
-registry，也禁止自动 fallback。现有发布和只读 npm 验证脚本含官方 registry
-endpoint。这里仅记录既有配置，不授权调用这些 endpoint。项目 `.npmrc`
-已显式指定同一 Tencent mirror，避免 main
-CI 的依赖下载回到默认官方 registry；发布工作流中的显式官方发布 endpoint 仍是独立的外部前置条件。
-
-因此，真实发布前必须由用户安排的发布配置工作明确解决发布目标与有效网络策略的冲突。不能简单把 Trusted
-Publishing 的发布 URL 替换为只读 mirror 后假装仍可发布，也不能通过触发远程 workflow 绕过会话的 registry 限制。本轮不做发布，故保留该外部前置条件；有未解决冲突时部署仍受阻。消费者安装时必须检查有效 registry、scope
-override 及 lockfile download URL，保留合法私有 scope 配置，不下载官方 registry
-URL。
+依赖安装遵循执行环境的 registry 配置，仓库不固定设备级镜像策略。
+消费者安装前检查有效 registry、scope override 及 lockfile download URL，
+保留合法私有 scope 配置。发布元数据检查与 Trusted Publishing 使用 npm 官方
+registry；不可用时明确报告阻塞。本轮不做发布，真实发布仍须另行授权。
 
 ## 本地 CAR 的发布验收
 
@@ -82,7 +75,7 @@ CLI `0.1.0-canary-261109-1`，默认与大资源的 Init → Build → CAR → C
 [已发布 builder 验证](published-builder-verification.md)。
 
 这两个包不是上面的 engine / engine
-CLI 发布目标。当前 mirror 尚未提供新 engine 的准确候选版本或 engine
+CLI 发布目标。当时 registry 尚未提供新 engine 的准确候选版本或 engine
 CLI；不得以 builder 发布成功、旧 engine 可运行，或本地新 CLI 测试通过勾选 D-*。
 
 ## 已发布包验证环境

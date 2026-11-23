@@ -1,0 +1,93 @@
+{
+  "startedAt": "2026-11-12T10:30:01.657Z",
+  "versionCommit": "bbc504364514ef91edbd28e3a4a7f61d828cb58b",
+  "node": "v24.22.2",
+  "packages": [
+    {
+      "name": "@silvermoon-work/ipfs-store",
+      "version": "0.1.0-rc.1",
+      "path": "consumer/node_modules/@silvermoon-work/ipfs-store",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/ipfs-store/-/ipfs-store-0.1.0-rc.1.tgz",
+      "integrity": "sha512-HjnM41SQG8LO+imSiZsDvQmycXfAmttgYOGUsH8Nh/AvRCiWMjKaQuMPD2Ef/3enB8yeIDww+GqzglyLYhux3g=="
+    },
+    {
+      "name": "@silvermoon-work/task-protocol",
+      "version": "0.2.0-rc.1",
+      "path": "consumer/node_modules/@silvermoon-work/task-protocol",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-protocol/-/task-protocol-0.2.0-rc.1.tgz",
+      "integrity": "sha512-P0Z+wh0zutMr+ss8Zv9E2+QJyCdstPy7Gjg0JJ8DtKB0fflTW+p4OPGDnuO8SxogFu7z52wOEFN++8cjRBi6KQ=="
+    },
+    {
+      "name": "@silvermoon-work/task-sdk",
+      "version": "0.2.0-rc.1",
+      "path": "consumer/node_modules/@silvermoon-work/task-sdk",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-sdk/-/task-sdk-0.2.0-rc.1.tgz",
+      "integrity": "sha512-en6ZJRj4K0hei0w6z58Pk0vrSbQ7C+faCigino+U3zvwRVlmpD+GZHJkz2G8tMjtUZanE8wLXm49u/QlHWVL0w=="
+    },
+    {
+      "name": "@silvermoon-work/task-builder",
+      "version": "0.2.0-rc.2",
+      "path": "consumer/node_modules/@silvermoon-work/task-builder",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-builder/-/task-builder-0.2.0-rc.2.tgz",
+      "integrity": "sha512-2m5tXKvDTbuQfkYuUMQr8yqYpKTmXrtRd6HbRsoxQvTSXYBPbpa8IAaW2oJPNIHgBOVq6/re+H3HewmACyaRaw=="
+    },
+    {
+      "name": "@silvermoon-work/task-builder-cli",
+      "version": "0.2.0-rc.2",
+      "path": "consumer/node_modules/@silvermoon-work/task-builder-cli",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-builder-cli/-/task-builder-cli-0.2.0-rc.2.tgz",
+      "integrity": "sha512-no9aQXF9fpwBau3B/lSaVOyRARUSRgBaeQEJiRPn5CpiBOVpc52cHYsrh64UUpUyQBzaPxQbggRGu5gR50MBbg=="
+    },
+    {
+      "name": "@silvermoon-work/task-engine",
+      "version": "0.2.0-rc.2",
+      "path": "consumer/node_modules/@silvermoon-work/task-engine",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-engine/-/task-engine-0.2.0-rc.2.tgz",
+      "integrity": "sha512-p5jpsnAowAg0FTGWzxc6TSCYvLJ+WPhoedoktHjjqZe4IJkQWf2klAuHh4c0i1dRkLTqZYn/CXDaWN4bjJ8Qmw=="
+    },
+    {
+      "name": "@silvermoon-work/task-engine-cli",
+      "version": "0.2.0-rc.10",
+      "path": "consumer/node_modules/@silvermoon-work/task-engine-cli",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-engine-cli/-/task-engine-cli-0.2.0-rc.10.tgz",
+      "integrity": "sha512-p4z5lREnF1rIImq0Mjok/veq8BiRnszRQ+gTdpQUUNhMyen0WyFm0NHtpopIvWrVq31T7FLQ8375otcnATDIbg=="
+    }
+  ],
+  "cases": [
+    {
+      "name": "independent reader cancellation does not own shared acquisition or source close",
+      "passed": true,
+      "evidence": {
+        "acquiredOnce": 1,
+        "callerSourceClosed": 0,
+        "otherReaderCompleted": true
+      },
+      "durationMs": 5
+    },
+    {
+      "name": "original UnixFS resources, streaming and verified cache",
+      "passed": true,
+      "evidence": {
+        "cid": "bafybeiebhzeaiuldkqbkqadzxxqdrleo6puiuc3wdpadlnimq5g4mpuvam",
+        "uniqueBlocks": 16,
+        "logicalBytes": 10001,
+        "originalChunkBytes": 777,
+        "localHitNetworkRequests": 0
+      },
+      "durationMs": 428
+    }
+  ],
+  "ok": false,
+  "error": {
+    "name": "Error",
+    "code": "ENOENT",
+    "message": "ENOENT: no such file or directory, realpath '<owned-work>/bundles'",
+    "stack": "Error: ENOENT: no such file or directory, realpath '<owned-work>/bundles'\n    at async realpath (node:internal/fs/promises:1896:10)\n    at async writeDirectory (file://<owned-work>/consumer/node_modules/@silvermoon-work/task-builder-cli/dist/node.js:132:20)\n    at async build (file://<owned-work>/registry-spaceref-smoke.mjs:133:3)\n    at async file://<owned-work>/registry-spaceref-smoke.mjs:225:16"
+  },
+  "cleanup": {
+    "allOwnedEnginesClosed": true,
+    "sourceClosed": true,
+    "ownedCliStopped": null
+  },
+  "finishedAt": "2026-11-12T10:30:02.932Z"
+}

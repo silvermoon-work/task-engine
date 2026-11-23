@@ -2,7 +2,7 @@
 import { runTaskBuilderCli } from "./index.js";
 
 const controller = new AbortController();
-let interrupted: number | undefined;
+let interrupted: 130 | 143 = 130;
 const interrupt = () => {
   interrupted = 130;
   controller.abort(new Error("Task builder interrupted by SIGINT."));
@@ -14,8 +14,10 @@ const terminate = () => {
 process.once("SIGINT", interrupt);
 process.once("SIGTERM", terminate);
 try {
-  const code = await runTaskBuilderCli(process.argv.slice(2), { signal: controller.signal });
-  process.exitCode = interrupted ?? code;
+  process.exitCode = await runTaskBuilderCli(process.argv.slice(2), {
+    signal: controller.signal,
+    signalExitCode: () => interrupted,
+  });
 } finally {
   process.removeListener("SIGINT", interrupt);
   process.removeListener("SIGTERM", terminate);

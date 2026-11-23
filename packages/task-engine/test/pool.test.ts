@@ -258,7 +258,7 @@ test("real isolated runaway worker is physically terminated before pressure repl
     type: "echo",
     version: "1",
     environment: "worker",
-    inputSchema: {
+    parametersSchema: {
       type: "object",
       properties: { text: { type: "string" } },
       required: ["text"],
@@ -423,6 +423,12 @@ test("Engine denies stale pressure authorization for a newly protected Run and n
     await h.turn();
     const protectedTask = h.submit({ matchPolicy: "terminates-after-eligible" });
     await h.turn();
+    const deadline = performance.now() + 5000;
+    while (!h.engine.getTask(protectedTask.taskId, caller).run) {
+      assert.ok(performance.now() < deadline, "Protected Run was not allocated.");
+      await flush();
+      h.engine.tick();
+    }
     assert.ok(h.engine.getTask(protectedTask.taskId, caller).run);
     assert.notEqual(
       h.engine.getTask(protectedTask.taskId, caller).run?.runId,

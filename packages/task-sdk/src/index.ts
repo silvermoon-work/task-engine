@@ -1,6 +1,12 @@
 import { parentPort, workerData } from "node:worker_threads";
 import {
+  compileTrustedContract,
+  decodePayload,
+  encodeReferences,
+} from "@silvermoon-work/ipfs-payload";
+import {
   canonical,
+  type ChildTaskInvocation,
   type Json,
   json,
   type ResolvedTaskBundle,
@@ -14,25 +20,24 @@ import {
   taskSchemaUri,
 } from "@silvermoon-work/task-protocol/worker";
 import { binding } from "./binding.js";
+import { createContentAccess } from "./content.js";
 
 export interface TaskContext<Message extends Json = never> extends RunContext<Message> {
-  readonly bundle: {
-    readonly cid: string;
-    read(path: string, options?: { signal?: AbortSignal }): ReadableStream<Uint8Array>;
-  };
+  invokeTask(request: ChildTaskInvocation): Promise<Json>;
 }
-export type TaskCallback<Input = Json, Result = Json, Message extends Json = never> = (
-  input: Input,
+export type TaskCallback<Parameters = Json, Result = Json, Message extends Json = never> = (
+  parameters: Parameters,
   context: TaskContext<Message>,
 ) => Promise<Result>;
 export type {
+  ChildTaskInvocation,
   RunContext,
   RunLogInput,
   RunLogReceipt,
   RunMessage,
   RunProgress,
 } from "@silvermoon-work/task-protocol/worker";
-export { RunFailure } from "@silvermoon-work/task-protocol/worker";
+export { ContentRef, RunFailure } from "@silvermoon-work/task-protocol/worker";
 
 class Inbox implements AsyncIterable<RunMessage<Json>> {
   private queue: RunMessage<Json>[] = [];
@@ -69,8 +74,8 @@ class Inbox implements AsyncIterable<RunMessage<Json>> {
 }
 
 /** Authors explicitly select this wrapper; the builder binds contracts, not startup. */
-export function runTask<Input = Json, Result = Json, Message extends Json = never>(
-  callback: TaskCallback<Input, Result, Message>,
+export function runTask<Parameters = Json, Result = Json, Message extends Json = never>(
+  callback: TaskCallback<Parameters, Result, Message>,
 ): void {
   if (!binding) throw new Error("Task SDK requires a build-locked Bundle binding.");
   const { declaration } = binding;
@@ -79,6 +84,7 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
   const config = workerData as {
     generation: string;
     maxInFlight: number;
+    durableLogs?: boolean;
     maxPayloadBytes: number;
     bundle: { cid: string; declaration: ResolvedTaskBundle };
   };
@@ -103,7 +109,10 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
   const controller = new AbortController();
   const inbox = new Inbox(config.maxInFlight);
   const tasks = new Map<string, AbortController>();
-  const pending = new Map<number, { resolve(): void; reject(error: Error): void }>();
+  const pending = new Map<
+    number,
+    { resolve(value: Json | void): void; reject(error: Error): void }
+  >();
   let sequence = 0;
   let runId: string | undefined;
   let finishing = false;
@@ -111,75 +120,26 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
   let cleanupUncertain = false;
   let output = Promise.resolve();
   let outputError: unknown;
-  let readSequence = 0;
-  const reads = new Map<
-    number,
-    { resolve(value: { done: boolean; chunk?: Uint8Array }): void; reject(error: Error): void }
-  >();
-  function readBundle(
-    path: string,
-    options: { signal?: AbortSignal } = {},
-  ): ReadableStream<Uint8Array> {
-    const id = ++readSequence;
-    const signal = options.signal
-      ? AbortSignal.any([controller.signal, options.signal])
-      : controller.signal;
-    let cleanup: () => void = () => {};
-    const cancel = () => {
-      cleanup();
-      reads.get(id)?.reject(new DOMException("Bundle read canceled.", "AbortError"));
-      reads.delete(id);
-      port!.postMessage({
-        generation: config.generation,
-        runId,
-        kind: "bundle-cancel",
-        readId: id,
-      });
-    };
-    return new ReadableStream<Uint8Array>(
-      {
-        start(stream) {
-          const abort = () => {
-            cancel();
-            stream.error(signal.reason);
-          };
-          cleanup = () => signal.removeEventListener("abort", abort);
-          if (signal.aborted) {
-            stream.error(signal.reason);
-            return;
-          }
-          signal.addEventListener("abort", abort, { once: true });
-        },
-        async pull(stream) {
-          try {
-            if (finishing) throw new TaskError("run_finished", "Bundle stream is closed.");
-            signal.throwIfAborted();
-            const item = await new Promise<{ done: boolean; chunk?: Uint8Array }>(
-              (resolve, reject) => {
-                reads.set(id, { resolve, reject });
-                port!.postMessage({
-                  generation: config.generation,
-                  runId,
-                  kind: "bundle-pull",
-                  readId: id,
-                  path,
-                });
-              },
-            );
-            if (item.done) {
-              cleanup();
-              stream.close();
-            } else if (item.chunk instanceof Uint8Array) stream.enqueue(item.chunk);
-            else throw new TaskError("invalid_bundle", "Invalid Bundle stream chunk.");
-          } catch (error) {
-            cancel();
-            stream.error(error);
-          }
-        },
-        cancel,
+  let content: ReturnType<typeof createContentAccess> | undefined;
+  const hostContract = (schema: unknown) =>
+    compileTrustedContract(schema, {
+      validate() {
+        // Host Task dialect validation stays on Engine; workers only convert cidPaths.
       },
-      { highWaterMark: 0 },
-    );
+    });
+  const parametersContract = hostContract(declaration.parametersSchema);
+  const resultContract = hostContract(declaration.resultSchema);
+  const messageContract = hostContract(declaration.messageSchema);
+  function encodeResult(value: unknown): Json {
+    try {
+      return resultContract.encode(value);
+    } catch (error) {
+      if (error instanceof TaskError) throw error;
+      throw new TaskError(
+        "invalid_payload",
+        error instanceof Error ? error.message : "Invalid payload.",
+      );
+    }
   }
   let logSequence = 0;
   const logPending = new Map<
@@ -274,7 +234,18 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
     }
     logPending.clear();
   }
-  async function log(value: RunLogInput): Promise<RunLogReceipt> {
+  let durableLogOutput: Promise<unknown> = Promise.resolve();
+  function log(value: RunLogInput): Promise<RunLogReceipt> {
+    if (!config.durableLogs) return sendLog(value);
+    const operation = durableLogOutput.then(() => sendLog(value));
+    durableLogOutput = operation.then((receipt) => {
+      if (receipt.state !== "stored")
+        throw new TaskError("log_storage_failed", "Task log was not durably stored.");
+    });
+    void durableLogOutput.catch(() => {});
+    return operation;
+  }
+  async function sendLog(value: RunLogInput): Promise<RunLogReceipt> {
     if (finishing || controller.signal.aborted) return { state: "unavailable", reason: "channel" };
     if (logPending.size >= Math.min(config.maxInFlight, 16)) {
       droppedLogs = Math.min(Number.MAX_SAFE_INTEGER, droppedLogs + 1);
@@ -283,10 +254,13 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
     }
     const id = logSequence + 1;
     return new Promise<RunLogReceipt>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        logPending.delete(id);
-        resolve({ state: "unavailable", reason: "timeout" });
-      }, 1000);
+      const timer = setTimeout(
+        () => {
+          logPending.delete(id);
+          resolve({ state: "unavailable", reason: "timeout" });
+        },
+        config.durableLogs ? 30_000 : 1000,
+      );
       logPending.set(id, { resolve, reject, timer });
       try {
         port!.postMessage({
@@ -306,11 +280,13 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
       }
     });
   }
-  function request(kind: string, value: unknown): Promise<void> {
+  function request(kind: "task-invoke", value: unknown): Promise<Json>;
+  function request(kind: string, value: unknown): Promise<void>;
+  function request(kind: string, value: unknown): Promise<Json | void> {
     if (pending.size >= config.maxInFlight)
       return Promise.reject(new Error("Task channel capacity exceeded."));
     const id = sequence + 1;
-    const operation = new Promise<void>((resolve, reject) => {
+    const operation = new Promise<Json | void>((resolve, reject) => {
       pending.set(id, { resolve, reject });
     });
     try {
@@ -353,20 +329,22 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
     kind: "ready",
     value: {
       $schema: declaration.$schema,
+      contentProtocol: 1,
       cid: config.bundle.cid,
-      inputSchema: declaration.inputSchema,
+      parametersSchema: declaration.parametersSchema,
       resultSchema: declaration.resultSchema,
       messageSchema: declaration.messageSchema,
     },
   });
   port.on("message", (envelope) => {
     if (!envelope || envelope.generation !== config.generation) return;
-    if (envelope.kind === "bundle-data") {
-      const read = reads.get(envelope.readId);
-      if (!read) return;
-      reads.delete(envelope.readId);
-      if (envelope.error) read.reject(new TaskError(envelope.error.code, envelope.error.message));
-      else read.resolve(envelope);
+    if (envelope.kind === "content-result") {
+      if (envelope.runId !== runId) return;
+      content?.receive(
+        envelope.contentId,
+        envelope.value,
+        envelope.error ? new TaskError(envelope.error.code, envelope.error.message) : undefined,
+      );
       return;
     }
     if (envelope.kind === "log-drop-ack") {
@@ -400,7 +378,7 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
       pending.delete(envelope.id);
       if (envelope.error)
         operation.reject(new TaskError(envelope.error.code, envelope.error.message));
-      else operation.resolve();
+      else operation.resolve(envelope.value);
       return;
     }
     if (envelope.kind === "ping") {
@@ -444,7 +422,7 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
           taskId: message.taskId,
           caller: Object.freeze(message.caller),
           signal: task.signal,
-          payload: message.payload,
+          payload: messageContract.decode(message.payload) as Json,
           accept: () => confirm("accepted"),
           reject: (reason: string) => confirm("rejected", reason),
         }),
@@ -453,32 +431,94 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
     }
     if (envelope.kind !== "run" || runId !== undefined) return;
     runId = envelope.runId;
+    content = createContentAccess({
+      signal: controller.signal,
+      maxInFlight: config.maxInFlight,
+      maxChunk: Math.max(1, Math.min(config.maxPayloadBytes, 65_536)),
+      send: (request) =>
+        port.postMessage(
+          {
+            generation: config.generation,
+            runId,
+            kind: "content-request",
+            ...request,
+          },
+          request.content
+            ? [request.content as unknown as import("node:worker_threads").Transferable]
+            : [],
+        ),
+      cancel: (contentId) =>
+        port.postMessage({
+          generation: config.generation,
+          runId,
+          kind: "content-cancel",
+          contentId,
+        }),
+    });
     const context: TaskContext<Json> = Object.freeze({
       runId: envelope.runId,
-      ...(envelope.identity
-        ? { generation: envelope.identity.generation, startedAt: envelope.identity.startedAt }
-        : {}),
+      ...(envelope.identity ? { startedAt: envelope.identity.startedAt } : {}),
       scope: envelope.scope,
       signal: controller.signal,
       messages: inbox,
-      bundle: Object.freeze({ cid: config.bundle.cid, read: readBundle }),
+      bundle: config.bundle.cid,
+      readContent: content.readContent,
+      resolveContent: content.resolveContent,
+      putContent: content.putContent,
       progress: (value: RunProgress) => enqueue("progress", value),
-      checkpoint: (value: Json) => enqueue("checkpoint", value),
       log,
+      invokeTask: (value: ChildTaskInvocation) => {
+        if (finishing) return Promise.reject(new TaskError("run_finished", "Task is finishing."));
+        controller.signal.throwIfAborted();
+        if (
+          !value ||
+          Object.keys(value).some(
+            (key) => !["key", "bundle", "path", "parameters", "timeoutMs"].includes(key),
+          )
+        )
+          return Promise.reject(
+            new TaskError("invalid_request", "invokeTask requires bundle CID and parameters."),
+          );
+        const parameters =
+          value.parameters &&
+          typeof value.parameters === "object" &&
+          !Array.isArray(value.parameters) &&
+          Object.keys(value.parameters).length === 2 &&
+          Object.hasOwn(value.parameters, "data") &&
+          Object.hasOwn(value.parameters, "cidPaths")
+            ? value.parameters
+            : encodeReferences(value.parameters);
+        return request("task-invoke", {
+          key: value.key,
+          bundle: value.bundle,
+          ...(value.path ? { path: value.path } : {}),
+          parameters,
+          timeoutMs: value.timeoutMs,
+        }).then((result) => decodePayload(result) as Json);
+      },
     });
     const reportFailure = async (reason: unknown) => {
-      const error = reason;
+      let error = reason;
       cleanupUncertain ||=
         error instanceof TaskError &&
         ["reclamation_failed", "reclamation_unknown"].includes(error.code);
       const evidence = error instanceof RunFailure ? error.result : undefined;
+      let encodedEvidence: Json | undefined;
+      if (evidence !== undefined) {
+        try {
+          encodedEvidence = encodeResult(evidence);
+        } catch (rejected) {
+          error = rejected;
+          encodedEvidence = undefined;
+        }
+      }
       const failure = (reason: unknown, result?: Json) => ({
         code: reason instanceof TaskError ? reason.code.slice(0, 128) : "run_failed",
         message: reason instanceof Error ? reason.message.slice(0, 512) : "Task callback failed.",
         ...(result === undefined ? {} : { result }),
       });
       try {
-        await request("failed", failure(error, evidence));
+        await request("failed", failure(error, encodedEvidence));
       } catch (rejected) {
         // A rejected evidence frame is not a terminal fact. Report the host's
         // rejection without the rejected evidence before requesting release.
@@ -487,13 +527,20 @@ export function runTask<Input = Json, Result = Json, Message extends Json = neve
     };
     void (async () => {
       try {
-        const value = await callback(envelope.input as Input, context as TaskContext<Message>);
+        const value = await callback(
+          parametersContract.decode(envelope.parameters) as Parameters,
+          context as TaskContext<Message>,
+        );
+        await content!.drain();
+        if (config.durableLogs) await durableLogOutput;
         finishing = true;
         finishDroppedLogs();
         await output;
         if (outputError !== undefined) throw outputError;
-        await request("complete", value);
+        await request("complete", encodeResult(value));
       } catch (caught) {
+        await content?.drain().catch(() => {});
+        if (config.durableLogs) await durableLogOutput.catch(() => {});
         finishing = true;
         finishDroppedLogs();
         await output.catch(() => {});

@@ -38,13 +38,15 @@ jobs:
       - name: Install verifier dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify mirrored npm metadata
+      - name: Verify npm metadata
         run: |
           node --input-type=module <<'NODE'
           import { readFileSync } from "node:fs";
           import { releasePackages } from "./scripts/release-packages.js";
           import {
             readRegistryPackage,
+            readRegistryVersion,
+            validatePublishedVersion,
             validateManifest,
             verifyWorkspaceDependencies,
           } from "./scripts/release.js";
@@ -75,9 +77,10 @@ jobs:
               failures.push(`${release.name}@${release.version} is missing`);
               continue;
             }
+            validatePublishedVersion(release, artifact);
             if (metadata["dist-tags"]?.[release.distTag] !== release.version)
               failures.push(`${release.name} dist-tag ${release.distTag} does not match`);
-            await verifyWorkspaceDependencies(artifact, names, readRegistryPackage);
+            await verifyWorkspaceDependencies(artifact, names, readRegistryPackage, readRegistryVersion);
           }
           if (failures.length) throw new Error(failures.join("\n"));
           NODE

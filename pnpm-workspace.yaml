@@ -25,9 +25,10 @@ catalog:
   enhanced-resolve: 5.18.3
   esbuild: 0.25.12
   commander: 14.0.3
-  "@potential-guide/pguide-task-bundle": 0.1.0-rc.2
   "@ipld/car": 5.4.6
   "@ipld/dag-pb": 4.2.0
+  "@ipld/dag-cbor": 10.0.2
+  cborg: 6.2.1
   "@helia/http": 3.0.4
   "@helia/unixfs": 8.0.9
   "@helia/block-brokers": 5.2.4
@@ -36,9 +37,15 @@ catalog:
   multiformats: 14.0.5
   ipfs-unixfs-exporter: 16.2.3
   ipfs-unixfs-importer: 17.1.1
+  ipfs-unixfs: 13.1.2
+  ipns: 11.0.1
+  "@libp2p/crypto": 5.2.0
+  "@libp2p/peer-id": 6.0.18
+  timestamp-nano: 1.0.1
+  protons-runtime: 7.1.2
 
 allowBuilds:
-  esbuild: true
+  esbuild: false
 
 minimumReleaseAgeExclude:
   - "@turbo/darwin-64@2.11.8"
@@ -49,6 +56,3 @@ minimumReleaseAgeExclude:
   - "@turbo/windows-arm64@2.11.8"
   - turbo@2.11.8
   - github-ci-verify@0.1.0
-  - "@potential-guide/pguide-task-bundle@0.1.0-rc.2"
-  - "@potential-guide/task-protocol@0.1.0-rc.2"
-  - "@potential-guide/task-sdk@0.1.0-rc.2"

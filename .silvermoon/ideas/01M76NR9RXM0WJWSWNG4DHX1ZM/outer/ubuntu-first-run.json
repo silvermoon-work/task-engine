@@ -1,0 +1,583 @@
+{
+  "observedAt": "2026-11-12T06:04:43.100Z",
+  "replayDirectory": "task-engine-ipfs-rc-smoke-20261112-b6044673",
+  "attempt": "first; cleanup expectation failed",
+  "orchestratorSucceeded": false,
+  "packages": [
+    {
+      "id": "task-builder",
+      "version": "0.2.0-rc.1",
+      "environment": "author",
+      "resolved": "https://registry.npmjs.org/@silvermoon-work/task-builder/-/task-builder-0.2.0-rc.1.tgz",
+      "integrity": "sha512-UIuA13v2YaTvAKObJCAuAiHntN4ZKiI8OIj6LSihAxlwj34iZ4B+fu/SsNp3IBoEW98iix4wgQbybpIOfUFHsA=="
+    },
+    {
+      "id": "task-builder-cli",
+      "version": "0.2.0-rc.1",
+      "environment": "author",
+      "resolved": "https://registry.npmjs.org/@silvermoon-work/task-builder-cli/-/task-builder-cli-0.2.0-rc.1.tgz",
+      "integrity": "sha512-StHbtKvDUQWwyja1j842uWKqFzMRRvmAu1+fp3o8gRTfOiAHBvULWEaJi4m5f4WxMM9wFjLAQua0P6EEOgaj/w=="
+    },
+    {
+      "id": "task-engine",
+      "version": "0.2.0-rc.1",
+      "environment": "consumer",
+      "resolved": "https://registry.npmjs.org/@silvermoon-work/task-engine/-/task-engine-0.2.0-rc.1.tgz",
+      "integrity": "sha512-9MCGbhOC24HAdDXpSQkwKBKkY2KGNzO4qFPsP4jqAMut657QXpbemSNqO9H2lpS/xanfl+LtsJo5zokkFJfcfg=="
+    },
+    {
+      "id": "task-engine-cli",
+      "version": "0.2.0-rc.9",
+      "environment": "consumer",
+      "resolved": "https://registry.npmjs.org/@silvermoon-work/task-engine-cli/-/task-engine-cli-0.2.0-rc.9.tgz",
+      "integrity": "sha512-tZ++H1bKs6r5Vd9AA3TeHZ1Om3wEdcxx9wgy+g/HS8vXtrRqNOF3E90/pNxAmkt/YPH7N2z4NAs4fXz3g16qSQ=="
+    }
+  ],
+  "cli": {
+    "taskId": "01M77555WP930YTVA379PHTD16",
+    "status": "succeeded",
+    "output": {
+      "result": {
+        "moduleURL": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+        "filename": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+        "dirname": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u",
+        "evaluations": 1,
+        "sameSelf": true,
+        "cached": true,
+        "requireType": "function",
+        "cacheType": "object",
+        "resolveType": "function",
+        "pathsType": "function",
+        "resolvedBuiltin": "node:path",
+        "builtinType": "function",
+        "sourceVisible": false,
+        "nativeIPFSResolve": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+        "receipt": {
+          "state": "stored",
+          "sequence": 1
+        },
+        "runId": "01M77558GQJ9Q6KZVDC98ZQPP8",
+        "nonce": "real-cid-gateway",
+        "bytes": 600000
+      },
+      "cid": "bafybeiczsscdsbs7ffqz55asqdf3smv6klcw3gofszvwlyarci47bgf354"
+    }
+  },
+  "probes": [
+    {
+      "ok": true,
+      "mode": "isolation",
+      "cid": "bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u",
+      "node": "v24.22.2",
+      "engine": "0.2.0-rc.1",
+      "runs": [
+        {
+          "runId": "01M7755C94M0T4JND5HDESA3GJ",
+          "stage": "completed",
+          "exit": {
+            "basis": "worker",
+            "code": 0,
+            "forced": false,
+            "sequence": 20,
+            "occurredAt": "2026-11-12T05:54:48.692Z"
+          },
+          "reclaimedAt": "2026-11-12T05:54:48.693Z",
+          "cleanupUnknown": null,
+          "error": null,
+          "output": {
+            "result": {
+              "moduleURL": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+              "filename": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+              "dirname": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u",
+              "evaluations": 1,
+              "sameSelf": true,
+              "cached": true,
+              "requireType": "function",
+              "cacheType": "object",
+              "resolveType": "function",
+              "pathsType": "function",
+              "resolvedBuiltin": "node:path",
+              "builtinType": "function",
+              "sourceVisible": false,
+              "nativeIPFSResolve": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+              "receipt": {
+                "state": "stored",
+                "sequence": 1
+              },
+              "runId": "01M7755C94M0T4JND5HDESA3GJ",
+              "nonce": "first",
+              "bytes": 600000
+            },
+            "cid": "bafybeiczsscdsbs7ffqz55asqdf3smv6klcw3gofszvwlyarci47bgf354"
+          },
+          "result": {
+            "moduleURL": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+            "filename": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+            "dirname": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u",
+            "evaluations": 1,
+            "sameSelf": true,
+            "cached": true,
+            "requireType": "function",
+            "cacheType": "object",
+            "resolveType": "function",
+            "pathsType": "function",
+            "resolvedBuiltin": "node:path",
+            "builtinType": "function",
+            "sourceVisible": false,
+            "nativeIPFSResolve": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+            "receipt": {
+              "state": "stored",
+              "sequence": 1
+            },
+            "runId": "01M7755C94M0T4JND5HDESA3GJ",
+            "nonce": "first",
+            "bytes": 600000
+          },
+          "logs": {
+            "availability": "available",
+            "completeness": "complete",
+            "dropped": 0,
+            "lastSequence": 1,
+            "firstSequence": 1
+          }
+        },
+        {
+          "runId": "01M7755C94V4ZQJYYSZEPJF2TD",
+          "stage": "completed",
+          "exit": {
+            "basis": "worker",
+            "code": 0,
+            "forced": false,
+            "sequence": 22,
+            "occurredAt": "2026-11-12T05:54:48.695Z"
+          },
+          "reclaimedAt": "2026-11-12T05:54:48.695Z",
+          "cleanupUnknown": null,
+          "error": null,
+          "output": {
+            "result": {
+              "moduleURL": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+              "filename": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+              "dirname": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u",
+              "evaluations": 1,
+              "sameSelf": true,
+              "cached": true,
+              "requireType": "function",
+              "cacheType": "object",
+              "resolveType": "function",
+              "pathsType": "function",
+              "resolvedBuiltin": "node:path",
+              "builtinType": "function",
+              "sourceVisible": false,
+              "nativeIPFSResolve": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+              "receipt": {
+                "state": "stored",
+                "sequence": 1
+              },
+              "runId": "01M7755C94V4ZQJYYSZEPJF2TD",
+              "nonce": "second",
+              "bytes": 600000
+            },
+            "cid": "bafybeiczsscdsbs7ffqz55asqdf3smv6klcw3gofszvwlyarci47bgf354"
+          },
+          "result": {
+            "moduleURL": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+            "filename": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+            "dirname": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u",
+            "evaluations": 1,
+            "sameSelf": true,
+            "cached": true,
+            "requireType": "function",
+            "cacheType": "object",
+            "resolveType": "function",
+            "pathsType": "function",
+            "resolvedBuiltin": "node:path",
+            "builtinType": "function",
+            "sourceVisible": false,
+            "nativeIPFSResolve": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+            "receipt": {
+              "state": "stored",
+              "sequence": 1
+            },
+            "runId": "01M7755C94V4ZQJYYSZEPJF2TD",
+            "nonce": "second",
+            "bytes": 600000
+          },
+          "logs": {
+            "availability": "available",
+            "completeness": "complete",
+            "dropped": 0,
+            "lastSequence": 1,
+            "firstSequence": 1
+          }
+        }
+      ],
+      "hostLocalLoading": true,
+      "engineClosed": true,
+      "closeError": null,
+      "contentClientClosed": true
+    },
+    {
+      "ok": true,
+      "mode": "reject",
+      "cid": "bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u",
+      "node": "v24.22.2",
+      "engine": "0.2.0-rc.1",
+      "result": {
+        "moduleURL": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+        "filename": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+        "dirname": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u",
+        "evaluations": 1,
+        "sameSelf": true,
+        "cached": true,
+        "requireType": "function",
+        "cacheType": "object",
+        "resolveType": "function",
+        "pathsType": "function",
+        "resolvedBuiltin": "node:path",
+        "builtinType": "function",
+        "sourceVisible": false,
+        "nativeIPFSResolve": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+        "receipt": {
+          "state": "stored",
+          "sequence": 1
+        },
+        "runId": "01M7755DYAS2F3DHFXSW2R5GZQ",
+        "nonce": null,
+        "denials": [
+          {
+            "code": "unsupported_module",
+            "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+          },
+          {
+            "code": "unsupported_module",
+            "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+          },
+          {
+            "code": "unsupported_module",
+            "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+          },
+          {
+            "code": "unsupported_module",
+            "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+          },
+          {
+            "code": "unsupported_module",
+            "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+          },
+          {
+            "code": "unsupported_module",
+            "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+          },
+          {
+            "code": "unsupported_module",
+            "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+          },
+          {
+            "code": "unsupported_module",
+            "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+          },
+          {
+            "code": "unsupported_module",
+            "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+          },
+          {
+            "code": "unsupported_module",
+            "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+          },
+          {
+            "code": "unsupported_module",
+            "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+          },
+          {
+            "code": "unsupported_module",
+            "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+          },
+          {
+            "code": "unsupported_module",
+            "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+          },
+          {
+            "code": "unsupported_module",
+            "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+          },
+          {
+            "code": "unsupported_module",
+            "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+          },
+          {
+            "code": "unsupported_module",
+            "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+          }
+        ]
+      },
+      "run": {
+        "runId": "01M7755DYAS2F3DHFXSW2R5GZQ",
+        "stage": "completed",
+        "exit": {
+          "basis": "worker",
+          "code": 0,
+          "forced": false,
+          "sequence": 10,
+          "occurredAt": "2026-11-12T05:54:50.068Z"
+        },
+        "reclaimedAt": "2026-11-12T05:54:50.069Z",
+        "cleanupUnknown": null,
+        "error": null,
+        "output": {
+          "result": {
+            "moduleURL": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+            "filename": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+            "dirname": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u",
+            "evaluations": 1,
+            "sameSelf": true,
+            "cached": true,
+            "requireType": "function",
+            "cacheType": "object",
+            "resolveType": "function",
+            "pathsType": "function",
+            "resolvedBuiltin": "node:path",
+            "builtinType": "function",
+            "sourceVisible": false,
+            "nativeIPFSResolve": "ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs",
+            "receipt": {
+              "state": "stored",
+              "sequence": 1
+            },
+            "runId": "01M7755DYAS2F3DHFXSW2R5GZQ",
+            "nonce": null,
+            "denials": [
+              {
+                "code": "unsupported_module",
+                "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+              },
+              {
+                "code": "unsupported_module",
+                "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+              },
+              {
+                "code": "unsupported_module",
+                "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+              },
+              {
+                "code": "unsupported_module",
+                "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+              },
+              {
+                "code": "unsupported_module",
+                "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+              },
+              {
+                "code": "unsupported_module",
+                "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+              },
+              {
+                "code": "unsupported_module",
+                "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+              },
+              {
+                "code": "unsupported_module",
+                "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+              },
+              {
+                "code": "unsupported_module",
+                "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+              },
+              {
+                "code": "unsupported_module",
+                "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+              },
+              {
+                "code": "unsupported_module",
+                "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+              },
+              {
+                "code": "unsupported_module",
+                "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+              },
+              {
+                "code": "unsupported_module",
+                "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+              },
+              {
+                "code": "unsupported_module",
+                "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+              },
+              {
+                "code": "unsupported_module",
+                "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+              },
+              {
+                "code": "unsupported_module",
+                "message": "Module request rejected for ipfs://bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u/worker.cjs; only its verified entry and Node builtins are available."
+              }
+            ]
+          },
+          "cid": "bafybeiczsscdsbs7ffqz55asqdf3smv6klcw3gofszvwlyarci47bgf354"
+        }
+      },
+      "hostLocalLoading": true,
+      "engineClosed": true,
+      "closeError": null,
+      "contentClientClosed": true
+    },
+    {
+      "ok": true,
+      "mode": "startup",
+      "cid": "bafybeiccssdmjyjara6bnm7sudcwfggugkw5vyadontqhochxzlea3q7fa",
+      "node": "v24.22.2",
+      "engine": "0.2.0-rc.1",
+      "error": {
+        "code": "type_unavailable",
+        "message": "Unable to load ipfs://bafybeiccssdmjyjara6bnm7sudcwfggugkw5vyadontqhochxzlea3q7fa/worker.cjs: registry IPFS startup failure"
+      },
+      "runs": [
+        {
+          "runId": "01M7755F7CGVEXZ8M76QYW861D",
+          "stage": "failed",
+          "exit": {
+            "basis": "worker",
+            "sequence": 9,
+            "occurredAt": "2026-11-12T05:54:51.344Z"
+          },
+          "reclaimedAt": "2026-11-12T05:54:51.344Z",
+          "cleanupUnknown": null,
+          "error": {
+            "code": "type_unavailable",
+            "message": "Unable to load ipfs://bafybeiccssdmjyjara6bnm7sudcwfggugkw5vyadontqhochxzlea3q7fa/worker.cjs: registry IPFS startup failure"
+          },
+          "output": null
+        }
+      ],
+      "hostLocalLoading": true,
+      "engineClosed": true,
+      "closeError": null,
+      "contentClientClosed": true
+    },
+    {
+      "ok": true,
+      "mode": "missing",
+      "cid": "bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u",
+      "node": "v24.22.2",
+      "engine": "0.2.0-rc.1",
+      "decision": {
+        "status": "rejected",
+        "requestId": "01M7755FYGP20D4K94H0W0E73T",
+        "error": {
+          "code": "bundle_fetch_failed",
+          "message": "IPFS Gateway acquisition failed: http://127.0.0.1:43217/ [read_or_verification_failed]."
+        }
+      },
+      "gatewayRequests": 1,
+      "hostLocalLoading": true,
+      "engineClosed": true,
+      "closeError": null,
+      "contentClientClosed": true
+    },
+    {
+      "ok": true,
+      "mode": "corrupt",
+      "cid": "bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u",
+      "node": "v24.22.2",
+      "engine": "0.2.0-rc.1",
+      "decision": {
+        "status": "rejected",
+        "requestId": "01M7755GNQV0P7SPDABDJAZBC5",
+        "error": {
+          "code": "bundle_fetch_failed",
+          "message": "IPFS Gateway acquisition failed: http://127.0.0.1:44845/ [read_or_verification_failed]."
+        }
+      },
+      "gatewayRequests": 1,
+      "hostLocalLoading": true,
+      "engineClosed": true,
+      "closeError": null,
+      "contentClientClosed": true
+    },
+    {
+      "ok": true,
+      "mode": "cancel",
+      "cid": "bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u",
+      "node": "v24.22.2",
+      "engine": "0.2.0-rc.1",
+      "run": {
+        "runId": "01M7755HVVN08BWQSHQN3MD21C",
+        "stage": "failed",
+        "exit": {
+          "basis": "worker",
+          "code": 1,
+          "forced": false,
+          "sequence": 13,
+          "occurredAt": "2026-11-12T05:54:54.074Z"
+        },
+        "reclaimedAt": "2026-11-12T05:54:54.075Z",
+        "cleanupUnknown": null,
+        "error": {
+          "code": "space_error",
+          "message": "Space host is closed."
+        },
+        "output": null
+      },
+      "hostLocalLoading": true,
+      "engineClosed": true,
+      "closeError": null,
+      "contentClientClosed": true
+    },
+    {
+      "ok": true,
+      "mode": "force",
+      "cid": "bafybeieyxvijoauangq3tohwedr2ocojbce4xkwabtkgrgt6rcmv3u7m6u",
+      "node": "v24.22.2",
+      "engine": "0.2.0-rc.1",
+      "run": {
+        "runId": "01M7755K7MS8SG4EFPQJD4BZKA",
+        "stage": "stopped",
+        "exit": {
+          "basis": "worker",
+          "code": 1,
+          "forced": true,
+          "sequence": 11,
+          "occurredAt": "2026-11-12T05:54:55.667Z"
+        },
+        "reclaimedAt": null,
+        "cleanupUnknown": {
+          "reason": "Worker 已退出，宿主资源回收未确认。",
+          "observedAt": "2026-11-12T05:54:55.668Z"
+        },
+        "error": null,
+        "output": null
+      },
+      "hostLocalLoading": true,
+      "engineClosed": false,
+      "closeError": {
+        "code": "reclamation_failed",
+        "message": "Engine retains ownership because physical cleanup is unconfirmed."
+      },
+      "contentClientClosed": true
+    }
+  ],
+  "cleanup": {
+    "observedAt": "2026-11-12T06:02:03.526Z",
+    "role": "first-run publisher only",
+    "pid": 2440669,
+    "identityVerifiedBy": "private instance pid + boot/starttime + installed daemon cmdline + no child processes",
+    "signals": [
+      "SIGTERM"
+    ],
+    "physicallyExited": true,
+    "frameworkStopError": "RESOURCE_RELEASE_UNCONFIRMED",
+    "frameworkReleaseConfirmed": false,
+    "uncertaintyPreserved": true,
+    "frameworkReleasedFlag": false
+  },
+  "scripts": [
+    {
+      "file": "registry-smoke.mjs",
+      "sha256": "915fc7d7a824f4491875ca6a13492afd04abb2365c8d50ca8a350becdc4a8821"
+    },
+    {
+      "file": "registry-engine-probe.mjs",
+      "sha256": "eb43be31b2174366b7922bbf7fef8b6cf81bc7085941873d0c0e8815b94adfe9"
+    }
+  ]
+}

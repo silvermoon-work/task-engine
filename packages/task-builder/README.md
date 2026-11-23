@@ -1,12 +1,76 @@
 # @silvermoon-work/task-builder
 
 Build Task Bundles with esbuild from a read-only file tree into another read-only
-file tree. No pguide command protocol, Gulp, Vinyl, CAR, network, publication, or
+file tree. No pguide command protocol, Gulp, Vinyl, publication, or
 output-directory management is part of the transformation.
+Imports use an explicitly injected content port; there is no ambient network source.
 Separate `./init` and `./car` exports provide project templates and offline CAR
 streams without turning build into a multi-output operation. The root entry
 does not re-export or load these modules; init/CAR do not load esbuild.
 Subpaths isolate module loading, not npm dependency installation.
+Builder owns `./tree`: compilation requires a traversable, repeatable read port,
+not a one-shot importer iterator. `./car` combines the standard `@ipld/car`,
+UnixFS importer/exporter and multiformats libraries with bounded staging and
+existing Protocol validation. These are compiler-free subpaths, not a separate
+package or a custom CAR codec. Engine CLI owns a smaller offline block-source
+adapter and never installs Builder. No independent CAR package is published.
+
+## Immutable imports and migration
+
+`task.build.yaml` and `TaskBuildOptions` accept `imports: Record<Path, CID>`,
+for example:
+
+```yaml
+imports:
+  resources/tasks/resize: "<built-task-directory-cid>"
+  resources/models/model.bin: "<unixfs-file-cid>"
+  resources/templates: "<unixfs-directory-cid>"
+```
+
+Imports support regular UnixFS files and nonempty directories, not only tasks.
+Only executing targets must satisfy the Task contract. Paths are portable,
+confined to `resources/`, and cannot overlap each other or includes. The library
+requires `content: IpfsStore`. Inject the same store object into Engine as
+`ipfsStore`, or construct independent instances with shared or separate dataDirs.
+`new IpfsStore({dataDir, gateway?})` is local-only without a gateway; the library
+does not read public configuration. CLI hosts explicitly resolve it before
+construction. See [IPFS store](../ipfs-store/README.md) for node streaming,
+budgets, ownership and the explicit `fromClient` adapter for CAR/block sources.
+
+Build fetches and verifies the complete static DAG. The task folder contains
+expanded bytes plus `.task-imports.car`, a bounded archive of the original
+import blocks. `task.yaml.imports` binds each path to its original CID, and
+`include` still enumerates every logical file. Imported files are opaque binary
+in the parent manifest: their original bytes, modes, mtimes and chunk topology
+are not normalized. The sidecar is delivery metadata, not a file in the bundle DAG.
+Copy the **entire folder including this hidden sidecar**, not just `include`.
+
+Offline `car` verifies sidecar hashes, closure, path CIDs and all expanded bytes,
+then links the original nodes into canonical parent directories. The final CAR
+contains only reachable blocks, once per CID. No original project, machine
+cache or gateway is consulted. Missing sidecars/blocks and modified imports fail.
+To edit an imported resource, remove its import, move it to local resources and
+rebuild under a new CID. No old CID is rewritten.
+Portable task-path validation and import materialization belong to Builder/
+Protocol. The packaging-only ancestor reconstruction lives in Builder's `./dag`
+subpath, never in the store. Engine CLI validates the canonical non-import
+complement without installing Builder or grafting nodes.
+
+The existing v1 schema URI/version is retained with the updated definition;
+it does **not** imply dual-protocol compatibility. Replace old `{cid,path}`
+child calls with `{bundle: context.bundle, path, parameters, key, timeoutMs}` or
+an external Bundle CID string, rebuild using matching SDK/Builder tools, then update
+parent dependency CIDs and rebuild parents. Old calls fail explicitly. Bundles
+already satisfying the new contract do not need artificial changes.
+Stored legacy child associations cannot recover the new fixed identity: choose
+a new Engine data domain; old facts are rejected, not cleared or guessed.
+
+Builder keeps esbuild as a runtime dependency because building author source
+needs a compiler. Its OS/CPU-specific optional package supplies the required
+precompiled binary. Skipping dependency installation scripts is supported;
+do not omit optional dependencies. Build calls the binary, not `install.js`.
+esbuild's postinstall checks/optimizes installation and can recover a missing
+platform package; it is not a prerequisite for normal builds.
 This package has no CLI binary, process signal handlers or host filesystem
 adapter. The independent
 [@silvermoon-work/task-builder-cli](../task-builder-cli/README.md) library owns
@@ -16,8 +80,18 @@ contract, factories and stream helpers; the old `./node` entry has moved to
 The library-only layout and init/CAR/tree APIs are published in
 `0.1.0-canary-261109-2`. The older `0.1.0-canary-261109-1` artifact has the
 previous CLI layout; use the separate CLI package for commands.
+Version `0.1.0-canary-261109-3` updates init to the migrated SDK with child
+invocation support and removes all old-project development dependencies.
+The `0.1.0-canary-261111-2` release updates init and the Echo example
+to the breaking Space context API and selects the matching SDK. Rebuild old
+canary Bundles before running them with the new Space host protocol.
 
 ## Transformation
+
+IPFS 入口执行需要 Node >=22.15.0（23.x 至少 23.5.0）。新版产物直接以逻辑 IPFS `__filename`
+生成 `import.meta.url`；本地文件执行仍转换为 file URL。不要把 IPFS 模块地址当作
+宿主磁盘路径。已有产物须重新构建并生成新 CID 才获得修正后的地址，不升级
+`task.yaml` 或业务 schema；详见 [Engine 地址语义与重建说明](../task-engine/README.md#ipfs-模块地址与重建)。
 
 ```ts
 import {
@@ -27,11 +101,11 @@ import {
 
 const output: ReadonlyFileTree = await buildTaskBundle(input, {
   name: "Echo",
-  runtime: { minVersion: "22.13.0" },
+  runtime: { minVersion: "22.15.0" },
   source: {
     entry: "src/main.ts",
     contract: {
-      input: { type: "object", properties: { text: { type: "string" } } },
+      parameters: { type: "object", properties: { text: { type: "string" } } },
       result: { type: "string" },
       message: false,
     },
@@ -74,7 +148,7 @@ location, including pnpm's virtual store.
 
 ## Streaming and ownership
 
-The generated primary Schemas are `schemas/input.json`, `schemas/result.json`
+The generated primary Schemas are `schemas/parameters.json`, `schemas/result.json`
 and `schemas/message.json`; the manifest references those exact paths.
 Additional contract Schemas use a name-to-Schema object, for example
 `schemas: { user: UserSchema, address: AddressSchema }`, and become
@@ -129,35 +203,69 @@ dependencies never fall back to the builder's own node_modules.
 Dependencies must be present in the input tree. There is no install, network
 resolver, automatic tsconfig discovery, tsconfig path mapping, arbitrary asset
 loader or externally supplied esbuild plugin in this first implementation.
-Compilation targets Node 22 CommonJS and rejects non-static import/require calls.
-The build host must use Node >=22.13; execution runtime eligibility belongs to
+New builds use `entry: main.mjs` and self-contained ESM for every runtime.
+Node targets Node 22; `browser`, `browser-worker` and `cloudflare-worker` target
+ES2022. Runtime may be `{ minVersion: "22.15.0" }` (the existing Node shorthand),
+`{ type: "node", minVersion: "22.15.0" }`, or `{ type: "browser" }`,
+`{ type: "browser-worker" }`, `{ type: "cloudflare-worker" }`.
+Non-Node declarations reject `minVersion` and unknown fields.
+The same shapes work in `task.build.yaml` and the library.
+
+Non-Node builds bundle the author entry directly and retain its exports, with
+no Node SDK wrapper or Node globals/banner. Only `explicit` mode (also the
+default) is supported there; `callback` and `source.sdk` are rejected.
+The corresponding host must load and call the exported API according to its
+own contract. This does not add a browser/Cloudflare execution host or imply
+that a Task callback is a Cloudflare event handler.
+Browser resolution selects `browser` conditions/fields; browser Workers also
+select `worker`; Cloudflare also selects `workerd`. Node-only builtins are
+rejected for every non-Node target, including Cloudflare (no implicit
+`nodejs_compat`). Non-static import/require calls remain rejected.
+CSS and other assets still use `include`/`binary`; this does not add CSS imports
+or rewrite asset URLs. Cloudflare DO bindings and compatibility settings remain
+deployment/host concerns.
+
+Node ESM preserves native `import.meta.url` and provides `require` for bundled
+CommonJS dependencies and builtins, plus logical `__filename`/`__dirname`.
+The Engine restricts that require to its verified entry and builtins.
+Old `worker.cjs` Bundles remain readable by CAR tools and executable by the
+updated Node Engine; new ESM Bundles require the matching updated Protocol,
+Builder/CAR tools and Engine. Rebuild under a new CID; old CARs are not rewritten.
+The build host must use Node >=22.15; execution runtime eligibility belongs to
 the Engine.
 
-`source.mode` defaults to `explicit`: the entry calls the SDK's `runTask`
+For Node, `source.mode` defaults to `explicit`: the entry calls the SDK's `runTask`
 itself. `callback` wraps a lazily imported callback; `exportName` defaults to
 `default` and is only accepted in that mode. `source.sdk` defaults to
 `@silvermoon-work/task-sdk` for callback wrappers and can explicitly select an
 SDK already present in the tree. The
-[workspace SDK](../task-sdk/README.md) supplies the runtime; existing projects
-can still explicitly select `@potential-guide/task-sdk`.
+[workspace SDK](../task-sdk/README.md) supplies the runtime; `source.sdk` can
+explicitly select another SDK supplied by the input tree. There is no dedicated
+old-scope SDK recognition or dependency.
 Recognized SDK `binding.js`/`binding.ts` modules are replaced with the resolved
 Bundle declaration without evaluating the Worker or author callback.
 
 `source.contract` accepts an object, a tree-relative JSON file, or a trusted
-TS/JS module default-exporting `{ input, result, message, schemas? }`. Objects
+TS/JS module default-exporting `{ parameters, result, message, schemas? }`. Objects
 can contain plain JSON Schema or supported TypeBox 0.34.52 schemas; transforms
 and unsupported metadata/format semantics are rejected. Code contracts require
 `allowContractExecution: true`. They are compiled using the same tree resolver,
 then **executed as trusted Node code, not in a sandbox**. Builtins and global
 APIs can have side effects; a read-only tree is not an execution security boundary.
+Evaluation runs in a short-lived Node process (30-second internal budget).
+Console and standard-stream output attempts, including dependencies and caught
+or deferred calls, fail with `CONTRACT_OUTPUT_FORBIDDEN`; captured bytes are
+never forwarded. CLI build supplies execution permission automatically; the
+library retains its explicit `allowContractExecution` opt-in. Runtime Worker
+logging is unaffected.
 Their `__filename`, `__dirname` and `import.meta.url` are logical `task-tree:///`
 locations, not host source paths. Use JSON contracts for non-executing builds.
 
-For example, a JSON contract can share one definition between input and result:
+For example, a JSON contract can share one definition between parameters and result:
 
 ```json
 {
-  "input": {
+  "parameters": {
     "type": "object",
     "properties": {
       "user": { "$ref": "https://example.invalid/schemas/user" }
@@ -198,17 +306,46 @@ const source = await project.read("src/main.ts");
 ```
 
 The pure synchronous function returns an owned, repeatable file tree with a
-private npm package, a JSON
+private npm package, a TypeBox `src/contract.ts`
 contract with a named shared text Schema, typed SDK entry/helper and a streamed
 greeting resource. It performs no I/O, install or ancestor package modification.
-The default dependency and author import use
-`@silvermoon-work/task-sdk@0.1.0-canary-261109-1`. This is the migrated SDK's
-local release candidate, not an already published package; before publication,
-use an explicit local `sdkVersion` specifier (such as `file:task-sdk.tgz`).
+The generated package explicitly depends on `@sinclair/typebox@0.34.52`.
+The contract exports `Parameters` and `Result` using `Static<typeof ...>`; the Worker
+imports them with `import type` and calls `runTask<Parameters, Result>`. Its shared
+text reference preserves string inference, while runtime Schemas require
+nonempty text, integer bytes >=0 and chunks >=1, forbid extra input/result
+properties, and disable messages. The TS contract is trusted executable code;
+esbuild transpilation is not typechecking. JSON contracts remain supported.
+The tree includes a standalone `tsconfig.json` for `src/**/*.ts`, using strict
+NodeNext/ESM checking, ES2023 libraries and no output. It declares TypeScript
+5.9.3 and `@types/node` 22.20.5 as development dependencies, matching the
+repository catalog and Node 22 minimum. Dependency declarations are checked
+too (`skipLibCheck` is not enabled). After installing, run
+`pnpm exec tsc --project tsconfig.json`; the CLI adds `pnpm typecheck` as a
+convenience script. Build remains independently usable transpilation, not a
+typecheck gate.
+The default dependency pins `@silvermoon-work/task-sdk@0.2.0`, matching
+the Worker's `context.resolveContent` and `context.readContent` APIs.
+This stable pairing was published and passed independent registry consumer
+acceptance; see the [release record](../../README.md#stable-020-2026-11-16).
+This is a template compatibility pairing, not the Builder or CLI version and
+not a remote `latest` lookup. When updating the workspace SDK release, update
+this pin together with the template; regression tests require the declared
+version to match the SDK used to typecheck the generated Worker.
+An explicit local `sdkVersion` specifier (such as `file:task-sdk.tgz`) remains
+available for development.
 `sdkVersion`, `minRuntimeVersion`, `taskName` and npm `name` can be supplied.
+Without `taskName`, the package's unscoped name is used. The CLI does not expose
+SDK/runtime/version overrides; authors edit the generated project instead.
+Init fixes `outDirectory` to `dist/<derived-name>` from the npm package name,
+independently of `taskName`: `echo-task` becomes `dist/echo-task`, and
+`@acme/echo-task` becomes `dist/acme-echo-task`. Invalid npm names and unsafe
+derived paths (including reserved device names and trailing dots) are rejected,
+not sanitized. Renaming the package later does not change this generated value.
+This template convention does not change the general build output defaults.
 It has no CLI dependency, npm scripts, package-manager selection or pnpm
 installation policy. The CLI composes this tree with its own scripts,
-dependency versions and esbuild approvals before writing it to disk.
+dependency versions and scoped release-age exceptions before writing it to disk.
 
 ### CAR: file-tree streams to a bounded offline archive
 

@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-engine",
-  "version": "0.1.0-canary-261109-2",
+  "version": "0.2.2",
   "description": "Embedded generic task engine and bounded executor pool.",
   "type": "module",
   "sideEffects": false,
@@ -33,14 +33,14 @@
     "build": "tsc -b",
     "clean": "node -e \"for (const path of ['dist', '.cache']) require('node:fs').rmSync(path, { recursive: true, force: true })\"",
     "lint": "biome lint .",
-    "test": "tsx --test \"test/*.test.ts\"",
+    "test": "tsx --test --test-concurrency=1 \"test/*.test.ts\"",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@helia/http": "catalog:",
+    "@silvermoon-work/ipfs-access": "workspace:*",
+    "@silvermoon-work/ipfs-payload": "workspace:*",
+    "@silvermoon-work/ipfs-store": "workspace:*",
     "@helia/unixfs": "catalog:",
-    "@helia/block-brokers": "catalog:",
-    "@helia/routers": "catalog:",
     "blockstore-core": "catalog:",
     "multiformats": "catalog:",
     "ipfs-unixfs-exporter": "catalog:",
@@ -52,11 +52,10 @@
     "@types/semver": "catalog:",
     "@silvermoon-work/task-sdk": "workspace:*",
     "@silvermoon-work/task-builder": "workspace:*",
-    "@silvermoon-work/task-builder-cli": "workspace:*",
-    "@potential-guide/pguide-task-bundle": "0.1.0-rc.2"
+    "@silvermoon-work/task-builder-cli": "workspace:*"
   },
   "engines": {
-    "node": ">=22.13.0"
+    "node": "^22.15.0 || >=23.5.0"
   },
   "publishConfig": {
     "access": "public",

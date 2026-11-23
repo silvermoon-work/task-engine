@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-builder-cli",
-  "version": "0.1.0-canary-261109-1",
+  "version": "0.2.1",
   "description": "Commander-based Task Builder CLI and reusable command runner.",
   "type": "module",
   "sideEffects": false,
@@ -32,7 +32,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "engines": {
-    "node": ">=22.13.0"
+    "node": ">=22.15.0"
   },
   "publishConfig": {
     "access": "public",
@@ -40,12 +40,13 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@silvermoon-work/ipfs-store": "workspace:*",
     "@silvermoon-work/task-builder": "workspace:*",
+    "@silvermoon-work/task-protocol": "workspace:*",
     "commander": "catalog:",
     "yaml": "catalog:"
   },
   "devDependencies": {
-    "@silvermoon-work/task-protocol": "workspace:*",
     "@silvermoon-work/task-sdk": "workspace:*"
   },
   "repository": {

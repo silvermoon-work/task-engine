@@ -3,13 +3,19 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
-import { reduce, type Store, type StoreView, taskSchemaUri } from "@silvermoon-work/task-protocol";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
+import {
+  assertFactsVersion,
+  reduce,
+  type Store,
+  type StoreView,
+  taskSchemaUri,
+} from "@silvermoon-work/task-protocol";
 import { createTaskEngine, newId } from "../src/index.js";
 import { MemoryIpfsClient, MemoryStore, VirtualClock } from "../src/testing.js";
 
 const caller = { scope: "composition", subject: "external-caller" };
+const envelope = (data: unknown) => ({ data, cidPaths: [] });
 async function until(check: () => boolean, milliseconds = 10_000) {
   const end = Date.now() + milliseconds;
   while (!check()) {
@@ -20,27 +26,24 @@ async function until(check: () => boolean, milliseconds = 10_000) {
 type Artifact = { cid: string; directory: string; files: ReadonlyMap<string, Buffer> };
 async function fixtures(directory: string, client: MemoryIpfsClient) {
   let next = 0;
-  async function build(code: string, child?: Artifact, resultSchema: unknown = true) {
+  async function build(
+    code: string,
+    child?: Artifact,
+    resultSchema: unknown = true,
+    shared?: Artifact,
+  ) {
     const root = join(directory, String(next++));
     await mkdir(root, { recursive: true });
     const entry = join(root, "main.ts");
     await writeFile(entry, code);
-    const resources = child
-      ? Object.fromEntries(
-          [...child.files.keys()].map((path) => [
-            `resources/child/${path}`,
-            join(child.directory, path),
-          ]),
-        )
-      : {};
-    const built = await buildTaskBundle({
+    const built = await buildBundleFixture({
       declaration: {
         $schema: taskSchemaUri,
         name: "Generic composing Task",
         runtime: { type: "node", minVersion: "22.13.0" },
         entry: "worker.cjs",
         binary: [],
-        inputSchema: {
+        parametersSchema: {
           type: "object",
           properties: { value: { type: "number" }, mode: { type: "string" } },
           required: ["value"],
@@ -51,11 +54,19 @@ async function fixtures(directory: string, client: MemoryIpfsClient) {
       },
       entry,
       outDirectory: join(root, "bundle"),
-      resources,
+      ...(child
+        ? {
+            imports: {
+              "resources/child": child.cid,
+              ...(shared ? { "resources/shared": shared.cid } : {}),
+            },
+            content: client,
+          }
+        : {}),
     });
-    const files = (await readTaskArtifact(built.car)).files;
-    const cid = await client.import(files);
-    assert.equal(cid, built.cid);
+    const files = built.files;
+    for (const [cid, bytes] of built.blocks) client.blocks.set(cid, bytes);
+    const cid = built.cid;
     return { cid, directory: built.directory, files };
   }
   const leaf = await build(
@@ -77,10 +88,18 @@ export default async (input, context) => {
 import {parentPort} from "node:worker_threads";
 import {getEventListeners} from "node:events";
 export default async (input, context) => {
- const request = {key:"one",cid:${JSON.stringify(child.cid)},path:"resources/child",input:{value:input.value,mode:input.mode||"normal"},timeoutMs:2000};
- if(input.mode==="mismatch") request.cid=context.bundle.cid;
- if(input.mode==="invalid-input") request.input.value="invalid";
- if(input.mode==="timeout") {request.input.mode="slow";request.timeoutMs=100;}
+ const request = {key:"one",bundle:context.bundle,path:"resources/child",parameters:{value:input.value,mode:input.mode||"normal"},timeoutMs:2000};
+ if(input.mode==="mismatch") request.path="resources/missing";
+ if(input.mode==="output") {
+   const cid=await context.putContent(new ReadableStream({start(c){c.enqueue(new Uint8Array([1]));c.close();}}));
+   request.bundle=cid.toString();
+   delete request.path;
+ }
+ if(input.mode==="external") {request.bundle=${JSON.stringify(child.cid)};delete request.path;}
+ if(input.mode==="legacy") return context.invokeTask({key:"old",cid:${JSON.stringify(child.cid)},path:"resources/child",input:{value:input.value},timeoutMs:2000});
+ if(input.mode==="forged") request.bundle={cid:request.bundle,path:request.path};
+ if(input.mode==="invalid-input") request.parameters.value="invalid";
+ if(input.mode==="timeout") {request.parameters.mode="slow";request.timeoutMs=100;}
  if(input.mode==="replay") {
    const [a,b]=await Promise.all([context.invokeTask(request),context.invokeTask(request)]);
    const c=await context.invokeTask(request);
@@ -91,7 +110,7 @@ export default async (input, context) => {
    let dropped=false;
    parentPort.removeAllListeners("message");
    parentPort.on("message",message=>{
-     if(message.kind==="ack"&&message.value?.value===7&&!dropped) {dropped=true;return;}
+     if(message.kind==="ack"&&message.value?.data?.value===7&&!dropped) {dropped=true;return;}
      for(const handler of handlers) handler.call(parentPort,message);
    });
    void context.invokeTask(request).catch(()=>{});
@@ -101,17 +120,17 @@ export default async (input, context) => {
    return result;
  }
  if(input.mode==="conflict") {
-   const first=context.invokeTask({...request,input:{value:1,mode:"slow"}});
-   try { await context.invokeTask({...request,input:{value:2}}); }
+   const first=context.invokeTask({...request,parameters:{value:1,mode:"slow"}});
+   try { await context.invokeTask({...request,parameters:{value:2}}); }
    finally {void first.catch(()=>{});}
  }
- if(input.mode==="concurrent") return await Promise.all([context.invokeTask({...request,key:"a",input:{value:1,mode:"slow"}}),context.invokeTask({...request,key:"b",input:{value:2,mode:"slow"}})]);
+ if(input.mode==="concurrent") return await Promise.all([context.invokeTask({...request,key:"a",parameters:{value:1,mode:"slow"}}),context.invokeTask({...request,key:"b",parameters:{value:2,mode:"slow"}})]);
  if(input.mode==="total") {
    await context.invokeTask(request);
    return await context.invokeTask({...request,key:"two"});
  }
  if(input.mode==="early-exit"||input.mode==="hard-exit") {
-   void context.invokeTask({...request,input:{value:input.value,mode:"slow"}}).catch(()=>{});
+   void context.invokeTask({...request,parameters:{value:input.value,mode:"slow"}}).catch(()=>{});
    await new Promise(resolve=>setTimeout(resolve,100));
    if(input.mode==="hard-exit") process.exit(9);
    return {early:true};
@@ -119,11 +138,13 @@ export default async (input, context) => {
  return await context.invokeTask(request);
 };`;
   const parent = await build(wrapper(leaf), leaf);
-  const nested = await build(wrapper(parent), parent);
-  return { leaf, parent, nested };
+  const externalParent = await build(wrapper(leaf));
+  const nested = await build(wrapper(parent), parent, true, leaf);
+  return { leaf, parent, nested, externalParent };
 }
 
-test("generic host-mediated child Tasks", { timeout: 30_000 }, async (t) => {
+// Budget includes native build/CAR fixtures and sequential scenarios, not child deadlines.
+test("generic host-mediated child Tasks", { timeout: 60_000 }, async (t) => {
   const directory = resolve(".cache", `composition-${randomUUID()}`);
   await mkdir(directory, { recursive: true });
   t.after(() => rm(directory, { recursive: true, force: true }));
@@ -132,14 +153,12 @@ test("generic host-mediated child Tasks", { timeout: 30_000 }, async (t) => {
   async function run(
     body: (engine: ReturnType<typeof createTaskEngine>, store: MemoryStore) => Promise<void>,
     extra: Partial<Parameters<typeof createTaskEngine>[0]> = {},
-    enableComposition = true,
   ) {
     const store = new MemoryStore();
     const engine = createTaskEngine({
       store,
       ipfsClient: client,
       authorize: () => true,
-      ...(enableComposition ? { authorizeChild: () => true } : {}),
       limits: {
         maxConcurrent: 1,
         maxChildConcurrent: 1,
@@ -182,7 +201,7 @@ test("generic host-mediated child Tasks", { timeout: 30_000 }, async (t) => {
       const id = await submit(engine, artifacts.nested.cid);
       const task = await settled(engine, id);
       assert.equal(task.stage, "completed", JSON.stringify(task));
-      assert.deepEqual(task.result, { value: 7 });
+      assert.deepEqual(task.result, envelope({ value: 7 }));
       assert.equal(Object.values(store.read().facts.tasks).length, 3);
       assert.deepEqual(
         Object.values(store.read().facts.submissions)
@@ -198,11 +217,24 @@ test("generic host-mediated child Tasks", { timeout: 30_000 }, async (t) => {
       const id = await submit(engine, artifacts.parent.cid, "replay");
       const task = await settled(engine, id);
       assert.equal(task.stage, "completed", JSON.stringify(task));
-      assert.deepEqual(task.result, { a: { value: 7 }, b: { value: 7 }, c: { value: 7 } });
+      assert.deepEqual(
+        task.result,
+        envelope({ a: { value: 7 }, b: { value: 7 }, c: { value: 7 } }),
+      );
       assert.equal(
         Object.values(store.read().facts.submissions).filter((record) => record.composition).length,
         1,
       );
+      const child = Object.values(store.read().facts.submissions).find(
+        (record) => record.composition,
+      )!;
+      assert.equal(child.composition!.targetCid, artifacts.leaf.cid);
+      assert.equal(child.request.bundle, child.composition!.targetCid);
+      assert.deepEqual(child.composition!.source, {
+        cid: artifacts.parent.cid,
+        path: "resources/child",
+      });
+      assert.ok(Date.parse(child.composition!.deadlineAt) <= Date.parse(task.deadlineAt));
     }),
   );
   await t.test("actual dropped IPC reply retries by original key without duplicate admission", () =>
@@ -210,12 +242,41 @@ test("generic host-mediated child Tasks", { timeout: 30_000 }, async (t) => {
       const id = await submit(engine, artifacts.parent.cid, "lost-response");
       const task = await settled(engine, id);
       assert.equal(task.stage, "completed", JSON.stringify(task));
-      assert.deepEqual(task.result, { value: 7 });
+      assert.deepEqual(task.result, envelope({ value: 7 }));
       assert.equal(
         Object.values(store.read().facts.submissions).filter((record) => record.composition).length,
         1,
       );
     }),
+  );
+  await t.test(
+    "prepared imported static closure runs after its source is disconnected",
+    async () => {
+      let activeStore: MemoryStore | undefined;
+      let offlineReads = 0;
+      const source = {
+        block: {
+          get: async (cid: string, options?: { signal?: AbortSignal }) => {
+            if (activeStore && Object.keys(activeStore.read().facts.runs).length) {
+              offlineReads++;
+              throw new Error("Source disconnected after static preparation.");
+            }
+            return client.block.get(cid, options);
+          },
+        },
+      };
+      await run(
+        async (engine, store) => {
+          activeStore = store;
+          const task = await settled(engine, await submit(engine, artifacts.nested.cid));
+          assert.equal(task.stage, "completed", JSON.stringify(task));
+          assert.deepEqual(task.result, envelope({ value: 7 }));
+          assert.equal(Object.keys(store.read().facts.runs).length, 3);
+          assert.equal(offlineReads, 0);
+        },
+        { ipfsClient: source },
+      );
+    },
   );
   await t.test(
     "completed parent restart preserves proof without reauthorizing historical children",
@@ -226,6 +287,11 @@ test("generic host-mediated child Tasks", { timeout: 30_000 }, async (t) => {
         await engine.waitForTaskRelease(id, caller);
         await engine.close();
         const before = store.read();
+        const legacy = structuredClone(before.facts);
+        const oldChild = Object.values(legacy.submissions).find((record) => record.composition)!;
+        Reflect.deleteProperty(oldChild.composition!, "invocationVersion");
+        assert.throws(() => assertFactsVersion(legacy), { code: "unsupported_version" });
+        assert.deepEqual(store.read().facts, before.facts);
         const errors: unknown[] = [];
         const restored = createTaskEngine({
           store,
@@ -249,6 +315,9 @@ test("generic host-mediated child Tasks", { timeout: 30_000 }, async (t) => {
   );
   for (const [mode, code] of [
     ["mismatch", "invalid_bundle"],
+    ["output", "invalid_bundle"],
+    ["legacy", "invalid_request"],
+    ["forged", "invalid_request"],
     ["invalid-input", "invalid_input"],
     ["invalid-result", "invalid_input"],
     ["conflict", "idempotency_conflict"],
@@ -262,16 +331,15 @@ test("generic host-mediated child Tasks", { timeout: 30_000 }, async (t) => {
         assert.equal(task.error?.code, code, JSON.stringify(task));
       }),
     );
-  await t.test("authorization is host-owned and denied by default", () =>
-    run(
-      async (engine, store) => {
-        const task = await settled(engine, await submit(engine, artifacts.parent.cid));
-        assert.equal(task.error?.code, "forbidden", JSON.stringify(task));
-        assert.equal(Object.keys(store.read().facts.tasks).length, 1);
-      },
-      {},
-      false,
-    ),
+  await t.test("external CID starts an independent child without authorizeChild", () =>
+    run(async (engine, store) => {
+      const task = await settled(
+        engine,
+        await submit(engine, artifacts.externalParent.cid, "external"),
+      );
+      assert.equal(task.stage, "completed", JSON.stringify(task));
+      assert.equal(Object.keys(store.read().facts.tasks).length, 2);
+    }, {}),
   );
   for (const quota of ["depth", "total"])
     await t.test(`${quota} quota is bounded`, () =>
@@ -370,7 +438,6 @@ test("generic host-mediated child Tasks", { timeout: 30_000 }, async (t) => {
         store,
         ipfsClient: client,
         authorize: () => true,
-        authorizeChild: () => true,
         limits: { stopGraceMs: 50, forceExitWaitMs: 1000 },
       });
       await engine.start();
@@ -403,10 +470,6 @@ test("generic host-mediated child Tasks", { timeout: 30_000 }, async (t) => {
       const source = {
         block: {
           async get(cid: string, options?: { signal?: AbortSignal }) {
-            if (cid === artifacts.leaf.cid && Object.keys(store.read().facts.runs).length) {
-              held = true;
-              await gate;
-            }
             return client.block.get(cid, options);
           },
         },
@@ -415,7 +478,15 @@ test("generic host-mediated child Tasks", { timeout: 30_000 }, async (t) => {
         store,
         ipfsClient: source,
         authorize: () => true,
-        authorizeChild: () => true,
+        bundlePreparation: {
+          acquire: async () => {
+            if (Object.keys(store.read().facts.runs).length) {
+              held = true;
+              await gate;
+            }
+            return () => {};
+          },
+        },
       });
       await engine.start();
       try {
@@ -452,13 +523,16 @@ test("generic host-mediated child Tasks", { timeout: 30_000 }, async (t) => {
         await readFile(join(directory, "crash-facts.json"), "utf8"),
       ) as StoreView;
       let owner: string | undefined;
+      const content = new MemoryStore();
       const store: Store = {
         claim(id) {
+          content.claim(id);
           owner = id;
         },
         release(id) {
           assert.equal(id, owner);
           owner = undefined;
+          content.release(id);
         },
         read: () => structuredClone(snapshot),
         append(id, watermark, events) {
@@ -478,14 +552,18 @@ test("generic host-mediated child Tasks", { timeout: 30_000 }, async (t) => {
         compact() {
           throw new Error("Not required.");
         },
-        close() {},
+        readContentBlock: content.readContentBlock.bind(content),
+        writeContentBlock: content.writeContentBlock.bind(content),
+        retainRunContent: content.retainRunContent.bind(content),
+        readRunContentRoots: content.readRunContentRoots.bind(content),
+        readRunContentAccess: content.readRunContentAccess.bind(content),
+        close: () => content.close(),
       };
       const errors: unknown[] = [];
       const engine = createTaskEngine({
         store,
         ipfsClient: client,
         authorize: () => true,
-        authorizeChild: () => true,
         limits: { childCleanupMs: 50 },
         onError: (error) => errors.push(error),
       });

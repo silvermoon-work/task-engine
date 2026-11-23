@@ -12,6 +12,7 @@ import { createTaskEngine, newId } from "../src/index.js";
 import { MemoryIpfsClient, MemoryStore } from "../src/testing.js";
 import { TypeSupervisor, type RunOutcomeReport, type TypeChannel } from "../src/type-supervisor.js";
 
+const envelope = (data: unknown) => ({ data, cidPaths: [] as string[] });
 const object = { type: "object" };
 const text = {
   type: "object",
@@ -25,7 +26,7 @@ const declaration = {
   runtime: { type: "node", minVersion: "22.13.0" },
   entry: "worker.cjs",
   binary: [],
-  inputSchema: object,
+  parametersSchema: object,
   resultSchema: text,
   messageSchema: false,
 };
@@ -57,7 +58,7 @@ async function compile(directory: string, source: string, schemas: Record<string
       entry: relative(repository, entry).split(sep).join("/"),
       mode: "explicit",
       contract: {
-        input: contract.inputSchema,
+        parameters: contract.parametersSchema,
         result: contract.resultSchema,
         message: contract.messageSchema,
       },
@@ -77,6 +78,198 @@ async function compile(directory: string, source: string, schemas: Record<string
   return { contents, resolved, cid };
 }
 type Built = Awaited<ReturnType<typeof compile>>;
+
+test("ESM entry preserves Builder URLs, builtin require and per-Run isolation", async () => {
+  await fixture(async (directory) => {
+    const built = await compile(
+      directory,
+      `import {runTask} from "@silvermoon-work/task-sdk";
+const state = globalThis;
+state.moduleEvaluations = (state.moduleEvaluations ?? 0) + 1;
+runTask(async () => {
+  let ipfsResolve;
+  try { ipfsResolve = require.resolve(__filename); } catch (error) { ipfsResolve = error.code; }
+  return {
+    url: import.meta.url, filename: __filename, dirname: __dirname,
+    require: typeof require, cache: typeof require.cache,
+    resolve: require.resolve("node:path"), paths: typeof require.resolve.paths,
+    module: typeof module,
+    evaluations: state.moduleEvaluations,
+    ipfsResolve: ipfsResolve === __filename || ipfsResolve === "MODULE_NOT_FOUND",
+    builtin: typeof require("node:crypto").createHash,
+    options: process.env.NODE_OPTIONS ?? null, sourceVisible: "bundleSource" in require("node:worker_threads").workerData
+  };
+});`,
+      { resultSchema: true },
+    );
+    const expected = {
+      url: `ipfs://${built.cid}/main.mjs`,
+      filename: `ipfs://${built.cid}/main.mjs`,
+      dirname: `ipfs://${built.cid}`,
+      require: "function",
+      cache: "object",
+      resolve: "node:path",
+      paths: "function",
+      module: "undefined",
+      evaluations: 1,
+      ipfsResolve: true,
+      builtin: "function",
+      options: process.env.NODE_OPTIONS ?? null,
+      sourceVisible: false,
+    };
+    const runs = await Promise.all([supervise(built, {}), supervise(built, {})]);
+    for (const observed of runs)
+      assert.deepEqual(observed?.outcomes, [{ kind: "completed", result: envelope(expected) }]);
+  });
+});
+
+test("IPFS module hook rejects non-entry addresses without disclosing credentials", async () => {
+  await fixture(async (directory) => {
+    const built = await compile(
+      directory,
+      `import {runTask} from "@silvermoon-work/task-sdk";
+runTask(async () => {
+  const cid = new URL(import.meta.url).hostname;
+  const requests = [
+    "ipfs://" + cid + "/resources/data.js",
+    "ipfs://bafybeigdyrzt5sfp7udm7hu76u7cnngv7cbd3gbta6ipjcnpf7bh6zyvle/worker.cjs",
+    "ipfs://invalid/worker.cjs", "ipfs://user:secret@" + cid + "/worker.cjs",
+    "ipfs://" + cid + "/other/../worker.cjs",
+    "ipfs://" + cid + "/%77orker.cjs",
+    "ipfs://" + cid + "/%2e%2e/worker.cjs",
+    "ipfs://" + cid + "/worker.cjs?query",
+    "ipfs://" + cid + "/worker.cjs#fragment",
+    "ipfs://" + cid + "/worker.cjs?", "ipfs://" + cid + "/worker.cjs#",
+    "ipfs://" + cid + "/worker.cjs/extra",
+    "./resources/data.js", "file:///host-secret.cjs", "https://user:secret@host/code.js",
+    "unbundled-package"
+  ];
+  return requests.map(request => {
+    try { Reflect.apply(require, undefined, [request]); return {loaded: true}; }
+    catch (error) { return {code: error.code, message: error.message}; }
+  });
+});`,
+      { resultSchema: true },
+    );
+    const observed = await supervise(built, {});
+    const outcome = observed?.outcomes[0];
+    const result =
+      outcome?.kind === "completed" &&
+      outcome.result &&
+      typeof outcome.result === "object" &&
+      !Array.isArray(outcome.result) &&
+      "data" in outcome.result
+        ? (outcome.result as { data: unknown }).data
+        : undefined;
+    assert.ok(Array.isArray(result));
+    assert.equal(result.length, 16);
+    for (const error of result) {
+      assert.ok(error && typeof error === "object" && !Array.isArray(error));
+      assert.equal(error.code, "unsupported_module");
+      assert.ok(typeof error.message === "string");
+      assert.match(error.message, new RegExp(`ipfs://${built.cid}/main.mjs`));
+      assert.doesNotMatch(error.message, /secret|host-secret|user:/);
+    }
+    const local = new URL("./isolated-type.mjs", import.meta.url).href;
+    assert.equal(
+      typeof (await import(local)).createType,
+      "function",
+      "host local loading is unchanged",
+    );
+  });
+});
+
+test("IPFS module lifecycle logs, cancels and confirms physical exit without inventing cleanup proof", async () => {
+  await fixture(async (directory) => {
+    const built = await compile(
+      directory,
+      `import {runTask} from "@silvermoon-work/task-sdk";
+runTask(async (input, context) => {
+  await context.log({level: "info", message: "IPFS entry loaded"});
+  await context.progress({stage: "execution", message: "ready"});
+  if (input.blocked) { for (;;) {} }
+  await new Promise(resolve => context.signal.addEventListener("abort", resolve, {once: true}));
+  return {cancelled: context.signal.aborted};
+});`,
+      { resultSchema: true },
+    );
+    for (const blocked of [false, true]) {
+      const progress: Json[] = [],
+        logs: string[] = [],
+        outcomes: RunOutcomeReport[] = [];
+      let exited = false,
+        released = false;
+      let loss: string | undefined;
+      const supervisor = new TypeSupervisor(
+        {
+          type: built.cid,
+          version: "1",
+          environment: "ipfs-lifecycle",
+          ...built.resolved,
+          bundle: { cid: built.cid, declaration: built.resolved },
+          module: `ipfs://${built.cid}/${built.resolved.entry}`,
+          exportName: "",
+          configuration: null,
+          getBundleSource: () => built.contents.get(built.resolved.entry)!.toString(),
+        },
+        {
+          async progress(_run, value) {
+            progress.push(value);
+          },
+          log(_run, _generation, _scope, value) {
+            logs.push(value.message);
+            return { state: "unavailable", reason: "disabled" };
+          },
+          async complete() {},
+          async failed() {},
+          async confirm() {},
+          async outcome(_run, value) {
+            outcomes.push(value);
+          },
+          async exited() {
+            exited = true;
+          },
+          released() {
+            assert.equal(exited, true);
+            released = true;
+          },
+          lost(_runs, error) {
+            loss = error.code;
+          },
+        },
+        {
+          heartbeatMs: 20,
+          healthMs: 5000,
+          maxInFlight: 8,
+          maxPayloadBytes: 65536,
+          stopGraceMs: 1000,
+          forceExitWaitMs: 1000,
+        },
+      );
+      try {
+        await supervisor.run("run", { blocked }, "scope");
+        await until(() => progress.length === 1);
+        assert.deepEqual(logs, ["IPFS entry loaded"]);
+        if (blocked) {
+          const exit = await supervisor.forceTerminate("run");
+          assert.equal(exit.forced, true);
+        } else supervisor.cancel("run");
+        await until(() => released || loss !== undefined);
+        assert.equal(exited, true);
+        assert.equal(loss, blocked ? "reclamation_unknown" : undefined);
+        assert.equal(released, !blocked);
+        assert.equal(supervisor.canRoute("run"), false);
+        if (!blocked)
+          assert.deepEqual(outcomes, [
+            { kind: "completed", result: envelope({ cancelled: true }) },
+          ]);
+      } finally {
+        await supervisor.close();
+      }
+    }
+  });
+});
+
 async function supervise(
   built: Built,
   input: Json,
@@ -127,10 +320,7 @@ async function supervise(
       module: "",
       exportName: "",
       configuration: {},
-      getBundleSource: () => built.contents.get("worker.cjs")!.toString(),
-      async readBundle() {
-        throw new Error("No resources in this fixture.");
-      },
+      getBundleSource: () => built.contents.get(built.resolved.entry)!.toString(),
     },
     channel,
     { heartbeatMs: 20, healthMs: 5000, maxInFlight: 8, maxPayloadBytes: 65536 },
@@ -186,7 +376,7 @@ for (const scenario of precompileCases)
             ? 'import {runTask} from "@silvermoon-work/task-sdk"; runTask(async (_input, context) => {for await(const message of context.messages){await message.accept();return message.payload;}return null;});'
             : 'import {runTask} from "@silvermoon-work/task-sdk"; runTask(async input => input.value);',
           {
-            inputSchema: role === "input" ? boxed : object,
+            parametersSchema: role === "input" ? boxed : object,
             resultSchema: role === "result" ? scenario.schema : true,
             messageSchema: role === "message" ? scenario.schema : false,
           },
@@ -197,7 +387,7 @@ for (const scenario of precompileCases)
             { value: value as Json },
             role === "message" ? (value as Json) : undefined,
           );
-          assert.deepEqual(observed?.outcomes, [{ kind: "completed", result: value }]);
+          assert.deepEqual(observed?.outcomes, [{ kind: "completed", result: envelope(value) }]);
         }
         for (const value of scenario.bad) {
           const observed = await supervise(
@@ -221,8 +411,6 @@ for (const scenario of precompileCases)
 
 for (const mode of [
   "result",
-  "checkpoint",
-  "swallowed-checkpoint",
   "failure-evidence",
   "valid-evidence",
   "malformed-json",
@@ -233,15 +421,11 @@ for (const mode of [
   "deep-result",
   "uncloneable-result",
   "uncloneable-evidence",
-  "swallowed-uncloneable-checkpoint",
 ])
   test(`real Engine persists only validated output and reclaims the Worker: ${mode}`, async () => {
     await fixture(async (directory) => {
       const code = {
         result: "return {text: 1};",
-        checkpoint: 'await context.checkpoint({text: 1}); return {text: "valid"};',
-        "swallowed-checkpoint":
-          'try {await context.checkpoint({text: 1});} catch {} return {text: "valid"};',
         "failure-evidence": 'throw new RunFailure("business", "business failure", {text: 1});',
         "valid-evidence":
           'throw new RunFailure("business", "business failure", {text: "evidence"});',
@@ -255,8 +439,6 @@ for (const mode of [
         "uncloneable-result": "return {text:()=>{}};",
         "uncloneable-evidence":
           'throw new RunFailure("business", "business failure", {text:()=>{}});',
-        "swallowed-uncloneable-checkpoint":
-          'try {await context.checkpoint({text:()=>{}});} catch {} return {text:"valid"};',
       }[mode]!;
       const built = await compile(
         directory,
@@ -309,7 +491,8 @@ for (const mode of [
         assert.ok(run.exit);
         assert.equal(run.cleanupUnknown, undefined);
         assert.ok(run.reclaimedAt);
-        if (mode === "valid-evidence") assert.deepEqual(task.result, { text: "evidence" });
+        if (mode === "valid-evidence")
+          assert.deepEqual(task.result, { data: { text: "evidence" }, cidPaths: [] });
         else assert.equal(task.result, undefined);
         const persisted = store.read().facts.runs[runId]!;
         assert.notDeepEqual(persisted.result, { text: 1 });
@@ -355,7 +538,7 @@ runTask(async(input,context)=>{
  }
  return input;
 });`,
-      { inputSchema: text, messageSchema: text },
+      { parametersSchema: text, messageSchema: text },
     );
     const client = new MemoryIpfsClient(),
       store = new MemoryStore();
@@ -390,7 +573,7 @@ runTask(async(input,context)=>{
       await until(() => engine.getTask(id, caller).stage === "completed");
       const task = engine.getTask(id, caller);
       await until(() => !!engine.getRun(task.run!.runId, caller).reclaimedAt);
-      assert.deepEqual(task.result, { text: "message" });
+      assert.deepEqual(task.result, { data: { text: "message" }, cidPaths: [] });
       assert.equal(await readFile(marker, "utf8"), "callback\nmessage\n");
     } finally {
       await engine.close();
@@ -399,34 +582,22 @@ runTask(async(input,context)=>{
   });
 });
 
-for (const oversized of [false, true])
-  test(`host remembers a rejected ${oversized ? "oversized" : "schema-invalid"} checkpoint even if a custom Worker ignores its ACK`, async () => {
-    await fixture(async (directory) => {
-      const built = await compile(
-        directory,
-        `
+test("Bundle host explicitly rejects a Worker without the content protocol handshake", async () => {
+  await fixture(async (directory) => {
+    const built = await compile(
+      directory,
+      `
 import {parentPort,workerData} from "node:worker_threads";
 const {generation,bundle}=workerData;
-parentPort.postMessage({generation,kind:"ready",value:{$schema:bundle.declaration.$schema,cid:bundle.cid,inputSchema:bundle.declaration.inputSchema,resultSchema:bundle.declaration.resultSchema,messageSchema:bundle.declaration.messageSchema}});
+parentPort.postMessage({generation,kind:"ready",value:{$schema:bundle.declaration.$schema,cid:bundle.cid,parametersSchema:bundle.declaration.parametersSchema,resultSchema:bundle.declaration.resultSchema,messageSchema:bundle.declaration.messageSchema}});
 parentPort.on("message",m=>{
- if(m.kind==="run")parentPort.postMessage({generation,runId:m.runId,id:1,kind:"checkpoint",value:{text:${oversized ? '"x".repeat(65536)' : "1"}}});
- if(m.kind==="ack"&&m.id===1)parentPort.postMessage({generation,runId:"run",id:2,kind:"complete",value:{text:"valid"}});
- if(m.kind==="ack"&&m.id===2){parentPort.postMessage({generation,runId:"run",kind:"released"});parentPort.close();}
+ if(m.kind==="run")throw Error("Legacy Worker must not be dispatched");
 });
 `,
-      );
-      const result = await supervise(built, {});
-      assert.deepEqual(result?.checkpoints, []);
-      assert.deepEqual(result?.outcomes, [
-        {
-          kind: "failed",
-          error: oversized
-            ? { code: "payload_too_large", message: "JSON payload exceeds byte limit." }
-            : { code: "invalid_input", message: "Input does not satisfy inputSchema." },
-        },
-      ]);
-    });
+    );
+    await assert.rejects(supervise(built, {}), { code: "unsupported_contract" });
   });
+});
 
 test("Engine rejects diagnostic and progress payloads through ACK without poisoning later log IDs", async () => {
   await fixture(async (directory) => {
@@ -453,10 +624,10 @@ test("Engine rejects diagnostic and progress payloads through ACK without poison
     assert.deepEqual(result?.outcomes, [
       {
         kind: "completed",
-        result: {
+        result: envelope({
           codes: ["invalid_payload", "invalid_log", "invalid_log"],
           receipt: { state: "unavailable", reason: "disabled" },
-        },
+        }),
       },
     ]);
     const progress = await compile(

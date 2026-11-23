@@ -1,0 +1,106 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Gateway 浏览器回放</title>
+<h1>Gateway 浏览器回放</h1>
+<p>调用 runGatewayChecks({publicUrl, tokenUrl, token})；结果不包含 token。</p>
+<pre id="result">等待执行</pre>
+<script>
+  async function runGatewayChecks({ publicUrl, tokenUrl, token }) {
+    const assert = (condition, message) => {
+      if (!condition) throw new Error(message);
+    };
+    const path = "/ipfs/%62afkqabtimvwgy3yk?format=raw";
+    const result = { origin: location.origin, userAgent: navigator.userAgent };
+    const profiles = [["public", publicUrl, {}]];
+    if (tokenUrl)
+      profiles.push(["token", tokenUrl, { Authorization: `Bearer ${token}` }]);
+    for (const [name, url, headers] of profiles) {
+      const read = (suffix = path, extra = {}) =>
+        fetch(url + suffix, {
+          credentials: "omit",
+          cache: "no-store",
+          ...extra,
+          headers: { ...headers, ...extra.headers },
+        });
+      const response = await read();
+      const etag = response.headers.get("etag");
+      assert(
+        response.status === 200 && (await response.text()) === "hello\n",
+        `${name}: raw`,
+      );
+      assert(etag === '"bafkqabtimvwgy3yk.raw"', `${name}: exposed ETag`);
+      assert(
+        response.headers.get("x-ipfs-roots") === "bafkqabtimvwgy3yk",
+        `${name}: roots`,
+      );
+      assert(
+        response.headers.get("content-disposition").startsWith("attachment;"),
+        `${name}: attachment`,
+      );
+      const head = await read(path, { method: "HEAD" });
+      assert(
+        head.status === 200 && (await head.arrayBuffer()).byteLength === 0,
+        `${name}: HEAD`,
+      );
+      const cached = await read(path, { headers: { "If-None-Match": etag } });
+      assert(
+        cached.status === 304 && (await cached.arrayBuffer()).byteLength === 0,
+        `${name}: 304`,
+      );
+      const car = await read("/ipfs/bafkqaaa?format=car");
+      assert(
+        car.status === 200 && (await car.arrayBuffer()).byteLength === 26,
+        `${name}: CAR`,
+      );
+      const named = await read(
+        "/ipfs/%62afkqabtimvwgy3yk?filename=%E4%BB%BB%20%E5%8A%A1.bin",
+        {
+          headers: {
+            Accept:
+              "application/vnd.ipld.raw;q=1, application/vnd.ipld.car;q=0.1",
+          },
+        },
+      );
+      assert(
+        named.status === 200 && (await named.text()) === "hello\n",
+        `${name}: weighted Accept`,
+      );
+      assert(
+        named.headers
+          .get("content-disposition")
+          .includes("UTF-8''%E4%BB%BB%20%E5%8A%A1.bin"),
+        `${name}: filename`,
+      );
+      result[name] = {
+        status: 200,
+        text: "hello\n",
+        etag,
+        head: 200,
+        conditional: 304,
+        carBytes: 26,
+        encodedPath: true,
+        filename: true,
+        headersReadable: true,
+      };
+    }
+    if (tokenUrl) {
+      const denied = await fetch(tokenUrl + path, { credentials: "omit" });
+      assert(denied.status === 401, "unauthorized status must remain readable");
+      result.unauthorized = denied.status;
+    }
+    let blocked = false;
+    try {
+      await fetch(publicUrl + path, { credentials: "include" });
+    } catch {
+      blocked = true;
+    }
+    assert(blocked, "cookie-enabled CORS must be blocked");
+    result.cookiesBlocked = blocked;
+    document.getElementById("result").textContent = JSON.stringify(
+      result,
+      null,
+      2,
+    );
+    return result;
+  }
+</script>

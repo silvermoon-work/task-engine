@@ -43,7 +43,7 @@ export async function harness(
     resources?: string[];
     prepare?: LifecycleFixture<JsonObject>["prepare"];
     validateResult?: LifecycleFixture<JsonObject>["validateResult"];
-    inputSchema?: LifecycleFixture<JsonObject>["inputSchema"];
+    parametersSchema?: LifecycleFixture<JsonObject>["parametersSchema"];
     authorize?: Authorize;
   } = {},
 ) {
@@ -86,7 +86,7 @@ export async function harness(
     type: "echo",
     version: "1",
     environment: "js-v1",
-    inputSchema: options.inputSchema ?? echoSchema,
+    parametersSchema: options.parametersSchema ?? echoSchema,
     prepare: async (input, options_) => {
       prepares++;
       return options.prepare ? options.prepare(input, options_) : input;
@@ -99,7 +99,7 @@ export async function harness(
   const sum: LifecycleFixture<JsonObject> = {
     ...type,
     type: "sum",
-    inputSchema: {
+    parametersSchema: {
       type: "object",
       properties: { values: { type: "array", items: { type: "number" } } },
       required: ["values"],
@@ -122,8 +122,35 @@ export async function harness(
   });
   await engine.start();
   function submit(extra: JsonObject = {}) {
+    const keys = new Set([
+      "requestId",
+      "type",
+      "timeoutMs",
+      "eligibleAt",
+      "seriesId",
+      "matchPolicy",
+      "parameters",
+      "recurrence",
+      "executionMatch",
+    ]);
+    const data: JsonObject = { text: "hello" };
+    const rest: JsonObject = {};
+    for (const [key, value] of Object.entries(extra)) {
+      if (keys.has(key)) rest[key] = value;
+      else data[key] = value as Json;
+    }
+    if (Object.hasOwn(extra, "text") && extra.text === undefined) {
+      delete data.text;
+      Object.assign(rest, { text: undefined });
+    }
     return engine.submit(
-      { requestId: newId(clock.now()), type: "echo", text: "hello", timeoutMs: 100, ...extra },
+      {
+        requestId: newId(clock.now()),
+        type: "echo",
+        timeoutMs: 100,
+        parameters: extra.parameters ?? { data, cidPaths: [] },
+        ...rest,
+      },
       caller,
     );
   }

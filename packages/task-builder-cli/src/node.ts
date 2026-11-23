@@ -1,9 +1,9 @@
 import { constants } from "node:fs";
 import { mkdir, open, readdir, realpath, rmdir, stat, unlink } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
-import { Readable } from "node:stream";
 import {
   checkTreePath,
+  iteratorStream,
   listTree,
   streamChunks,
   treeError,
@@ -97,12 +97,47 @@ export async function directoryTree(directory: string): Promise<ReadonlyFileTree
       if (!(await stat(target)).isFile())
         throw treeError("EISDIR", path, "Expected a regular file");
       const handle = await open(target, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
-      return Readable.toWeb(
-        handle.createReadStream({
-          highWaterMark: 65_536,
-          ...(options.signal ? { signal: options.signal } : {}),
-        }),
-      );
+      const before = await handle.stat({ bigint: true });
+      async function* chunks() {
+        let position = 0;
+        try {
+          for (;;) {
+            options.signal?.throwIfAborted();
+            const buffer = Buffer.alloc(65_536);
+            const { bytesRead } = await handle.read(buffer, 0, buffer.length, position);
+            if (!bytesRead) break;
+            position += bytesRead;
+            yield buffer.subarray(0, bytesRead);
+          }
+          const after = await handle.stat({ bigint: true });
+          const currentHandle = await open(
+            await locate(path),
+            constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0),
+          );
+          try {
+            // Node 22 on Windows reports different devices for path and handle stats.
+            const current = await currentHandle.stat({ bigint: true });
+            if (
+              [after, current].some(
+                (value) =>
+                  value.dev !== before.dev ||
+                  value.ino !== before.ino ||
+                  value.size !== before.size ||
+                  value.mtimeNs !== before.mtimeNs ||
+                  value.ctimeNs !== before.ctimeNs,
+              )
+            )
+              throw treeError("INPUT_CHANGED", path, "Input changed while being read");
+          } finally {
+            await currentHandle.close();
+          }
+        } finally {
+          await handle.close();
+        }
+      }
+      return iteratorStream(chunks(), options, async () => {
+        await handle.close();
+      });
     },
   });
 }

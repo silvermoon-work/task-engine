@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@silvermoon-work/task-engine-cli": "0.1.0-canary-261110-2"
+  }
+}

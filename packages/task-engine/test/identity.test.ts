@@ -27,8 +27,12 @@ test("public identity resolves in a fresh native process with only Node builtin 
   return nextResolve(specifier, context);
 }`;
   const source = `import assert from "node:assert/strict";
-import { register } from "node:module";
-register(${JSON.stringify(`data:text/javascript,${encodeURIComponent(loader)}`)}, import.meta.url);
+import * as module from "node:module";
+if (typeof module.registerHooks === "function") {
+  module.registerHooks({resolve:${loader.replace("export ", "")}});
+} else {
+  module.register(${JSON.stringify(`data:text/javascript,${encodeURIComponent(loader)}`)}, import.meta.url);
+}
 const identity = await import("@silvermoon-work/task-engine/identity");
 assert.deepEqual(Object.keys(identity), ["newId"]);
 const id = identity.newId(1700000000123);

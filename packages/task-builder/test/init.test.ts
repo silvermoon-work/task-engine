@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
+import { execFileSync, spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 import test from "node:test";
-import { execFileSync } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { parse } from "yaml";
 import { createTaskProject } from "../src/init.js";
 import { memoryTree, readBytes } from "../src/tree.js";
 
@@ -9,17 +13,31 @@ test("init returns a deterministic owned task template without CLI or package-ma
   const tree = createTaskProject({ name: "@example/echo" });
   assert.deepEqual(
     (await tree.list("")).map(({ name }) => name),
-    [".gitignore", "assets", "package.json", "src", "task.build.yaml"],
+    [".gitignore", "assets", "package.json", "src", "task.build.yaml", "tsconfig.json"],
   );
   const bytes = await readBytes(tree, "package.json", 65_536);
   const manifest = JSON.parse(Buffer.from(bytes).toString());
   assert.equal(manifest.name, "@example/echo");
   assert.equal(manifest.private, true);
-  assert.equal(manifest.devDependencies, undefined);
+  assert.deepEqual(manifest.devDependencies, {
+    "@types/node": "22.20.5",
+    typescript: "5.9.3",
+  });
   const sdkManifest = JSON.parse(
     await readFile(new URL("../../task-sdk/package.json", import.meta.url), "utf8"),
   );
-  assert.deepEqual(manifest.dependencies, { "@silvermoon-work/task-sdk": sdkManifest.version });
+  assert.deepEqual(manifest.dependencies, {
+    "@silvermoon-work/task-sdk": sdkManifest.version,
+    "@sinclair/typebox": "0.34.52",
+  });
+  const candidate = createTaskProject({ name: "@example/echo", sdkVersion: "^1.2.3" });
+  const candidateManifest = JSON.parse(
+    Buffer.from(await readBytes(candidate, "package.json", 65_536)).toString(),
+  );
+  assert.deepEqual(candidateManifest.dependencies, {
+    "@silvermoon-work/task-sdk": "^1.2.3",
+    "@sinclair/typebox": "0.34.52",
+  });
   assert.match(
     Buffer.from(await readBytes(tree, "src/main.ts", 65_536)).toString(),
     /import \{ runTask \} from "@silvermoon-work\/task-sdk"/,
@@ -36,6 +54,136 @@ test("init returns a deterministic owned task template without CLI or package-ma
   assert.deepEqual(await readBytes(tree, "assets/greeting.txt", 6), Buffer.from("Hello\n"));
 });
 
+test("default template typechecks against its declared SDK and derives usable contract types", async () => {
+  const root = resolve(".cache", `init-types-${randomUUID()}`);
+  const tree = createTaskProject();
+  try {
+    for (const path of [
+      "package.json",
+      "tsconfig.json",
+      "src/contract.ts",
+      "src/helper.ts",
+      "src/main.ts",
+    ]) {
+      const target = join(root, path);
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, await readBytes(tree, path, 65_536));
+    }
+    const sdk = join(root, "node_modules", "@silvermoon-work", "task-sdk");
+    await mkdir(sdk, { recursive: true });
+    for (const path of ["package.json", "dist"])
+      await cp(new URL(`../../task-sdk/${path}`, import.meta.url), join(sdk, path), {
+        recursive: true,
+      });
+    const manifest = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+    const sdkManifest = JSON.parse(await readFile(join(sdk, "package.json"), "utf8"));
+    assert.equal(
+      manifest.dependencies[sdkManifest.name],
+      sdkManifest.version,
+      "The default template must declare the SDK used to validate its Worker, not an older release.",
+    );
+    await writeFile(
+      join(root, "src/types.test.ts"),
+      `import type { Parameters, Result } from "./contract.js";
+const input: Parameters = { text: "hello" };
+const result: Result = { text: input.text, bytes: 6, chunks: 1 };
+const text: string = result.text;
+const bytes: number = result.bytes;
+const chunks: number = result.chunks;
+// @ts-expect-error shared text must not infer as unknown or any
+const badInput: Parameters = { text: 123 };
+// @ts-expect-error shared result text must be a string
+const badText: Result = { text: 123, bytes: 6, chunks: 1 };
+// @ts-expect-error result byte count must be numeric
+const badBytes: Result = { text: "hello", bytes: "6", chunks: 1 };
+// @ts-expect-error result chunk count is required
+const missingChunks: Result = { text: "hello", bytes: 6 };
+// @ts-expect-error input properties are explicit
+const extraInput: Parameters = { text: "hello", extra: true };
+`,
+    );
+    const typecheck = () =>
+      spawnSync(
+        process.execPath,
+        [
+          fileURLToPath(import.meta.resolve("typescript/bin/tsc")),
+          "--project",
+          "tsconfig.json",
+          "--pretty",
+          "false",
+          "--listFiles",
+        ],
+        { cwd: root, encoding: "utf8" },
+      );
+    const valid = typecheck();
+    assert.equal(valid.status, 0, `${valid.stdout}\n${valid.stderr}`);
+    assert.ok(
+      valid.stdout
+        .replaceAll("\\", "/")
+        .split(/\r?\n/)
+        .includes(join(sdk, "dist", "index.d.ts").replaceAll("\\", "/")),
+      "The Worker must resolve the fixture-local SDK instead of an ancestor workspace installation.",
+    );
+    const contract = await readFile(join(root, "src/contract.ts"), "utf8");
+    await writeFile(
+      join(root, "src/contract.ts"),
+      `${contract}\nconst invalidInput: Parameters = { text: 123 };
+const invalidResult: Result = { text: "hello", bytes: "6", chunks: 1 };
+`,
+    );
+    const invalidContract = typecheck();
+    assert.equal(invalidContract.status, 2, invalidContract.stderr);
+    assert.match(invalidContract.stdout, /src[/\\]contract\.ts.*TS2322.*number.*string/);
+    assert.match(invalidContract.stdout, /src[/\\]contract\.ts.*TS2322.*string.*number/);
+    await writeFile(join(root, "src/contract.ts"), contract);
+    const main = await readFile(join(root, "src/main.ts"), "utf8");
+    await writeFile(
+      join(root, "src/main.ts"),
+      main.replace("bytes, chunks };", 'bytes: "wrong", chunks };'),
+    );
+    const invalidWorker = typecheck();
+    assert.equal(invalidWorker.status, 2, invalidWorker.stderr);
+    assert.match(invalidWorker.stdout, /src[/\\]main\.ts.*TS2345/);
+    assert.match(invalidWorker.stdout, /Type 'string' is not assignable to type 'number'/);
+    await assert.rejects(tree.read("src/contract.json"), /File not found/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("init fixes the module directory from the package name, independently of Task identity", async () => {
+  for (const [name, derived] of [
+    [undefined, "task-project"],
+    ["echo-task", "echo-task"],
+    ["@acme/echo-task", "acme-echo-task"],
+    ["@con/echo-task", "con-echo-task"],
+    ["a".repeat(214), "a".repeat(214)],
+  ] as const) {
+    const tree = createTaskProject({
+      ...(name !== undefined ? { name } : {}),
+      taskName: "Different Task",
+    });
+    const definition = parse(
+      Buffer.from(await readBytes(tree, "task.build.yaml", 65_536)).toString(),
+    );
+    assert.equal(definition.outDirectory, `dist/${derived}`);
+    assert.equal(definition.name, "Different Task");
+  }
+});
+
+test("init rejects package names whose derived output paths are not portable", () => {
+  for (const name of [
+    "con",
+    "aux.txt",
+    "com1",
+    "lpt9.log",
+    "echo.",
+    "@acme/echo.",
+    "@con.txt/echo",
+  ])
+    assert.throws(() => createTaskProject({ name }), /unsafe output path.*Choose a package name/);
+});
+
 test("init accepts explicit dependency specs and rejects unsafe configuration", async () => {
   const tree = createTaskProject({
     sdkVersion: "file:task-sdk.tgz",
@@ -44,7 +192,10 @@ test("init accepts explicit dependency specs and rejects unsafe configuration", 
   const manifest = JSON.parse(
     Buffer.from(await readBytes(tree, "package.json", 65_536)).toString(),
   );
-  assert.deepEqual(manifest.dependencies, { "@silvermoon-work/task-sdk": "file:task-sdk.tgz" });
+  assert.deepEqual(manifest.dependencies, {
+    "@silvermoon-work/task-sdk": "file:task-sdk.tgz",
+    "@sinclair/typebox": "0.34.52",
+  });
   for (const name of [
     "",
     "Uppercase",
@@ -53,6 +204,10 @@ test("init accepts explicit dependency specs and rejects unsafe configuration", 
     "name with spaces",
     "node_modules",
     "favicon.ico",
+    "a".repeat(215),
+    "@scope/../escape",
+    "echo;clean",
+    "echo\\task",
   ])
     assert.throws(() => createTaskProject({ name }), /npm package name/);
   assert.throws(() => createTaskProject({ taskName: "" }), /declaration/);

@@ -1,0 +1,72 @@
+{
+  "ok": true,
+  "observedAt": "2026-11-12T10:27:55.805Z",
+  "versionCommit": "bbc504364514ef91edbd28e3a4a7f61d828cb58b",
+  "idea": "01M76NH3WE2K9B03HDFT2XTEFV",
+  "workRelative": "task-engine-spaceref-smoke/bbc504364514-523f5f68-f03c-41a3-97f5-b853074b66ed",
+  "node": "v24.22.2",
+  "npm": "12.2.2",
+  "registry": "https://registry.npmjs.org/",
+  "ordinaryUserHomeUsedForInstall": true,
+  "globalToolsChanged": false,
+  "registryConfigurationChanged": false,
+  "installScriptsRun": false,
+  "exactRegistryPackages": [
+    {
+      "name": "@silvermoon-work/ipfs-store",
+      "version": "0.1.0-rc.1",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/ipfs-store/-/ipfs-store-0.1.0-rc.1.tgz",
+      "integrity": "sha512-HjnM41SQG8LO+imSiZsDvQmycXfAmttgYOGUsH8Nh/AvRCiWMjKaQuMPD2Ef/3enB8yeIDww+GqzglyLYhux3g==",
+      "resolved": "https://registry.npmjs.org/@silvermoon-work/ipfs-store/-/ipfs-store-0.1.0-rc.1.tgz",
+      "installedPath": "consumer/node_modules/@silvermoon-work/ipfs-store"
+    },
+    {
+      "name": "@silvermoon-work/task-protocol",
+      "version": "0.2.0-rc.1",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-protocol/-/task-protocol-0.2.0-rc.1.tgz",
+      "integrity": "sha512-P0Z+wh0zutMr+ss8Zv9E2+QJyCdstPy7Gjg0JJ8DtKB0fflTW+p4OPGDnuO8SxogFu7z52wOEFN++8cjRBi6KQ==",
+      "resolved": "https://registry.npmjs.org/@silvermoon-work/task-protocol/-/task-protocol-0.2.0-rc.1.tgz",
+      "installedPath": "consumer/node_modules/@silvermoon-work/task-protocol"
+    },
+    {
+      "name": "@silvermoon-work/task-sdk",
+      "version": "0.2.0-rc.1",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-sdk/-/task-sdk-0.2.0-rc.1.tgz",
+      "integrity": "sha512-en6ZJRj4K0hei0w6z58Pk0vrSbQ7C+faCigino+U3zvwRVlmpD+GZHJkz2G8tMjtUZanE8wLXm49u/QlHWVL0w==",
+      "resolved": "https://registry.npmjs.org/@silvermoon-work/task-sdk/-/task-sdk-0.2.0-rc.1.tgz",
+      "installedPath": "consumer/node_modules/@silvermoon-work/task-sdk"
+    },
+    {
+      "name": "@silvermoon-work/task-builder",
+      "version": "0.2.0-rc.2",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-builder/-/task-builder-0.2.0-rc.2.tgz",
+      "integrity": "sha512-2m5tXKvDTbuQfkYuUMQr8yqYpKTmXrtRd6HbRsoxQvTSXYBPbpa8IAaW2oJPNIHgBOVq6/re+H3HewmACyaRaw==",
+      "resolved": "https://registry.npmjs.org/@silvermoon-work/task-builder/-/task-builder-0.2.0-rc.2.tgz",
+      "installedPath": "consumer/node_modules/@silvermoon-work/task-builder"
+    },
+    {
+      "name": "@silvermoon-work/task-builder-cli",
+      "version": "0.2.0-rc.2",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-builder-cli/-/task-builder-cli-0.2.0-rc.2.tgz",
+      "integrity": "sha512-no9aQXF9fpwBau3B/lSaVOyRARUSRgBaeQEJiRPn5CpiBOVpc52cHYsrh64UUpUyQBzaPxQbggRGu5gR50MBbg==",
+      "resolved": "https://registry.npmjs.org/@silvermoon-work/task-builder-cli/-/task-builder-cli-0.2.0-rc.2.tgz",
+      "installedPath": "consumer/node_modules/@silvermoon-work/task-builder-cli"
+    },
+    {
+      "name": "@silvermoon-work/task-engine",
+      "version": "0.2.0-rc.2",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-engine/-/task-engine-0.2.0-rc.2.tgz",
+      "integrity": "sha512-p5jpsnAowAg0FTGWzxc6TSCYvLJ+WPhoedoktHjjqZe4IJkQWf2klAuHh4c0i1dRkLTqZYn/CXDaWN4bjJ8Qmw==",
+      "resolved": "https://registry.npmjs.org/@silvermoon-work/task-engine/-/task-engine-0.2.0-rc.2.tgz",
+      "installedPath": "consumer/node_modules/@silvermoon-work/task-engine"
+    },
+    {
+      "name": "@silvermoon-work/task-engine-cli",
+      "version": "0.2.0-rc.10",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-engine-cli/-/task-engine-cli-0.2.0-rc.10.tgz",
+      "integrity": "sha512-p4z5lREnF1rIImq0Mjok/veq8BiRnszRQ+gTdpQUUNhMyen0WyFm0NHtpopIvWrVq31T7FLQ8375otcnATDIbg==",
+      "resolved": "https://registry.npmjs.org/@silvermoon-work/task-engine-cli/-/task-engine-cli-0.2.0-rc.10.tgz",
+      "installedPath": "consumer/node_modules/@silvermoon-work/task-engine-cli"
+    }
+  ]
+}

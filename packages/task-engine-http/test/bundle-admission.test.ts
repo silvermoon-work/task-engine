@@ -3,11 +3,10 @@ import { randomUUID } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { createTaskEngine, newId } from "@silvermoon-work/task-engine";
 import { MemoryIpfsClient, MemoryStore, VirtualClock } from "@silvermoon-work/task-engine/testing";
-import { TaskError, taskSchemaUri } from "@silvermoon-work/task-protocol";
+import { TaskError, taskSchemaUri, wrapRequestParameters } from "@silvermoon-work/task-protocol";
 import { createTaskHandler, TaskClient } from "../src/index.js";
 
 test("V10: client rejects legacy Task-shaped receipts, mismatched tracking tokens and incomplete Bundle references", async () => {
@@ -59,7 +58,7 @@ test("V03/V05/V10: HTTP client observes Request preparation separately; disconne
       runtime: { type: "node", minVersion: "22.13.0" },
       entry: "worker.cjs",
       binary: [],
-      inputSchema: {
+      parametersSchema: {
         type: "object",
         properties: { value: { type: "number" } },
         required: ["value"],
@@ -69,13 +68,13 @@ test("V03/V05/V10: HTTP client observes Request preparation separately; disconne
     }),
   );
   await writeFile(callback, "export default async input => input;");
-  const built = await buildTaskBundle({
+  const built = await buildBundleFixture({
     declaration,
     entry: callback,
     outDirectory: join(directory, "bundle"),
   });
   const ipfs = new MemoryIpfsClient();
-  await ipfs.import((await readTaskArtifact(built.car)).files);
+  await ipfs.import(built.files);
   const engine = createTaskEngine({
     store,
     clock,
@@ -157,7 +156,10 @@ test("V03/V05/V10: HTTP client observes Request preparation separately; disconne
     const accepted = await client.getRequestStatus(request.requestId, { waitMs: 10_000 });
     assert.equal(accepted.status, "accepted");
     if (accepted.status !== "accepted") throw new Error("Expected accepted.");
-    assert.deepEqual(await client.getRequest(request.requestId), request);
+    assert.deepEqual(
+      await client.getRequest(request.requestId),
+      wrapRequestParameters({ ...request }),
+    );
     engine.tick();
     const end = performance.now() + 10_000;
     while ((await client.getTask(accepted.taskId)).stage !== "completed") {

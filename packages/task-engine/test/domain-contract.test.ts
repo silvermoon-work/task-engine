@@ -6,6 +6,7 @@ import {
   type RegisteredType,
   type Store,
   TaskError,
+  wrapRequestParameters,
 } from "@silvermoon-work/task-protocol";
 import { createTaskEngine } from "../src/engine.js";
 import { newId } from "../src/index.js";
@@ -26,7 +27,7 @@ function fixture(limits: Parameters<typeof createTaskEngine>[0]["limits"] = {}) 
     type: "isolated",
     version: "1",
     environment: "trusted",
-    inputSchema: { type: "object" },
+    parametersSchema: { type: "object" },
     resultSchema: true,
     messageSchema: false,
     module: new URL("./isolated-type.mjs", import.meta.url).href,
@@ -242,7 +243,10 @@ test("ULID floor is persistent, inclusive, checked before idempotency and cannot
     await reopened.start();
     try {
       assert.throws(() => reopened.submit(original, caller), { code: "request_expired" });
-      assert.deepEqual(reopened.getRequest(task.requestId, caller), original);
+      assert.deepEqual(
+        reopened.getRequest(task.requestId, caller),
+        wrapRequestParameters({ ...original }),
+      );
     } finally {
       await reopened.close();
     }
@@ -258,11 +262,13 @@ test("forced exit stops exactly one Run; independent host proof is required for 
     const blocked = f.engine.submit(f.request({ kind: "ignore-cancel" }), caller);
     const healthy = f.engine.submit(f.request(), caller);
     f.engine.tick();
-    await until(
-      () =>
+    await until(() => {
+      f.engine.tick();
+      return (
         !!f.engine.getTask(blocked.taskId, caller).run &&
-        !!f.engine.getTask(healthy.taskId, caller).run,
-    );
+        !!f.engine.getTask(healthy.taskId, caller).run
+      );
+    });
     const blockedRun = f.engine.getTask(blocked.taskId, caller).run!.runId;
     const healthyRun = f.engine.getTask(healthy.taskId, caller).run!.runId;
     await until(

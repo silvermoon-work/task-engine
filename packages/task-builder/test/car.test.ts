@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 import { CarReader } from "@ipld/car/reader";
 import { CarWriter } from "@ipld/car/writer";
 import { CID } from "multiformats/cid";
 import { taskSchemaUri } from "@silvermoon-work/task-protocol";
-import { encodeContentCar } from "@potential-guide/pguide-task-bundle/car";
 import { encodeTaskBundleCar, readTaskBundleCar } from "../src/car.js";
 import { memoryFile, memoryTree, readBytes, type ReadonlyFileTree } from "../src/tree.js";
 
@@ -23,7 +23,7 @@ function bundle(extra: Readonly<Record<string, Uint8Array>> = {}, binary: string
         entry: "worker.cjs",
         include: ["task.yaml", ...files.keys()].sort(),
         binary,
-        inputSchema: { type: "object" },
+        parametersSchema: { type: "object" },
         resultSchema: true,
         messageSchema: false,
       }),
@@ -81,9 +81,6 @@ test("CAR streams preserve canonical root, manifest and binary/text bytes with o
   assert.ok(encoded.retainedBytes > 0);
   assert.deepEqual(opened.sort(), [...files.keys()].sort());
   const bytes = await collect(encoded.stream);
-  const legacy = await encodeContentCar(files);
-  assert.equal(encoded.cid, legacy.cid);
-  assert.deepEqual(bytes, legacy.bytes);
   assert.equal(encoded.retainedBytes, 0);
   const official = await CarReader.fromBytes(bytes);
   assert.equal((await official.getRoots())[0]?.toString(), encoded.cid);
@@ -124,7 +121,14 @@ test("CAR output is deterministic across tree insertion order and independent of
   const b = await encodeTaskBundleCar(memoryTree(new Map([...files].reverse())));
   files.clear();
   assert.equal(a.cid, b.cid);
-  assert.deepEqual(await collect(a.stream), await collect(b.stream));
+  assert.equal(a.cid, "bafybeige3vpv7m5pkkat4lhdbpl72c4g6exj6fq2ylczl4lmzvv5pauk4i");
+  const bytes = await collect(a.stream);
+  assert.deepEqual(bytes, await collect(b.stream));
+  assert.equal(bytes.byteLength, 901);
+  assert.equal(
+    createHash("sha256").update(bytes).digest("hex"),
+    "a61dbea194e83091257f12b6a18b12e5b580236615bde39b072c96e11f3d4002",
+  );
   await a.close();
   await b.close();
 });

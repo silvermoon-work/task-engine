@@ -1,5 +1,25 @@
 export const releasePackages = [
   {
+    id: "ipfs-access",
+    directory: "packages/ipfs-access",
+    name: "@silvermoon-work/ipfs-access",
+  },
+  {
+    id: "ipfs-payload",
+    directory: "packages/ipfs-payload",
+    name: "@silvermoon-work/ipfs-payload",
+  },
+  {
+    id: "ipfs-tree",
+    directory: "packages/ipfs-tree",
+    name: "@silvermoon-work/ipfs-tree",
+  },
+  {
+    id: "ipfs-store",
+    directory: "packages/ipfs-store",
+    name: "@silvermoon-work/ipfs-store",
+  },
+  {
     id: "task-builder-cli",
     directory: "packages/task-builder-cli",
     name: "@silvermoon-work/task-builder-cli",
@@ -25,9 +45,9 @@ export const releasePackages = [
     name: "@silvermoon-work/task-engine",
   },
   {
-    id: "task-engine-cli",
-    directory: "packages/task-engine-cli",
-    name: "@silvermoon-work/task-engine-cli",
+    id: "ipfspawn",
+    directory: "packages/ipfspawn",
+    name: "@silvermoon-work/ipfspawn",
   },
   {
     id: "task-engine-storage",

@@ -20,7 +20,7 @@ test("the sole unreleased Task v1 includes diagnostics; removed v2 and future sc
     entry: "worker.cjs",
     binary: [],
     include: ["task.yaml", "worker.cjs"],
-    inputSchema: { type: "object" },
+    parametersSchema: { type: "object" },
     resultSchema: true,
     messageSchema: false,
   };

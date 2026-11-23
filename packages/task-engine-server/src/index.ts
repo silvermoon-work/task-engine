@@ -11,11 +11,10 @@ import { openSqliteStore } from "@silvermoon-work/task-engine-storage";
 import { positive, type Store, TaskError } from "@silvermoon-work/task-protocol";
 
 export interface ServerOptions {
-  authorizeChild?: EngineOptions["authorizeChild"];
   logs?: EngineOptions["logs"];
-  ipfsClient: EngineOptions["ipfsClient"];
+  ipfsStore?: EngineOptions["ipfsStore"];
+  ipfsClient?: EngineOptions["ipfsClient"];
   allowGateway?: EngineOptions["allowGateway"];
-  bundlePrefetch?: EngineOptions["bundlePrefetch"];
   bundleLimits?: EngineOptions["bundleLimits"];
   bundleConcurrency?: number;
   authorize: EngineOptions["authorize"];
@@ -139,6 +138,24 @@ export async function startTaskServer(options: ServerOptions): Promise<TaskServe
       read: () => underlying.read(),
       append: (...args) => underlying.append(...args),
       compact: (...args) => underlying.compact(...args),
+      ...(underlying.readContentBlock
+        ? { readContentBlock: underlying.readContentBlock.bind(underlying) }
+        : {}),
+      ...(underlying.writeContentBlock
+        ? { writeContentBlock: underlying.writeContentBlock.bind(underlying) }
+        : {}),
+      ...(underlying.retainRunContent
+        ? { retainRunContent: underlying.retainRunContent.bind(underlying) }
+        : {}),
+      ...(underlying.readRunContentRoots
+        ? { readRunContentRoots: underlying.readRunContentRoots.bind(underlying) }
+        : {}),
+      ...(underlying.recordRunContentAccess
+        ? { recordRunContentAccess: underlying.recordRunContentAccess.bind(underlying) }
+        : {}),
+      ...(underlying.readRunContentAccess
+        ? { readRunContentAccess: underlying.readRunContentAccess.bind(underlying) }
+        : {}),
       ...(underlying.markRunLogsUnavailable
         ? { markRunLogsUnavailable: underlying.markRunLogsUnavailable.bind(underlying) }
         : {}),
@@ -154,10 +171,9 @@ export async function startTaskServer(options: ServerOptions): Promise<TaskServe
       },
     };
     engine = createTaskEngine({
-      ...(options.authorizeChild ? { authorizeChild: options.authorizeChild } : {}),
       store: lease,
-      ipfsClient: options.ipfsClient,
-      ...(options.bundlePrefetch !== undefined ? { bundlePrefetch: options.bundlePrefetch } : {}),
+      ...(options.ipfsStore ? { ipfsStore: options.ipfsStore } : {}),
+      ...(options.ipfsClient ? { ipfsClient: options.ipfsClient } : {}),
       ...(options.allowGateway ? { allowGateway: options.allowGateway } : {}),
       ...(options.bundleConcurrency !== undefined
         ? { bundleConcurrency: options.bundleConcurrency }

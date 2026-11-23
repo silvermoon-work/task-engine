@@ -9,6 +9,8 @@ import {
   type TaskBuildOptions,
   type TreeEntry,
 } from "../src/index.js";
+import { encodeTaskBundleCar, readTaskBundleCar } from "../src/car.js";
+import { memoryFile } from "../src/tree.js";
 
 function tree(files: Readonly<Record<string, string | (() => ReadableStream<Uint8Array>)>>) {
   const opened: string[] = [];
@@ -60,7 +62,7 @@ const options: TaskBuildOptions = {
   source: {
     entry: "src/main.ts",
     contract: {
-      input: Type.Object({ text: Type.String() }),
+      parameters: Type.Object({ text: Type.String() }),
       result: Type.String(),
       message: Type.Never(),
     },
@@ -112,30 +114,136 @@ module.exports = value + suffix + cjs.suffix;`,
   const files = await collect(output);
   const checked = readTaskBundle(files);
   assert.equal(checked.declaration.$schema, taskSchemaUri);
-  assert.deepEqual(checked.declaration.inputSchema, { $ref: "schemas/input.json" });
+  assert.deepEqual(checked.declaration.parametersSchema, { $ref: "schemas/parameters.json" });
   assert.deepEqual(checked.declaration.resultSchema, { $ref: "schemas/result.json" });
   assert.deepEqual(checked.declaration.messageSchema, { $ref: "schemas/message.json" });
   assert.deepEqual([...files.keys()].sort(), [
-    "schemas/input.json",
+    "main.mjs",
     "schemas/message.json",
+    "schemas/parameters.json",
     "schemas/result.json",
     "task.yaml",
-    "worker.cjs",
   ]);
-  const module = { exports: {} };
-  new Function("module", "exports", "require", "__filename", files.get("worker.cjs")!.toString())(
-    module,
-    module.exports,
-    (specifier: string) => {
-      assert.equal(specifier, "node:url");
-      return { pathToFileURL: () => new URL("file:///worker.cjs") };
-    },
-    "worker.cjs",
+  const module = await import(
+    `data:text/javascript;base64,${Buffer.from(files.get("main.mjs")!).toString("base64")}`
   );
-  assert.equal(module.exports, "virtual-import-require");
+  assert.equal(module.default, "virtual-import-require");
   assert.ok(opened.includes("src/nested/value.ts"));
   assert.ok(opened.includes("node_modules/virtual-dependency/esm.js"));
   assert.ok(opened.includes("node_modules/virtual-dependency/cjs.cjs"));
+});
+
+test("non-Node build descriptions produce self-contained ESM CARs with runtime-specific dependency conditions", async () => {
+  for (const [type, condition] of [
+    ["browser", "browser"],
+    ["browser-worker", "worker"],
+    ["cloudflare-worker", "workerd"],
+  ] as const) {
+    const config = {
+      name: type,
+      runtime: { type },
+      source: { entry: "src/main.ts", contract: "src/contract.json" },
+      include: [{ from: "assets/**", to: "resources/" }],
+    };
+    const { input } = tree({
+      "task.build.yaml": JSON.stringify(config),
+      "src/contract.json": JSON.stringify({
+        parameters: { type: "object" },
+        result: true,
+        message: false,
+      }),
+      "src/main.ts": `import {value} from "environment"; await Promise.resolve();
+export default async (context) => ({value, text:await context.readText("resources/note.txt"), url:import.meta.url});`,
+      "assets/note.txt": "hello\r\n世界\r",
+      "node_modules/environment/package.json": JSON.stringify({
+        name: "environment",
+        exports: {
+          ".": {
+            node: "./node.js",
+            workerd: "./workerd.js",
+            worker: "./worker.js",
+            browser: "./browser.js",
+            default: "./default.js",
+          },
+        },
+      }),
+      ...Object.fromEntries(
+        ["node", "workerd", "worker", "browser", "default"].map((name) => [
+          `node_modules/environment/${name}.js`,
+          `export const value = ${JSON.stringify(name)};`,
+        ]),
+      ),
+    });
+    const definition = await readTaskBuild(input, "task.build.yaml");
+    const output = await buildTaskBundle(input, definition.options);
+    const car = await encodeTaskBundleCar(output);
+    const archive = await readTaskBundleCar(
+      memoryFile(new Uint8Array(await new Response(car.stream).arrayBuffer())),
+      { expectedCid: car.cid },
+    );
+    try {
+      assert.equal(archive.declaration.entry, "main.mjs");
+      assert.deepEqual(archive.declaration.runtime, { type });
+      const source = await bytes(archive.tree, "main.mjs");
+      assert.doesNotMatch(source.toString(), /node:module|node:url|__filename|runTask/);
+      const module = await import(`data:text/javascript;base64,${source.toString("base64")}`);
+      const result = await module.default({
+        readText: async (path: string) => (await bytes(archive.tree, path)).toString(),
+      });
+      assert.equal(result.value, condition);
+      assert.equal(result.text, "hello\n世界\n");
+      assert.match(result.url, /^data:text\/javascript/);
+      await assert.rejects(
+        buildTaskBundle(input, {
+          ...definition.options,
+          source: { ...definition.options.source, mode: "callback" },
+        }),
+        /Non-Node builds require explicit mode/,
+      );
+      await assert.rejects(
+        buildTaskBundle(tree({ "src/main.ts": 'import "node:fs";' }).input, {
+          ...options,
+          runtime: { type },
+        }),
+        /Node builtin node:fs is unavailable/,
+      );
+    } finally {
+      await archive.close();
+      await car.close();
+    }
+  }
+});
+
+test("build runtime validation accepts explicit Node and rejects unknown or cross-runtime fields", async () => {
+  const { input } = tree({ "src/main.ts": "export default 1;" });
+  const explicit = await buildTaskBundle(input, {
+    ...options,
+    runtime: { type: "node", minVersion: "22.15.0" },
+  });
+  assert.deepEqual(readTaskBundle(await collect(explicit)).declaration.runtime, {
+    type: "node",
+    minVersion: "22.15.0",
+  });
+  for (const runtime of [
+    { type: "node" },
+    { type: "unknown" },
+    { type: "browser", minVersion: "22.15.0" },
+    { type: "cloudflare-worker", compatibility_date: "2026-11-17" },
+  ]) {
+    await assert.rejects(
+      readTaskBuild(
+        tree({
+          "task.build.yaml": JSON.stringify({
+            name: "invalid",
+            runtime,
+            source: { entry: "src/main.ts", contract: "src/contract.json" },
+          }),
+        }).input,
+        "task.build.yaml",
+      ),
+      /Invalid Task runtime/,
+    );
+  }
 });
 
 test("shared Schemas use a separate namespace and retain author IDs and offline references", async () => {
@@ -146,7 +254,7 @@ test("shared Schemas use a separate namespace and retain author IDs and offline 
     source: {
       ...options.source,
       contract: {
-        input: {
+        parameters: {
           type: "object",
           properties: { text: { $ref: id } },
           required: ["text"],
@@ -160,12 +268,12 @@ test("shared Schemas use a separate namespace and retain author IDs and offline 
 
   const files = await collect(output);
   assert.deepEqual([...files.keys()].sort(), [
-    "schemas/input.json",
+    "main.mjs",
     "schemas/message.json",
+    "schemas/parameters.json",
     "schemas/result.json",
     "schemas/shared/text.json",
     "task.yaml",
-    "worker.cjs",
   ]);
   const shared = await bytes(output, "schemas/shared/text.json");
   assert.equal(JSON.parse(shared.toString()).$id, id);
@@ -188,7 +296,7 @@ test("direct readers cannot mutate generated Buffer-backed Bundle files", async 
 
 test("JSON and trusted module contracts share named Schemas without changing the manifest structure", async () => {
   const contract = {
-    input: { type: "object", properties: { user: { $ref: "https://example.test/user" } } },
+    parameters: { type: "object", properties: { user: { $ref: "https://example.test/user" } } },
     result: { $ref: "https://example.test/user" },
     message: false,
     schemas: { user: { $id: "https://example.test/user", type: "object" } },
@@ -212,13 +320,13 @@ test("JSON and trusted module contracts share named Schemas without changing the
       "binary",
       "entry",
       "include",
-      "inputSchema",
       "messageSchema",
       "name",
+      "parametersSchema",
       "resultSchema",
       "runtime",
     ]);
-    assert.deepEqual(declaration.inputSchema, { $ref: "schemas/input.json" });
+    assert.deepEqual(declaration.parametersSchema, { $ref: "schemas/parameters.json" });
     assert.equal(
       JSON.parse((await bytes(output, "schemas/result.json")).toString()).$ref,
       "https://example.test/user",
@@ -235,7 +343,7 @@ test("named shared Schemas reject conflicting identities and missing offline ref
       source: {
         ...options.source,
         contract: {
-          input: { type: "object" },
+          parameters: { type: "object" },
           result: true,
           message: false,
           schemas: {
@@ -253,7 +361,7 @@ test("named shared Schemas reject conflicting identities and missing offline ref
       source: {
         ...options.source,
         contract: {
-          input: { type: "object" },
+          parameters: { type: "object" },
           result: { $ref: id },
           message: false,
           schemas: {},
@@ -394,7 +502,7 @@ test("abort cancels a blocked resource reader; build signal does not own output 
     include: [{ from: "assets/**", to: "resources/" }],
   });
   buildController.abort();
-  assert.ok((await bytes(output, "worker.cjs")).byteLength);
+  assert.ok((await bytes(output, "main.mjs")).byteLength);
   const controller = new AbortController();
   const reader = (await output.read("resources/text", { signal: controller.signal })).getReader();
   const pending = reader.read();
@@ -434,8 +542,8 @@ test("normalized resource bytes succeed at exact file/total limits and fail one 
   let generatedBytes = 0;
   for (const path of [
     "task.yaml",
-    "worker.cjs",
-    "schemas/input.json",
+    "main.mjs",
+    "schemas/parameters.json",
     "schemas/result.json",
     "schemas/message.json",
   ])
@@ -487,7 +595,7 @@ test("trusted code contracts compile exclusively from the tree; JSON contracts n
     "src/main.ts": "export const value = 1;",
     "src/contract.ts": 'import contract from "./contract.json"; export default contract;',
     "src/contract.json": JSON.stringify({
-      input: { type: "object" },
+      parameters: { type: "object" },
       result: true,
       message: false,
     }),
@@ -515,7 +623,7 @@ test("callback wrapper preserves prototype-named schema fields in the locked bin
       exports: "./index.js",
     }),
     "node_modules/@silvermoon-work/task-sdk/index.js": `import {binding} from "./binding.js";
-export function runTask(callback) { globalThis.fixture = {callback, binding}; }`,
+export function runTask(callback) { globalThis.__builderBindingFixture = {callback, binding}; }`,
     "node_modules/@silvermoon-work/task-sdk/binding.js": "export const binding = undefined;",
   });
   const output = await buildTaskBundle(input, {
@@ -524,7 +632,7 @@ export function runTask(callback) { globalThis.fixture = {callback, binding}; }`
       ...options.source,
       mode: "callback",
       contract: {
-        input: {
+        parameters: {
           type: "object",
           properties: Object.fromEntries(
             ["__proto__", "constructor", "toString"].map((key) => [key, { type: "string" }]),
@@ -537,20 +645,22 @@ export function runTask(callback) { globalThis.fixture = {callback, binding}; }`
       },
     },
   });
-  const source = (await bytes(output, "worker.cjs")).toString();
-  const fixture: {
-    fixture?: { binding: { declaration: ReturnType<typeof readTaskBundle>["resolved"] } };
-  } = {};
-  new Function("globalThis", "require", "__filename", source)(
-    fixture,
-    () => ({ pathToFileURL: () => new URL("file:///worker.cjs") }),
-    "worker.cjs",
-  );
-  assert.equal(fixture.fixture?.binding.declaration.name, options.name);
-  assert.deepEqual(
-    fixture.fixture?.binding.declaration,
-    readTaskBundle(await collect(output)).resolved,
-  );
+  const globals: typeof globalThis & {
+    __builderBindingFixture?: {
+      binding: { declaration: ReturnType<typeof readTaskBundle>["resolved"] };
+    };
+  } = globalThis;
+  try {
+    const source = await bytes(output, "main.mjs");
+    await import(`data:text/javascript;base64,${source.toString("base64")}`);
+    assert.equal(globals.__builderBindingFixture?.binding.declaration.name, options.name);
+    assert.deepEqual(
+      globals.__builderBindingFixture?.binding.declaration,
+      readTaskBundle(await collect(output)).resolved,
+    );
+  } finally {
+    delete globals.__builderBindingFixture;
+  }
 });
 
 test("missing imports never fall back to host node_modules; unsafe and colliding paths fail", async () => {
@@ -594,10 +704,31 @@ test("build files use tree-relative paths, reject unknown fields, and protect au
   assert.deepEqual(parsed.options.include, [{ from: "project/assets/**", to: "resources/" }]);
   for (const invalid of [
     { ...definition, unexpected: true },
-    { ...definition, outDirectory: "../escape" },
+    { ...definition, outDirectory: "" },
+    { ...definition, outDirectory: "." },
   ]) {
     await assert.rejects(
       readTaskBuild(tree({ "task.build.yaml": JSON.stringify(invalid) }).input, "task.build.yaml"),
     );
   }
+  const outside = await readTaskBuild(
+    tree({
+      "project/task.build.yaml": JSON.stringify({ ...definition, outDirectory: "../release" }),
+    }).input,
+    "project/task.build.yaml",
+  );
+  assert.equal(outside.outDirectory, "release");
+  const fallback = { ...definition } as Partial<typeof definition>;
+  delete fallback.outDirectory;
+  assert.equal(
+    (
+      await readTaskBuild(
+        tree({
+          "project/task.build.yaml": JSON.stringify(fallback),
+        }).input,
+        "project/task.build.yaml",
+      )
+    ).outDirectory,
+    "project/dist",
+  );
 });

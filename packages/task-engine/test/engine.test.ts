@@ -178,14 +178,25 @@ test("deadline equality, durable completion and terminal cancellation preserve i
   }
 });
 
-test("expired preparation retracts and late preparation cannot launch business execution", async () => {
+test("expired preparation retracts and late preparation cannot launch business execution", {
+  timeout: 15_000,
+}, async () => {
   const preparation = deferred<JsonObject>();
-  let aborted = false;
+  const preparing = deferred<void>();
+  const aborted = deferred<void>();
+  const nextPreparation = deferred<JsonObject>();
+  const nextPreparing = deferred<void>();
+  let preparations = 0;
   const h = await harness({
     prepare: async (_input, options) => {
+      if (preparations++ > 0) {
+        nextPreparing.resolve();
+        return nextPreparation.promise;
+      }
       options.signal.addEventListener("abort", () => {
-        aborted = true;
+        aborted.resolve();
       });
+      preparing.resolve();
       return preparation.promise;
     },
   });
@@ -193,22 +204,27 @@ test("expired preparation retracts and late preparation cannot launch business e
     const a = h.submit({ eligibleAt: at(h.clock.now() + 20) });
     assert.equal(h.engine.cancelTask(a.taskId, caller).stage, "initial");
     const b = h.submit();
-    await h.turn();
+    h.engine.tick();
+    await preparing.promise;
     assert.equal(h.engine.getTask(b.taskId, caller).stage, "running");
-    await h.turn(101);
-    assert.equal(aborted, true);
+    h.clock.advance(101);
+    h.engine.tick();
+    await aborted.promise;
     h.engine.cancelTask(b.taskId, caller);
     preparation.resolve({ text: "hello" });
-    await flush();
-    await h.turn();
+    await h.engine.waitForTaskRelease(b.taskId, caller);
     assert.equal(h.work.length, 0);
     assert.ok(isTimedOut(h.engine.getTask(b.taskId, caller)));
     const c = h.submit();
-    await h.turn();
+    h.engine.tick();
+    await nextPreparing.promise;
     assert.equal(h.engine.cancelTask(c.taskId, caller).stage, "running");
     await h.engine.waitForTaskRelease(c.taskId, caller);
     assert.equal(h.engine.getTask(c.taskId, caller).stage, "stopped");
+    assert.equal(h.work.length, 0);
   } finally {
+    preparation.resolve({ text: "hello" });
+    nextPreparation.resolve({ text: "hello" });
     await h.close();
   }
 });

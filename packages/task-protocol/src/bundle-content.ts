@@ -3,19 +3,43 @@ import { fail } from "./json.js";
 
 /** Validate UTF-8 without dropping a BOM or changing Unicode representation. */
 export function normalizeTaskText(bytes: Uint8Array, path: string): Uint8Array {
-  try {
-    new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-  } catch {
-    fail("invalid_bundle", `Invalid UTF-8 in Bundle file: ${path}.`);
-  }
-  const output = new Uint8Array(bytes.length);
-  let length = 0;
-  for (let index = 0; index < bytes.length; index++) {
-    const byte = bytes[index]!;
-    output[length++] = byte === 13 ? 10 : byte;
-    if (byte === 13 && bytes[index + 1] === 10) index++;
-  }
-  return output.subarray(0, length);
+  const normalizer = createTaskTextNormalizer(path);
+  const output = normalizer.push(bytes);
+  normalizer.finish();
+  return output;
+}
+
+/** One state per stream; validate split UTF-8 and preserve BOM bytes while folding split CRLF. */
+export function createTaskTextNormalizer(path: string) {
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  let previousCR = false;
+  let finished = false;
+  return {
+    push(bytes: Uint8Array): Uint8Array {
+      if (finished) fail("invalid_bundle", `Text stream is already finished: ${path}.`);
+      try {
+        decoder.decode(bytes, { stream: true });
+      } catch {
+        fail("invalid_bundle", `Invalid UTF-8 in Bundle file: ${path}.`);
+      }
+      const output = new Uint8Array(bytes.byteLength);
+      let length = 0;
+      for (const byte of bytes) {
+        if (!(byte === 10 && previousCR)) output[length++] = byte === 13 ? 10 : byte;
+        previousCR = byte === 13;
+      }
+      return output.subarray(0, length);
+    },
+    finish(): void {
+      if (finished) fail("invalid_bundle", `Text stream is already finished: ${path}.`);
+      finished = true;
+      try {
+        decoder.decode();
+      } catch {
+        fail("invalid_bundle", `Invalid UTF-8 in Bundle file: ${path}.`);
+      }
+    },
+  };
 }
 
 export function validateTaskText(bytes: Uint8Array, path: string): void {

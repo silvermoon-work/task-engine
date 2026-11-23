@@ -3,8 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { newId } from "@silvermoon-work/task-engine";
 import { MemoryIpfsClient, MemoryStore } from "@silvermoon-work/task-engine/testing";
 import { TaskClient } from "@silvermoon-work/task-engine-http";
@@ -47,7 +46,7 @@ async function fixture(
         runtime: { type: "node", minVersion: "22.13.0" },
         entry: "worker.cjs",
         binary: [],
-        inputSchema: { type: "object" },
+        parametersSchema: { type: "object" },
         resultSchema: {
           type: "object",
           properties: { ok: { const: true } },
@@ -97,12 +96,12 @@ export default async (input, context) => {
   return {ok:true};
 }`,
     );
-    const built = await buildTaskBundle({
+    const built = await buildBundleFixture({
       declaration,
       entry,
       outDirectory: join(directory, "bundle"),
     });
-    await ipfsClient.import((await readTaskArtifact(built.car)).files);
+    await ipfsClient.import(built.files);
     await rm(entry);
     await run({
       directory,
@@ -196,7 +195,10 @@ test("v1 real SDK -> SQLite -> authenticated HTTP history/realtime, concurrent i
             (entry) => entry.runId === id && entry.message.endsWith(index === 0 ? "A" : "B"),
           ),
         );
-        assert.deepEqual((await api.getRun(id)).result, { ok: true });
+        assert.deepEqual((await api.getRun(id)).result, {
+          data: { ok: true },
+          cidPaths: [],
+        });
         assert.equal(
           (await api.getRunHistory(id)).events.some((event) => event.type.includes("log")),
           false,
@@ -248,7 +250,7 @@ test("failure, cooperative cancel, forced stop, invalid inputs, output overflow 
         if (mode === "fail") assert.equal(run.stage, "failed");
         else if (mode === "cancel") {
           assert.equal(logs.state.completeness, "unknown");
-        } else assert.deepEqual(run.result, { ok: true });
+        } else assert.deepEqual(run.result, { data: { ok: true }, cidPaths: [] });
         if (mode === "generation")
           assert.deepEqual(
             logs.entries.map((entry) => entry.message),
@@ -326,7 +328,7 @@ test("write/storage fault gives unavailable receipts and durable missing status,
       const api = client(server.url);
       const task = await submit(api, bundle, "storage");
       const id = task.run!.runId;
-      assert.deepEqual((await ended(api, id)).result, { ok: true });
+      assert.deepEqual((await ended(api, id)).result, { data: { ok: true }, cidPaths: [] });
       assert.equal((await api.getRunLogs(id)).state.availability, "unavailable");
       assert.match(await readFile(receipts, "utf8"), /"reason":"storage"/);
       await server.close();

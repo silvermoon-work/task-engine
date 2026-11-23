@@ -3,12 +3,11 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { newId } from "@silvermoon-work/task-engine";
 import { MemoryIpfsClient } from "@silvermoon-work/task-engine/testing";
 import { TaskClient } from "@silvermoon-work/task-engine-http";
-import { TaskError, taskSchemaUri } from "@silvermoon-work/task-protocol";
+import { TaskError, taskSchemaUri, wrapRequestParameters } from "@silvermoon-work/task-protocol";
 import { startTaskServer } from "../src/index.js";
 
 test("V06/V10: real authenticated TCP Server executes the SDK entry, reopens SQLite v5 without content or business replay", async () => {
@@ -29,7 +28,7 @@ test("V06/V10: real authenticated TCP Server executes the SDK entry, reopens SQL
         runtime: { type: "node", minVersion: "22.13.0" },
         entry: "worker.cjs",
         binary: [],
-        inputSchema: { type: "object" },
+        parametersSchema: { type: "object" },
         resultSchema: true,
         messageSchema: false,
       }),
@@ -39,12 +38,12 @@ test("V06/V10: real authenticated TCP Server executes the SDK entry, reopens SQL
       `import {appendFileSync} from "node:fs";
 appendFileSync(${JSON.stringify(marker)},"loaded\\n");export default async input=>input;`,
     );
-    const built = await buildTaskBundle({
+    const built = await buildBundleFixture({
       declaration,
       entry: callback,
       outDirectory: join(root, "bundle"),
     });
-    await ipfsClient.import((await readTaskArtifact(built.car)).files);
+    await ipfsClient.import(built.files);
     await rm(callback);
     const options = {
       port: 0,
@@ -78,7 +77,7 @@ appendFileSync(${JSON.stringify(marker)},"loaded\\n");export default async input
     }
     const original = await client.getTask(accepted.taskId);
     assert.equal(original.name, "独立 Server Bundle");
-    assert.deepEqual(original.result, { text: "production" });
+    assert.deepEqual(original.result, { data: { text: "production" }, cidPaths: [] });
     assert.equal(await readFile(marker, "utf8"), "loaded\n");
     assert.equal(
       (await fetch(`${server.url}/task-types`, { headers: { Authorization: "Bearer test" } }))
@@ -92,7 +91,10 @@ appendFileSync(${JSON.stringify(marker)},"loaded\\n");export default async input
     client = new TaskClient({ url: server.url, headers: { Authorization: "Bearer test" } });
     assert.equal((await client.getTask(accepted.taskId)).revision, original.revision);
     assert.deepEqual(await client.submit(request), accepted);
-    assert.deepEqual(await client.getRequest(request.requestId), request);
+    assert.deepEqual(
+      await client.getRequest(request.requestId),
+      wrapRequestParameters({ ...request }),
+    );
     assert.equal(await readFile(marker, "utf8"), "loaded\n");
     const another = { ...request, requestId: newId() };
     await client.submit(another);

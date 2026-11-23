@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   type Authorize,
+  acceptPayload,
   assertFactsVersion,
   at,
   type Binding,
@@ -12,9 +13,11 @@ import {
   compileInputSchema,
   compileJsonSchema,
   type ErrorFact,
+  emptyPayload,
   type HistoryFilter,
   type HistoryPage,
   type InputContract,
+  isPayloadEnvelope,
   type Json,
   type JsonContract,
   json,
@@ -22,14 +25,17 @@ import {
   type NewEvent,
   type Operation,
   object,
+  payloadCids,
   positive,
   project,
   projectRun,
   type RegisteredType,
   type Revision,
+  type RunHistoryRecord,
   type RunLogLimits,
   type RunLogQuery,
   type RunLogSubscription,
+  type RunOutcome,
   type RunPage,
   type RunQuery,
   type RunRecord,
@@ -54,13 +60,24 @@ import {
   taskSchemaUri,
   timestamp,
   ulid,
+  validateBundleReference,
   validateRunProgress,
   wouldQualify,
+  wrapRequestParameters,
 } from "@silvermoon-work/task-protocol";
 import { type CatalogLimits, RunCatalog, TaskCatalog } from "./catalog.js";
+import type { IpfsStore } from "./content.js";
 import { newId } from "./identity.js";
 import { RunLogs } from "./logs.js";
 import { ObservationHub, type ObservationLimits } from "./observation.js";
+import { snapshotWorkerEnvironment } from "./worker-env.js";
+import {
+  createRunHistoryArchive,
+  defaultArchivePolicy,
+  type RunHistoryArchive,
+  type RunHistoryArchivePolicy,
+  type RunHistoryDetail,
+} from "./run-history-archive.js";
 import {
   RunDispatchError,
   type RunOutcomeReport,
@@ -94,6 +111,11 @@ export interface EngineLimits extends CatalogLimits, ObservationLimits {
   inFlight: number;
 }
 export interface EngineOptions {
+  /** Omit for native Worker inheritance; an explicit host-only mapping is copied at construction. */
+  workerEnv?: Readonly<Record<string, string | undefined>>;
+  /** Managed domains start execution budgets when their Worker is created. */
+  executionBudgetFromWorker?: boolean;
+  durableLogs?: boolean;
   invokeTask?: import("./type-supervisor.js").TypeChannel["invokeTask"];
   confirmChildRelease?: (runId: string) => Promise<void>;
   logs?: Partial<RunLogLimits>;
@@ -106,6 +128,9 @@ export interface EngineOptions {
   allocationLimits?: Readonly<Record<string, number>>;
   onError?: (error: ErrorFact) => void;
   loadBundle?: (binding: Binding) => Promise<() => void>;
+  /** Coordinated content store used only for finalized RunHistory DAG I/O. */
+  archiveStore?: IpfsStore;
+  archive?: Partial<RunHistoryArchivePolicy>;
 }
 export const defaultEngineLimits: Readonly<EngineLimits> = Object.freeze({
   maxChildDepth: 4,
@@ -143,20 +168,21 @@ export const defaultEngineLimits: Readonly<EngineLimits> = Object.freeze({
   subscriptionBufferEvents: 64,
   subscriptionBufferBytes: 1_048_576,
 });
-const common = new Set([
-  "requestId",
-  "type",
-  "bundle",
-  "timeoutMs",
-  "eligibleAt",
-  "seriesId",
-  "matchPolicy",
-]);
 const systemClock: Clock = {
   now: () => Date.now(),
   schedule(callback, delay) {
-    const timer = setTimeout(callback, delay);
-    timer.unref();
+    let remaining = delay;
+    let timer: ReturnType<typeof setTimeout>;
+    const next = () => {
+      const step = Math.min(remaining, 2_147_483_647);
+      remaining -= step;
+      timer = setTimeout(() => {
+        if (remaining > 0) next();
+        else callback();
+      }, step);
+      timer.unref();
+    };
+    next();
     return () => clearTimeout(timer);
   },
 };
@@ -178,6 +204,7 @@ interface Group {
   releaseBundle?: () => void;
 }
 export class TaskEngine implements TaskService {
+  private readonly workerEnv: Readonly<Record<string, string>> | undefined;
   private readonly logs: RunLogs;
   private logSubscriptions = 0;
   private readonly owner = newId();
@@ -205,10 +232,123 @@ export class TaskEngine implements TaskService {
   private timer: (() => void) | undefined;
   private closeAttempt: Promise<void> | undefined;
   private starting: Promise<void> | undefined;
+  private readonly idleObservers = new Set<() => void>();
+  private readonly archiveAbort = new AbortController();
+  private readonly archivePolicy: RunHistoryArchivePolicy;
+  private archive: RunHistoryArchive | undefined;
+  private archivePass: Promise<void> | undefined;
+  private archiveAgain = false;
+
+  /** Internal lifecycle observation; the Bundle host seals its producers separately. */
+  waitForIdle(additionalIdle: () => boolean, signal?: AbortSignal): Promise<void> {
+    this.accepting();
+    return new Promise((resolve, reject) => {
+      const finish = (failed: boolean, error?: unknown) => {
+        this.idleObservers.delete(check);
+        signal?.removeEventListener("abort", abort);
+        if (failed) reject(error);
+        else resolve();
+      };
+      const abort = () =>
+        finish(true, signal?.reason ?? new TaskError("interrupted", "Drain aborted."));
+      const check = () => {
+        try {
+          if (signal?.aborted) return abort();
+          if (this.closing) throw new TaskError("engine_closed", "Drain interrupted by close.");
+          const facts = this.view.facts;
+          if (Object.values(facts.runs).some((run) => run.cleanupUnknown && !run.reclaimedAt))
+            throw new TaskError("reclamation_unknown", "Run resource cleanup is unconfirmed.");
+          if (this.errors.length)
+            throw new TaskError(this.errors.at(-1)!.code, this.errors.at(-1)!.message);
+          if (this.ticking || this.allocations.size || !additionalIdle()) return;
+          if (
+            Object.values(facts.submissions).some(
+              (record) => record.decision.status === "preparing",
+            )
+          )
+            return;
+          if (Object.values(facts.runs).some((run) => !run.exit || !run.reclaimedAt)) return;
+          const now = this.clock.now();
+          if (
+            Object.values(facts.tasks).some((task) => {
+              const run = matchedRun(facts, task);
+              return !task.canceledAt && !run?.exit && now <= Date.parse(task.deadlineAt);
+            })
+          )
+            return;
+          finish(false);
+        } catch (error) {
+          finish(true, error);
+        }
+      };
+      this.idleObservers.add(check);
+      signal?.addEventListener("abort", abort, { once: true });
+      check();
+    });
+  }
+  notifyIdle(): void {
+    for (const check of this.idleObservers) check();
+  }
+  reportError(error: unknown): void {
+    this.diagnostic(error);
+  }
+  readContentBlock(cid: string): Uint8Array | undefined {
+    this.readable();
+    validateBundleReference(cid);
+    if (!this.options.store.readContentBlock)
+      throw new TaskError("invalid_config", "Store does not support persistent content blocks.");
+    return this.options.store.readContentBlock(cid);
+  }
+  writeContentBlock(cid: string, bytes: Uint8Array): void {
+    this.readable();
+    validateBundleReference(cid);
+    if (!this.options.store.writeContentBlock)
+      throw new TaskError("invalid_config", "Store does not support persistent content blocks.");
+    this.options.store.writeContentBlock(this.owner, cid, bytes);
+  }
+  retainRunContent(runId: string, cid: string): void {
+    this.readable();
+    validateBundleReference(cid);
+    if (!this.options.store.retainRunContent)
+      throw new TaskError("invalid_config", "Store does not support persistent content retention.");
+    this.options.store.retainRunContent(this.owner, runId, cid);
+  }
+  readRunContentRoots(runId: string): string[] {
+    this.readable();
+    if (!this.options.store.readRunContentRoots)
+      throw new TaskError("invalid_config", "Store does not support content retention queries.");
+    return this.options.store.readRunContentRoots(runId);
+  }
+  recordRunContentAccess(runId: string, sid: string): void {
+    this.readable();
+    const run = this.view.facts.runs[runId];
+    if (!run) throw new TaskError("not_found", "Run not found.");
+    if (typeof sid !== "string" || !sid || sid.length > 512)
+      throw new TaskError("invalid_request", "A content space SID is required.");
+    if (run.contentAccess?.includes(sid)) return;
+    if (!this.options.store.recordRunContentAccess)
+      throw new TaskError("invalid_config", "Store does not support content access diagnostics.");
+    this.budget(1);
+    this.options.store.recordRunContentAccess(this.owner, runId, sid);
+    this.commit([this.runEvent("run.content-access", run, { sid })]);
+  }
+  readRunContentAccess(runId: string): string[] {
+    this.readable();
+    const run = this.view.facts.runs[runId];
+    if (!run) throw new TaskError("not_found", "Run not found.");
+    return [...(run.contentAccess ?? [])];
+  }
 
   constructor(private readonly options: EngineOptions) {
+    this.workerEnv = snapshotWorkerEnvironment(options.workerEnv);
     this.clock = options.clock ?? systemClock;
-    this.logs = new RunLogs(options.store, this.owner, () => this.clock.now(), options.logs);
+    this.logs = new RunLogs(
+      options.store,
+      this.owner,
+      () => this.clock.now(),
+      options.logs,
+      options.durableLogs,
+    );
     for (const key of Object.keys(options.limits ?? {}))
       if (!Object.hasOwn(defaultEngineLimits, key))
         throw new TaskError("invalid_config", `Unknown limit: ${key}`);
@@ -237,7 +377,7 @@ export class TaskEngine implements TaskService {
           return Object.freeze({
             type: name,
             version,
-            inputSchema: type.inputSchema,
+            parametersSchema: type.inputSchema,
             revision: type.revision,
           });
         }),
@@ -257,6 +397,63 @@ export class TaskEngine implements TaskService {
       },
       this.limits,
     );
+    this.archivePolicy = {
+      retainMs: options.archive?.retainMs ?? this.limits.retentionMs,
+      maxAttempts: options.archive?.maxAttempts ?? defaultArchivePolicy.maxAttempts,
+      retryDelayMs: options.archive?.retryDelayMs ?? defaultArchivePolicy.retryDelayMs,
+      maxSourceBytes: options.archive?.maxSourceBytes ?? defaultArchivePolicy.maxSourceBytes,
+      leaseMs: options.archive?.leaseMs ?? defaultArchivePolicy.leaseMs,
+      messagePageSize: options.archive?.messagePageSize ?? defaultArchivePolicy.messagePageSize,
+    };
+    for (const [key, value] of Object.entries(this.archivePolicy))
+      positive(value, `archive.${key}`);
+    const content = options.archiveStore;
+    if (options.store.runHistory && content?.supportsRetention)
+      this.archive = createRunHistoryArchive({
+        owner: this.owner,
+        history: options.store.runHistory,
+        content,
+        now: () => this.clock.now(),
+        ...(options.store.readContentBlock
+          ? { readContentBlock: options.store.readContentBlock.bind(options.store) }
+          : {}),
+        signal: this.archiveAbort.signal,
+        messagePageSize: this.archivePolicy.messagePageSize,
+      });
+  }
+  async readRunHistoryArchive(runId: string, caller: Caller): Promise<RunHistoryDetail> {
+    this.run(runId, caller, "history");
+    if (!this.archive) {
+      const record = this.options.store.runHistory?.read(runId);
+      return record ? { record, status: "not_archived" } : { status: "not_archived" };
+    }
+    return this.archive.read(runId);
+  }
+  requestRunHistoryRelease(runId: string): RunHistoryRecord {
+    this.readable();
+    const history = this.options.store.runHistory;
+    if (!history) throw new TaskError("invalid_config", "Store does not support RunHistory.");
+    const record = history.requestRelease(this.owner, runId, this.clock.now());
+    this.queueArchive();
+    return record;
+  }
+  private queueArchive(): void {
+    if (!this.started || this.closing || !this.archive) return;
+    if (this.archivePass) {
+      this.archiveAgain = true;
+      return;
+    }
+    const archive = this.archive;
+    this.archivePass = archive
+      .service(this.options.store, this.archivePolicy)
+      .catch(() => {})
+      .finally(() => {
+        this.archivePass = undefined;
+        if (this.archiveAgain && !this.closing) {
+          this.archiveAgain = false;
+          this.queueArchive();
+        }
+      });
   }
   private key(binding: Pick<Binding, "type" | "version">): string {
     return `${binding.type}\0${binding.version}`;
@@ -273,7 +470,7 @@ export class TaskEngine implements TaskService {
       throw new TaskError("invalid_type", "Incomplete static type contract.");
     const key = this.key(registration);
     if (this.types.has(key)) throw new TaskError("invalid_type", "Duplicate type version.");
-    const contract = compileInputSchema(registration.inputSchema, {
+    const contract = compileInputSchema(registration.parametersSchema, {
       maxInputBytes: this.limits.maxPayloadBytes,
     });
     const resultContract = compileJsonSchema(registration.resultSchema, {
@@ -362,6 +559,13 @@ export class TaskEngine implements TaskService {
             run.exit
           )
             throw new TaskError("invalid_log_identity", "Diagnostic drop identity unavailable.");
+          if (this.options.durableLogs)
+            this.diagnostic(
+              new TaskError(
+                "LOGS_INCOMPLETE",
+                "Worker reported task logs that could not be preserved.",
+              ),
+            );
           return this.logs.dropped(id, count);
         },
         checkpoint: async (id, value) => {
@@ -403,10 +607,13 @@ export class TaskEngine implements TaskService {
         heartbeatMs: this.limits.heartbeatMs,
         healthMs: this.limits.healthTimeoutMs,
         maxInFlight: this.limits.inFlight,
+        ...(this.options.durableLogs ? { durableLogs: true } : {}),
+        ...(this.options.executionBudgetFromWorker ? { dispatchOnWorkerStart: true } : {}),
         maxPayloadBytes: this.limits.maxPayloadBytes,
         stopGraceMs: this.limits.stopGraceMs,
         forceExitWaitMs: this.limits.forceExitWaitMs,
       },
+      this.workerEnv,
     );
     const revision = createHash("sha256")
       .update(
@@ -464,10 +671,10 @@ export class TaskEngine implements TaskService {
   private historical(binding: Binding): CompiledType {
     const type = this.type(binding);
     if (
-      !binding.inputSchema ||
+      !binding.parametersSchema ||
       binding.contractRevision !== type.revision ||
       binding.environment !== type.environment ||
-      canonical(binding.inputSchema) !== canonical(type.inputSchema)
+      canonical(binding.parametersSchema) !== canonical(type.inputSchema)
     )
       throw new TaskError(
         "unsupported_contract",
@@ -475,31 +682,39 @@ export class TaskEngine implements TaskService {
       );
     return type;
   }
+  private boundParameters(binding: Binding) {
+    return binding.bundle
+      ? this.boundContracts(binding).input.inputSchema
+      : this.historical(binding).inputSchema;
+  }
   private checkTask(task: TaskRecord): void {
-    if (task.binding.bundle) this.boundContracts(task.binding).input.validate(task.input);
-    else this.historical(task.binding).validate(task.input);
+    acceptPayload(task.parameters, this.boundParameters(task.binding), {
+      maxBytes: this.limits.maxPayloadBytes,
+    });
   }
   private checkRun(run: RunRecord): void {
-    if (run.binding.bundle) {
-      const contract = this.boundContracts(run.binding);
-      contract.input.validate(run.input);
-      if (run.outcome?.result !== undefined) contract.result.validate(run.outcome.result);
-    } else {
-      const type = this.historical(run.binding);
-      type.validate(run.input);
-      if (run.outcome?.result !== undefined) type.resultContract.validate(run.outcome.result);
+    acceptPayload(run.parameters, this.boundParameters(run.binding), {
+      maxBytes: this.limits.maxPayloadBytes,
+    });
+    if (run.outcome?.result !== undefined) {
+      const resultSchema = run.binding.bundle
+        ? this.boundContracts(run.binding).result.schema
+        : this.historical(run.binding).resultContract.schema;
+      acceptPayload(run.outcome.result, resultSchema, {
+        maxBytes: this.limits.maxPayloadBytes,
+      });
     }
     if (run.progress !== undefined) validateRunProgress(run.progress, this.limits.maxPayloadBytes);
   }
   private boundContracts(binding: Binding): { input: InputContract; result: JsonContract } {
     const key = canonical({
-      input: binding.inputSchema,
+      input: binding.parametersSchema,
       result: binding.declaration!.resultSchema,
     });
     let contract = this.historyContracts.get(key);
     if (!contract) {
       contract = {
-        input: compileInputSchema(binding.inputSchema, {
+        input: compileInputSchema(binding.parametersSchema, {
           maxInputBytes: this.limits.maxPayloadBytes,
         }),
         result: compileJsonSchema(binding.declaration!.resultSchema, {
@@ -540,6 +755,7 @@ export class TaskEngine implements TaskService {
     this.errors.push(fact);
     if (this.errors.length > 100) this.errors.shift();
     this.options.onError?.(fact);
+    this.notifyIdle();
   }
   private budget(extra: number, credit = 0): void {
     const reserve =
@@ -566,6 +782,7 @@ export class TaskEngine implements TaskService {
       );
     }
     this.observations.notify();
+    this.notifyIdle();
   }
   private runEvent<K extends NewEvent["type"]>(
     type: K,
@@ -619,8 +836,12 @@ export class TaskEngine implements TaskService {
   ): TaskSnapshot {
     this.accepting();
     this.authorized(caller, "submit", caller?.scope);
-    const raw = object(prepared ? request : json(request, this.limits.maxPayloadBytes)),
-      requestId = ulid(raw.requestId);
+    const raw = object(
+      request,
+      Math.min(Number.MAX_SAFE_INTEGER, this.limits.maxPayloadBytes + 8192),
+    );
+    wrapRequestParameters(raw);
+    const requestId = ulid(raw.requestId);
     let now = this.clock.now();
     const lower = Math.max(
       this.view.facts.admissionLowerBound ?? -Number.MAX_SAFE_INTEGER,
@@ -674,12 +895,10 @@ export class TaskEngine implements TaskService {
     const policy = raw.matchPolicy ?? "starts-after-eligible";
     if (policy !== "starts-after-eligible" && policy !== "terminates-after-eligible")
       throw new TaskError("unsupported_request", "Unsupported matchPolicy.");
-    const input = type.validate(
-      Object.fromEntries(
-        Object.entries(prepared?.intent ?? raw).filter(
-          ([key]) => !common.has(key) || (prepared !== undefined && key === "type"),
-        ),
-      ),
+    const parameters = acceptPayload(
+      prepared?.intent.parameters ?? raw.parameters,
+      type.inputSchema,
+      { maxBytes: this.limits.maxPayloadBytes },
     );
     let receivedAt = at(now),
       eligibleAt = at(
@@ -710,7 +929,7 @@ export class TaskEngine implements TaskService {
       eligibleAt,
       deadlineAt: at(Date.parse(eligibleAt) + positive(raw.timeoutMs, "timeoutMs")),
       receivedSequence: this.view.facts.watermark + 1,
-      input,
+      parameters,
       request: prepared?.intent ?? (raw as TaskRequest),
       binding: {
         ...(this.view.facts.submissions[requestId]?.composition
@@ -719,7 +938,7 @@ export class TaskEngine implements TaskService {
         type: raw.type,
         version,
         contractRevision: type.revision,
-        inputSchema: structuredClone(type.inputSchema),
+        parametersSchema: structuredClone(type.inputSchema),
         environment: type.environment,
         scope: caller.scope,
         subject: caller.subject,
@@ -902,9 +1121,15 @@ export class TaskEngine implements TaskService {
     this.accepting();
     const task = this.task(id, caller, "message"),
       key = `${id}\0${ulid(messageId)}`;
-    const value = compileJsonSchema(this.historical(task.binding).messageSchema, {
-      maxInputBytes: this.limits.maxPayloadBytes,
-    }).validate(payload);
+    const value = acceptPayload(
+      isPayloadEnvelope(payload)
+        ? payload
+        : emptyPayload(json(payload, this.limits.maxPayloadBytes)),
+      this.historical(task.binding).messageSchema,
+      {
+        maxBytes: this.limits.maxPayloadBytes,
+      },
+    );
     const existing = this.view.facts.messages[key];
     if (existing) {
       if (
@@ -1006,18 +1231,18 @@ export class TaskEngine implements TaskService {
     this.resolveMessage(runId, id, message, state, reason);
   }
   private compatible(
-    a: Pick<RunRecord, "binding" | "input">,
-    b: Pick<RunRecord, "binding" | "input">,
+    a: Pick<RunRecord, "binding" | "parameters">,
+    b: Pick<RunRecord, "binding" | "parameters">,
   ): boolean {
     return (
       (
         ["type", "version", "contractRevision", "environment", "scope", "compositionId"] as const
       ).every((field) => a.binding[field] === b.binding[field]) &&
-      canonical(a.binding.inputSchema) === canonical(b.binding.inputSchema) &&
-      (a.binding.bundle
-        ? compileInputSchema(a.binding.inputSchema)
-        : this.historical(a.binding)
-      ).equals(a.input, b.input)
+      canonical(a.binding.parametersSchema) === canonical(b.binding.parametersSchema) &&
+      (a.binding.bundle ? this.boundContracts(a.binding).input : this.historical(a.binding)).equals(
+        (a.parameters as { data: Json }).data,
+        (b.parameters as { data: Json }).data,
+      )
     );
   }
   private active(task: TaskRecord, now = this.clock.now()): boolean {
@@ -1075,6 +1300,8 @@ export class TaskEngine implements TaskService {
         else if (!run.reclaimedAt && !run.cleanupUnknown)
           this.cleanupUnknown(run.runId, "Restart has no persisted resource-release proof.");
       this.started = true;
+      this.archive?.recover();
+      this.queueArchive();
       this.schedule();
     } catch (error) {
       await Promise.allSettled(
@@ -1132,6 +1359,8 @@ export class TaskEngine implements TaskService {
       this.stopUnowned();
     } finally {
       this.ticking = false;
+      this.notifyIdle();
+      this.queueArchive();
     }
   }
   private allocate(task: TaskRecord): void {
@@ -1181,16 +1410,20 @@ export class TaskEngine implements TaskService {
     group.startup = Promise.resolve()
       .then(async () => {
         if (task.binding.bundle) group.releaseBundle = await this.options.loadBundle!(task.binding);
-        await this.supervisors.get(this.key(task.binding))!.run(id, task.input, task.binding.scope);
+        await this.supervisors
+          .get(this.key(task.binding))!
+          .run(id, task.parameters, task.binding.scope);
       })
       .catch((error) => {
         const run = this.view.facts.runs[id];
-        if (run && !run.exit && error instanceof RunDispatchError && error.releaseConfirmed) {
-          this.outcome(id, { kind: "failed", error: errorFact(error, "type_unavailable") });
-          this.commit([
-            this.runEvent("run.exited", this.view.facts.runs[id]!, { basis: "worker" }),
-          ]);
-          this.released(id);
+        if (run && error instanceof RunDispatchError && error.releaseConfirmed) {
+          if (!run.exit) {
+            this.outcome(id, { kind: "failed", error: errorFact(error, "type_unavailable") });
+            this.commit([
+              this.runEvent("run.exited", this.view.facts.runs[id]!, { basis: "worker" }),
+            ]);
+          }
+          if (!this.view.facts.runs[id]?.reclaimedAt) this.released(id);
         } else if (run && !run.exit) {
           this.cleanupUnknown(id, "Run entry delivery could not be confirmed.");
           group.reject(
@@ -1200,6 +1433,7 @@ export class TaskEngine implements TaskService {
           group.resolve();
           group.releaseBundle?.();
           this.allocations.delete(id);
+          this.notifyIdle();
           if (
             error instanceof TaskError &&
             (["unsupported_contract", "invalid_type", "type_unavailable"].includes(error.code) ||
@@ -1232,7 +1466,7 @@ export class TaskEngine implements TaskService {
       runId: id,
       generation: newId(now),
       binding: owner.binding,
-      input: owner.input,
+      parameters: owner.parameters,
       startedAt: at(now),
       updatedAt: at(now),
       startedSequence: this.view.facts.watermark + 1,
@@ -1241,10 +1475,24 @@ export class TaskEngine implements TaskService {
       this.runEvent("run.started", run, { run }, run.startedAt),
       this.runEvent("run.dispatched", run, { workerGeneration }, run.startedAt),
     ]);
+    if (this.options.store.retainRunContent)
+      for (const cid of payloadCids(owner.parameters, this.limits.maxPayloadBytes))
+        this.retainRunContent(id, cid);
     group.started = true;
+    const invocation =
+      this.view.facts.submissions[group.exemplar.request.requestId]?.composition?.intent;
+    const childTimeout =
+      invocation && typeof invocation === "object" && !Array.isArray(invocation)
+        ? invocation.timeoutMs
+        : undefined;
+    const executionMs = this.options.executionBudgetFromWorker
+      ? positive(childTimeout ?? this.limits.executionWallMs, "timeoutMs")
+      : this.limits.executionWallMs;
     group.wall = this.clock.schedule(
       () => this.requestStop(id, "execution_wall_limit"),
-      this.limits.executionWallMs,
+      this.options.executionBudgetFromWorker
+        ? Math.max(1, executionMs - (this.clock.now() - now))
+        : executionMs,
     );
   }
   private currentRun(id: string): RunRecord {
@@ -1268,9 +1516,16 @@ export class TaskEngine implements TaskService {
   private outcome(id: string, value: RunOutcomeReport): void {
     const run = this.currentRun(id),
       type = this.historical(run.binding);
-    const report: RunOutcomeReport =
+    const report:
+      | Omit<Extract<RunOutcome, { kind: "completed" }>, "occurredAt">
+      | Omit<Extract<RunOutcome, { kind: "failed" }>, "occurredAt"> =
       value.kind === "completed"
-        ? { kind: "completed", result: type.resultContract.validate(value.result) }
+        ? {
+            kind: "completed",
+            result: acceptPayload(value.result, type.resultContract.schema, {
+              maxBytes: this.limits.maxPayloadBytes,
+            }),
+          }
         : {
             kind: "failed",
             error: {
@@ -1279,7 +1534,11 @@ export class TaskEngine implements TaskService {
             },
             ...(value.result === undefined
               ? {}
-              : { result: type.resultContract.validate(value.result) }),
+              : {
+                  result: acceptPayload(value.result, type.resultContract.schema, {
+                    maxBytes: this.limits.maxPayloadBytes,
+                  }),
+                }),
           };
     if (run.outcome) {
       const { occurredAt: _at, ...existing } = run.outcome;
@@ -1290,6 +1549,9 @@ export class TaskEngine implements TaskService {
     this.commit([
       this.runEvent("run.outcome", run, { outcome: { ...report, occurredAt } }, occurredAt),
     ]);
+    if (this.options.store.retainRunContent && report.kind === "completed")
+      for (const cid of payloadCids(report.result, this.limits.maxPayloadBytes))
+        this.retainRunContent(id, cid);
   }
   private exited(id: string, fact: RunWorkerExit): void {
     const run = this.view.facts.runs[id];
@@ -1310,6 +1572,8 @@ export class TaskEngine implements TaskService {
       group?.resolve();
       group?.releaseBundle?.();
       this.allocations.delete(id);
+      this.notifyIdle();
+      this.queueArchive();
     } catch (error) {
       this.allocations.get(id)?.reject(error);
       this.diagnostic(error, "reclamation_unconfirmed");
@@ -1405,6 +1669,8 @@ export class TaskEngine implements TaskService {
     if (!this.started) return;
     this.closing = true;
     this.timer?.();
+    this.archiveAbort.abort(new TaskError("engine_closed", "Engine is closing."));
+    this.notifyIdle();
     this.observations.close();
     this.catalog.clear();
     this.executionCatalog.clear();
@@ -1435,6 +1701,7 @@ export class TaskEngine implements TaskService {
         }),
       ]);
       await Promise.all([...this.supervisors.values()].map((supervisor) => supervisor.close()));
+      await this.archivePass;
       this.started = false;
       this.options.store.release(this.owner);
     } catch (error) {

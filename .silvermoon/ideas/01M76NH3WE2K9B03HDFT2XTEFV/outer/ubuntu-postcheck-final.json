@@ -1,0 +1,48 @@
+{
+  "checkedAt": "2026-11-12T10:55:59.759Z",
+  "versionCommit": "bbc504364514ef91edbd28e3a4a7f61d828cb58b",
+  "workRelative": "task-engine-spaceref-smoke/bbc504364514-93c45d97-0ccb-45ce-99fa-914b756158d1",
+  "ownerVerified": true,
+  "exactRegistryPackages": 7,
+  "completeReplayPassed": true,
+  "caseCount": 17,
+  "resultSha256": "1f016a17aefc831f5cddef5eeebbb723666aa1633855149efa7c5779351cbd39",
+  "driverSha256": "28c0665a32da661587e03757466e534e9ee117382dcfe6d36498c700e036cf57",
+  "consumerLockSha256": "729a755f2ac6177b42ab1338dd052a38b582f87c4b953f66bb8807ac3349e958",
+  "allOwnedDaemonsExited": true,
+  "instances": [
+    {
+      "directory": "default-data",
+      "pid": 2760294,
+      "birth": "f553a387-e4d0-4fc2-bdc4-f13ddc390511:53309340",
+      "instanceId": "0cee8595-daea-477a-9f8e-77e9fca5512d",
+      "state": "stopped",
+      "released": true,
+      "originalProcessExited": true
+    },
+    {
+      "directory": "override-data",
+      "pid": 2760573,
+      "birth": "f553a387-e4d0-4fc2-bdc4-f13ddc390511:53310102",
+      "instanceId": "4ae33c8f-e07b-4630-a91a-f1c334e5c80f",
+      "state": "stopped",
+      "released": true,
+      "originalProcessExited": true
+    },
+    {
+      "directory": "offline-cli-data",
+      "pid": 2760943,
+      "birth": "f553a387-e4d0-4fc2-bdc4-f13ddc390511:53311490",
+      "instanceId": "08b99aa0-2d88-4c20-b267-9add7bbbad6d",
+      "state": "stopped",
+      "released": true,
+      "originalProcessExited": true
+    }
+  ],
+  "cleanup": {
+    "allOwnedEnginesClosed": true,
+    "sourceClosed": true,
+    "ownedCliStopped": true
+  },
+  "unrelatedServicesOrDirectoriesModified": false
+}

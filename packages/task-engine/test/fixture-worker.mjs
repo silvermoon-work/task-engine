@@ -2,7 +2,7 @@ export function createFixture(configuration, resources) {
   return {
     type: configuration.type,
     version: configuration.version,
-    inputSchema: configuration.inputSchema,
+    parametersSchema: configuration.parametersSchema ?? configuration.inputSchema,
     resultSchema: true,
     messageSchema: false,
     async run(input, context) {

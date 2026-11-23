@@ -1,0 +1,21 @@
+{
+  "name": "project",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "dependencies": {
+    "@silvermoon-work/task-sdk": "0.1.0-canary-261110-1"
+  },
+  "packageManager": "pnpm@11.22.0",
+  "scripts": {
+    "build": "task-builder build task.build.yaml",
+    "car": "task-builder car dist/task.yaml --output bundle.car"
+  },
+  "devDependencies": {
+    "@silvermoon-work/task-builder": "0.1.0-canary-261110-1",
+    "@silvermoon-work/task-builder-cli": "0.1.0-canary-261110-1"
+  }
+}

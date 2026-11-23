@@ -4,6 +4,9 @@
 提供 tasks、requests、Task messages 及十二项核心操作；没有 task-types：
 提交/取消；Task/Run 各自的单体快照、历史、订阅、冻结目录和集合订阅。
 单体观察路由为 `/tasks/:id`、`/tasks/:id/history`、`/tasks/:id/events` 及对应 `/runs/:id` 路由。
+`GET /runs/:id/archive` 在宿主提供 `readRunHistoryArchive` 时导出定稿 DAG
+详情，复用现有 `history` 授权并在返回前校验闭包；未实现该方法时为 503。
+该授权不覆盖 Store 入口的块可见性。
 集合订阅为 `/tasks/events`、`/runs/events`；新订阅显式提供 `fromRevision` 或 Last-Event-ID 源 revision。
 既有 event-history 与 events 别名保留，History 使用 taskId/runId/seriesId，但 Task 历史不再混入 Run progress。
 `GET /runs` 使用独立 `list-runs` 权限，返回不含业务载荷的冻结 Run 摘要。

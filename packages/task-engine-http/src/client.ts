@@ -76,7 +76,19 @@ export class TaskClient {
       );
     return value;
   }
-  async submit(request: TaskRequest, _caller?: Caller): Promise<SubmissionResult> {
+  async submit(
+    request: {
+      requestId: string;
+      bundle: TaskRequest["bundle"];
+      timeoutMs: number;
+      eligibleAt?: string;
+      seriesId?: string;
+      matchPolicy?: TaskRequest["matchPolicy"];
+      parameters?: TaskRequest["parameters"];
+      [key: string]: unknown;
+    },
+    _caller?: Caller,
+  ): Promise<SubmissionResult> {
     const { requestId, ...body } = request;
     ulid(requestId);
     validateBundleReference(request.bundle);
@@ -206,6 +218,9 @@ export class TaskClient {
     _caller?: Caller,
   ): Promise<HistoryPage> {
     return this.request(this.query(`/runs/${encodeURIComponent(id)}/history`, page));
+  }
+  readRunHistoryArchive(id: string, _caller?: Caller): Promise<unknown> {
+    return this.request(`/runs/${encodeURIComponent(id)}/archive`);
   }
   readHistory(
     filter: HistoryFilter,

@@ -4,11 +4,10 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { createTaskEngine, newId } from "@silvermoon-work/task-engine";
 import { MemoryIpfsClient, VirtualClock } from "@silvermoon-work/task-engine/testing";
-import { taskSchemaUri } from "@silvermoon-work/task-protocol";
+import { taskSchemaUri, wrapRequestParameters } from "@silvermoon-work/task-protocol";
 import { openSqliteStore } from "../src/index.js";
 
 for (const phase of ["beforeCommit", "afterCommit"] as const) {
@@ -28,7 +27,7 @@ for (const phase of ["beforeCommit", "afterCommit"] as const) {
             runtime: { type: "node", minVersion: "22.13.0" },
             entry: "worker.cjs",
             binary: [],
-            inputSchema: {
+            parametersSchema: {
               type: "object",
               properties: { value: { type: "number" } },
               required: ["value"],
@@ -39,13 +38,13 @@ for (const phase of ["beforeCommit", "afterCommit"] as const) {
           }),
         );
         await writeFile(callback, "export default async input => input;");
-        const built = await buildTaskBundle({
+        const built = await buildBundleFixture({
           declaration,
           entry: callback,
           outDirectory: join(directory, "bundle"),
         });
         const ipfsClient = new MemoryIpfsClient();
-        await ipfsClient.import((await readTaskArtifact(built.car)).files);
+        await ipfsClient.import(built.files);
         const now = Date.now();
         const request = {
           requestId: newId(now),
@@ -67,7 +66,11 @@ const physical=openSqliteStore(${JSON.stringify(filename)},{fault(point){if(arme
 const store={
 claim:id=>physical.claim(id),release:id=>physical.release(id),read:()=>physical.read(),
 append(owner,watermark,events){armed=events.some(event=>event.type==="submission.resolved");return physical.append(owner,watermark,events)},
-compact:(...args)=>physical.compact(...args),close:()=>physical.close()
+compact:(...args)=>physical.compact(...args),close:()=>physical.close(),
+readContentBlock:cid=>physical.readContentBlock(cid),
+writeContentBlock:(...args)=>physical.writeContentBlock(...args),
+retainRunContent:(...args)=>physical.retainRunContent(...args),
+readRunContentRoots:runId=>physical.readRunContentRoots(runId)
 };
 const engine=createTaskEngine({store,ipfsClient,authorize:()=>true});
 await engine.start();
@@ -99,7 +102,10 @@ process.exit(2);
             caller,
           );
           assert.equal(result.status, decision);
-          assert.deepEqual(engine.getRequest(request.requestId, caller), request);
+          assert.deepEqual(
+            engine.getRequest(request.requestId, caller),
+            wrapRequestParameters({ ...request }),
+          );
           assert.equal(
             Object.keys(store.read().facts.tasks).length,
             decision === "accepted" ? 1 : 0,

@@ -1,5 +1,6 @@
-import { at, canonical, fail, timestamp, ulid } from "./json.js";
+import { at, canonical, fail, type Json, timestamp, ulid } from "./json.js";
 import { compileInputSchema, type InputContract } from "./schema.js";
+import type { RunHistoryFinalizeOptions, RunHistorySource } from "./run-history.js";
 import type {
   FactEvent,
   Facts,
@@ -11,6 +12,11 @@ import type {
   TaskRecord,
   TaskSnapshot,
 } from "./types.js";
+
+function assertResultEnvelope(record: { result?: Json }, required = false): void {
+  if ("output" in record || "outputCid" in record || (required && record.result === undefined))
+    fail("unsupported_version", "Unsupported Run result. Stored data is not migrated.");
+}
 
 export function requestTime(id: string): number {
   const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
@@ -66,19 +72,36 @@ export function assertFactsVersion(facts: Facts): void {
       !["starts-after-eligible", "terminates-after-eligible"].includes(task.binding.matchPolicy)
     )
       fail("unsupported_version", "Unsupported stored Task representation or policy.");
-  for (const run of Object.values(facts.runs))
+  for (const run of Object.values(facts.runs)) {
+    assertResultEnvelope(run, run.completedAt !== undefined);
+    if (run.outcome) assertResultEnvelope(run.outcome, run.outcome.kind === "completed");
     if (!["starts-after-eligible", "terminates-after-eligible"].includes(run.binding.matchPolicy))
       fail("unsupported_version", "Unsupported stored Run policy.");
+  }
   for (const [id, record] of Object.entries(facts.submissions)) {
     if (record.composition) {
       const child = record.composition;
+      if (child.invocationVersion !== 1)
+        fail(
+          "unsupported_version",
+          "Legacy child invocation facts require a new data domain; migrate and rebuild bundles.",
+        );
+      if (child.source && "sid" in child.source)
+        fail(
+          "unsupported_version",
+          "Legacy child Space identity requires a new data domain; migrate and rebuild bundles.",
+        );
       if (
         !Number.isSafeInteger(child.depth) ||
         child.depth < 1 ||
         typeof child.key !== "string" ||
         !/^[a-zA-Z0-9._:-]{1,128}$/.test(child.key) ||
         typeof child.path !== "string" ||
-        !child.path.startsWith("resources/") ||
+        typeof child.source?.cid !== "string" ||
+        !child.source.cid ||
+        (child.source.path ?? "") !== child.path ||
+        typeof child.targetCid !== "string" ||
+        record.request.bundle !== child.targetCid ||
         !child.intent ||
         typeof child.intent !== "object"
       )
@@ -150,6 +173,53 @@ export function runStage(run: RunRecord): RunStage {
   if (run.exit) return run.outcome?.kind ?? (run.stopRequested ? "stopped" : "failed");
   return run.stoppingAt ? "stopping" : "running";
 }
+export function isRunHistoryFinalizable(facts: Facts, runId: string): boolean {
+  const run = facts.runs[runId];
+  return !!(
+    run?.exit &&
+    run.reclaimedAt &&
+    !run.cleanupUnknown &&
+    !Object.values(facts.messages).some(
+      (message) => message.runId === runId && message.state === "queued",
+    )
+  );
+}
+export function captureRunHistory(
+  view: StoreView,
+  runId: string,
+  options: RunHistoryFinalizeOptions,
+  contentRoots: string[],
+  contentAccess: string[],
+): RunHistorySource {
+  if (!isRunHistoryFinalizable(view.facts, runId))
+    fail(
+      "history_not_finalizable",
+      "History requires terminal exit, settled messages and cleanup proof.",
+    );
+  const run = view.facts.runs[runId]!;
+  if (view.floor >= run.startedSequence)
+    fail("history_gap", "The complete Run source prefix is no longer retained.");
+  const messages = Object.values(view.facts.messages).filter((message) => message.runId === runId);
+  const taskIds = new Set(messages.map((message) => message.taskId));
+  const source: RunHistorySource = structuredClone({
+    dataDomain: view.facts.dataDomain,
+    runId,
+    sourceWatermark: view.facts.watermark,
+    finalizedAt: options.now,
+    run,
+    messages,
+    events: view.events.filter(
+      (event) =>
+        event.runId === runId ||
+        (event.type === "task.canceled" && event.taskId !== undefined && taskIds.has(event.taskId)),
+    ),
+    contentRoots: [...new Set(contentRoots)].sort(),
+    contentAccess: [...new Set(contentAccess)].sort(),
+  });
+  if (new TextEncoder().encode(JSON.stringify(source)).byteLength > options.maxSourceBytes)
+    fail("history_limit", "RunHistory source exceeds the configured byte budget.");
+  return source;
+}
 export function matchesRunTime(
   policy: MatchPolicy,
   eligibleAt: string,
@@ -172,13 +242,20 @@ interface Index {
 }
 const indices = new WeakMap<Facts, Index>();
 const comparisonContracts = new Map<string, InputContract>();
-function group(record: Pick<TaskRecord, "binding" | "input">): string {
+function parametersData(value: Json): Json {
+  if (value && typeof value === "object" && !Array.isArray(value) && Object.hasOwn(value, "data"))
+    return (value as { data: Json }).data;
+  return value;
+}
+function group(record: Pick<TaskRecord, "binding" | "parameters">): string {
   const b = record.binding;
-  if (!b.inputSchema) fail("unsupported_contract", "Original bound inputSchema is missing.");
-  const schema = canonical(b.inputSchema);
+  if (!b.parametersSchema)
+    fail("unsupported_contract", "Original bound parametersSchema is missing.");
+  const schema = canonical(b.parametersSchema);
   let contract = comparisonContracts.get(schema);
   if (!contract) {
-    contract = compileInputSchema(b.inputSchema);
+    // Admission validates the host payload budget; projection compares persisted facts.
+    contract = compileInputSchema(b.parametersSchema, { maxInputBytes: Number.MAX_SAFE_INTEGER });
     if (comparisonContracts.size >= 64)
       comparisonContracts.delete(comparisonContracts.keys().next().value!);
     comparisonContracts.set(schema, contract);
@@ -191,7 +268,7 @@ function group(record: Pick<TaskRecord, "binding" | "input">): string {
     b.environment,
     b.scope,
     schema,
-    contract.equivalenceKey(record.input),
+    contract.equivalenceKey(parametersData(record.parameters)),
   ]);
 }
 function index(facts: Facts): Index {
@@ -309,6 +386,7 @@ export function project(
   };
   if (run && match) {
     snapshot.run = { runId: run.runId, startedAt: run.startedAt, matchedAt: match.observedAt };
+    if (run.contentAccess) snapshot.run.contentAccess = [...run.contentAccess];
     if (run.exit) {
       snapshot.termination = { terminatedAt: run.exit.occurredAt };
       if (stage === "completed") snapshot.run.completedAt = run.exit.occurredAt;
@@ -332,6 +410,7 @@ export function projectRun(facts: Facts, runId: string, now: number): RunSnapsho
   const snapshot: RunSnapshot = {
     ...parentAssociation(facts, run.binding.compositionId),
     runId,
+    ...(run.contentAccess ? { contentAccess: [...run.contentAccess] } : {}),
     ...(run.binding.bundle
       ? { bundle: structuredClone(run.binding.bundle), name: run.binding.declaration!.name }
       : {}),
@@ -541,6 +620,7 @@ export function reduce(prefix: Facts, events: readonly FactEvent[]): Facts {
         break;
       case "run.started": {
         const created = event.data.run;
+        assertResultEnvelope(created);
         if (
           run ||
           created.runId !== event.runId ||
@@ -554,6 +634,7 @@ export function reduce(prefix: Facts, events: readonly FactEvent[]): Facts {
           created.completedAt ||
           created.failedAt ||
           created.result !== undefined ||
+          created.contentAccess !== undefined ||
           created.error ||
           created.reclaimedAt ||
           created.cleanupUnknown ||
@@ -584,11 +665,18 @@ export function reduce(prefix: Facts, events: readonly FactEvent[]): Facts {
         run.stoppingAt = event.occurredAt;
         run.stoppingSequence = event.sequence;
         break;
+      case "run.content-access":
+        if (!run || typeof event.data.sid !== "string" || !event.data.sid)
+          fail("invalid_fact", "Invalid Run content access.");
+        run.contentAccess ??= [];
+        if (!run.contentAccess.includes(event.data.sid)) run.contentAccess.push(event.data.sid);
+        break;
       case "run.outcome":
         if (!run || run.exit || run.outcome)
           fail("invalid_fact", "Run no longer accepts a result.");
         if (event.data.outcome.occurredAt !== event.occurredAt)
           fail("invalid_fact", "Outcome time mismatch.");
+        assertResultEnvelope(event.data.outcome, event.data.outcome.kind === "completed");
         run.outcome = structuredClone(event.data.outcome);
         break;
       case "run.exited":

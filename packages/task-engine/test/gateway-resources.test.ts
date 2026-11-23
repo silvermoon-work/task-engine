@@ -4,8 +4,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { resolve } from "node:path";
 import test, { type TestContext } from "node:test";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { BundleCache } from "../src/bundle.js";
 import { createIpfsGatewayClient } from "../src/content.js";
@@ -28,7 +27,7 @@ function tree() {
           entry: "worker.cjs",
           binary: ["resources/nested/data.bin"],
           include: ["task.yaml", "worker.cjs", "resources/nested/data.bin"],
-          inputSchema: { type: "object" },
+          parametersSchema: { type: "object" },
           resultSchema: true,
           messageSchema: false,
         }),
@@ -119,7 +118,7 @@ async function bytes(iterator: AsyncIterator<Uint8Array>) {
     chunks.push(item.value);
   }
 }
-test("official HTTP/UnixFS demand reads are bounded, cancelable, cached and differ from prefetch", async (t) => {
+test("official HTTP/UnixFS preparation is complete and later reads stay offline and cancelable", async (t) => {
   const memory = new MemoryIpfsClient();
   const cid = await memory.import(tree());
   const host = await gateway(t, memory);
@@ -132,19 +131,19 @@ test("official HTTP/UnixFS demand reads are bounded, cancelable, cached and diff
   const bundle = await cache.acquire(cid);
   assert.equal(
     host.requests.some((key) => leaves.has(key)),
-    false,
-    "Admission does not prefetch resource data.",
+    true,
+    "Admission fetches the complete static DAG.",
   );
   const stream = await bundle.read("resources/nested/data.bin", new AbortController().signal);
   const first = await stream.next();
   assert.ok(!first.done && first.value.length <= 262_144);
   assert.ok(
-    host.requests.filter((key) => leaves.has(key)).length <= 2,
-    "One range can read its adjacent boundary block, not the whole file.",
+    [...leaves].every((key) => host.requests.includes(key)),
+    "Every file block was verified before admission.",
   );
   assert.equal(
     host.requests.some((key) => leaves.has(key) && key === [...leaves].at(-1)),
-    false,
+    true,
   );
   await stream.return?.();
   const controller = new AbortController();
@@ -170,7 +169,7 @@ test("official HTTP/UnixFS demand reads are bounded, cancelable, cached and diff
     false,
     "The first cached block survives Gateway failure.",
   );
-  await assert.rejects(bytes(cachedRange), "An unread block can fail after acceptance.");
+  await bytes(cachedRange);
   host.setMode("ok");
   assert.deepEqual(
     await bytes(await bundle.read("resources/nested/data.bin", new AbortController().signal)),
@@ -187,7 +186,7 @@ test("official HTTP/UnixFS demand reads are bounded, cancelable, cached and diff
   assert.equal(await cache.evict(cid), true);
 
   host.setMode("ok");
-  const eager = new BundleCache({ ipfsClient: client, prefetch: true });
+  const eager = new BundleCache({ ipfsClient: client });
   t.after(() => eager.close());
   const prefetched = await eager.acquire(cid);
   assert.ok([...leaves].every((key) => host.requests.includes(key)));
@@ -246,7 +245,7 @@ test("a real self-contained Worker reads a nested resource through only the conf
       runtime: { type: "node", minVersion: "22.13.0" },
       entry: "worker.cjs",
       binary: [],
-      inputSchema: { type: "object" },
+      parametersSchema: { type: "object" },
       resultSchema: true,
       messageSchema: false,
     }),
@@ -256,13 +255,16 @@ test("a real self-contained Worker reads a nested resource through only the conf
     entry,
     `export default async (_input,context)=>{
     let length=0,sum=0;
-    for await(const chunk of context.bundle.read("resources/nested/data.bin")){
+    const cid=await context.resolveContent(context.bundle,"resources/nested/data.bin");
+    const node=await context.readContent(cid);
+    if(node.kind!=="file")throw Error("Expected resource file");
+    for await(const chunk of node.content){
       length+=chunk.length;for(const byte of chunk)sum+=byte;
     }
     return {length,sum};
   };`,
   );
-  const built = await buildTaskBundle({
+  const built = await buildBundleFixture({
     declaration,
     entry,
     resources: { "resources/nested/data.bin": resolve(directory, "resource.bin") },
@@ -270,7 +272,7 @@ test("a real self-contained Worker reads a nested resource through only the conf
     outDirectory: resolve(directory, "bundle"),
   });
   const memory = new MemoryIpfsClient();
-  assert.equal(await memory.import((await readTaskArtifact(built.car)).files), built.cid);
+  assert.equal(await memory.import(built.files), built.cid);
   const host = await gateway(t, memory);
   const store = new MemoryStore();
   const engine = createTaskEngine({
@@ -297,8 +299,11 @@ test("a real self-contained Worker reads a nested resource through only the conf
     const task = engine.getTask(decision.taskId, caller);
     if (task.stage === "completed") {
       assert.deepEqual(task.result, {
-        length: resource.length,
-        sum: resource.reduce((sum, byte) => sum + byte, 0),
+        data: {
+          length: resource.length,
+          sum: resource.reduce((sum, byte) => sum + byte, 0),
+        },
+        cidPaths: [],
       });
       break;
     }
@@ -308,12 +313,11 @@ test("a real self-contained Worker reads a nested resource through only the conf
   }
   assert.ok(host.requests.length > 4);
   host.setMode("missing-resource");
-  for (const bundlePrefetch of [false, true]) {
+  {
     const coldStore = new MemoryStore();
     const cold = createTaskEngine({
       store: coldStore,
       ipfsClient: createIpfsGatewayClient(host.origin),
-      bundlePrefetch,
       authorize: () => true,
     });
     await cold.start();
@@ -324,27 +328,12 @@ test("a real self-contained Worker reads a nested resource through only the conf
       );
       while (failed.status === "preparing")
         failed = await cold.getRequestStatus(failed.requestId, { waitMs: 1000 }, caller);
-      assert.equal(failed.status, bundlePrefetch ? "rejected" : "accepted");
-      if (failed.status === "accepted") {
-        const deadline = Date.now() + 15_000;
-        for (;;) {
-          const task = cold.getTask(failed.taskId, caller);
-          if (
-            task.stage === "failed" &&
-            task.run &&
-            cold.getRun(task.run.runId, caller).reclaimedAt
-          )
-            break;
-          assert.ok(Date.now() < deadline, JSON.stringify(task));
-          await new Promise((done) => setTimeout(done, 10));
-        }
-      } else {
-        assert.equal(
-          Object.keys(coldStore.read().facts.tasks).length,
-          0,
-          "Prefetch failure never admits a Task.",
-        );
-      }
+      assert.equal(failed.status, "rejected");
+      assert.equal(
+        Object.keys(coldStore.read().facts.tasks).length,
+        0,
+        "Incomplete static closure never admits a Task.",
+      );
     } finally {
       await cold.close();
       coldStore.close();

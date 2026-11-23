@@ -1,0 +1,57 @@
+# 实施计划
+
+实施顺序、数据布局决策和验证记录见[实施设计与证据](./implementation-evidence.md)。先以不同分块的 UnixFS 文件和目录证明原始 DAG 保真，再推进调用与完整闭包；任何无法兑现已验收语义的结果均阻塞提交，不降级契约。
+
+## Steps
+
+### I-S01: 统一引用调用与执行身份
+
+将 SDK 子调用入口统一为 bundle SpaceRef，跨 Worker 传输协议引用，由 Engine 有界解析目标目录，派发前持久化来源、目标 CID 和稳定子提交身份。保持调用 key 的幂等意图、deadline 与恢复身份。移除 authorizeChild 子任务启动授权，保留已有资源访问约束，不扩展通用资源权限系统。静态视图创建不承诺内容已经获取，首版拒绝可写空间。
+
+### I-S02: 明确构建与准备闭包
+
+task.build.yaml 用 imports: Record<Path, CID> 在 resources/ 下引入通用文件或目录，以真实 DAG 链接保持原始根 CID，与 include 或其他目标冲突明确失败。import 不可变，修改后失败；修改需求转为本地资源。build 获取完整静态闭包并校验，car 离线复用原 DAG、核对路径到 CID 的绑定及展开内容一致性。
+
+build 交付自包含 task folder，连同必要原始块和元数据，不依赖机器缓存。提取 Builder 与 Engine 共用的内容获取、验证和块缓存能力，不耦合 Engine 生命周期；两者默认读取独立公共内容配置并允许分别覆盖网关和 data dir。存储按唯一块计量，路径、文件和执行预算独立；动态目标在调用时完整准备，超限不降级懒加载。首版不自动 GC，释放租约不删除共享块；共享目录并发安全且不混入 Engine 运行数据库。
+
+#### IpfsStore 对象抽象（新增实施要求）
+
+共同抽象为可注入的 IpfsStore 对象，而不是由 Builder 和 Engine 分别拼装下载、缓存和 DAG 读取工具。单一职责：按 CID 提供经过验证的 IPFS 内容，本地命中直接读取，缺失时通过显式配置的 gateway 获取并缓存。
+
+初始化只需要 dataDir 和可选 gateway，以及必要的资源限制；没有额外的初始化 data 参数。未配置 gateway 时仅本地读取，缺块明确失败。公共配置读取留在 CLI 或宿主层，解析后传入初始化；库导入不读取配置、不隐式启动实例。
+
+Builder 和 Engine 接收同一个类型的 store 对象，既能共享实例，也能分别创建指向同一目录或不同目录的实例。按 CID 读取返回区分文件与目录的内容节点，文件以流读取、目录按条目遍历，不默认把整个内容图加载成大 Buffer。保留完整准备与底层块读取能力以满足有界闭包验证及离线 CAR，但调用方不再自行拼接第二套获取缓存。
+
+store 拥有 CID 校验、本地存储、获取去重、有界遍历、超时/取消和自身生命周期；关闭不删除共享内容、不关闭调用者拥有的注入资源。它不理解 task bundle、imports、任务路径规则、调度、授权、Engine 数据库或 CAR 编码。任务便携路径校验留在 Builder/Protocol，仅用于打包的 DAG graft/祖先目录重建逻辑留在 Builder；不能仅把现有函数包一层对象而继续保留错误的职责归属。包名与最终方法签名根据该边界确定，不为命名扩大发布范围。
+
+本要求属于实施层收紧，不修改已验收 Ideal World。原 implementationRevision 的通过不能作为新修订的验收；重新完成相关验证、pnpm check 和准确 submitInner，经主 Agent 审批后才能恢复 RC 部署。原始验证证据作为历史保留，不冒充本次对象重构结果。
+
+实施将未发布的 task-content 更名为用户指定的 `@silvermoon-work/ipfs-store`，提供 `IpfsStore({dataDir, gateway?, limits?})`，不保留兼容包或扩大发布范围。`read(CID | CID/path, {signal?})` 返回区分文件与目录的 UnixFS 节点，提供 `content()` 字节流与 `entries()` 遍历；`prepare()` 验证完整闭包，`block.get` / `put` 支持原块搬运。`scope()` 借用相同存储，提供不高于父级的独立 reader 预算与生命周期；reader 的关闭与取消不拥有公共获取。显式 `fromClient()` 仅适配调用者拥有的低层块源，不关闭该源。
+
+Builder 的 `content` 与 Engine／Server 的 `ipfsStore` 接收这一对象类型，CLI 显式解析公共配置后创建对象。旧 Engine `ipfsClient` 仅保留为 deprecated 低层宿主适配，内部一次转换为同一对象，不能与 `ipfsStore` 同传；不形成第二套任务或内容读取协议。Engine 的任务准入、逻辑容量与租约仍留在 Engine；Run output 的可写版本和持久引用仍属于资源域，不进入内容 store。
+
+可移植任务路径校验和 import 展开在 Builder／Protocol，`linkContent` 的祖先重建位于 Builder `./dag`。Engine CLI 的离线 CAR reader 只校验 import 原根与规范非 import 补集，不嫁接节点、不依赖 Builder 生产包，保留无编译器运行闭包；维护新包名对应的发布映射与内部依赖；不改版本、不扩大未经审阅的发布计划。用户已完成 `@silvermoon-work/ipfs-store@0.0.0-stage` 占位和 Trusted Publisher 绑定；这只是外部配置证据，不是运行依赖、RC 版本选择或发布授权。保留该历史版本及 dist-tags，未来须重新核对包版本／tag、`publish-npm.yaml`、npm environment 的直接 publish 权限和精确 CI，经新实施门限与父 Agent 逐包计划审阅后才能发布。
+
+### I-S03: 更新验证与作者文档
+
+覆盖嵌套与共享依赖、离线准备、固定身份、动态引用和拒绝路径，更新 SDK、构建器与 Engine 的相关文档和示例。不引入循环 Merkle 依赖，也不把子调用合并为父 Run。
+
+直接更新现有 task.build.yaml 和 task.yaml 的 schema 定义，沿用版本与标识，不维护旧格式双协议。补充显式迁移配置、更新调用、重建 bundle 并替换依赖 CID 的说明；不原地改写旧制品。持久化事实若不兼容则明确要求新数据域，不放宽事实版本校验。
+
+## Acceptance criteria
+
+### I-AC01: 单一入口与固定身份
+
+通过类型检查及集成测试证明父 bundle 子树和 context.space(cid).root 使用同一入口，旧 CID 与路径双参数被拒绝；响应丢失和故障恢复沿用已固定目标、子提交 requestId 与 deadline，不产生重复身份。
+
+### I-AC02: 完整且有界的静态闭包
+
+以通用文件、目录和共享孙任务证明原始 CID 保持、唯一块去重与准备后断源执行；缺块、超限、路径冲突及 import 修改明确失败。证明完整目录脱离原工程和机器缓存仍可离线生成 CAR，并覆盖公共默认配置、独立覆盖和共享目录的并发与保留边界。
+
+增加对象级测试：同一 IpfsStore 可供两种调用方消费；本地命中不联网、冷缺失下载验证后缓存、无 gateway 缺块失败、文件流与目录遍历、独立 reader 取消、并发发布和关闭不删块。检查 Builder/Engine 实际统一使用对象端口，且 store 不再依赖 task bundle 路径规则或承担 DAG graft。已有保真与离线闭包用例必须继续通过。
+
+### I-AC03: 权限与执行隔离不退化
+
+证明父 DAG 内和外部子调用无需 authorizeChild，已有受控资源访问拒绝仍生效；覆盖可写空间拒绝、取消、预算和独立身份回归，并运行 pnpm check。不把调度检查或现有资源约束误作新的子调用授权。
+
+验证沿用 schema 标识的新定义拒绝不符合契约的旧格式，按迁移说明重建后可正常消费；如存在不兼容事实，明确拒绝且不修改原数据域。

@@ -1,0 +1,72 @@
+﻿{
+  "observedAt": "2026-11-12T15:34:37.078Z",
+  "mode": "after",
+  "id": "ipfs-store",
+  "name": "@silvermoon-work/ipfs-store",
+  "version": "0.1.0-rc.2",
+  "commit": "95b1cdbf76c70faf550b174fff97ca7df4d830cb",
+  "tags": {
+    "latest": "0.1.0-rc.0",
+    "rc": "0.1.0-rc.2"
+  },
+  "exactExists": true,
+  "dependencies": [],
+  "tarball": {
+    "url": "https://registry.npmjs.org/@silvermoon-work/ipfs-store/-/ipfs-store-0.1.0-rc.2.tgz",
+    "bytes": 39505,
+    "sha1": "b907eee592cac05cb0001c592e0a60a4ee18d2f4",
+    "sha512": "22323b807fc5d6f8f96b9fd3557b10c2383d8f7aceaf6ca6c3f5eb45a0bcf68ede69c6b1e252239e41a7616dd9436ac7c42c779b060429ecefe0da5767187e54",
+    "integrity": "sha512-IjI7gH/F1vj5a5/TVXsQwjg9j3rOr2ymw/XrRaC89o7eacax4lIjnkGnYW3ZQ2rHxCx3mwYEKezv4NpXZxh+VA=="
+  },
+  "provenance": {
+    "verifiedFields": true,
+    "statement": {
+      "_type": "https://in-toto.io/Statement/v1",
+      "subject": [
+        {
+          "name": "pkg:npm/%40silvermoon-work/ipfs-store@0.1.0-rc.2",
+          "digest": {
+            "sha512": "22323b807fc5d6f8f96b9fd3557b10c2383d8f7aceaf6ca6c3f5eb45a0bcf68ede69c6b1e252239e41a7616dd9436ac7c42c779b060429ecefe0da5767187e54"
+          }
+        }
+      ],
+      "predicateType": "https://slsa.dev/provenance/v1",
+      "predicate": {
+        "buildDefinition": {
+          "buildType": "https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1",
+          "externalParameters": {
+            "workflow": {
+              "ref": "refs/tags/ipfs-store-v0.1.0-rc.2",
+              "repository": "https://github.com/silvermoon-work/task-engine",
+              "path": ".github/workflows/publish-npm.yaml"
+            }
+          },
+          "internalParameters": {
+            "github": {
+              "event_name": "push",
+              "repository_id": "1450208672",
+              "repository_owner_id": "354036529"
+            }
+          },
+          "resolvedDependencies": [
+            {
+              "uri": "git+https://github.com/silvermoon-work/task-engine@refs/tags/ipfs-store-v0.1.0-rc.2",
+              "digest": {
+                "gitCommit": "95b1cdbf76c70faf550b174fff97ca7df4d830cb"
+              }
+            }
+          ]
+        },
+        "runDetails": {
+          "builder": {
+            "id": "https://github.com/actions/runner/github-hosted"
+          },
+          "metadata": {
+            "invocationId": "https://github.com/silvermoon-work/task-engine/actions/runs/43248509677/attempts/1"
+          }
+        }
+      }
+    }
+  },
+  "trustedPublisher": true
+}

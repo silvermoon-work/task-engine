@@ -13,9 +13,14 @@ import test from "node:test";
 import { releasePackages } from "./release-packages.js";
 import {
   readRegistryPackage,
+  readRegistryVersion,
+  readWorkspaceNames,
+  readWorkspaceManifests,
   selectRelease,
   validateArtifact,
+  validateDependencyOrigins,
   validateManifest,
+  validatePublishedVersion,
   verifyUnpublished,
   verifyWorkspaceDependencies,
 } from "./release.js";
@@ -108,16 +113,106 @@ test("the selected package, not the root, must match the tag exactly", () => {
   );
 });
 
+test("legacy project packages and npm aliases fail in every dependency section", () => {
+  for (const field of [
+    "dependencies",
+    "optionalDependencies",
+    "peerDependencies",
+    "devDependencies",
+  ]) {
+    for (const [name, specifier] of [
+      ["@potential-guide/task-sdk", "0.1.0-rc.2"],
+      ["@potential-guide/another-package", "1.0.0"],
+      ["pguide", "0.4.0"],
+      ["potential-guide", "1.0.0"],
+      ["alias", "npm:@potential-guide/task-protocol@0.1.0-rc.2"],
+      ["alias", "npm:pguide@0.4.0"],
+      ["alias", "npm:potential-guide@1.0.0"],
+    ]) {
+      const value = { ...manifest, [field]: { [name]: specifier } };
+      assert.throws(
+        () => validateManifest(selection, value),
+        /Legacy project dependency/u,
+      );
+      assert.throws(
+        () => validateArtifact(release, value),
+        /Legacy project dependency/u,
+      );
+    }
+    const value = {
+      ...manifest,
+      [field]: {
+        alias: "npm:@example/dependency@1.2.3",
+        "pguide-helper": "1.2.3",
+        "potential-guide-helper": "1.2.3",
+      },
+    };
+    assert.doesNotThrow(() => validateManifest(selection, value));
+    assert.doesNotThrow(() => validateArtifact(release, value));
+  }
+});
+
 test("prerelease suffixes must match exactly and never publish as latest", () => {
-  const selected = selectRelease(packages, { tag: "core-v2.0.0-beta.2" });
+  const selected = selectRelease(packages, { tag: "core-v2.0.0-rc.0" });
   assert.equal(
-    validateManifest(selected, { ...manifest, version: "2.0.0-beta.2" })
-      .distTag,
-    "next",
+    validateManifest(selected, { ...manifest, version: "2.0.0-rc.0" }).distTag,
+    "rc",
+  );
+  validateArtifact(
+    validateManifest(selected, { ...manifest, version: "2.0.0-rc.0" }),
+    { ...manifest, version: "2.0.0-rc.0" },
   );
   assert.throws(() =>
-    validateManifest(selected, { ...manifest, version: "2.0.0-beta.1" }),
+    validateManifest(selected, { ...manifest, version: "2.0.0-rc.1" }),
   );
+});
+
+test("release candidates publish only to rc and preserve exact identity", () => {
+  for (const version of ["0.2.0-rc.0", "0.2.0-rc.1", "0.2.0-rc.12"]) {
+    const selected = selectRelease(packages, { tag: `core-v${version}` });
+    const release = validateManifest(selected, { ...manifest, version });
+    assert.equal(release.distTag, "rc");
+    assert.equal(release.version, version);
+    validateArtifact(release, { ...manifest, version });
+    assert.throws(() =>
+      validateArtifact(release, {
+        ...manifest,
+        version: "0.2.0-rc.2",
+      }),
+    );
+  }
+  assert.equal(validateManifest(selection, manifest).distTag, "latest");
+});
+
+test("unsupported channels and noncanonical RC indices are rejected", () => {
+  const selected = selectRelease(packages, { packageId: "core" });
+  for (const suffix of [
+    "canary",
+    "canary.261109.1",
+    "canary-261109-1",
+    "next.0",
+    "alpha.0",
+    "beta.2",
+    "beta-rc.0",
+    "rc",
+    "rc.01",
+    "rc.-1",
+    "rc.9007199254740992",
+    "rc.1.extra",
+    "rc.1.0",
+    "rc.n",
+    "rc.0+build",
+    "RC.0",
+    "rc-0",
+  ]) {
+    const version = `0.1.0-${suffix}`;
+    assert.throws(() => {
+      const selected = selectRelease(packages, { tag: `core-v${version}` });
+      validateManifest(selected, { ...manifest, version });
+    }, /Invalid release tag version|Prerelease versions/);
+    assert.throws(() => validateManifest(selected, { ...manifest, version }));
+    assert.throws(() => validateArtifact(release, { ...manifest, version }));
+  }
 });
 
 test("artifact name and version must match; local dependency protocols fail", () => {
@@ -152,7 +247,38 @@ test("artifact name and version must match; local dependency protocols fail", ()
   }
 });
 
-test("internal runtime and peer dependencies must be published separately", async () => {
+test("published metadata is checked without packing-only fields, while tarballs still require them", () => {
+  const artifact = { name: release.name, version: release.version };
+  assert.doesNotThrow(() => validatePublishedVersion(release, artifact));
+  assert.throws(() => validateArtifact(release, artifact), /public access/u);
+  for (const changes of [
+    { name: "other" },
+    { version: "1.2.4" },
+    { private: true },
+  ])
+    assert.throws(() =>
+      validatePublishedVersion(release, { ...artifact, ...changes }),
+    );
+  for (const field of [
+    "dependencies",
+    "optionalDependencies",
+    "peerDependencies",
+    "devDependencies",
+  ])
+    for (const [name, specifier] of [
+      ["@potential-guide/task-sdk", "0.1.0-rc.2"],
+      ["alias", "npm:pguide@0.4.0"],
+      ["@example/local", "workspace:*"],
+    ])
+      assert.throws(() =>
+        validatePublishedVersion(release, {
+          ...artifact,
+          [field]: { [name]: specifier },
+        }),
+      );
+});
+
+test("all internal dependencies, including development dependencies, must be published separately", async () => {
   const names = new Set(["@example/utils"]);
   const published = async () => ({
     versions: { "1.0.0": {}, "2.0.0-rc.1": {} },
@@ -161,6 +287,7 @@ test("internal runtime and peer dependencies must be published separately", asyn
     "dependencies",
     "optionalDependencies",
     "peerDependencies",
+    "devDependencies",
   ]) {
     await verifyWorkspaceDependencies(
       { [field]: { "@example/utils": "^1.0.0" } },
@@ -200,12 +327,113 @@ test("internal runtime and peer dependencies must be published separately", asyn
   await verifyWorkspaceDependencies(
     {
       dependencies: { external: "*" },
-      devDependencies: { "@example/utils": "*" },
+      devDependencies: { externalDev: "*" },
     },
     names,
     () => {
-      throw new Error("Must not look up non-runtime or external dependencies");
+      throw new Error("Must not look up external dependencies");
     },
+  );
+});
+
+test("exact internal dependencies use version records without trusting stale catalogs", async () => {
+  const names = new Set(["@example/utils"]);
+  const artifact = { dependencies: { "@example/utils": "1.2.3" } };
+  const staleCatalog = async () => {
+    throw new Error("Exact dependency must not query the package catalog.");
+  };
+  await verifyWorkspaceDependencies(
+    artifact,
+    names,
+    staleCatalog,
+    async (name, version) => ({ name, version }),
+  );
+  for (const record of [
+    null,
+    { name: "@example/other", version: "1.2.3" },
+    { name: "@example/utils", version: "1.2.4" },
+    { name: "@example/utils", version: "1.2.3", private: true },
+  ])
+    await assert.rejects(
+      verifyWorkspaceDependencies(
+        artifact,
+        names,
+        staleCatalog,
+        async () => record,
+      ),
+      /No published version/u,
+    );
+  await assert.rejects(
+    verifyWorkspaceDependencies(artifact, names, staleCatalog, async () => {
+      throw new Error("version lookup failed");
+    }),
+    /version lookup failed/u,
+  );
+  await verifyWorkspaceDependencies(
+    { dependencies: { "@example/utils": "^1.0.0" } },
+    names,
+    async () => ({ versions: { "1.2.3": {} } }),
+    async () => {
+      throw new Error("Ranges require the catalog.");
+    },
+  );
+});
+
+test("version-record lookups check exact identity and fail closed on missing or invalid metadata", async () => {
+  const record = {
+    name: "@example/utils",
+    version: "1.2.3",
+    dependencies: { "@example/external": "1.0.0" },
+  };
+  assert.deepEqual(
+    await readRegistryVersion(
+      record.name,
+      record.version,
+      async (url, options) => {
+        assert.equal(
+          url,
+          "https://registry.npmjs.org/%40example%2Futils/1.2.3",
+        );
+        assert.equal(options.headers.Accept, "application/json");
+        return { ok: true, json: async () => record };
+      },
+    ),
+    record,
+  );
+  assert.equal(
+    await readRegistryVersion(record.name, record.version, async () => ({
+      status: 404,
+    })),
+    null,
+  );
+  for (const status of [401, 403, 429, 500])
+    await assert.rejects(
+      readRegistryVersion(record.name, record.version, async () => ({
+        ok: false,
+        status,
+      })),
+      /lookup failed/u,
+    );
+  for (const invalid of [
+    null,
+    [],
+    "invalid",
+    { ...record, name: "@example/other" },
+    { ...record, version: "1.2.4" },
+    { ...record, devDependencies: { alias: "npm:pguide@1.0.0" } },
+    { ...record, dependencies: { local: "workspace:*" } },
+  ])
+    await assert.rejects(
+      readRegistryVersion(record.name, record.version, async () => ({
+        ok: true,
+        json: async () => invalid,
+      })),
+    );
+  await assert.rejects(
+    readRegistryVersion(record.name, "^1.0.0", async () => {
+      throw new Error("Unexpected network request");
+    }),
+    /exact SemVer/u,
   );
 });
 
@@ -215,8 +443,9 @@ test("registry errors fail closed, and only HTTP 404 means a missing package", a
     null,
   );
   assert.deepEqual(
-    await readRegistryPackage("@example/core", async (url) => {
+    await readRegistryPackage("@example/core", async (url, options) => {
       assert.equal(url, "https://registry.npmjs.org/%40example%2Fcore");
+      assert.equal(options.headers.Accept, "application/json");
       return { ok: true, json: async () => ({ versions: { "1.2.3": {} } }) };
     }),
     { versions: { "1.2.3": {} } },
@@ -344,10 +573,62 @@ test("pnpm packs once without hooks, converts workspace dependencies and passes 
   }
 });
 
-test("the release registry contains exactly five renamed core packages", () => {
+test("release artifact discovery supports library-only repositories and fails on invalid workspaces", () => {
+  const root = mkdtempSync(resolve(".release-workspaces-"));
+  try {
+    mkdirSync(join(root, "packages", "core"), { recursive: true });
+    writeFileSync(
+      join(root, "packages", "core", "package.json"),
+      JSON.stringify({ name: "@example/core" }),
+    );
+    assert.deepEqual([...readWorkspaceNames(root)], ["@example/core"]);
+    mkdirSync(join(root, "packages", "retired", "dist"), { recursive: true });
+    writeFileSync(join(root, "packages", "artifact.txt"), "not a workspace");
+    assert.deepEqual([...readWorkspaceNames(root)], ["@example/core"]);
+    mkdirSync(join(root, "apps", "demo"), { recursive: true });
+    writeFileSync(
+      join(root, "apps", "demo", "package.json"),
+      JSON.stringify({ name: "@example/demo", private: true }),
+    );
+    assert.deepEqual(
+      [...readWorkspaceNames(root)],
+      ["@example/core", "@example/demo"],
+    );
+    mkdirSync(join(root, "apps", "retired"), { recursive: true });
+    assert.deepEqual(
+      readWorkspaceManifests(root).map(({ manifest }) => manifest.name),
+      ["@example/core", "@example/demo"],
+    );
+    for (const invalid of [null, [], {}, { name: "" }, { name: 7 }]) {
+      writeFileSync(
+        join(root, "apps", "demo", "package.json"),
+        JSON.stringify(invalid),
+      );
+      assert.throws(
+        () => readWorkspaceNames(root),
+        /Invalid workspace manifest/,
+      );
+    }
+    writeFileSync(join(root, "apps", "demo", "package.json"), "invalid JSON");
+    assert.throws(() => readWorkspaceNames(root), SyntaxError);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+  assert.ok(readWorkspaceNames().has("@silvermoon-work/task-protocol"));
+});
+
+test("the release registry contains the core packages, builder CLI and finite execution CLI", () => {
   const expected = [
+    "ipfs-access",
+    "ipfs-payload",
+    "ipfs-tree",
+    "ipfs-store",
+    "task-builder-cli",
+    "task-builder",
     "task-protocol",
+    "task-sdk",
     "task-engine",
+    "ipfspawn",
     "task-engine-storage",
     "task-engine-http",
     "task-engine-server",
@@ -370,6 +651,7 @@ test("the release registry contains exactly five renamed core packages", () => {
       "dependencies",
       "optionalDependencies",
       "peerDependencies",
+      "devDependencies",
     ]) {
       for (const [name, version] of Object.entries(value[section] ?? {})) {
         assert.ok(!name.startsWith("@potential-guide/"));
@@ -386,9 +668,105 @@ test("the release registry contains exactly five renamed core packages", () => {
   }
 });
 
+test("Engine production workspace closures exclude compilers and the retired CAR package", () => {
+  const manifests = new Map(
+    releasePackages.map(({ name, directory }) => [
+      name,
+      JSON.parse(readFileSync(resolve(directory, "package.json"), "utf8")),
+    ]),
+  );
+  const forbidden = new Set([
+    "@silvermoon-work/task-builder",
+    "@silvermoon-work/task-builder-cli",
+    "esbuild",
+    "enhanced-resolve",
+    "typescript",
+    "@silvermoon-work/task-bundle-car",
+  ]);
+  for (const root of [
+    "@silvermoon-work/ipfspawn",
+    "@silvermoon-work/task-engine",
+  ]) {
+    const visited = new Set();
+    const visit = (name) => {
+      assert.ok(
+        !forbidden.has(name) && !name.startsWith("@esbuild/"),
+        `${root} pulls in ${name}`,
+      );
+      if (visited.has(name)) return;
+      visited.add(name);
+      const manifest = manifests.get(name);
+      if (!manifest) return;
+      for (const section of [
+        "dependencies",
+        "optionalDependencies",
+        "peerDependencies",
+      ])
+        for (const [dependency, specifier] of Object.entries(
+          manifest[section] ?? {},
+        )) {
+          visit(dependency);
+          if (specifier.startsWith("npm:"))
+            visit(specifier.slice(4).replace(/@[^@/]*$/, ""));
+        }
+    };
+    visit(root);
+    assert.ok(!visited.has("@silvermoon-work/task-bundle-car"));
+  }
+  assert.equal(
+    manifests.get("@silvermoon-work/task-builder").dependencies.esbuild,
+    "catalog:",
+  );
+});
+
+test("public CLI packages install precompiled bins without consumer-side compilation hooks", () => {
+  for (const [id, command] of [
+    ["task-builder-cli", "task-builder"],
+    ["ipfspawn", "ipfspawn"],
+  ]) {
+    const directory = resolve("packages", id);
+    const manifest = JSON.parse(
+      readFileSync(resolve(directory, "package.json"), "utf8"),
+    );
+    assert.equal(manifest.private, undefined);
+    assert.equal(manifest.bin[command], "./dist/bin.js");
+    assert.deepEqual(Object.keys(manifest.bin), [command]);
+    assert.ok(manifest.files.includes("dist"));
+    for (const hook of ["preinstall", "install", "postinstall", "prepare"])
+      assert.equal(manifest.scripts[hook], undefined, `${id}: ${hook}`);
+    assert.ok(
+      readFileSync(resolve(directory, "src", "bin.ts"), "utf8").startsWith(
+        "#!/usr/bin/env node\n",
+      ),
+    );
+  }
+});
+
+test("workspace dependency configuration has no old-scope packages, including the lockfile", () => {
+  validateDependencyOrigins(JSON.parse(readFileSync("package.json", "utf8")));
+  for (const { manifest } of readWorkspaceManifests())
+    validateDependencyOrigins(manifest);
+  for (const path of [
+    "package.json",
+    "pnpm-workspace.yaml",
+    "pnpm-lock.yaml",
+  ]) {
+    const contents = readFileSync(resolve(path), "utf8");
+    assert.ok(!contents.includes("@potential-guide/"), path);
+    assert.ok(
+      !/(?:^|\n)\s*['"]?(?:pguide|potential-guide)(?:@|['"]?:)/u.test(contents),
+      path,
+    );
+  }
+});
+
 test("metadata CLI rejects unknown package IDs and unsupported events", () => {
   const command = resolve("scripts", "release.js");
   for (const env of [
+    {
+      RELEASE_EVENT: "push",
+      RELEASE_TAG: "task-bundle-car-v0.1.0-canary-261110-1",
+    },
     { RELEASE_EVENT: "push", RELEASE_TAG: "core-v0.0.0" },
     { RELEASE_EVENT: "workflow_dispatch", PACKAGE_INPUT: "core" },
     { RELEASE_EVENT: "push", RELEASE_TAG: "unknown-v1.0.0" },

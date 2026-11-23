@@ -6,12 +6,23 @@ import semver from "semver";
 import { releasePackages } from "./release-packages.js";
 
 const registry = "https://registry.npmjs.org";
+const legacyPackage =
+  /^(?:@potential-guide\/|(?:pguide|potential-guide)(?:@|$))/u;
 const dependencyFields = [
   "dependencies",
   "optionalDependencies",
   "peerDependencies",
   "devDependencies",
 ];
+
+function isReleaseVersion(version) {
+  return (
+    typeof version === "string" &&
+    semver.valid(version) === version &&
+    (semver.prerelease(version) === null ||
+      /^\d+\.\d+\.\d+-rc\.(?:0|[1-9]\d*)$/u.test(version))
+  );
+}
 
 export function selectRelease(packages, { tag, packageId }) {
   for (const field of ["id", "name", "directory"]) {
@@ -41,10 +52,27 @@ export function selectRelease(packages, { tag, packageId }) {
   }
   const version =
     tag === undefined ? undefined : tag.slice(selected.id.length + 2);
-  if (version !== undefined && semver.valid(version) !== version) {
+  if (version !== undefined && !isReleaseVersion(version)) {
     throw new Error(`Invalid release tag version: ${version}.`);
   }
   return { ...selected, taggedVersion: version };
+}
+
+export function validateDependencyOrigins(manifest) {
+  for (const field of dependencyFields) {
+    for (const [name, specifier] of Object.entries(manifest[field] ?? {})) {
+      if (
+        legacyPackage.test(name) ||
+        (typeof specifier === "string" &&
+          specifier.startsWith("npm:") &&
+          legacyPackage.test(specifier.slice(4)))
+      ) {
+        throw new Error(
+          `Legacy project dependency in ${field}: ${name}@${specifier}.`,
+        );
+      }
+    }
+  }
 }
 
 export function validateManifest(selected, manifest) {
@@ -57,10 +85,7 @@ export function validateManifest(selected, manifest) {
   if (manifest.name.startsWith("@workspace/")) {
     throw new Error("Replace the placeholder @workspace package name.");
   }
-  if (
-    typeof manifest.version !== "string" ||
-    semver.valid(manifest.version) !== manifest.version
-  ) {
+  if (!isReleaseVersion(manifest.version)) {
     throw new Error(`Invalid package version: ${manifest.version}.`);
   }
   if (
@@ -83,15 +108,49 @@ export function validateManifest(selected, manifest) {
       "publishConfig.directory is not supported; pack the mapped package.",
     );
   }
+  validateDependencyOrigins(manifest);
+  const prerelease = semver.prerelease(manifest.version);
+  const distTag = prerelease === null ? "latest" : "rc";
+  if (prerelease !== null) {
+    if (
+      prerelease.length !== 2 ||
+      prerelease[0] !== "rc" ||
+      typeof prerelease[1] !== "number" ||
+      !Number.isSafeInteger(prerelease[1]) ||
+      prerelease[1] < 0
+    ) {
+      throw new Error(
+        "Prerelease versions require -rc.N with a safe nonnegative integer N; only latest and rc channels are supported.",
+      );
+    }
+  }
   return {
     ...selected,
     version: manifest.version,
-    distTag: semver.prerelease(manifest.version) === null ? "latest" : "next",
+    distTag,
   };
 }
 
 export function validateArtifact(release, artifact) {
   validateManifest({ ...release, taggedVersion: release.version }, artifact);
+  validateDependencySpecifiers(artifact);
+}
+
+export function validatePublishedVersion(release, artifact) {
+  if (
+    artifact.name !== release.name ||
+    artifact.version !== release.version ||
+    artifact.private === true
+  ) {
+    throw new Error(
+      `Expected published ${release.name}@${release.version}, received ${artifact.name}@${artifact.version}.`,
+    );
+  }
+  validateDependencyOrigins(artifact);
+  validateDependencySpecifiers(artifact);
+}
+
+function validateDependencySpecifiers(artifact) {
   for (const field of dependencyFields) {
     for (const [name, range] of Object.entries(artifact[field] ?? {})) {
       if (
@@ -108,10 +167,9 @@ export async function verifyWorkspaceDependencies(
   artifact,
   workspaceNames,
   readPackage,
+  readVersion,
 ) {
-  for (const field of dependencyFields.filter(
-    (field) => field !== "devDependencies",
-  )) {
+  for (const field of dependencyFields) {
     for (const [name, range] of Object.entries(artifact[field] ?? {})) {
       if (!workspaceNames.has(name)) continue;
       if (semver.validRange(range) === null) {
@@ -119,13 +177,24 @@ export async function verifyWorkspaceDependencies(
           `Internal dependency ${name} requires a registry SemVer range.`,
         );
       }
-      const metadata = await readPackage(name);
-      if (
-        metadata === null ||
-        !Object.keys(metadata.versions).some((version) =>
-          semver.satisfies(version, range),
-        )
-      ) {
+      const exactVersion = semver.valid(range);
+      let published;
+      if (exactVersion !== null && readVersion !== undefined) {
+        const version = await readVersion(name, exactVersion);
+        published =
+          version !== null &&
+          version.name === name &&
+          version.version === exactVersion &&
+          version.private !== true;
+      } else {
+        const metadata = await readPackage(name);
+        published =
+          metadata !== null &&
+          Object.keys(metadata.versions).some((version) =>
+            semver.satisfies(version, range),
+          );
+      }
+      if (!published) {
         throw new Error(
           `No published version satisfies ${name}@${range}; publish the dependency separately first.`,
         );
@@ -138,7 +207,7 @@ export async function readRegistryPackage(name, fetchPackage = fetch) {
   const response = await fetchPackage(
     `${registry}/${encodeURIComponent(name)}`,
     {
-      headers: { Accept: "application/vnd.npm.install-v1+json" },
+      headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(30_000),
     },
   );
@@ -160,6 +229,39 @@ export async function readRegistryPackage(name, fetchPackage = fetch) {
   return metadata;
 }
 
+export async function readRegistryVersion(name, version, fetchVersion = fetch) {
+  if (semver.valid(version) !== version) {
+    throw new Error(
+      `Registry version lookup requires an exact SemVer: ${version}.`,
+    );
+  }
+  const response = await fetchVersion(
+    `${registry}/${encodeURIComponent(name)}/${encodeURIComponent(version)}`,
+    {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(30_000),
+    },
+  );
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(
+      `npm registry version lookup failed for ${name}@${version}: HTTP ${response.status}.`,
+    );
+  }
+  const artifact = await response.json();
+  if (
+    artifact === null ||
+    typeof artifact !== "object" ||
+    Array.isArray(artifact)
+  ) {
+    throw new Error(
+      `Invalid npm registry version metadata for ${name}@${version}.`,
+    );
+  }
+  validatePublishedVersion({ name, version }, artifact);
+  return artifact;
+}
+
 export async function verifyUnpublished(release, readPackage) {
   const metadata = await readPackage(release.name);
   if (metadata !== null && Object.hasOwn(metadata.versions, release.version)) {
@@ -169,6 +271,41 @@ export async function verifyUnpublished(release, readPackage) {
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
+}
+
+export function readWorkspaceManifests(root = ".") {
+  const directories = ["packages"];
+  if (readdirSync(root).includes("apps")) directories.push("apps");
+  return directories.flatMap((directory) =>
+    readdirSync(resolve(root, directory), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .flatMap((entry) => {
+        const path = resolve(root, directory, entry.name, "package.json");
+        let manifest;
+        try {
+          manifest = readJson(path);
+        } catch (error) {
+          if (error.code === "ENOENT") return [];
+          throw error;
+        }
+        if (
+          !manifest ||
+          typeof manifest !== "object" ||
+          Array.isArray(manifest) ||
+          typeof manifest.name !== "string" ||
+          !manifest.name.trim()
+        ) {
+          throw new Error(`Invalid workspace manifest: ${path}`);
+        }
+        return [{ path, manifest }];
+      }),
+  );
+}
+
+export function readWorkspaceNames(root = ".") {
+  return new Set(
+    readWorkspaceManifests(root).map(({ manifest }) => manifest.name),
+  );
 }
 
 function currentRelease() {
@@ -217,20 +354,12 @@ async function main(command) {
       }),
     );
     validateArtifact(release, artifact);
-    const workspaceNames = new Set(
-      ["apps", "packages"].flatMap((directory) =>
-        readdirSync(directory, { withFileTypes: true })
-          .filter((entry) => entry.isDirectory())
-          .map(
-            (entry) =>
-              readJson(resolve(directory, entry.name, "package.json")).name,
-          ),
-      ),
-    );
+    const workspaceNames = readWorkspaceNames();
     await verifyWorkspaceDependencies(
       artifact,
       workspaceNames,
       readRegistryPackage,
+      readRegistryVersion,
     );
     if (process.env.RELEASE_EVENT === "push") {
       await verifyUnpublished(release, readRegistryPackage);

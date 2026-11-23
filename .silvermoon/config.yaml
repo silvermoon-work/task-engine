@@ -1,0 +1,4 @@
+version: 2
+primaryRepository: https://github.com/silvermoon-work/task-engine.git
+primaryBranch: main
+preferredLanguage: zh-CN

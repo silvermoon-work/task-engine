@@ -1,0 +1,6 @@
+# 保留 Windows 采集字节；CR 是行结束标记，不忽略真实尾随空白。
+consumer-check.mjs -text -filter whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+consumer-*.json -text -filter whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+consumer-*.yaml -text -filter whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+consumer-*.log -text -filter whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+cli-registry-metadata.json -text -filter whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

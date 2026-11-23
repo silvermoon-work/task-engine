@@ -26,7 +26,7 @@ function type(resources: RegisteredType["resources"] = {}): RegisteredType {
     type: "run-test",
     version: "1",
     environment: "trusted",
-    inputSchema,
+    parametersSchema: inputSchema,
     resultSchema: { type: "object" },
     messageSchema,
     module: new URL("./run-type.mjs", import.meta.url).href,
@@ -152,8 +152,13 @@ test("消息接纳有持久化状态与幂等身份，取消只撤回所属需�
     const finish = newId();
     h.engine.sendTaskMessage(b.taskId, finish, { kind: "finish" }, caller);
     await until(() => !!h.engine.getTask(b.taskId, caller).termination);
-    assert.equal((h.engine.getTask(b.taskId, caller).result as { total: number }).total, 0);
-    assert.equal(h.engine.getRequest(b.requestId, caller).text, "input");
+    const result = h.engine.getTask(b.taskId, caller).result;
+    assert.ok(result);
+    assert.equal((result as { data: { total: number } }).data.total, 0);
+    assert.equal(
+      (h.engine.getRequest(b.requestId, caller).parameters as { data: { text: string } }).data.text,
+      "input",
+    );
     assert.equal(h.engine.getTask(b.taskId, caller).deadlineAt, b.deadlineAt);
     assert.throws(
       () => h.engine.sendTaskMessage(b.taskId, newId(), { kind: "add", amount: 1 }, caller),
@@ -165,7 +170,7 @@ test("消息接纳有持久化状态与幂等身份，取消只撤回所属需�
   }
 });
 
-test("隔离副本不能改 Engine Input；未提供的主线程状态与环境不进入类型堆", async () => {
+test("隔离副本不能改 Engine Input；主线程堆不共享，环境默认原生继承", async () => {
   const globals = globalThis as typeof globalThis & { __runHostMarker?: string };
   globals.__runHostMarker = "host-only";
   process.env.RUN_TEST_HOST_MARKER = "host-only";
@@ -180,11 +185,18 @@ test("隔离副本不能改 Engine Input；未提供的主线程状态与环境�
     );
     await until(() => !!h.engine.getTask(task.taskId, caller).termination);
     assert.deepEqual(h.engine.getTask(task.taskId, caller).result, {
-      text: "changed",
-      hostMarker: null,
-      inheritedEnv: null,
+      data: {
+        text: "changed",
+        hostMarker: null,
+        inheritedEnv: "host-only",
+      },
+      cidPaths: [],
     } as Json);
-    assert.equal(h.engine.getRequest(task.requestId, caller).text, "input");
+    assert.equal(
+      (h.engine.getRequest(task.requestId, caller).parameters as { data: { text: string } }).data
+        .text,
+      "input",
+    );
     assert.equal(globals.__runHostMarker, "host-only");
   } finally {
     delete globals.__runHostMarker;

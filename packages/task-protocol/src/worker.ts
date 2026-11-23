@@ -4,3 +4,4 @@ export * from "./logs.js";
 export * from "./run.js";
 export type { ResolvedTaskBundle } from "./bundle.js";
 export { taskSchemaUri } from "./task-schema-uri.js";
+export { ContentRef } from "@silvermoon-work/ipfs-payload";

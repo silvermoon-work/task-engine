@@ -522,7 +522,7 @@ turbo.json
 `workspace:*`。移除 preset 的示例工作区，保留核心包及新增的 task-sdk、task-builder、task-builder-cli。CLI 可被程序化调用，因此作为可复用库放在 packages，而非 private
 app。编译器和 Node 类型沿用来源项目的 TypeScript 5.9.3 与 Node
 22 类型版本，避免在提取时同时升级编译基线。包使用 Biome 和 Node test
-runner（tsx）；根目录及 release 脚本保留 preset 的 Prettier/ESLint 工具链。
+runner（tsx）；根目录及 release 脚本保留 preset 的 Prettier/ESLint 工具链。Biome 显式排除 Markdown，保留升级前的检查范围，避免依赖升级重排包文档及代码示例。
 
 ## Workspace conventions
 

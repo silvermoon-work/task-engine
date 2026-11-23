@@ -1,0 +1,9 @@
+{
+  "verifiedAt": "2026-11-12T10:42:03.970Z",
+  "workRelative": "task-engine-spaceref-smoke/bbc504364514-c73069b2-b697-4224-8889-aa572ea04ad1",
+  "versionCommit": "bbc504364514ef91edbd28e3a4a7f61d828cb58b",
+  "scriptSha256": "ac03a9b8c092c581df490ea9d559fad8fabc9b035093f5b210d55fb153823c56",
+  "ownerVerified": true,
+  "registryInstallVerified": true,
+  "freshReplay": true
+}

@@ -1,0 +1,36 @@
+{
+  "name": "@silvermoon-work/task-builder-cli",
+  "version": "0.1.0-canary-261110-1",
+  "dist": {
+    "shasum": "864c256e4f07dcca438fe3e21f09d7d64a856ef8",
+    "tarball": "https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-builder-cli/-/task-builder-cli-0.1.0-canary-261110-1.tgz",
+    "fileCount": 23,
+    "integrity": "sha512-5zu7KvdHQ0lptizpRoU3fIAF5plIb5/uPsn03lJpkjR+eCXyGO9Y4anuqEdt7sCVufsR20rhu1p3Zw9rKc+1GA==",
+    "signatures": [
+      {
+        "sig": "MEUCIAcXJTI0clisMLKWDsujx+6HeOfeyi/eM6sKdSB7YZ3kAiEAj9qb28CeiN/qHpGKaUar4NxQbJgIGeUBGD3Bma5KIJ0=",
+        "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+      },
+      {
+        "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+        "sig": "MEQCIGFZkSaw0e7cN8Ypi7Sv8RSZSR5NxY8fOa7mcwj0kOj5AiA6ZxvV4FSVwKoBcnpAzJ7LMFp7F+WqWF/zKEM0sSuBbg=="
+      }
+    ],
+    "attestations": {
+      "url": "https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-builder-cli@0.1.0-canary-261110-1",
+      "provenance": {
+        "predicateType": "https://slsa.dev/provenance/v1"
+      }
+    },
+    "unpackedSize": 82158
+  },
+  "dependencies": {
+    "yaml": "2.9.1",
+    "commander": "14.0.3",
+    "@silvermoon-work/task-builder": "0.1.0-canary-261110-1",
+    "@silvermoon-work/task-protocol": "0.1.0-canary-261109-2"
+  },
+  "devDependencies": {
+    "@silvermoon-work/task-sdk": "0.1.0-canary-261109-2"
+  }
+}

@@ -1,0 +1,405 @@
+{
+  "startedAt": "2026-11-10T15:47:40.095Z",
+  "node": "v26.13.0",
+  "executable": "C:\\Program Files\\nodejs\\node.exe",
+  "platform": "win32",
+  "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+  "root": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+  "registry": "https://mirrors.cloud.tencent.com/npm/",
+  "commands": [
+    {
+      "label": "outside-cwd npm registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T15:47:40.103Z",
+      "finishedAt": "2026-11-10T15:47:40.314Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "npm client version: effective registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T15:47:40.314Z",
+      "finishedAt": "2026-11-10T15:47:40.513Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "npm client version",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm --version"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T15:47:40.513Z",
+      "finishedAt": "2026-11-10T15:47:40.701Z",
+      "exitCode": 0,
+      "stdout": "11.20.0\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "outside-cwd pnpm registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "pnpm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T15:47:40.701Z",
+      "finishedAt": "2026-11-10T15:47:41.119Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "mirror exact metadata task-protocol: effective registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T15:47:41.119Z",
+      "finishedAt": "2026-11-10T15:47:41.305Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "mirror exact metadata task-protocol",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm view @silvermoon-work/task-protocol@0.1.0-canary-261110-1 name version dist --json --prefer-online"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T15:47:41.305Z",
+      "finishedAt": "2026-11-10T15:47:42.453Z",
+      "exitCode": 0,
+      "stdout": "{\n  \"name\": \"@silvermoon-work/task-protocol\",\n  \"version\": \"0.1.0-canary-261110-1\",\n  \"dist\": {\n    \"shasum\": \"8ed688b90e006480c799399db1aa8aa4fb8b3813\",\n    \"tarball\": \"https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-protocol/-/task-protocol-0.1.0-canary-261110-1.tgz\",\n    \"fileCount\": 67,\n    \"integrity\": \"sha512-cDCnKmSMeC8TfAj1/JCo1keNw/UI/mKrgincMpIpWXzf4Qih5EmqqWLLQrPfXtLoyasxJtgBjl9wcTGpUJ/Q4A==\",\n    \"signatures\": [\n      {\n        \"sig\": \"MEUCIHQO6rZTHtimZ4nC9ke/vR0JpKWGAYl5iMvN2CCVDG0DAiEAqMFZu3zG3HsoqP6KCpYnI5x8mzi5G640eADid0sUbq8=\",\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\"\n      },\n      {\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\",\n        \"sig\": \"MEUCIGRUSf33VQ88t+uvyD79tqhNZoTHXF2ZDXxIkkaZFXVsAiEA5LWaEB8EHWwnmfzBWfD0R5VhYkNL40uMhcnAF6gjcOI=\"\n      }\n    ],\n    \"attestations\": {\n      \"url\": \"https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-protocol@0.1.0-canary-261110-1\",\n      \"provenance\": {\n        \"predicateType\": \"https://slsa.dev/provenance/v1\"\n      }\n    },\n    \"unpackedSize\": 247061\n  }\n}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "mirror exact metadata task-sdk: effective registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T15:47:42.454Z",
+      "finishedAt": "2026-11-10T15:47:42.645Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "mirror exact metadata task-sdk",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm view @silvermoon-work/task-sdk@0.1.0-canary-261110-1 name version dist --json --prefer-online"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T15:47:42.645Z",
+      "finishedAt": "2026-11-10T15:47:43.523Z",
+      "exitCode": 0,
+      "stdout": "{\n  \"name\": \"@silvermoon-work/task-sdk\",\n  \"version\": \"0.1.0-canary-261110-1\",\n  \"dist\": {\n    \"shasum\": \"04710eca40deb37c04edf668a16a85c7105d33a0\",\n    \"tarball\": \"https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-sdk/-/task-sdk-0.1.0-canary-261110-1.tgz\",\n    \"fileCount\": 11,\n    \"integrity\": \"sha512-3mKoiRakTJxeWdrCWq5lq2KlogfXnfIAFsFRxx2ZHF4BwG77kmGP0K5V6sM6uCWgrpIjD9MDy4QdRForVMr5ng==\",\n    \"signatures\": [\n      {\n        \"sig\": \"MEQCIE2fWV9do6bjQmkRflY9GapJCPZB9hGddSHFyjpdK18FAiAao9bQ566S18RLkdV4fSGRn4gNegHZsQ+DyqxceHlFQw==\",\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\"\n      },\n      {\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\",\n        \"sig\": \"MEUCIQCgnA9wRbC8G7kBY7nRPiR/18Oh2W9tOKNeSTD608qJvwIgQlUtXrUBqTkSXJc8pLzFqbNUqWONv01WOX7pwSFfhD0=\"\n      }\n    ],\n    \"attestations\": {\n      \"url\": \"https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-sdk@0.1.0-canary-261110-1\",\n      \"provenance\": {\n        \"predicateType\": \"https://slsa.dev/provenance/v1\"\n      }\n    },\n    \"unpackedSize\": 49584\n  }\n}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "mirror exact metadata task-engine: effective registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T15:47:43.523Z",
+      "finishedAt": "2026-11-10T15:47:43.722Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "mirror exact metadata task-engine",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm view @silvermoon-work/task-engine@0.1.0-canary-261110-1 name version dist --json --prefer-online"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T15:47:43.723Z",
+      "finishedAt": "2026-11-10T15:47:44.620Z",
+      "exitCode": 0,
+      "stdout": "{\n  \"name\": \"@silvermoon-work/task-engine\",\n  \"version\": \"0.1.0-canary-261110-1\",\n  \"dist\": {\n    \"shasum\": \"a51d26e7ee5c75d49b319fadea869330f7418ae8\",\n    \"tarball\": \"https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-engine/-/task-engine-0.1.0-canary-261110-1.tgz\",\n    \"fileCount\": 63,\n    \"integrity\": \"sha512-TozDmwBuHfEteTB2Snzjby27jzvllKngI4t3zC7nMpCK54ozkV1fDxBZ+sRW6/vq0cb1qmxYsHEdMxweitGZAQ==\",\n    \"signatures\": [\n      {\n        \"sig\": \"MEUCIE2DZ+DgkLo9BmolI8+v1+n+IIBTq2T1dozYi3P17MuxAiEAv4ir0HMCyztALih7bxRRYTM5rfOXbqy+A8GOhz3bhBI=\",\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\"\n      },\n      {\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\",\n        \"sig\": \"MEUCIC6l9KNOgHutlvs+axofg2lfrenGY2Mqv2ly7r1v/kkyAiEArvSVPRgGNifU6i09qWGk0Ef5HrsORnyKruU/smBDzgQ=\"\n      }\n    ],\n    \"attestations\": {\n      \"url\": \"https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-engine@0.1.0-canary-261110-1\",\n      \"provenance\": {\n        \"predicateType\": \"https://slsa.dev/provenance/v1\"\n      }\n    },\n    \"unpackedSize\": 556593\n  }\n}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "mirror exact metadata task-engine-cli: effective registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T15:47:44.620Z",
+      "finishedAt": "2026-11-10T15:47:44.819Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "mirror exact metadata task-engine-cli",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm view @silvermoon-work/task-engine-cli@0.1.0-canary-261110-2 name version dist --json --prefer-online"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T15:47:44.819Z",
+      "finishedAt": "2026-11-10T15:47:46.034Z",
+      "exitCode": 0,
+      "stdout": "{\n  \"name\": \"@silvermoon-work/task-engine-cli\",\n  \"version\": \"0.1.0-canary-261110-2\",\n  \"dist\": {\n    \"shasum\": \"6f0ef270b12b0759a8bbf38fa0dfac556c7a2902\",\n    \"tarball\": \"https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-engine-cli/-/task-engine-cli-0.1.0-canary-261110-2.tgz\",\n    \"fileCount\": 51,\n    \"integrity\": \"sha512-QXTOpu9X2n+YjsN0a4dOTyEZz9kNrF2pUt7jTvI+WhWBsqTkvudc5Cs904NkW/FD9ZBB+gGETRLukppgitSlKw==\",\n    \"signatures\": [\n      {\n        \"sig\": \"MEYCIQCSvER4CbQ2D+Q2NO2vWPEapKoqHOr+FB0Af6ugwQhrywIhAI8U0n6EhE9UfqPbH4jsPck4gsEb7tS0G4L+CXqZTvq9\",\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\"\n      },\n      {\n        \"keyid\": \"SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U\",\n        \"sig\": \"MEUCIGHfSmRUr51qEHVsJXS+bWyrVQUueLpMIqFnuJPP0EWVAiEA54P7XmwTelVOZ24fPrrQU7jRzjsuAV2zm6w3YasgHvg=\"\n      }\n    ],\n    \"attestations\": {\n      \"url\": \"https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-engine-cli@0.1.0-canary-261110-2\",\n      \"provenance\": {\n        \"predicateType\": \"https://slsa.dev/provenance/v1\"\n      }\n    },\n    \"unpackedSize\": 284352\n  }\n}\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "registry install exact consumer CLI: effective registry",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm config get registry"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T15:47:46.034Z",
+      "finishedAt": "2026-11-10T15:47:46.215Z",
+      "exitCode": 0,
+      "stdout": "https://mirrors.cloud.tencent.com/npm/\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "registry install exact consumer CLI",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "npm install --prefix D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install --save-exact --omit=dev --ignore-scripts @silvermoon-work/task-engine-cli@0.1.0-canary-261110-2"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98",
+      "startedAt": "2026-11-10T15:47:46.215Z",
+      "finishedAt": "2026-11-10T15:48:18.408Z",
+      "exitCode": 0,
+      "stdout": "\nadded 262 packages in 32s\n\n33 packages are looking for funding\n  run `npm fund` for details\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "installed CLI --version",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+        "--version"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T15:48:18.409Z",
+      "finishedAt": "2026-11-10T15:48:18.884Z",
+      "exitCode": 0,
+      "stdout": "0.1.0-canary-261110-2\n",
+      "stderr": "",
+      "timedOut": false
+    },
+    {
+      "label": "npm-generated executable shim --version",
+      "command": [
+        "C:\\WINDOWS\\system32\\cmd.exe",
+        "/d",
+        "/s",
+        "/c",
+        "\"D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\.bin\\task-engine.cmd\" --version"
+      ],
+      "cwd": "D:\\Code\\task-engine-canary-261110-d30f1b98\\work",
+      "startedAt": "2026-11-10T15:48:18.885Z",
+      "finishedAt": "2026-11-10T15:48:18.906Z",
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "'\\\"D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\.bin\\task-engine.cmd\\\"' �����ڲ����ⲿ���Ҳ���ǿ����еĳ���\r\n���������ļ���\r\n",
+      "timedOut": false
+    }
+  ],
+  "checks": [],
+  "cleanup": [],
+  "npmVersion": "11.20.0",
+  "installMetadata": {
+    "task-protocol": {
+      "name": "@silvermoon-work/task-protocol",
+      "version": "0.1.0-canary-261110-1",
+      "dist": {
+        "shasum": "8ed688b90e006480c799399db1aa8aa4fb8b3813",
+        "tarball": "https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-protocol/-/task-protocol-0.1.0-canary-261110-1.tgz",
+        "fileCount": 67,
+        "integrity": "sha512-cDCnKmSMeC8TfAj1/JCo1keNw/UI/mKrgincMpIpWXzf4Qih5EmqqWLLQrPfXtLoyasxJtgBjl9wcTGpUJ/Q4A==",
+        "signatures": [
+          {
+            "sig": "MEUCIHQO6rZTHtimZ4nC9ke/vR0JpKWGAYl5iMvN2CCVDG0DAiEAqMFZu3zG3HsoqP6KCpYnI5x8mzi5G640eADid0sUbq8=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEUCIGRUSf33VQ88t+uvyD79tqhNZoTHXF2ZDXxIkkaZFXVsAiEA5LWaEB8EHWwnmfzBWfD0R5VhYkNL40uMhcnAF6gjcOI="
+          }
+        ],
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-protocol@0.1.0-canary-261110-1",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        },
+        "unpackedSize": 247061
+      }
+    },
+    "task-sdk": {
+      "name": "@silvermoon-work/task-sdk",
+      "version": "0.1.0-canary-261110-1",
+      "dist": {
+        "shasum": "04710eca40deb37c04edf668a16a85c7105d33a0",
+        "tarball": "https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-sdk/-/task-sdk-0.1.0-canary-261110-1.tgz",
+        "fileCount": 11,
+        "integrity": "sha512-3mKoiRakTJxeWdrCWq5lq2KlogfXnfIAFsFRxx2ZHF4BwG77kmGP0K5V6sM6uCWgrpIjD9MDy4QdRForVMr5ng==",
+        "signatures": [
+          {
+            "sig": "MEQCIE2fWV9do6bjQmkRflY9GapJCPZB9hGddSHFyjpdK18FAiAao9bQ566S18RLkdV4fSGRn4gNegHZsQ+DyqxceHlFQw==",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEUCIQCgnA9wRbC8G7kBY7nRPiR/18Oh2W9tOKNeSTD608qJvwIgQlUtXrUBqTkSXJc8pLzFqbNUqWONv01WOX7pwSFfhD0="
+          }
+        ],
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-sdk@0.1.0-canary-261110-1",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        },
+        "unpackedSize": 49584
+      }
+    },
+    "task-engine": {
+      "name": "@silvermoon-work/task-engine",
+      "version": "0.1.0-canary-261110-1",
+      "dist": {
+        "shasum": "a51d26e7ee5c75d49b319fadea869330f7418ae8",
+        "tarball": "https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-engine/-/task-engine-0.1.0-canary-261110-1.tgz",
+        "fileCount": 63,
+        "integrity": "sha512-TozDmwBuHfEteTB2Snzjby27jzvllKngI4t3zC7nMpCK54ozkV1fDxBZ+sRW6/vq0cb1qmxYsHEdMxweitGZAQ==",
+        "signatures": [
+          {
+            "sig": "MEUCIE2DZ+DgkLo9BmolI8+v1+n+IIBTq2T1dozYi3P17MuxAiEAv4ir0HMCyztALih7bxRRYTM5rfOXbqy+A8GOhz3bhBI=",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEUCIC6l9KNOgHutlvs+axofg2lfrenGY2Mqv2ly7r1v/kkyAiEArvSVPRgGNifU6i09qWGk0Ef5HrsORnyKruU/smBDzgQ="
+          }
+        ],
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-engine@0.1.0-canary-261110-1",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        },
+        "unpackedSize": 556593
+      }
+    },
+    "task-engine-cli": {
+      "name": "@silvermoon-work/task-engine-cli",
+      "version": "0.1.0-canary-261110-2",
+      "dist": {
+        "shasum": "6f0ef270b12b0759a8bbf38fa0dfac556c7a2902",
+        "tarball": "https://mirrors.cloud.tencent.com/npm/@silvermoon-work/task-engine-cli/-/task-engine-cli-0.1.0-canary-261110-2.tgz",
+        "fileCount": 51,
+        "integrity": "sha512-QXTOpu9X2n+YjsN0a4dOTyEZz9kNrF2pUt7jTvI+WhWBsqTkvudc5Cs904NkW/FD9ZBB+gGETRLukppgitSlKw==",
+        "signatures": [
+          {
+            "sig": "MEYCIQCSvER4CbQ2D+Q2NO2vWPEapKoqHOr+FB0Af6ugwQhrywIhAI8U0n6EhE9UfqPbH4jsPck4gsEb7tS0G4L+CXqZTvq9",
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+          },
+          {
+            "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U",
+            "sig": "MEUCIGHfSmRUr51qEHVsJXS+bWyrVQUueLpMIqFnuJPP0EWVAiEA54P7XmwTelVOZ24fPrrQU7jRzjsuAV2zm6w3YasgHvg="
+          }
+        ],
+        "attestations": {
+          "url": "https://registry.npmjs.org/-/npm/v1/attestations/@silvermoon-work%2ftask-engine-cli@0.1.0-canary-261110-2",
+          "provenance": {
+            "predicateType": "https://slsa.dev/provenance/v1"
+          }
+        },
+        "unpackedSize": 284352
+      }
+    }
+  },
+  "cliEntry": "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\bin.js",
+  "cliIndex": "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\@silvermoon-work\\task-engine-cli\\dist\\index.js",
+  "cliShim": "D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\.bin\\task-engine.cmd",
+  "ok": false,
+  "failure": {
+    "name": "AssertionError",
+    "message": "npm-generated executable shim --version:  '\\\"D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\.bin\\task-engine.cmd\\\"' �����ڲ����ⲿ���Ҳ���ǿ����еĳ���\r\n���������ļ���\r\n\n\n1 !== 0\n",
+    "stack": "AssertionError [ERR_ASSERTION]: npm-generated executable shim --version:  '\\\"D:\\Code\\task-engine-canary-261110-d30f1b98\\cli-install\\node_modules\\.bin\\task-engine.cmd\\\"' �����ڲ����ⲿ���Ҳ���ǿ����еĳ���\r\n���������ļ���\r\n\n\n1 !== 0\n\n    at invoke (file:///D:/Code/task-engine/.silvermoon/ideas/01M71WBMZYN22C1JRHF2AZ1DQA/outer/registry-smoke.mjs:61:29)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async file:///D:/Code/task-engine/.silvermoon/ideas/01M71WBMZYN22C1JRHF2AZ1DQA/outer/registry-smoke.mjs:221:3"
+  },
+  "runtimeDataRemoved": true,
+  "finishedAt": "2026-11-10T15:48:18.907Z"
+}

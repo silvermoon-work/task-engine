@@ -1,6 +1,51 @@
 # @silvermoon-work/task-protocol
 
+The stable 0.2.0 contract uses `result: {data, cidPaths}` directly in
+Task/Run snapshots, persisted outcomes and records, aligned with
+`parametersSchema`, `messageSchema` and `resultSchema`. There is no `output`
+wrapper or separate Space CID. Results preserve the IPFS payload envelope,
+including `data: null` and explicit CID paths. Old `output: {result}` and
+`outputCid` records are rejected rather than migrated; use a new data directory.
+RunHistory DAG version 2 uses the same direct result field.
+The SDK maps schema-declared fields to typed `ContentRef`; ordinary strings are
+not inferred references. `parameters` replaces `input` in requests, bindings,
+contracts and child invocations. Rebuild old Bundles with matching SDK/Builder;
+projection version alone does not establish stored-contract compatibility.
+
+The generic protocol is already migrated and published as
+`0.1.0-canary-261109-2`. Workspace SDK, builder and Engine packages depend on
+this package, not the old-scope protocol. Protocol URI strings and source
+specification links retain their original identity; they are not package
+dependencies.
+
+The historical stable `0.1.0` release was published to `latest`; publication and installed
+acceptance are recorded in the [release notes](../../README.md#stable-010-2026-11-11).
+Protocol and SDK `0.2.0` are published to `latest` and paired in the registry-tested
+template; see the [stable release record](../../README.md#stable-020-2026-11-16).
+Published versions are immutable.
+
 ## Task Bundle bytes and structure
+
+The runtime declaration accepts four environments:
+
+- `{ type: "node", minVersion: "22.15.0" }`: Node.js; an exact three-part
+  minimum version is required.
+- `{ type: "browser" }`: a browser page environment.
+- `{ type: "browser-worker" }`: a browser Worker environment without direct DOM access.
+- `{ type: "cloudflare-worker" }`: the Cloudflare Workers runtime, shared by
+  ordinary Workers and Durable Objects. Durable Object requirements belong to
+  a host contract, not a separate runtime type.
+
+Non-Node declarations do not accept `minVersion` or other runtime fields,
+including Cloudflare compatibility dates, flags or Durable Object settings.
+Unknown runtime types are rejected. Builder supports self-contained ESM output
+for all four runtimes, using `entry: main.mjs`; the Node Engine still rejects
+all three non-Node runtimes with `unsupported_runtime` before execution.
+`entry` accepts `main.mjs` (ESM) or `worker.cjs` (legacy CommonJS), and must name a
+nonempty included UTF-8 file. Engine and CAR inspection follow this declaration.
+Old Node declarations and their encoded bytes are unchanged; new builds require
+matching ESM-capable Protocol/Builder/Engine versions. No browser/Cloudflare
+execution host or automatic cross-environment API compatibility is provided.
 
 The Bundle protocol owns `taskBundleLimits`, `TaskBundleFileLimits`,
 `isTaskBundlePath`, `parseTaskBundleYaml`, and `readTaskBundle`.
@@ -20,6 +65,10 @@ All other bytes must be valid UTF-8 with LF-only line endings, including manifes
 Worker and Schemas. Reading rejects old declarations and non-normalized text,
 without rewriting anything. `normalizeTaskText` preserves all bytes except CRLF
 and lone CR (converted to LF), including a UTF-8 BOM; invalid UTF-8 names its path.
+`createTaskTextNormalizer(path)` provides the same rules incrementally:
+`push(bytes)` validates split UTF-8 and normalizes split CRLF, while `finish()`
+rejects truncated UTF-8 at EOF. Use one normalizer per stream and call `finish()`
+only after complete consumption; partial/canceled streams do not prove validity.
 Author tools share `taskBundlePattern` / `selectTaskBinary` for case-sensitive,
 portable final-path globs. No content/extension sniffing determines binary.
 Both author tooling and Engine use this implementation independently of
@@ -47,8 +96,10 @@ Request 原始表示参与幂等；内容判等与缓存使用 `bundleCid(refere
 通用 Task/完整 Run 的 JSON、schema、请求、事件、Store 与服务边界。
 
 Task Bundle/Worker 使用唯一 `taskSchemaUri` v1，包含独立诊断日志协议。
-项目尚未正式发布，v1 可原地演进；已移除的 Task v2 和未来未知 URL 明确拒绝，不做别名。
-TaskType 仅声明 type/version/inputSchema/resultSchema/messageSchema 和完整 run 入口；
+0.1.0 固定本次发布的 v1 契约；后续不兼容变更必须明确版本与升级边界，
+不能继续以“尚未发布”为由静默修改已交付契约。
+已移除的 Task v2 和未来未知 URL 明确拒绝，不做别名。
+TaskType 仅声明 type/version/parametersSchema/resultSchema/messageSchema 和完整 run 入口；
 Host 用 RegisteredType 本地模块描述注册，不传动态函数对象给 Engine。
 
 matchPolicy / MatchPolicy 使用 starts-after-eligible、terminates-after-eligible 两值，after 包含等号。
@@ -84,10 +135,28 @@ messages 必选、Task 归属及确认与生命周期控制分离；checkpoint �
 Facts projection v5；Task 仅存受理/取消事实，匹配与状态按源前缀推导。
 新 submission 的 `bundleProtocol:"ipfs"` 区分当前受理记录与不支持的旧协议；
 即使新请求因非法引用而被拒绝，仍可跨重启读取其原始意图及持久拒绝结果。
-Task/Run Binding 保留原 inputSchema；实时共享与纯事实重放都使用该 Schema 编译的结构 Equals。
+Task/Run Binding 保留 parametersSchema；实时共享与纯事实重放都使用该 Schema 编译的结构 Equals。
 历史分组的 equivalenceKey 与 Equals 共用投影和序列化，由绑定 Schema 与原 Input 重建，不落盘为匹配权威。
 允许但未声明的额外字段也参与比较，不能忽略其存在或取值差异。
 Request 幂等冲突检查仍比较完整原始 Request，不使用结构 Equals。
 全域源 revision、完整集合封装和 fromRevision 补读不使用每 Task 权威快照或绑定事务。
 旧版本明确拒绝，无隐式数据迁移或删除。
 完整协议与历史/取消/资源边界见 [Task Engine](https://github.com/shazhou-ww/potential-guide/blob/3500086123d8b821b77958699ceeebfb2a518e0f/docs/task-engine.md)。
+
+## Optional finalized history management
+
+`Store.runHistory?: RunHistoryStorage` is a single optional capability, not a
+mandatory change for existing Store adapters. `isRunHistoryFinalizable` requires
+terminal exit, settled messages and confirmed resource cleanup; it never treats
+an outcome or recovery exit as reclamation evidence. `captureRunHistory` selects
+one bounded, stable Run source at a SQLite watermark, not Task snapshots or an
+active IPFS head. The existing projection/API versions remain unchanged.
+
+The protocol exports `RunHistorySource`, `RunHistoryRecord`,
+`RunHistoryPolicy`, archive/release leases, closure/retention receipts and dated
+read observations. `createRunHistoryStorage` shares synchronous metadata
+transitions across durable and disposable Stores. Finalization is explicit and
+idempotent, archive retries are bounded, and release generations fence stale
+publishers independently of Run outcomes. No network, pinning or payload codec
+is invoked by these transitions. See the [storage contract](../task-engine-storage/README.md#finalized-runhistory-management-metadata-only)
+for sequencing, source contents and recovery responsibilities.

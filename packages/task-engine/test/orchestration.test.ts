@@ -52,7 +52,7 @@ test("isolated admission lets executing and queued parents advance with one chil
     allocationLimit: 1,
     version: "1",
     environment: "js",
-    inputSchema: { type: "object" },
+    parametersSchema: { type: "object" },
     prepare: async (input) => ({ ...input, kind: "parent" }),
     validatePrepared: json as (input: unknown) => JsonObject,
     validateResult: json,
@@ -93,7 +93,11 @@ test("isolated admission lets executing and queued parents advance with one chil
     for (const parent of parents) {
       const result = engine.getTask(parent.taskId, caller);
       assert.equal(result.stage, "completed");
-      assert.deepEqual((result.result as JsonObject).result, { value: 6 });
+      assert.ok(result.result);
+      assert.deepEqual((result.result as { data: { result: JsonObject } }).data.result, {
+        data: { value: 6 },
+        cidPaths: [],
+      });
       await engine.waitForTaskRelease(parent.taskId, caller);
     }
     assert.equal(Object.keys(store.read().facts.tasks).length, 6);
@@ -152,7 +156,7 @@ test("independent run wall limit force-terminates a real uncooperative worker", 
     type: "loop",
     version: "1",
     environment: "worker",
-    inputSchema: { type: "object" },
+    parametersSchema: { type: "object" },
     prepare: async (input) => input,
     validatePrepared: json as (input: unknown) => JsonObject,
     validateResult: json,

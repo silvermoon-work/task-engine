@@ -1,0 +1,617 @@
+{
+  "startedAt": "2026-11-12T10:42:13.853Z",
+  "versionCommit": "bbc504364514ef91edbd28e3a4a7f61d828cb58b",
+  "node": "v24.22.2",
+  "packages": [
+    {
+      "name": "@silvermoon-work/ipfs-store",
+      "version": "0.1.0-rc.1",
+      "path": "consumer/node_modules/@silvermoon-work/ipfs-store",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/ipfs-store/-/ipfs-store-0.1.0-rc.1.tgz",
+      "integrity": "sha512-HjnM41SQG8LO+imSiZsDvQmycXfAmttgYOGUsH8Nh/AvRCiWMjKaQuMPD2Ef/3enB8yeIDww+GqzglyLYhux3g=="
+    },
+    {
+      "name": "@silvermoon-work/task-protocol",
+      "version": "0.2.0-rc.1",
+      "path": "consumer/node_modules/@silvermoon-work/task-protocol",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-protocol/-/task-protocol-0.2.0-rc.1.tgz",
+      "integrity": "sha512-P0Z+wh0zutMr+ss8Zv9E2+QJyCdstPy7Gjg0JJ8DtKB0fflTW+p4OPGDnuO8SxogFu7z52wOEFN++8cjRBi6KQ=="
+    },
+    {
+      "name": "@silvermoon-work/task-sdk",
+      "version": "0.2.0-rc.1",
+      "path": "consumer/node_modules/@silvermoon-work/task-sdk",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-sdk/-/task-sdk-0.2.0-rc.1.tgz",
+      "integrity": "sha512-en6ZJRj4K0hei0w6z58Pk0vrSbQ7C+faCigino+U3zvwRVlmpD+GZHJkz2G8tMjtUZanE8wLXm49u/QlHWVL0w=="
+    },
+    {
+      "name": "@silvermoon-work/task-builder",
+      "version": "0.2.0-rc.2",
+      "path": "consumer/node_modules/@silvermoon-work/task-builder",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-builder/-/task-builder-0.2.0-rc.2.tgz",
+      "integrity": "sha512-2m5tXKvDTbuQfkYuUMQr8yqYpKTmXrtRd6HbRsoxQvTSXYBPbpa8IAaW2oJPNIHgBOVq6/re+H3HewmACyaRaw=="
+    },
+    {
+      "name": "@silvermoon-work/task-builder-cli",
+      "version": "0.2.0-rc.2",
+      "path": "consumer/node_modules/@silvermoon-work/task-builder-cli",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-builder-cli/-/task-builder-cli-0.2.0-rc.2.tgz",
+      "integrity": "sha512-no9aQXF9fpwBau3B/lSaVOyRARUSRgBaeQEJiRPn5CpiBOVpc52cHYsrh64UUpUyQBzaPxQbggRGu5gR50MBbg=="
+    },
+    {
+      "name": "@silvermoon-work/task-engine",
+      "version": "0.2.0-rc.2",
+      "path": "consumer/node_modules/@silvermoon-work/task-engine",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-engine/-/task-engine-0.2.0-rc.2.tgz",
+      "integrity": "sha512-p5jpsnAowAg0FTGWzxc6TSCYvLJ+WPhoedoktHjjqZe4IJkQWf2klAuHh4c0i1dRkLTqZYn/CXDaWN4bjJ8Qmw=="
+    },
+    {
+      "name": "@silvermoon-work/task-engine-cli",
+      "version": "0.2.0-rc.10",
+      "path": "consumer/node_modules/@silvermoon-work/task-engine-cli",
+      "tarball": "https://registry.npmjs.org/@silvermoon-work/task-engine-cli/-/task-engine-cli-0.2.0-rc.10.tgz",
+      "integrity": "sha512-p4z5lREnF1rIImq0Mjok/veq8BiRnszRQ+gTdpQUUNhMyen0WyFm0NHtpopIvWrVq31T7FLQ8375otcnATDIbg=="
+    }
+  ],
+  "cases": [
+    {
+      "name": "independent reader cancellation does not own shared acquisition or source close",
+      "passed": true,
+      "evidence": {
+        "acquiredOnce": 1,
+        "callerSourceClosed": 0,
+        "otherReaderCompleted": true
+      },
+      "durationMs": 13
+    },
+    {
+      "name": "original UnixFS resources, streaming and verified cache",
+      "passed": true,
+      "evidence": {
+        "cid": "bafybeiebhzeaiuldkqbkqadzxxqdrleo6puiuc3wdpadlnimq5g4mpuvam",
+        "uniqueBlocks": 16,
+        "logicalBytes": 10001,
+        "originalChunkBytes": 777,
+        "localHitNetworkRequests": 0
+      },
+      "durationMs": 399
+    },
+    {
+      "name": "cold gateway hints remain denied without the host resource policy",
+      "passed": true,
+      "evidence": {
+        "error": {
+          "code": "bundle_fetch_failed",
+          "message": "IPFS acquisition or CID verification failed."
+        },
+        "unauthorizedRequests": 0
+      },
+      "durationMs": 16
+    },
+    {
+      "name": "published init, default shared config and independent Builder/Engine overrides",
+      "passed": true,
+      "evidence": {
+        "generatedTemplateSdk": "0.2.0-rc.0",
+        "explicitlyInstalledMigrationSdk": "0.2.0-rc.1",
+        "defaultImportedBlocks": 7,
+        "defaultImportedNetworkRequests": 0,
+        "defaults": {
+          "taskId": "01M77NM2TQKF2GKAGMJT1QSWMS",
+          "contentDataDir": "/home/scottwei/task-engine-spaceref-smoke/bbc504364514-c73069b2-b697-4224-8889-aa572ea04ad1/default-cli-content",
+          "disabledRawGatewayStatus": 404
+        },
+        "overrides": {
+          "taskId": "01M77NMASXFA4ATB6R31B7B8Z6",
+          "contentDataDir": "/home/scottwei/task-engine-spaceref-smoke/bbc504364514-c73069b2-b697-4224-8889-aa572ea04ad1/engine-override-content",
+          "disabledRawGatewayStatus": 404
+        }
+      },
+      "durationMs": 23560
+    },
+    {
+      "name": "complete static closure before first nested invocation, then source disconnected",
+      "passed": true,
+      "evidence": {
+        "initiallyCold": true,
+        "acquiredBeforeFirstChild": 31,
+        "tasks": 4,
+        "runs": [
+          {
+            "runId": "01M77NMGB5KJ7RHCMNMDFD9X28",
+            "stage": "completed",
+            "exit": {
+              "basis": "worker",
+              "code": 1,
+              "forced": false,
+              "sequence": 39,
+              "occurredAt": "2026-11-12T10:42:41.979Z"
+            },
+            "reclaimedAt": "2026-11-12T10:42:41.980Z"
+          },
+          {
+            "runId": "01M77NMGNXVGW9CZHEZC60FFE9",
+            "stage": "completed",
+            "exit": {
+              "basis": "worker",
+              "code": 0,
+              "forced": false,
+              "sequence": 18,
+              "occurredAt": "2026-11-12T10:42:41.595Z"
+            },
+            "reclaimedAt": "2026-11-12T10:42:41.596Z"
+          },
+          {
+            "runId": "01M77NMGWZ85WRMM18KSVZY2T1",
+            "stage": "completed",
+            "exit": {
+              "basis": "worker",
+              "code": 0,
+              "forced": false,
+              "sequence": 36,
+              "occurredAt": "2026-11-12T10:42:41.941Z"
+            },
+            "reclaimedAt": "2026-11-12T10:42:41.942Z"
+          },
+          {
+            "runId": "01M77NMGZV936YHK57TKN1K6HP",
+            "stage": "completed",
+            "exit": {
+              "basis": "worker",
+              "code": 0,
+              "forced": false,
+              "sequence": 33,
+              "occurredAt": "2026-11-12T10:42:41.917Z"
+            },
+            "reclaimedAt": "2026-11-12T10:42:41.918Z"
+          }
+        ],
+        "children": [
+          {
+            "requestId": "01M77NMGHBS9Y44BKR5JKZMDVA",
+            "invocationVersion": 1,
+            "targetCid": "bafybeif4omqdxgobojzhekbtxg6hynngbz6a2fxgs5svmd534vqrjhjpda",
+            "source": {
+              "sid": "ipfs:bafybeib3wgickzpucn3b4gkezmafm6ozktn7pygceeyf5fn4n7r37g45bq",
+              "path": "/resources/leaf"
+            },
+            "parentRunId": "01M77NMGB5KJ7RHCMNMDFD9X28",
+            "rootRunId": "01M77NMGB5KJ7RHCMNMDFD9X28",
+            "depth": 1,
+            "key": "one",
+            "path": "/resources/leaf",
+            "intent": {
+              "key": "one",
+              "bundle": {
+                "sid": "ipfs:bafybeib3wgickzpucn3b4gkezmafm6ozktn7pygceeyf5fn4n7r37g45bq",
+                "path": "/resources/leaf"
+              },
+              "input": {
+                "value": 7
+              },
+              "timeoutMs": 10000
+            },
+            "deadlineAt": "2026-11-12T10:42:51.322Z"
+          },
+          {
+            "requestId": "01M77NMGT5WKD6RTG10R4DMZK4",
+            "invocationVersion": 1,
+            "targetCid": "bafybeieag3wvdxf3crqido334ik7cswkww5lsbqsrmtjudbabcukhp5scy",
+            "source": {
+              "sid": "ipfs:bafybeib3wgickzpucn3b4gkezmafm6ozktn7pygceeyf5fn4n7r37g45bq",
+              "path": "/resources/branch"
+            },
+            "parentRunId": "01M77NMGB5KJ7RHCMNMDFD9X28",
+            "rootRunId": "01M77NMGB5KJ7RHCMNMDFD9X28",
+            "depth": 1,
+            "key": "two",
+            "path": "/resources/branch",
+            "intent": {
+              "key": "two",
+              "bundle": {
+                "sid": "ipfs:bafybeib3wgickzpucn3b4gkezmafm6ozktn7pygceeyf5fn4n7r37g45bq",
+                "path": "/resources/branch"
+              },
+              "input": {
+                "value": 8
+              },
+              "timeoutMs": 10000
+            },
+            "deadlineAt": "2026-11-12T10:42:51.604Z"
+          },
+          {
+            "requestId": "01M77NMGZQSNNXKRFV6SC70XN3",
+            "invocationVersion": 1,
+            "targetCid": "bafybeif4omqdxgobojzhekbtxg6hynngbz6a2fxgs5svmd534vqrjhjpda",
+            "source": {
+              "sid": "ipfs:bafybeieag3wvdxf3crqido334ik7cswkww5lsbqsrmtjudbabcukhp5scy",
+              "path": "/resources/leaf"
+            },
+            "parentRunId": "01M77NMGWZ85WRMM18KSVZY2T1",
+            "rootRunId": "01M77NMGB5KJ7RHCMNMDFD9X28",
+            "depth": 2,
+            "key": "branch-leaf",
+            "path": "/resources/leaf",
+            "intent": {
+              "key": "branch-leaf",
+              "bundle": {
+                "sid": "ipfs:bafybeieag3wvdxf3crqido334ik7cswkww5lsbqsrmtjudbabcukhp5scy",
+                "path": "/resources/leaf"
+              },
+              "input": {
+                "value": 8
+              },
+              "timeoutMs": 10000
+            },
+            "deadlineAt": "2026-11-12T10:42:51.604Z"
+          }
+        ],
+        "sourceRequestsAfterDisconnect": 0
+      },
+      "durationMs": 1940
+    },
+    {
+      "name": "external target missing while offline fails instead of lazy dispatch",
+      "passed": true,
+      "evidence": {
+        "error": {
+          "code": "invalid_bundle",
+          "message": "Child SpaceRef could not resolve an immutable task directory."
+        },
+        "children": []
+      },
+      "durationMs": 223
+    },
+    {
+      "name": "external SpaceRef fully prepares an independent Run",
+      "passed": true,
+      "evidence": {
+        "children": [
+          {
+            "requestId": "01M77NMHW2MGQBJ34XT3Z3K4XR",
+            "invocationVersion": 1,
+            "targetCid": "bafybeifycyh6nadna67s5mf6uwaauoehlg6t34t6foldm3vfi6inenc7au",
+            "source": {
+              "sid": "ipfs:bafybeifycyh6nadna67s5mf6uwaauoehlg6t34t6foldm3vfi6inenc7au",
+              "path": "/"
+            },
+            "parentRunId": "01M77NMHPWNHD1DXD8DZZGQD28",
+            "rootRunId": "01M77NMHPWNHD1DXD8DZZGQD28",
+            "depth": 1,
+            "key": "one",
+            "path": "/",
+            "intent": {
+              "key": "one",
+              "bundle": {
+                "sid": "ipfs:bafybeifycyh6nadna67s5mf6uwaauoehlg6t34t6foldm3vfi6inenc7au",
+                "path": "/"
+              },
+              "input": {
+                "value": 7
+              },
+              "timeoutMs": 10000
+            },
+            "deadlineAt": "2026-11-12T10:42:52.596Z"
+          }
+        ],
+        "runs": [
+          {
+            "runId": "01M77NMHPWNHD1DXD8DZZGQD28",
+            "stage": "completed",
+            "exit": {
+              "basis": "worker",
+              "code": 0,
+              "forced": false,
+              "sequence": 17,
+              "occurredAt": "2026-11-12T10:42:42.952Z"
+            },
+            "reclaimedAt": "2026-11-12T10:42:42.953Z"
+          },
+          {
+            "runId": "01M77NMJ0J85BH6P2DVXPB2YK0",
+            "stage": "completed",
+            "exit": {
+              "basis": "worker",
+              "code": 1,
+              "forced": false,
+              "sequence": 14,
+              "occurredAt": "2026-11-12T10:42:42.930Z"
+            },
+            "reclaimedAt": "2026-11-12T10:42:42.931Z"
+          }
+        ],
+        "acquiredRequests": 7,
+        "externalRootRequests": 1
+      },
+      "durationMs": 746
+    },
+    {
+      "name": "lost acknowledgement and completed-domain recovery keep fixed child identity",
+      "passed": true,
+      "evidence": {
+        "children": [
+          {
+            "requestId": "01M77NMJAY420RHQY4S2YNVSD8",
+            "invocationVersion": 1,
+            "targetCid": "bafybeif4omqdxgobojzhekbtxg6hynngbz6a2fxgs5svmd534vqrjhjpda",
+            "source": {
+              "sid": "ipfs:bafybeib3wgickzpucn3b4gkezmafm6ozktn7pygceeyf5fn4n7r37g45bq",
+              "path": "/resources/leaf"
+            },
+            "parentRunId": "01M77NMJ7XTSW9K37VDFSMX6YQ",
+            "rootRunId": "01M77NMJ7XTSW9K37VDFSMX6YQ",
+            "depth": 1,
+            "key": "one",
+            "path": "/resources/leaf",
+            "intent": {
+              "key": "one",
+              "bundle": {
+                "sid": "ipfs:bafybeib3wgickzpucn3b4gkezmafm6ozktn7pygceeyf5fn4n7r37g45bq",
+                "path": "/resources/leaf"
+              },
+              "input": {
+                "value": 7
+              },
+              "timeoutMs": 10000
+            },
+            "deadlineAt": "2026-11-12T10:42:53.166Z"
+          }
+        ],
+        "tasks": 2,
+        "runs": [
+          {
+            "runId": "01M77NMJ7XTSW9K37VDFSMX6YQ",
+            "stage": "completed",
+            "exit": {
+              "basis": "worker",
+              "code": 1,
+              "forced": false,
+              "sequence": 17,
+              "occurredAt": "2026-11-12T10:42:43.443Z"
+            },
+            "reclaimedAt": "2026-11-12T10:42:43.444Z"
+          },
+          {
+            "runId": "01M77NMJE3Z0JJ6SAWJXW3HKJZ",
+            "stage": "completed",
+            "exit": {
+              "basis": "worker",
+              "code": 1,
+              "forced": false,
+              "sequence": 14,
+              "occurredAt": "2026-11-12T10:42:43.356Z"
+            },
+            "reclaimedAt": "2026-11-12T10:42:43.357Z"
+          }
+        ]
+      },
+      "durationMs": 515
+    },
+    {
+      "name": "explicit output rejection",
+      "passed": true,
+      "evidence": {
+        "error": {
+          "code": "invalid_space",
+          "message": "Child bundle requires an immutable static SpaceRef; writable output is unsupported."
+        },
+        "children": []
+      },
+      "durationMs": 199
+    },
+    {
+      "name": "explicit legacy rejection",
+      "passed": true,
+      "evidence": {
+        "error": {
+          "code": "invalid_request",
+          "message": "invokeTask requires bundle: SpaceRef; migrate and rebuild legacy CID/path calls."
+        },
+        "children": []
+      },
+      "durationMs": 185
+    },
+    {
+      "name": "explicit timeout rejection",
+      "passed": true,
+      "evidence": {
+        "error": {
+          "code": "child_timeout",
+          "message": "Child deadline exceeded."
+        },
+        "children": [
+          {
+            "requestId": "01M77NMK7VSBVTPFWF1ESEAJZ7",
+            "invocationVersion": 1,
+            "targetCid": "bafybeif4omqdxgobojzhekbtxg6hynngbz6a2fxgs5svmd534vqrjhjpda",
+            "source": {
+              "sid": "ipfs:bafybeib3wgickzpucn3b4gkezmafm6ozktn7pygceeyf5fn4n7r37g45bq",
+              "path": "/resources/leaf"
+            },
+            "parentRunId": "01M77NMK3Z5HTVXH2A1JSRTTP3",
+            "rootRunId": "01M77NMK3Z5HTVXH2A1JSRTTP3",
+            "depth": 1,
+            "key": "one",
+            "path": "/resources/leaf",
+            "intent": {
+              "key": "one",
+              "bundle": {
+                "sid": "ipfs:bafybeib3wgickzpucn3b4gkezmafm6ozktn7pygceeyf5fn4n7r37g45bq",
+                "path": "/resources/leaf"
+              },
+              "input": {
+                "value": 7,
+                "mode": "slow"
+              },
+              "timeoutMs": 100
+            },
+            "deadlineAt": "2026-11-12T10:42:44.190Z"
+          }
+        ]
+      },
+      "durationMs": 484
+    },
+    {
+      "name": "child depth budget is explicit",
+      "passed": true,
+      "evidence": {
+        "error": {
+          "code": "child_quota_exceeded",
+          "message": "Child depth, concurrent or total budget exceeded."
+        },
+        "children": [
+          {
+            "requestId": "01M77NMKNM5CQ7CH698HN9T9WM",
+            "invocationVersion": 1,
+            "targetCid": "bafybeif4omqdxgobojzhekbtxg6hynngbz6a2fxgs5svmd534vqrjhjpda",
+            "source": {
+              "sid": "ipfs:bafybeib3wgickzpucn3b4gkezmafm6ozktn7pygceeyf5fn4n7r37g45bq",
+              "path": "/resources/leaf"
+            },
+            "parentRunId": "01M77NMKJDGVD5HPFA8PZTD0J7",
+            "rootRunId": "01M77NMKJDGVD5HPFA8PZTD0J7",
+            "depth": 1,
+            "key": "one",
+            "path": "/resources/leaf",
+            "intent": {
+              "key": "one",
+              "bundle": {
+                "sid": "ipfs:bafybeib3wgickzpucn3b4gkezmafm6ozktn7pygceeyf5fn4n7r37g45bq",
+                "path": "/resources/leaf"
+              },
+              "input": {
+                "value": 7
+              },
+              "timeoutMs": 10000
+            },
+            "deadlineAt": "2026-11-12T10:42:54.532Z"
+          },
+          {
+            "requestId": "01M77NMKWFXY0ZVXV98WV9RAX1",
+            "invocationVersion": 1,
+            "targetCid": "bafybeieag3wvdxf3crqido334ik7cswkww5lsbqsrmtjudbabcukhp5scy",
+            "source": {
+              "sid": "ipfs:bafybeib3wgickzpucn3b4gkezmafm6ozktn7pygceeyf5fn4n7r37g45bq",
+              "path": "/resources/branch"
+            },
+            "parentRunId": "01M77NMKJDGVD5HPFA8PZTD0J7",
+            "rootRunId": "01M77NMKJDGVD5HPFA8PZTD0J7",
+            "depth": 1,
+            "key": "two",
+            "path": "/resources/branch",
+            "intent": {
+              "key": "two",
+              "bundle": {
+                "sid": "ipfs:bafybeib3wgickzpucn3b4gkezmafm6ozktn7pygceeyf5fn4n7r37g45bq",
+                "path": "/resources/branch"
+              },
+              "input": {
+                "value": 8
+              },
+              "timeoutMs": 10000
+            },
+            "deadlineAt": "2026-11-12T10:42:54.750Z"
+          }
+        ]
+      },
+      "durationMs": 592
+    },
+    {
+      "name": "unique-block and logical import budgets fail independently without lazy fallback",
+      "passed": true,
+      "evidence": {
+        "uniqueBlockBudget": 1,
+        "logicalByteBudget": 1000,
+        "errors": [
+          "IPFS block capacity exceeded.",
+          "Content logical byte capacity exceeded."
+        ],
+        "unsafePathAndCollisionRejected": true
+      },
+      "durationMs": 174
+    },
+    {
+      "name": "old imports format is rejected and rebuilt references use the unchanged schema identity",
+      "passed": true,
+      "evidence": {
+        "rejectedOldImports": true,
+        "rebuiltParent": "bafybeib3wgickzpucn3b4gkezmafm6ozktn7pygceeyf5fn4n7r37g45bq",
+        "schema": "https://shazhou-ww.github.io/potential-guide/schemas/artifacts/task/v1.json",
+        "rebuiltImports": {
+          "resources/leaf": "bafybeif4omqdxgobojzhekbtxg6hynngbz6a2fxgs5svmd534vqrjhjpda",
+          "resources/branch": "bafybeieag3wvdxf3crqido334ik7cswkww5lsbqsrmtjudbabcukhp5scy",
+          "resources/model": "bafybeiebhzeaiuldkqbkqadzxxqdrleo6puiuc3wdpadlnimq5g4mpuvam"
+        }
+      },
+      "durationMs": 68
+    },
+    {
+      "name": "parent cancellation releases already dispatched child",
+      "passed": true,
+      "evidence": {
+        "tasks": [
+          {
+            "id": "01M77NMMD6H4HQPQCAB3J3CVN8",
+            "stage": "failed",
+            "canceled": true
+          },
+          {
+            "id": "01M77NMMKFZH8CKV7Q03DEREPS",
+            "stage": "stopped",
+            "canceled": true
+          }
+        ],
+        "runs": [
+          {
+            "runId": "01M77NMMD76T2NZEMY01WJZTS9",
+            "stage": "failed",
+            "exit": {
+              "basis": "worker",
+              "code": 1,
+              "forced": false,
+              "sequence": 24,
+              "occurredAt": "2026-11-12T10:42:45.571Z"
+            },
+            "reclaimedAt": "2026-11-12T10:42:45.572Z"
+          },
+          {
+            "runId": "01M77NMMKFWSBPC86T73NSE148",
+            "stage": "stopped",
+            "exit": {
+              "basis": "worker",
+              "code": 1,
+              "forced": false,
+              "sequence": 21,
+              "occurredAt": "2026-11-12T10:42:45.568Z"
+            },
+            "reclaimedAt": "2026-11-12T10:42:45.568Z"
+          }
+        ]
+      },
+      "durationMs": 391
+    },
+    {
+      "name": "moved self-contained folder encodes CAR without project, source or cache",
+      "passed": false,
+      "error": {
+        "name": "AssertionError",
+        "code": "ERR_ASSERTION",
+        "message": "The input did not match the regular expression /missing|not.found/i. Input:\n\n\"Error: ENOENT: no such file or directory, realpath '<owned-work>/moved-task/.task-imports.car'\"\n"
+      },
+      "durationMs": 1906
+    }
+  ],
+  "ok": false,
+  "error": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION",
+    "message": "The input did not match the regular expression /missing|not.found/i. Input:\n\n\"Error: ENOENT: no such file or directory, realpath '<owned-work>/moved-task/.task-imports.car'\"\n",
+    "stack": "AssertionError [ERR_ASSERTION]: The input did not match the regular expression /missing|not.found/i. Input:\n\n\"Error: ENOENT: no such file or directory, realpath '<owned-work>/moved-task/.task-imports.car'\"\n\n    at async file://<owned-work>/registry-spaceref-smoke.mjs:480:5\n    at async checkCase (file://<owned-work>/registry-spaceref-smoke.mjs:64:27)\n    at async file://<owned-work>/registry-spaceref-smoke.mjs:438:3"
+  },
+  "cleanup": {
+    "allOwnedEnginesClosed": true,
+    "sourceClosed": true,
+    "ownedCliStopped": true
+  },
+  "finishedAt": "2026-11-12T10:42:47.482Z"
+}

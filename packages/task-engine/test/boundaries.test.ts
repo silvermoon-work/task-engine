@@ -41,7 +41,7 @@ test("startup captures one trusted timestamp even if time advances on every cloc
     type: "echo",
     version: "1",
     environment: "js",
-    inputSchema: {
+    parametersSchema: {
       type: "object",
       properties: { text: { type: "string" } },
       required: ["text"],

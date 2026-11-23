@@ -1,0 +1,19 @@
+(node:3113163) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+node:internal/modules/esm/resolve:313
+  return new ERR_PACKAGE_PATH_NOT_EXPORTED(
+         ^
+
+Error [ERR_PACKAGE_PATH_NOT_EXPORTED]: No "exports" main defined in /home/scottwei/.cache/task-engine-kubo-rc-smoke-wSwuvIsF/consumer/node_modules/@silvermoon-work/ipfs-store/package.json
+    at exportsNotFound (node:internal/modules/esm/resolve:313:10)
+    at packageExportsResolve (node:internal/modules/esm/resolve:604:13)
+    at resolveExports (node:internal/modules/cjs/loader:679:36)
+    at Module._findPath (node:internal/modules/cjs/loader:746:31)
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1406:27)
+    at require.resolve (node:internal/modules/helpers:163:19)
+    at load (file:///home/scottwei/.cache/task-engine-kubo-rc-smoke-wSwuvIsF/registry-kubo-smoke.mjs:61:53)
+    at file:///home/scottwei/.cache/task-engine-kubo-rc-smoke-wSwuvIsF/registry-kubo-smoke.mjs:62:29 {
+  code: 'ERR_PACKAGE_PATH_NOT_EXPORTED'
+}
+
+Node.js v24.11.1

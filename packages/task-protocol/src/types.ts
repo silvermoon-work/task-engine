@@ -14,6 +14,7 @@ export type CoordinatorRequest = JsonObject & {
   eligibleAt?: string;
   seriesId?: string;
   matchPolicy?: MatchPolicy;
+  parameters: Json;
 };
 export type TaskRequest = JsonObject & {
   requestId: string;
@@ -22,6 +23,7 @@ export type TaskRequest = JsonObject & {
   eligibleAt?: string;
   seriesId?: string;
   matchPolicy?: MatchPolicy;
+  parameters: Json;
 };
 export type SubmissionResult =
   | { status: "preparing"; requestId: string; trackingToken: string }
@@ -29,6 +31,9 @@ export type SubmissionResult =
   | { status: "rejected"; requestId: string; error: ErrorFact };
 export interface SubmissionRecord {
   composition?: {
+    invocationVersion: 1;
+    targetCid: string;
+    source: { cid: string; path?: string };
     parentRunId: string;
     rootRunId: string;
     depth: number;
@@ -77,6 +82,7 @@ export interface TaskSnapshot {
   run?: {
     runId: string;
     startedAt: string;
+    contentAccess?: string[];
     matchedAt?: string;
     completedAt?: string;
     failedAt?: string;
@@ -94,7 +100,7 @@ export interface Binding {
   type: string;
   version: string;
   contractRevision: string;
-  inputSchema: InputSchema;
+  parametersSchema: InputSchema;
   environment: string;
   scope: string;
   subject: string;
@@ -109,7 +115,7 @@ export interface TaskRecord {
   receivedSequence: number;
   request: CoordinatorRequest | TaskRequest;
   binding: Binding;
-  input: Json;
+  parameters: Json;
   canceledAt?: string;
   canceledSequence?: number;
 }
@@ -125,9 +131,10 @@ export interface RunExit {
 }
 export interface RunRecord {
   runId: string;
+  contentAccess?: string[];
   generation: string;
   binding: Binding;
-  input: Json;
+  parameters: Json;
   startedAt: string;
   startedSequence: number;
   updatedAt: string;
@@ -188,6 +195,7 @@ export interface EventData {
   "run.dispatched": { workerGeneration: string };
   "run.evidence": { kind: "checkpoint" | "late-completed" | "late-failed"; value: Json };
   "run.progress": { progress: Json };
+  "run.content-access": { sid: string };
   "run.outcome": { outcome: RunOutcome };
   "run.stop.requested": { reason: string };
   "run.stopping": Record<string, never>;
@@ -236,6 +244,7 @@ export interface RunSnapshot {
   bundle?: BundleReference;
   name?: string;
   runId: string;
+  contentAccess?: string[];
   dataDomain: string;
   revision: Revision;
   timestamp: string;
@@ -269,6 +278,15 @@ export interface StoreView {
   events: FactEvent[];
 }
 export interface Store {
+  /** Optional as one coherent capability; no archive I/O is performed by the Store. */
+  readonly runHistory?: import("./run-history.js").RunHistoryStorage;
+  readContentBlock?(cid: string): Uint8Array | undefined;
+  writeContentBlock?(owner: string, cid: string, bytes: Uint8Array): void;
+  retainRunContent?(owner: string, runId: string, cid: string): void;
+  readRunContentRoots?(runId: string): string[];
+  /** Diagnostic associations only; never grants content access authority. */
+  recordRunContentAccess?(owner: string, runId: string, sid: string): void;
+  readRunContentAccess?(runId: string): string[];
   markRunLogsUnavailable?: import("./logs.js").RunLogStorage["markRunLogsUnavailable"];
   readRunLogs?: import("./logs.js").RunLogStorage["readRunLogs"];
   writeRunLogs?: import("./logs.js").RunLogStorage["writeRunLogs"];
@@ -369,6 +387,7 @@ export interface TaskQuery {
 }
 export interface TaskSummary {
   bundle?: BundleReference;
+  result?: Json;
   name?: string;
   taskId: string;
   requestId: string;
@@ -415,6 +434,7 @@ export interface RunQuery {
 }
 export interface RunSummary {
   bundle?: BundleReference;
+  result?: Json;
   name?: string;
   runId: string;
   type: string;
@@ -499,6 +519,7 @@ export interface CoordinatorService {
     page: { cursor?: string; limit?: number },
     caller: Caller,
   ): HistoryPage;
+  readRunHistoryArchive?(runId: string, caller: Caller): Promise<unknown>;
   subscribeTask(taskId: string, fromRevision: Revision, caller: Caller): Subscription;
   subscribeRun(runId: string, fromRevision: Revision, caller: Caller): Subscription;
   subscribeTasks(
@@ -535,7 +556,7 @@ export interface TaskService
 export interface TaskTypeDiscovery {
   readonly type: string;
   readonly version: string;
-  readonly inputSchema: InputSchema;
+  readonly parametersSchema: InputSchema;
   readonly revision: string;
 }
 export interface SubmitOptions {

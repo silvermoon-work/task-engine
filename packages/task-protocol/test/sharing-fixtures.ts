@@ -95,14 +95,15 @@ export function sharingFacts(scenario: SharingCase) {
   for (const event of events) {
     if (event.type !== "task.created" && event.type !== "run.started") continue;
     const record = event.type === "task.created" ? event.data.task : event.data.run;
-    record.binding.inputSchema = structuredClone(scenario.schema);
+    record.binding.parametersSchema = structuredClone(scenario.schema);
     record.binding.contractRevision = compileInputSchema(scenario.schema).revision;
-    record.input = structuredClone(
-      event.taskId === follower.taskId ? scenario.right : scenario.left,
-    );
+    record.parameters = {
+      data: structuredClone(event.taskId === follower.taskId ? scenario.right : scenario.left),
+      cidPaths: [],
+    };
     if (event.type === "task.created") {
       const { value: _value, ...request } = event.data.task.request;
-      event.data.task.request = { ...request, ...record.input };
+      event.data.task.request = { ...request, parameters: record.parameters };
     }
   }
   return {

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  assertFactsVersion,
   emptyFacts,
   isPending,
   isTimedOut,
@@ -12,6 +13,26 @@ import {
 } from "../src/index.js";
 import { epoch, fixture, time } from "./fact-fixtures.js";
 import { sharingCases, sharingFacts } from "./sharing-fixtures.js";
+
+test("stored Runs reject the obsolete output wrapper in records and outcomes", () => {
+  const f = fixture();
+  const run = f.run(1, 0);
+  const legacyRecord = structuredClone(f.facts);
+  Object.assign(legacyRecord.runs[run.runId]!, {
+    output: { result: { data: null, cidPaths: [] } },
+  });
+  assert.throws(() => assertFactsVersion(legacyRecord), { code: "unsupported_version" });
+  const legacyOutcome = structuredClone(f.facts);
+  const outcome = {
+    kind: "completed" as const,
+    result: { data: null, cidPaths: [] },
+    occurredAt: time(1),
+  };
+  legacyOutcome.runs[run.runId]!.outcome = Object.assign(outcome, {
+    output: { result: outcome.result },
+  });
+  assert.throws(() => assertFactsVersion(legacyOutcome), { code: "unsupported_version" });
+});
 
 for (const scenario of sharingCases)
   test(`cold source projection uses bound Schema Equals: ${scenario.name}`, () => {

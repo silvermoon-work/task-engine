@@ -1,0 +1,99 @@
+﻿{
+  "observedAt": "2026-11-12T15:49:51.026Z",
+  "mode": "after",
+  "id": "task-engine",
+  "name": "@silvermoon-work/task-engine",
+  "version": "0.2.0-rc.3",
+  "commit": "95b1cdbf76c70faf550b174fff97ca7df4d830cb",
+  "tags": {
+    "latest": "0.1.0",
+    "canary": "0.2.0-canary-261111-1",
+    "rc": "0.2.0-rc.3"
+  },
+  "exactExists": true,
+  "dependencies": [
+    {
+      "field": "dependencies",
+      "name": "@silvermoon-work/ipfs-store",
+      "version": "0.1.0-rc.2"
+    },
+    {
+      "field": "dependencies",
+      "name": "@silvermoon-work/task-protocol",
+      "version": "0.2.0-rc.1"
+    },
+    {
+      "field": "devDependencies",
+      "name": "@silvermoon-work/task-sdk",
+      "version": "0.2.0-rc.1"
+    },
+    {
+      "field": "devDependencies",
+      "name": "@silvermoon-work/task-builder",
+      "version": "0.2.0-rc.3"
+    },
+    {
+      "field": "devDependencies",
+      "name": "@silvermoon-work/task-builder-cli",
+      "version": "0.2.0-rc.3"
+    }
+  ],
+  "tarball": {
+    "url": "https://registry.npmjs.org/@silvermoon-work/task-engine/-/task-engine-0.2.0-rc.3.tgz",
+    "bytes": 126302,
+    "sha1": "f3abb2c066fa1f020ef09601fefec6d3e300d8bc",
+    "sha512": "c22a8f91cb3c98f6ae2c0566b98e3f7a87b23b632b06261ac963b0b621dcc78b23e777c5fb0dccabfb3db11ece2e396b8599f6c2bfd4d3146ded4befab81a40f",
+    "integrity": "sha512-wiqPkcs8mPauLAVmuY4/eoeyO2MrBiYayWOwtiHcx4sj53fF+w3Mq/s9sR7OLjlrhZn2wr/U0xRt7Uvvq4GkDw=="
+  },
+  "provenance": {
+    "verifiedFields": true,
+    "statement": {
+      "_type": "https://in-toto.io/Statement/v1",
+      "subject": [
+        {
+          "name": "pkg:npm/%40silvermoon-work/task-engine@0.2.0-rc.3",
+          "digest": {
+            "sha512": "c22a8f91cb3c98f6ae2c0566b98e3f7a87b23b632b06261ac963b0b621dcc78b23e777c5fb0dccabfb3db11ece2e396b8599f6c2bfd4d3146ded4befab81a40f"
+          }
+        }
+      ],
+      "predicateType": "https://slsa.dev/provenance/v1",
+      "predicate": {
+        "buildDefinition": {
+          "buildType": "https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1",
+          "externalParameters": {
+            "workflow": {
+              "ref": "refs/tags/task-engine-v0.2.0-rc.3",
+              "repository": "https://github.com/silvermoon-work/task-engine",
+              "path": ".github/workflows/publish-npm.yaml"
+            }
+          },
+          "internalParameters": {
+            "github": {
+              "event_name": "push",
+              "repository_id": "1450208672",
+              "repository_owner_id": "354036529"
+            }
+          },
+          "resolvedDependencies": [
+            {
+              "uri": "git+https://github.com/silvermoon-work/task-engine@refs/tags/task-engine-v0.2.0-rc.3",
+              "digest": {
+                "gitCommit": "95b1cdbf76c70faf550b174fff97ca7df4d830cb"
+              }
+            }
+          ]
+        },
+        "runDetails": {
+          "builder": {
+            "id": "https://github.com/actions/runner/github-hosted"
+          },
+          "metadata": {
+            "invocationId": "https://github.com/silvermoon-work/task-engine/actions/runs/43251106592/attempts/1"
+          }
+        }
+      }
+    }
+  },
+  "trustedPublisher": true
+}

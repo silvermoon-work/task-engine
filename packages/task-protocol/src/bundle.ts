@@ -10,11 +10,12 @@ import {
 } from "./schema.js";
 
 import { taskSchemaUri } from "./task-schema-uri.js";
+import { bundleCid, validateBundleReference } from "./bundle-reference.js";
 export { taskSchemaUri } from "./task-schema-uri.js";
 export const taskBundleSchema = {
   $id: taskSchemaUri,
   $comment:
-    "IPFS UnixFS directory root CID identity. One CommonJS Worker per Run; generation-scoped business messages and independent log/log-ack, bounded cumulative log-drop/log-drop-ack diagnostics.",
+    "IPFS UnixFS directory root CID identity. Runtime declaration does not establish host execution support. Node uses one Worker per Run with a declared ESM or legacy CommonJS entry; generation-scoped business messages and independent log/log-ack, bounded cumulative log-drop/log-drop-ack diagnostics.",
   type: "object",
   additionalProperties: false,
   required: [
@@ -24,7 +25,7 @@ export const taskBundleSchema = {
     "entry",
     "include",
     "binary",
-    "inputSchema",
+    "parametersSchema",
     "resultSchema",
     "messageSchema",
   ],
@@ -37,18 +38,30 @@ export const taskBundleSchema = {
         "^[^\\s\\u0000-\\u001f\\u007f-\\u009f](?:(?:[^\\s\\u0000-\\u001f\\u007f-\\u009f]| )*[^\\s\\u0000-\\u001f\\u007f-\\u009f])?$",
     },
     runtime: {
-      type: "object",
-      additionalProperties: false,
-      required: ["type", "minVersion"],
-      properties: {
-        type: { const: "node" },
-        minVersion: {
-          type: "string",
-          pattern: "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      oneOf: [
+        {
+          type: "object",
+          additionalProperties: false,
+          required: ["type", "minVersion"],
+          properties: {
+            type: { const: "node" },
+            minVersion: {
+              type: "string",
+              pattern: "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+            },
+          },
         },
-      },
+        {
+          type: "object",
+          additionalProperties: false,
+          required: ["type"],
+          properties: {
+            type: { enum: ["browser", "browser-worker", "cloudflare-worker"] },
+          },
+        },
+      ],
     },
-    entry: { const: "worker.cjs" },
+    entry: { enum: ["main.mjs", "worker.cjs"] },
     include: {
       type: "array",
       minItems: 2,
@@ -57,10 +70,10 @@ export const taskBundleSchema = {
       items: {
         type: "string",
         pattern:
-          "^(?:task\\.yaml|worker\\.cjs|(?:schemas|resources)/[^\\\\:*?<>|\\u0000-\\u001f]+)$",
+          "^(?:task\\.yaml|main\\.mjs|worker\\.cjs|(?:schemas|resources)/[^\\\\:*?<>|\\u0000-\\u001f]+)$",
       },
     },
-    inputSchema: { type: "object" },
+    parametersSchema: { type: "object" },
     binary: {
       type: "array",
       maxItems: taskBundleLimits.files,
@@ -69,22 +82,30 @@ export const taskBundleSchema = {
     },
     resultSchema: { type: ["object", "boolean"] },
     messageSchema: { type: ["object", "boolean"] },
+    imports: {
+      type: "object",
+      maxProperties: taskBundleLimits.files,
+      additionalProperties: { type: "string" },
+    },
   },
 };
 export * from "./bundle-reference.js";
 export interface TaskBundleDeclaration {
   $schema: typeof taskSchemaUri;
   name: string;
-  runtime: { type: "node"; minVersion: string };
-  entry: "worker.cjs";
+  runtime:
+    | { type: "node"; minVersion: string }
+    | { type: "browser" | "browser-worker" | "cloudflare-worker" };
+  entry: "main.mjs" | "worker.cjs";
   include: string[];
   binary: string[];
-  inputSchema: JsonObject;
+  imports?: Record<string, string>;
+  parametersSchema: JsonObject;
   resultSchema: JsonSchema;
   messageSchema: JsonSchema;
 }
-export interface ResolvedTaskBundle extends Omit<TaskBundleDeclaration, "inputSchema"> {
-  inputSchema: InputSchema;
+export interface ResolvedTaskBundle extends Omit<TaskBundleDeclaration, "parametersSchema"> {
+  parametersSchema: InputSchema;
 }
 const validator = new Ajv2020({ strict: true, allowUnionTypes: true }).compile(taskBundleSchema);
 export function parseTaskBundleYaml(bytes: Uint8Array): Json {
@@ -144,6 +165,7 @@ export function validateTaskBundle(value: unknown): TaskBundleDeclaration {
     );
   if (!validator(parsed)) fail("invalid_bundle", "Invalid task.yaml declaration.");
   const declaration = parsed as unknown as TaskBundleDeclaration;
+  if (declaration.imports) validateTaskImports(declaration.imports);
   const folded = new Set<string>();
   const spellings = new Map<string, string>();
   for (const path of declaration.include) {
@@ -162,8 +184,11 @@ export function validateTaskBundle(value: unknown): TaskBundleDeclaration {
   for (const path of declaration.include)
     if (declaration.include.some((parent) => path.startsWith(`${parent}/`)))
       fail("invalid_bundle", "Task Bundle include has a file/directory collision.");
-  if (!folded.has("task.yaml") || !folded.has("worker.cjs"))
-    fail("invalid_bundle", "Task Bundle include must contain task.yaml and worker.cjs.");
+  if (
+    !declaration.include.includes("task.yaml") ||
+    !declaration.include.includes(declaration.entry)
+  )
+    fail("invalid_bundle", "Task Bundle include must contain task.yaml and its declared entry.");
   for (const [index, path] of declaration.binary.entries())
     if (
       !isTaskBundlePath(path) ||
@@ -175,6 +200,28 @@ export function validateTaskBundle(value: unknown): TaskBundleDeclaration {
         "Task Bundle binary requires sorted, unique exact resource file paths from include.",
       );
   return declaration;
+}
+export function validateTaskImports(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    fail("invalid_bundle", "imports must map resources/ paths to immutable CIDs.");
+  const entries = Object.entries(value);
+  if (entries.length > taskBundleLimits.files) fail("capacity_exceeded", "Too many imports.");
+  const result: Record<string, string> = {};
+  for (const [path, cid] of entries) {
+    if (!isTaskBundlePath(path) || !path.startsWith("resources/") || typeof cid !== "string")
+      fail("invalid_bundle", "imports require portable resources/ paths and exact CIDs.");
+    if (
+      entries.some(
+        ([other]) =>
+          other !== path &&
+          (other.toLowerCase() === path.toLowerCase() ||
+            other.toLowerCase().startsWith(`${path.toLowerCase()}/`)),
+      )
+    )
+      fail("invalid_bundle", "Import paths overlap.");
+    result[path] = bundleCid(validateBundleReference(cid));
+  }
+  return result;
 }
 export function validateTaskBundleFiles(
   declaration: TaskBundleDeclaration,
@@ -299,7 +346,7 @@ export function resolveBundleSchemas(
     const resource = resources[index]!;
     add(absolute(path, `${rootBase}/`), resource, locations.get(resource)!);
   });
-  const roots = [declaration.inputSchema, declaration.resultSchema, declaration.messageSchema];
+  const roots = [declaration.parametersSchema, declaration.resultSchema, declaration.messageSchema];
   roots.forEach((root, index) => {
     const base = `${rootBase}/${index}`;
     add(base, root, base);
@@ -391,7 +438,7 @@ export function resolveBundleSchemas(
   compileJsonSchema(message);
   return {
     ...declaration,
-    inputSchema: input as InputSchema,
+    parametersSchema: input as InputSchema,
     resultSchema: result,
     messageSchema: message,
   };

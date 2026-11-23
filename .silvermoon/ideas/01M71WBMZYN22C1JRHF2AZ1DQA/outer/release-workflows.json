@@ -1,0 +1,710 @@
+[
+  {
+    "attempt": 1,
+    "conclusion": "success",
+    "databaseId": 42842911243,
+    "event": "push",
+    "headBranch": "task-protocol-v0.1.0-canary-261110-1",
+    "headSha": "d306ab44997c6435ce84a8c78195a7e26b0f1601",
+    "jobs": [
+      {
+        "completedAt": "2026-11-10T15:18:52Z",
+        "conclusion": "success",
+        "databaseId": 129922563528,
+        "name": "Publish verified package",
+        "startedAt": "2026-11-10T15:18:11Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-10T15:18:13Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-10T15:18:12Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:15Z",
+            "conclusion": "success",
+            "name": "Check out release commit",
+            "number": 2,
+            "startedAt": "2026-11-10T15:18:13Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:15Z",
+            "conclusion": "success",
+            "name": "Verify release commit is on main",
+            "number": 3,
+            "startedAt": "2026-11-10T15:18:15Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:19Z",
+            "conclusion": "success",
+            "name": "Set up pnpm",
+            "number": 4,
+            "startedAt": "2026-11-10T15:18:15Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:27Z",
+            "conclusion": "success",
+            "name": "Set up Node.js",
+            "number": 5,
+            "startedAt": "2026-11-10T15:18:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:30Z",
+            "conclusion": "success",
+            "name": "Install dependencies",
+            "number": 6,
+            "startedAt": "2026-11-10T15:18:27Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:30Z",
+            "conclusion": "success",
+            "name": "Verify release metadata",
+            "number": 7,
+            "startedAt": "2026-11-10T15:18:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:32Z",
+            "conclusion": "success",
+            "name": "Verify exact-commit main CI",
+            "number": 8,
+            "startedAt": "2026-11-10T15:18:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:35Z",
+            "conclusion": "success",
+            "name": "Build package and workspace dependencies",
+            "number": 9,
+            "startedAt": "2026-11-10T15:18:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:35Z",
+            "conclusion": "success",
+            "name": "Pack only the selected package",
+            "number": 10,
+            "startedAt": "2026-11-10T15:18:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:36Z",
+            "conclusion": "success",
+            "name": "Verify artifact identity and published workspace dependencies",
+            "number": 11,
+            "startedAt": "2026-11-10T15:18:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:36Z",
+            "conclusion": "success",
+            "name": "Validate package artifact",
+            "number": 12,
+            "startedAt": "2026-11-10T15:18:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:40Z",
+            "conclusion": "success",
+            "name": "Install the trusted publishing client",
+            "number": 13,
+            "startedAt": "2026-11-10T15:18:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:49Z",
+            "conclusion": "success",
+            "name": "Publish selected package",
+            "number": 14,
+            "startedAt": "2026-11-10T15:18:40Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:49Z",
+            "conclusion": "skipped",
+            "name": "Validate without publishing",
+            "number": 15,
+            "startedAt": "2026-11-10T15:18:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:49Z",
+            "conclusion": "success",
+            "name": "Post Set up Node.js",
+            "number": 28,
+            "startedAt": "2026-11-10T15:18:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:49Z",
+            "conclusion": "success",
+            "name": "Post Set up pnpm",
+            "number": 29,
+            "startedAt": "2026-11-10T15:18:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:49Z",
+            "conclusion": "success",
+            "name": "Post Check out release commit",
+            "number": 30,
+            "startedAt": "2026-11-10T15:18:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:18:50Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 31,
+            "startedAt": "2026-11-10T15:18:49Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/silvermoon-work/task-engine/actions/runs/42842911243/job/129922563528"
+      }
+    ],
+    "startedAt": "2026-11-10T15:18:08Z",
+    "status": "completed",
+    "updatedAt": "2026-11-10T15:18:53Z",
+    "url": "https://github.com/silvermoon-work/task-engine/actions/runs/42842911243"
+  },
+  {
+    "attempt": 1,
+    "conclusion": "success",
+    "databaseId": 42844505054,
+    "event": "push",
+    "headBranch": "task-sdk-v0.1.0-canary-261110-1",
+    "headSha": "d306ab44997c6435ce84a8c78195a7e26b0f1601",
+    "jobs": [
+      {
+        "completedAt": "2026-11-10T15:28:22Z",
+        "conclusion": "success",
+        "databaseId": 129928249856,
+        "name": "Publish verified package",
+        "startedAt": "2026-11-10T15:27:31Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-10T15:27:33Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-10T15:27:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:27:34Z",
+            "conclusion": "success",
+            "name": "Check out release commit",
+            "number": 2,
+            "startedAt": "2026-11-10T15:27:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:27:34Z",
+            "conclusion": "success",
+            "name": "Verify release commit is on main",
+            "number": 3,
+            "startedAt": "2026-11-10T15:27:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:27:38Z",
+            "conclusion": "success",
+            "name": "Set up pnpm",
+            "number": 4,
+            "startedAt": "2026-11-10T15:27:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:27:45Z",
+            "conclusion": "success",
+            "name": "Set up Node.js",
+            "number": 5,
+            "startedAt": "2026-11-10T15:27:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:27:49Z",
+            "conclusion": "success",
+            "name": "Install dependencies",
+            "number": 6,
+            "startedAt": "2026-11-10T15:27:45Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:27:49Z",
+            "conclusion": "success",
+            "name": "Verify release metadata",
+            "number": 7,
+            "startedAt": "2026-11-10T15:27:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:27:50Z",
+            "conclusion": "success",
+            "name": "Verify exact-commit main CI",
+            "number": 8,
+            "startedAt": "2026-11-10T15:27:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:27:54Z",
+            "conclusion": "success",
+            "name": "Build package and workspace dependencies",
+            "number": 9,
+            "startedAt": "2026-11-10T15:27:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:27:55Z",
+            "conclusion": "success",
+            "name": "Pack only the selected package",
+            "number": 10,
+            "startedAt": "2026-11-10T15:27:54Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:27:56Z",
+            "conclusion": "success",
+            "name": "Verify artifact identity and published workspace dependencies",
+            "number": 11,
+            "startedAt": "2026-11-10T15:27:55Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:27:56Z",
+            "conclusion": "success",
+            "name": "Validate package artifact",
+            "number": 12,
+            "startedAt": "2026-11-10T15:27:56Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:28:00Z",
+            "conclusion": "success",
+            "name": "Install the trusted publishing client",
+            "number": 13,
+            "startedAt": "2026-11-10T15:27:56Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:28:20Z",
+            "conclusion": "success",
+            "name": "Publish selected package",
+            "number": 14,
+            "startedAt": "2026-11-10T15:28:00Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:28:20Z",
+            "conclusion": "skipped",
+            "name": "Validate without publishing",
+            "number": 15,
+            "startedAt": "2026-11-10T15:28:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:28:20Z",
+            "conclusion": "success",
+            "name": "Post Set up Node.js",
+            "number": 28,
+            "startedAt": "2026-11-10T15:28:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:28:20Z",
+            "conclusion": "success",
+            "name": "Post Set up pnpm",
+            "number": 29,
+            "startedAt": "2026-11-10T15:28:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:28:20Z",
+            "conclusion": "success",
+            "name": "Post Check out release commit",
+            "number": 30,
+            "startedAt": "2026-11-10T15:28:20Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:28:20Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 31,
+            "startedAt": "2026-11-10T15:28:20Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/silvermoon-work/task-engine/actions/runs/42844505054/job/129928249856"
+      }
+    ],
+    "startedAt": "2026-11-10T15:27:28Z",
+    "status": "completed",
+    "updatedAt": "2026-11-10T15:28:23Z",
+    "url": "https://github.com/silvermoon-work/task-engine/actions/runs/42844505054"
+  },
+  {
+    "attempt": 1,
+    "conclusion": "success",
+    "databaseId": 42845940887,
+    "event": "push",
+    "headBranch": "task-engine-v0.1.0-canary-261110-1",
+    "headSha": "d306ab44997c6435ce84a8c78195a7e26b0f1601",
+    "jobs": [
+      {
+        "completedAt": "2026-11-10T15:36:25Z",
+        "conclusion": "success",
+        "databaseId": 129933283909,
+        "name": "Publish verified package",
+        "startedAt": "2026-11-10T15:35:36Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-10T15:35:38Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-10T15:35:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:35:39Z",
+            "conclusion": "success",
+            "name": "Check out release commit",
+            "number": 2,
+            "startedAt": "2026-11-10T15:35:38Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:35:39Z",
+            "conclusion": "success",
+            "name": "Verify release commit is on main",
+            "number": 3,
+            "startedAt": "2026-11-10T15:35:39Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:35:45Z",
+            "conclusion": "success",
+            "name": "Set up pnpm",
+            "number": 4,
+            "startedAt": "2026-11-10T15:35:39Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:35:53Z",
+            "conclusion": "success",
+            "name": "Set up Node.js",
+            "number": 5,
+            "startedAt": "2026-11-10T15:35:45Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:35:57Z",
+            "conclusion": "success",
+            "name": "Install dependencies",
+            "number": 6,
+            "startedAt": "2026-11-10T15:35:53Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:35:57Z",
+            "conclusion": "success",
+            "name": "Verify release metadata",
+            "number": 7,
+            "startedAt": "2026-11-10T15:35:57Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:35:59Z",
+            "conclusion": "success",
+            "name": "Verify exact-commit main CI",
+            "number": 8,
+            "startedAt": "2026-11-10T15:35:57Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:36:09Z",
+            "conclusion": "success",
+            "name": "Build package and workspace dependencies",
+            "number": 9,
+            "startedAt": "2026-11-10T15:35:59Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:36:09Z",
+            "conclusion": "success",
+            "name": "Pack only the selected package",
+            "number": 10,
+            "startedAt": "2026-11-10T15:36:09Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:36:10Z",
+            "conclusion": "success",
+            "name": "Verify artifact identity and published workspace dependencies",
+            "number": 11,
+            "startedAt": "2026-11-10T15:36:09Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:36:11Z",
+            "conclusion": "success",
+            "name": "Validate package artifact",
+            "number": 12,
+            "startedAt": "2026-11-10T15:36:10Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:36:14Z",
+            "conclusion": "success",
+            "name": "Install the trusted publishing client",
+            "number": 13,
+            "startedAt": "2026-11-10T15:36:11Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:36:22Z",
+            "conclusion": "success",
+            "name": "Publish selected package",
+            "number": 14,
+            "startedAt": "2026-11-10T15:36:14Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:36:22Z",
+            "conclusion": "skipped",
+            "name": "Validate without publishing",
+            "number": 15,
+            "startedAt": "2026-11-10T15:36:22Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:36:22Z",
+            "conclusion": "success",
+            "name": "Post Set up Node.js",
+            "number": 28,
+            "startedAt": "2026-11-10T15:36:22Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:36:22Z",
+            "conclusion": "success",
+            "name": "Post Set up pnpm",
+            "number": 29,
+            "startedAt": "2026-11-10T15:36:22Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:36:22Z",
+            "conclusion": "success",
+            "name": "Post Check out release commit",
+            "number": 30,
+            "startedAt": "2026-11-10T15:36:22Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:36:22Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 31,
+            "startedAt": "2026-11-10T15:36:22Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/silvermoon-work/task-engine/actions/runs/42845940887/job/129933283909"
+      }
+    ],
+    "startedAt": "2026-11-10T15:35:32Z",
+    "status": "completed",
+    "updatedAt": "2026-11-10T15:36:37Z",
+    "url": "https://github.com/silvermoon-work/task-engine/actions/runs/42845940887"
+  },
+  {
+    "attempt": 1,
+    "conclusion": "success",
+    "databaseId": 42846750113,
+    "event": "push",
+    "headBranch": "task-engine-cli-v0.1.0-canary-261110-2",
+    "headSha": "d306ab44997c6435ce84a8c78195a7e26b0f1601",
+    "jobs": [
+      {
+        "completedAt": "2026-11-10T15:40:58Z",
+        "conclusion": "success",
+        "databaseId": 129936158148,
+        "name": "Publish verified package",
+        "startedAt": "2026-11-10T15:40:14Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-11-10T15:40:16Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-11-10T15:40:15Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:17Z",
+            "conclusion": "success",
+            "name": "Check out release commit",
+            "number": 2,
+            "startedAt": "2026-11-10T15:40:16Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:17Z",
+            "conclusion": "success",
+            "name": "Verify release commit is on main",
+            "number": 3,
+            "startedAt": "2026-11-10T15:40:17Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:24Z",
+            "conclusion": "success",
+            "name": "Set up pnpm",
+            "number": 4,
+            "startedAt": "2026-11-10T15:40:17Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:31Z",
+            "conclusion": "success",
+            "name": "Set up Node.js",
+            "number": 5,
+            "startedAt": "2026-11-10T15:40:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:33Z",
+            "conclusion": "success",
+            "name": "Install dependencies",
+            "number": 6,
+            "startedAt": "2026-11-10T15:40:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:33Z",
+            "conclusion": "success",
+            "name": "Verify release metadata",
+            "number": 7,
+            "startedAt": "2026-11-10T15:40:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:35Z",
+            "conclusion": "success",
+            "name": "Verify exact-commit main CI",
+            "number": 8,
+            "startedAt": "2026-11-10T15:40:33Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:42Z",
+            "conclusion": "success",
+            "name": "Build package and workspace dependencies",
+            "number": 9,
+            "startedAt": "2026-11-10T15:40:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:43Z",
+            "conclusion": "success",
+            "name": "Pack only the selected package",
+            "number": 10,
+            "startedAt": "2026-11-10T15:40:42Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:45Z",
+            "conclusion": "success",
+            "name": "Verify artifact identity and published workspace dependencies",
+            "number": 11,
+            "startedAt": "2026-11-10T15:40:43Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:45Z",
+            "conclusion": "success",
+            "name": "Validate package artifact",
+            "number": 12,
+            "startedAt": "2026-11-10T15:40:45Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:49Z",
+            "conclusion": "success",
+            "name": "Install the trusted publishing client",
+            "number": 13,
+            "startedAt": "2026-11-10T15:40:45Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:56Z",
+            "conclusion": "success",
+            "name": "Publish selected package",
+            "number": 14,
+            "startedAt": "2026-11-10T15:40:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:56Z",
+            "conclusion": "skipped",
+            "name": "Validate without publishing",
+            "number": 15,
+            "startedAt": "2026-11-10T15:40:56Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:56Z",
+            "conclusion": "success",
+            "name": "Post Set up Node.js",
+            "number": 28,
+            "startedAt": "2026-11-10T15:40:56Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:56Z",
+            "conclusion": "success",
+            "name": "Post Set up pnpm",
+            "number": 29,
+            "startedAt": "2026-11-10T15:40:56Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:56Z",
+            "conclusion": "success",
+            "name": "Post Check out release commit",
+            "number": 30,
+            "startedAt": "2026-11-10T15:40:56Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-11-10T15:40:56Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 31,
+            "startedAt": "2026-11-10T15:40:56Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/silvermoon-work/task-engine/actions/runs/42846750113/job/129936158148"
+      }
+    ],
+    "startedAt": "2026-11-10T15:40:10Z",
+    "status": "completed",
+    "updatedAt": "2026-11-10T15:40:59Z",
+    "url": "https://github.com/silvermoon-work/task-engine/actions/runs/42846750113"
+  }
+]

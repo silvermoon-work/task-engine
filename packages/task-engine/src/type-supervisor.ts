@@ -3,14 +3,18 @@ import { readFileSync, realpathSync, statSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { Worker } from "node:worker_threads";
 import {
+  acceptPayload,
+  emptyPayload,
+  isPayloadEnvelope,
   type Caller,
-  type ChildTaskInvocation,
+  type WireChildTaskInvocation,
   canonical,
   compileInputSchema,
   compileJsonSchema,
   type ErrorFact,
   type Json,
   json,
+  type RunContentHost,
   type RunLogInput,
   type RunLogReceipt,
   TaskError,
@@ -19,10 +23,13 @@ import {
   validateRunLog,
   validateRunProgress,
 } from "@silvermoon-work/task-protocol";
+import type { IpfsNode } from "@silvermoon-work/ipfs-access";
+import { CID } from "multiformats/cid";
+import { bundleModuleURL } from "./bundle-module.js";
 
 export interface TypeChannel {
   invokeTask?(
-    request: ChildTaskInvocation,
+    request: WireChildTaskInvocation,
     context: import("@silvermoon-work/task-protocol").RunResourceContext,
   ): Promise<Json>;
   logDropped?(runId: string, generation: string, scope: string, count: number): RunLogReceipt;
@@ -68,6 +75,8 @@ export class RunDispatchError extends TaskError {
   }
 }
 export interface SupervisorLimits {
+  durableLogs?: boolean;
+  dispatchOnWorkerStart?: boolean;
   heartbeatMs: number;
   healthMs: number;
   maxInFlight: number;
@@ -76,6 +85,12 @@ export interface SupervisorLimits {
   forceExitWaitMs?: number;
 }
 interface ResourceContext {
+  content?: RunContentHost;
+  contentClose?: Promise<void>;
+  contentMutations: Set<Promise<void>>;
+  contentError?: unknown;
+  contentErrors?: Map<number, unknown>;
+  contentFinishing: boolean;
   runId: string;
   scope: string;
   controller: AbortController;
@@ -92,10 +107,8 @@ interface ChannelBudget {
 }
 /** 跨边界只传静态注册数据，不传宿主生命周期闭包。 */
 class RunWorker {
-  private readonly reads = new Map<
-    number,
-    { controller: AbortController; iterator: Promise<AsyncIterator<Uint8Array>>; busy: boolean }
-  >();
+  private readonly contentRequests = new Map<number, AbortController>();
+  private lastContentId = 0;
   private worker: Worker | undefined;
   private generation: string | undefined;
   private heartbeat: NodeJS.Timeout | undefined;
@@ -139,10 +152,11 @@ class RunWorker {
     private readonly channel: TypeChannel,
     private readonly limits: SupervisorLimits,
     budget: ChannelBudget,
+    private readonly workerEnv: Readonly<Record<string, string>> | undefined,
   ) {
     this.inFlight = budget.inFlight;
     this.resourceProofs = budget.resourceProofs;
-    compileInputSchema(registration.inputSchema);
+    compileInputSchema(registration.parametersSchema);
     compileJsonSchema(registration.resultSchema);
     compileJsonSchema(registration.messageSchema);
     json(registration.configuration, limits.maxPayloadBytes);
@@ -153,12 +167,13 @@ class RunWorker {
     )
       throw new TaskError("invalid_type", "宿主资源必须声明请求级生命周期或提供独立清理证明。");
     if (registration.bundle) {
-      if (!registration.getBundleSource || !registration.readBundle)
-        throw new TaskError(
-          "invalid_bundle",
-          "Verified Bundle source and content access are required.",
-        );
-      this.registration = { ...registration, moduleDigest: registration.bundle.cid };
+      if (!registration.getBundleSource)
+        throw new TaskError("invalid_bundle", "Verified Bundle source is required.");
+      this.registration = {
+        ...registration,
+        module: bundleModuleURL(registration.bundle.cid, registration.bundle.declaration.entry),
+        moduleDigest: registration.bundle.cid,
+      };
       return;
     }
     if (!registration.module.startsWith("file:") || !registration.exportName)
@@ -190,23 +205,17 @@ class RunWorker {
     if (this.starting) return this.starting;
     if (this.worker) return;
     const generation = randomUUID();
+    const workerFile = this.registration.bundle ? "bundle-worker.js" : "type-worker.js";
     const worker = new Worker(
-      this.registration.bundle
-        ? this.registration.getBundleSource!()
-        : new URL(
-            import.meta.url.endsWith(".ts") ? "../dist/type-worker.js" : "./type-worker.js",
-            import.meta.url,
-          ),
+      new URL(
+        import.meta.url.endsWith(".ts") ? `../dist/${workerFile}` : `./${workerFile}`,
+        import.meta.url,
+      ),
       {
-        ...(this.registration.bundle ? { eval: true } : {}),
         execArgv: [],
         stdout: true,
         stderr: true,
-        env: {
-          NODE_OPTIONS: "",
-          ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}),
-          ...(process.env.WINDIR ? { WINDIR: process.env.WINDIR } : {}),
-        },
+        ...(this.workerEnv ? { env: { ...this.workerEnv } } : {}),
         resourceLimits: { maxOldGenerationSizeMb: 128 },
         workerData: {
           module: this.registration.module,
@@ -216,8 +225,14 @@ class RunWorker {
           verifyExportName: this.registration.verifyExportName,
           generation,
           maxInFlight: this.limits.maxInFlight,
+          ...(this.limits.durableLogs ? { durableLogs: true } : {}),
           maxPayloadBytes: this.limits.maxPayloadBytes,
-          ...(this.registration.bundle ? { bundle: this.registration.bundle } : {}),
+          ...(this.registration.bundle
+            ? {
+                bundle: this.registration.bundle,
+                bundleSource: this.registration.getBundleSource!(),
+              }
+            : {}),
         },
       },
     );
@@ -257,21 +272,27 @@ class RunWorker {
           if (ready) return startupFailure(new Error("重复类型握手。"));
           try {
             const expected = this.registration;
+            if (expected.bundle && message.value?.contentProtocol !== 1)
+              throw new TaskError(
+                "unsupported_contract",
+                "Task SDK requires content protocol 1; rebuild this Bundle.",
+              );
             if (
               canonical(json(message.value)) !==
               canonical(
                 expected.bundle
                   ? {
                       $schema: expected.bundle.declaration.$schema,
+                      contentProtocol: 1,
                       cid: expected.bundle.cid,
-                      inputSchema: expected.inputSchema,
+                      parametersSchema: expected.parametersSchema,
                       resultSchema: expected.resultSchema,
                       messageSchema: expected.messageSchema,
                     }
                   : {
                       type: expected.type,
                       version: expected.version,
-                      inputSchema: expected.inputSchema,
+                      parametersSchema: expected.parametersSchema,
                       resultSchema: expected.resultSchema,
                       messageSchema: expected.messageSchema,
                     },
@@ -294,102 +315,15 @@ class RunWorker {
           return;
         }
         if (!ready) return startupFailure(new Error("握手前收到类型运行消息。"));
-        if (message.kind === "bundle-pull" || message.kind === "bundle-cancel") {
-          const context = this.contexts.get(message.runId);
-          const id = message.readId;
-          if (
-            !context ||
-            context.releaseRequested ||
-            !this.runs.has(message.runId) ||
-            !Number.isSafeInteger(id) ||
-            id <= 0 ||
-            !this.registration.readBundle
-          ) {
-            worker.postMessage({
-              generation,
-              kind: "bundle-data",
-              readId: id,
-              error: { code: "forbidden", message: "Bundle read requires an active Run." },
-            });
-            return;
+        if (message.kind === "content-request") {
+          void this.receiveContent(worker, generation, message);
+          return;
+        }
+        if (message.kind === "content-cancel") {
+          if (typeof message.runId === "string" && this.runs.has(message.runId)) {
+            this.contexts.get(message.runId)?.contentErrors?.delete(message.contentId);
+            this.contentRequests.get(message.contentId)?.abort();
           }
-          if (message.kind === "bundle-cancel") {
-            const read = this.reads.get(id);
-            this.reads.delete(id);
-            read?.controller.abort();
-            void read?.iterator.then((iterator) => iterator.return?.()).catch(() => {});
-            return;
-          }
-          let read = this.reads.get(id);
-          if (!read) {
-            if (this.reads.size >= this.limits.maxInFlight || typeof message.path !== "string") {
-              worker.postMessage({
-                generation,
-                kind: "bundle-data",
-                readId: id,
-                error: { code: "capacity_exceeded", message: "Bundle stream capacity exceeded." },
-              });
-              return;
-            }
-            const controller = new AbortController();
-            read = {
-              controller,
-              busy: false,
-              iterator: this.registration.readBundle(
-                message.path,
-                AbortSignal.any([controller.signal, context.controller.signal]),
-              ),
-            };
-            this.reads.set(id, read);
-          }
-          if (read.busy) {
-            read.controller.abort();
-            worker.postMessage({
-              generation,
-              kind: "bundle-data",
-              readId: id,
-              error: {
-                code: "invalid_bundle",
-                message: "Only one outstanding stream pull is allowed.",
-              },
-            });
-            return;
-          }
-          read.busy = true;
-          const operation = read;
-          void operation.iterator
-            .then((iterator) => iterator.next())
-            .then(
-              (item) => {
-                operation.busy = false;
-                if (this.reads.get(id) !== operation || this.worker !== worker) return;
-                if (item.done) this.reads.delete(id);
-                worker.postMessage({
-                  generation,
-                  kind: "bundle-data",
-                  readId: id,
-                  done: !!item.done,
-                  ...(item.done ? {} : { chunk: item.value }),
-                });
-              },
-              (error) => {
-                this.reads.delete(id);
-                operation.controller.abort();
-                worker.postMessage({
-                  generation,
-                  kind: "bundle-data",
-                  readId: id,
-                  error: {
-                    code: error instanceof TaskError ? error.code : "bundle_fetch_failed",
-                    message:
-                      error instanceof Error
-                        ? error.message.slice(0, 512)
-                        : "Bundle stream failed.",
-                  },
-                });
-              },
-            )
-            .catch(() => {});
           return;
         }
         if (message.kind === "log" || message.kind === "log-drop") {
@@ -504,6 +438,246 @@ class RunWorker {
     });
     return this.starting;
   }
+  private async receiveContent(
+    worker: Worker,
+    generation: string,
+    message: Record<string, unknown>,
+  ): Promise<void> {
+    const contentId = message.contentId;
+    const runId = message.runId;
+    const context = typeof runId === "string" ? this.contexts.get(runId) : undefined;
+    const reply = (value?: unknown, error?: unknown, stream?: ReadableStream<unknown>) => {
+      if (this.worker !== worker || this.generation !== generation) return;
+      worker.postMessage(
+        {
+          generation,
+          runId,
+          kind: "content-result",
+          contentId,
+          ...(error === undefined
+            ? { value }
+            : {
+                error: {
+                  code: error instanceof TaskError ? error.code : "content_failed",
+                  message: error instanceof Error ? error.message : "Content operation failed.",
+                },
+              }),
+        },
+        stream ? [stream as unknown as import("node:worker_threads").Transferable] : [],
+      );
+    };
+    if (!Number.isSafeInteger(contentId) || (contentId as number) <= this.lastContentId) {
+      reply(undefined, new TaskError("invalid_payload", "Invalid content request identity."));
+      return;
+    }
+    this.lastContentId = contentId as number;
+    if (
+      !context?.content ||
+      context.releaseRequested ||
+      context.contentFinishing ||
+      !this.runs.has(context.runId) ||
+      this.inFlight.size >= this.limits.maxInFlight
+    ) {
+      if (message.content instanceof ReadableStream) void message.content.cancel().catch(() => {});
+      reply(
+        undefined,
+        new TaskError(
+          "content_unavailable",
+          "Content requires an active Run and available request capacity.",
+        ),
+      );
+      return;
+    }
+    const operation = {};
+    const controller = new AbortController();
+    const signal = AbortSignal.any([controller.signal, context.controller.signal]);
+    this.contentRequests.set(contentId as number, controller);
+    this.inFlight.add(operation);
+    this.pendingOperations++;
+    context.resources.add(operation);
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      this.contentRequests.delete(contentId as number);
+      this.inFlight.delete(operation);
+      this.pendingOperations--;
+      context.resources.delete(operation);
+      this.finishRelease(context);
+    };
+    const cid = () => {
+      if (typeof message.cid !== "string" || message.cid.length > 256)
+        throw new TaskError("invalid_cid", "Invalid content CID.");
+      return CID.parse(message.cid);
+    };
+    const execute = async () => {
+      signal.throwIfAborted();
+      switch (message.operation) {
+        case "readContent": {
+          const node: IpfsNode = await context.content!.readContent(cid(), { signal });
+          if (node.kind === "file") {
+            if (signal.aborted) {
+              await node.content.cancel(signal.reason).catch(() => {});
+              signal.throwIfAborted();
+            }
+            const stream = this.contentStream(node.content, signal, true, finish);
+            try {
+              reply({ kind: "file", content: stream }, undefined, stream);
+            } catch (error) {
+              await stream.cancel(error);
+              throw error;
+            }
+            return;
+          }
+          const entries = ReadableStream.from(
+            (async function* () {
+              for await (const entry of node.entries) {
+                yield {
+                  name: entry.name,
+                  kind: entry.kind,
+                  cid: entry.cid.toV1().toString(),
+                };
+              }
+            })(),
+          );
+          const stream = this.contentStream(entries, signal, false, finish);
+          try {
+            reply({ kind: "directory", entries: stream }, undefined, stream);
+          } catch (error) {
+            await stream.cancel(error);
+            throw error;
+          }
+          return;
+        }
+        case "resolveContent": {
+          if (typeof message.path !== "string" || message.path.length > this.limits.maxPayloadBytes)
+            throw new TaskError("invalid_path", "Invalid content path.");
+          reply(
+            (await context.content!.resolveContent(cid(), message.path, { signal }))
+              .toV1()
+              .toString(),
+          );
+          finish();
+          return;
+        }
+        case "putContent": {
+          if (!(message.content instanceof ReadableStream))
+            throw new TaskError(
+              "invalid_payload",
+              "putContent requires a transferable byte stream.",
+            );
+          const content = this.contentStream(
+            message.content,
+            signal,
+            true,
+          ) as ReadableStream<Uint8Array>;
+          try {
+            reply((await context.content!.putContent(content, { signal })).toV1().toString());
+          } finally {
+            if (!content.locked) await content.cancel().catch(() => {});
+          }
+          finish();
+          return;
+        }
+        default:
+          throw new TaskError("invalid_payload", "Unknown content operation.");
+      }
+    };
+    const promise = execute().catch((error: unknown) => {
+      if (message.operation === "putContent" && !controller.signal.aborted) {
+        if ((context.contentErrors?.size ?? 0) >= this.limits.maxInFlight)
+          context.contentError ??= new TaskError(
+            "content_capacity",
+            "Too many failed content operations.",
+          );
+        else {
+          context.contentErrors ??= new Map();
+          context.contentErrors.set(contentId as number, error);
+        }
+      }
+      if (message.content instanceof ReadableStream && !message.content.locked)
+        void message.content.cancel(error).catch(() => {});
+      reply(undefined, error);
+      finish();
+    });
+    if (message.operation === "putContent") {
+      context.contentMutations.add(promise);
+      void promise.finally(() => context.contentMutations.delete(promise));
+    }
+    await promise;
+  }
+  private contentStream(
+    source: ReadableStream<unknown>,
+    signal: AbortSignal,
+    bytes: boolean,
+    done: () => void = () => {},
+  ): ReadableStream<unknown> {
+    const reader = source.getReader();
+    const maxChunk = Math.max(1, Math.min(this.limits.maxPayloadBytes, 65_536));
+    let chunk: Uint8Array | undefined;
+    let offset = 0;
+    let closed = false;
+    let abort: () => void;
+    const finish = () => {
+      if (closed) return;
+      closed = true;
+      signal.removeEventListener("abort", abort);
+      done();
+    };
+    return new ReadableStream(
+      {
+        start(controller) {
+          abort = () => {
+            void reader.cancel(signal.reason).catch(() => {});
+            finish();
+            controller.error(signal.reason);
+          };
+          if (signal.aborted) abort();
+          else signal.addEventListener("abort", abort, { once: true });
+        },
+        async pull(controller) {
+          try {
+            signal.throwIfAborted();
+            if (bytes) {
+              while (!chunk || offset === chunk.byteLength) {
+                const item = await reader.read();
+                if (item.done) {
+                  finish();
+                  controller.close();
+                  return;
+                }
+                if (!(item.value instanceof Uint8Array))
+                  throw new TaskError("invalid_payload", "File stream must contain bytes.");
+                chunk = item.value;
+                offset = 0;
+              }
+              const end = Math.min(chunk.byteLength, offset + maxChunk);
+              controller.enqueue(chunk.slice(offset, end));
+              offset = end;
+            } else {
+              const item = await reader.read();
+              if (item.done) {
+                finish();
+                controller.close();
+              } else controller.enqueue(json(item.value, maxChunk));
+            }
+          } catch (error) {
+            void reader.cancel(error).catch(() => {});
+            finish();
+            controller.error(error);
+          }
+        },
+        async cancel(reason) {
+          try {
+            await reader.cancel(reason);
+          } finally {
+            finish();
+          }
+        },
+      },
+      { highWaterMark: 0 },
+    );
+  }
   private async receive(
     worker: Worker,
     generation: string,
@@ -557,6 +731,19 @@ class RunWorker {
         throw error;
       }
     };
+    const validateResultEnvelope = (value: Json): Json => {
+      try {
+        return acceptPayload(value, this.registration.resultSchema, {
+          maxBytes: this.limits.maxPayloadBytes,
+        });
+      } catch (error) {
+        this.rejectedOutput ??= {
+          code: error instanceof TaskError ? error.code : "invalid_input",
+          message: error instanceof Error ? error.message : "Invalid Run result.",
+        };
+        throw error;
+      }
+    };
     try {
       const value = json(message.value, this.limits.maxPayloadBytes);
       switch (message.kind) {
@@ -568,7 +755,7 @@ class RunWorker {
           resourceContext = context;
           context.resources.add(operation);
           const result = json(
-            await this.channel.invokeTask(value as unknown as ChildTaskInvocation, {
+            await this.channel.invokeTask(value as unknown as WireChildTaskInvocation, {
               runId,
               scope: context.scope,
               signal: context.controller.signal,
@@ -626,9 +813,18 @@ class RunWorker {
           rejectOutput();
           const completed = {
             kind: "completed",
-            value: validateResult(value),
+            value: validateResultEnvelope(value),
           } as const;
-          await this.channel.outcome?.(runId, { kind: "completed", result: completed.value });
+          const context = this.contexts.get(runId)!;
+          context.contentFinishing = true;
+          while (context.contentMutations.size)
+            await Promise.allSettled([...context.contentMutations]);
+          if (context.contentError !== undefined) throw context.contentError;
+          if (context.contentErrors?.size) throw context.contentErrors.values().next().value;
+          await this.channel.outcome?.(runId, {
+            kind: "completed",
+            result: completed.value,
+          });
           this.outcome = completed;
           break;
         }
@@ -642,7 +838,8 @@ class RunWorker {
           )
             throw new TaskError("invalid_payload", "类型错误事实无效。");
           if (this.outcome) throw new TaskError("run_finished", "Run 已提交可靠结果。");
-          const evidence = value.result === undefined ? undefined : validateResult(value.result);
+          const evidence =
+            value.result === undefined ? undefined : validateResultEnvelope(value.result);
           const failed = {
             kind: "failed",
             error: this.rejectedOutput ?? { code: value.code, message: value.message },
@@ -741,16 +938,18 @@ class RunWorker {
       return;
     }
     const proof = this.registration.confirmResourceRelease;
-    if (proof && this.resourceProofs.size >= this.limits.maxInFlight) {
+    const needsProof = !!proof || !!context.content;
+    if (needsProof && this.resourceProofs.size >= this.limits.maxInFlight) {
       this.abandonRun(context, "宿主清理证明在途容量已满，物理回收未知。");
       return;
     }
     context.releaseStarted = true;
-    if (proof) {
+    if (needsProof) {
       this.resourceProofs.add(context);
       this.pendingProofs++;
     }
     void Promise.resolve()
+      .then(() => context.contentClose)
       .then(() =>
         proof?.({
           runId: context.runId,
@@ -771,16 +970,23 @@ class RunWorker {
       )
       .finally(() => {
         this.resourceProofs.delete(context);
-        if (proof) this.pendingProofs--;
+        if (needsProof) this.pendingProofs--;
       });
   }
   async run(runId: string, input: Json, scope: string): Promise<void> {
     if (!runId || typeof runId !== "string" || !scope || typeof scope !== "string")
       throw new TaskError("invalid_tracking", "Run 身份与可信 scope 必须明确。");
-    const parsed = compileInputSchema(this.registration.inputSchema, {
-      maxInputBytes: this.limits.maxPayloadBytes,
-    }).validate(input);
-    await this.start();
+    const parsed = acceptPayload(
+      isPayloadEnvelope(input) ? input : emptyPayload(input),
+      this.registration.parametersSchema,
+      {
+        maxBytes: this.limits.maxPayloadBytes,
+      },
+    );
+    const startup = this.start();
+    // Dispatch can fail before readiness; retirement still confirms the physical exit.
+    void startup.catch(() => {});
+    if (!this.limits.dispatchOnWorkerStart || !this.generation) await startup;
     if (this.runs.size || this.exitObserved)
       throw new TaskError("invalid_tracking", "每个 Worker 只能承载一个完整 Run。");
     this.runs.add(runId);
@@ -793,17 +999,56 @@ class RunWorker {
       releaseRequested: false,
       releaseStarted: false,
       uncertain: false,
+      contentMutations: new Set(),
+      contentFinishing: false,
     });
     try {
+      const context = this.contexts.get(runId)!;
+      const content = this.registration.createContent?.({
+        runId,
+        scope,
+        signal: context.controller.signal,
+        workerGeneration: context.workerGeneration,
+      });
+      if (content) {
+        context.content = content;
+        context.controller.signal.addEventListener(
+          "abort",
+          () => {
+            const closing = {};
+            context.resources.add(closing);
+            this.resourceProofs.add(context);
+            this.pendingProofs++;
+            context.contentClose = Promise.resolve().then(() => content.close?.());
+            void context.contentClose
+              .catch(() => {
+                context.uncertain = true;
+              })
+              .finally(() => {
+                context.resources.delete(closing);
+                this.resourceProofs.delete(context);
+                this.pendingProofs--;
+                this.finishRelease(context);
+              });
+          },
+          { once: true },
+        );
+      }
       const identity = await this.channel.dispatch?.(runId, this.generation!);
-      if (!this.worker || this.exitObserved || this.closing)
+      if (this.limits.dispatchOnWorkerStart) await startup;
+      if (
+        !this.worker ||
+        this.exitObserved ||
+        this.closing ||
+        (this.limits.dispatchOnWorkerStart && this.stopping)
+      )
         throw new TaskError("run_finished", "Run Worker 已退出，不再投递入口。");
       this.worker.postMessage({
         generation: this.generation,
         kind: "run",
         runId,
         scope,
-        input: parsed,
+        parameters: parsed,
         ...(identity ? { identity } : {}),
       });
       this.dispatched = true;
@@ -873,7 +1118,15 @@ class RunWorker {
   ): void {
     if (!this.worker || !this.routes.has(runId))
       throw new TaskError("no_run_route", "Task 没有当前 Run 路由。");
-    compileJsonSchema(this.registration.messageSchema).validate(value.payload);
+    const payload = acceptPayload(
+      isPayloadEnvelope(value.payload)
+        ? value.payload
+        : emptyPayload(json(value.payload, this.limits.maxPayloadBytes)),
+      this.registration.messageSchema,
+      {
+        maxBytes: this.limits.maxPayloadBytes,
+      },
+    );
     const context = this.contexts.get(runId);
     if (!context || value.caller.scope !== context.scope || !value.caller.subject)
       throw new TaskError("forbidden", "消息 Caller 必须保留当前 Run 的可信 scope。");
@@ -885,7 +1138,7 @@ class RunWorker {
         messageId: value.messageId,
         taskId: value.taskId,
         caller: { scope: value.caller.scope, subject: value.caller.subject },
-        payload: json(value.payload, this.limits.maxPayloadBytes),
+        payload,
       },
     });
   }
@@ -912,11 +1165,7 @@ class RunWorker {
   private async observeExit(worker: Worker, generation: string, code: number): Promise<void> {
     if (this.worker !== worker || this.generation !== generation || this.exitObserved) return;
     this.exitObserved = true;
-    for (const read of this.reads.values()) {
-      read.controller.abort();
-      void read.iterator.then((iterator) => iterator.return?.()).catch(() => {});
-    }
-    this.reads.clear();
+    for (const context of this.contexts.values()) context.controller.abort();
     this.exitFact = { code, requested: this.stopping, forced: this.forced };
     for (const resolve of this.exitWaiters) resolve(this.exitFact);
     this.exitWaiters.clear();
@@ -1068,14 +1317,22 @@ export class TypeSupervisor {
     registration: TypeWorkerRegistration,
     private readonly channel: TypeChannel,
     private readonly limits: SupervisorLimits,
+    private readonly workerEnv?: Readonly<Record<string, string>>,
   ) {
     for (const [name, value] of Object.entries(limits))
-      if (!Number.isSafeInteger(value) || value <= 0)
+      if (
+        name === "durableLogs" || name === "dispatchOnWorkerStart"
+          ? typeof value !== "boolean"
+          : !Number.isSafeInteger(value) || value <= 0
+      )
         throw new TaskError("invalid_type", `${name} 必须是正整数。`);
-    this.verifier = new RunWorker(registration, channel, limits, {
-      inFlight: this.inFlight,
-      resourceProofs: this.resourceProofs,
-    });
+    this.verifier = new RunWorker(
+      registration,
+      channel,
+      limits,
+      { inFlight: this.inFlight, resourceProofs: this.resourceProofs },
+      this.workerEnv,
+    );
     this.registration = this.verifier.registration;
   }
   async start(): Promise<void> {
@@ -1099,10 +1356,13 @@ export class TypeSupervisor {
         this.channel.lost(ids, error);
       },
     };
-    const worker = new RunWorker(this.registration, channel, this.limits, {
-      inFlight: this.inFlight,
-      resourceProofs: this.resourceProofs,
-    });
+    const worker = new RunWorker(
+      this.registration,
+      channel,
+      this.limits,
+      { inFlight: this.inFlight, resourceProofs: this.resourceProofs },
+      this.workerEnv,
+    );
     this.workers.set(runId, worker);
     const previous = this.startup;
     let release!: () => void;
@@ -1175,9 +1435,12 @@ export class TypeSupervisor {
     for (const worker of workers) this.retired.add(worker);
     await Promise.all(workers.map((worker) => worker.retire(reason)));
     await this.verifier.retire(reason);
-    this.verifier = new RunWorker(this.registration, this.channel, this.limits, {
-      inFlight: this.inFlight,
-      resourceProofs: this.resourceProofs,
-    });
+    this.verifier = new RunWorker(
+      this.registration,
+      this.channel,
+      this.limits,
+      { inFlight: this.inFlight, resourceProofs: this.resourceProofs },
+      this.workerEnv,
+    );
   }
 }

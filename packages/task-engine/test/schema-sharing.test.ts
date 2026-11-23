@@ -13,7 +13,7 @@ import { caller, harness } from "./fixtures.js";
 
 for (const scenario of sharingCases)
   test(`Schema Equals reservations, live, history, collection and recovery: ${scenario.name}`, async () => {
-    const h = await harness({ inputSchema: scenario.schema });
+    const h = await harness({ parametersSchema: scenario.schema });
     const copy = new MemoryStore();
     let restored: ReturnType<typeof createFixtureEngine> | undefined;
     try {

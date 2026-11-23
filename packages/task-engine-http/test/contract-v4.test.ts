@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { createTaskEngine, newId } from "@silvermoon-work/task-engine";
 import { MemoryIpfsClient, MemoryStore, VirtualClock } from "@silvermoon-work/task-engine/testing";
 import type {
@@ -20,7 +19,7 @@ import type {
   TaskRequest,
   TaskSnapshot,
 } from "@silvermoon-work/task-protocol";
-import { taskSchemaUri } from "@silvermoon-work/task-protocol";
+import { taskSchemaUri, wrapRequestParameters } from "@silvermoon-work/task-protocol";
 import { createTaskHandler } from "../src/index.js";
 
 async function until(check: () => boolean) {
@@ -58,23 +57,30 @@ async function fixture(limits: Parameters<typeof createTaskEngine>[0]["limits"] 
       runtime: { type: "node", minVersion: "22.13.0" },
       entry: "worker.cjs",
       binary: [],
-      inputSchema: { type: "object" },
+      parametersSchema: { type: "object" },
       resultSchema: true,
       messageSchema: true,
     }),
   );
   await writeFile(
     entry,
-    `import {createType} from ${JSON.stringify(fileURLToPath(new URL("../../task-engine/test/isolated-type.mjs", import.meta.url)))};
+    `import {createType} from ${JSON.stringify(
+      relative(
+        dirname(entry),
+        fileURLToPath(new URL("../../task-engine/test/isolated-type.mjs", import.meta.url)),
+      )
+        .split(sep)
+        .join("/"),
+    )};
 const type=createType({messageSchema:true});export default (input,context)=>type.run(input,context);`,
   );
-  const built = await buildTaskBundle({
+  const built = await buildBundleFixture({
     declaration: yaml,
     entry,
     outDirectory: join(root, "bundle"),
   });
   const ipfsClient = new MemoryIpfsClient();
-  const bundle = await ipfsClient.import((await readTaskArtifact(built.car)).files);
+  const bundle = await ipfsClient.import(built.files);
   const caller = { scope: "scope", subject: "http" };
   const engine = createTaskEngine({
     store,
@@ -147,7 +153,10 @@ test("concurrent HTTP retries accept exactly one Task and retain the complete or
     assert.equal(final.status, "accepted");
     assert.equal(Object.keys(f.store.read().facts.tasks).length, 1);
     assert.equal(f.store.read().events.filter((event) => event.type === "task.created").length, 1);
-    assert.deepEqual(f.engine.getRequest(requestId, f.caller), { ...body, requestId });
+    assert.deepEqual(
+      f.engine.getRequest(requestId, f.caller),
+      wrapRequestParameters({ ...body, requestId }),
+    );
     assert.equal((await send({ ...body, kind: "different" })).status, 409);
   } finally {
     await f.close();
@@ -216,7 +225,12 @@ test("HTTP controls, independent Task/Run snapshots and frozen histories expose 
     const run = await data<RunSnapshot>(f.get(`/runs/${snapshot.run.runId}`));
     assert.equal(run.stage, "completed");
     assert.equal(run.dataDomain, snapshot.dataDomain);
+    assert.ok(run.result);
     assert.deepEqual(run.result, snapshot.result);
+    for (const value of [run, snapshot]) {
+      assert.equal(Object.hasOwn(value, "output"), false);
+      assert.equal(Object.hasOwn(value, "outputCid"), false);
+    }
     const original = await data<TaskRequest>(f.get(`/requests/${task.requestId}`));
     assert.equal(original.requestId, task.requestId);
     const tasks = await data<TaskPage>(f.get("/tasks?canceled=false&stage=completed"));

@@ -19,7 +19,7 @@ test("full Bundle admission rejects UnixFS symlinks even when the standard expor
             entry: "worker.cjs",
             binary: [],
             include: ["task.yaml", "worker.cjs", "resources/file"],
-            inputSchema: { type: "object" },
+            parametersSchema: { type: "object" },
             resultSchema: true,
             messageSchema: false,
           }),

@@ -18,7 +18,7 @@ function bundle(extra = new Map<string, Uint8Array>(), runtime = "22.13.0") {
           entry: "worker.cjs",
           binary: [...extra.keys()].filter((path) => path.startsWith("resources/")).sort(),
           include: ["task.yaml", "worker.cjs", ...extra.keys()],
-          inputSchema: { type: "object" },
+          parametersSchema: { type: "object" },
           resultSchema: true,
           messageSchema: false,
         }),
@@ -114,9 +114,62 @@ test("supplied Bundle bytes produce exact structure statistics without file IO o
     result.bytes,
     [...files.values()].reduce((sum, bytes) => sum + bytes.byteLength, 0),
   );
+  assert.ok(result.declaration.runtime.type === "node");
   assert.equal(result.declaration.runtime.minVersion, "999.0.0");
-  assert.equal(result.resolved.inputSchema.type, "object");
+  assert.equal(result.resolved.parametersSchema.type, "object");
   assert.deepEqual(result.declaration.include, [...files.keys()]);
+});
+
+test("runtime declarations accept non-Node environments without Node version requirements", () => {
+  const files = bundle();
+  const declaration = parseTaskBundleYaml(files.get("task.yaml")!);
+  assert.ok(declaration && typeof declaration === "object" && !Array.isArray(declaration));
+  for (const type of ["browser", "browser-worker", "cloudflare-worker"]) {
+    const runtime = { type };
+    files.set("task.yaml", encode(JSON.stringify({ ...declaration, runtime })));
+    assert.deepEqual(readTaskBundle(files).declaration.runtime, runtime);
+  }
+  for (const runtime of [
+    { type: "node" },
+    { type: "node", minVersion: "22" },
+    { type: "browser", minVersion: "22.15.0" },
+    { type: "browser-worker", minVersion: "22.15.0" },
+    { type: "cloudflare-worker", minVersion: "22.15.0" },
+    { type: "browser", unknown: true },
+    { type: "browser-worker", unknown: true },
+    { type: "cloudflare-worker", compatibility_date: "2026-11-17" },
+    { type: "cloudflare-worker", durableObject: true },
+    { type: "cloudflare-do" },
+    { type: "deno" },
+    {},
+  ]) {
+    files.set("task.yaml", encode(JSON.stringify({ ...declaration, runtime })));
+    assert.throws(() => readTaskBundle(files), { code: "invalid_bundle" });
+  }
+});
+
+test("the declared ESM entry, not a legacy filename, determines required executable bytes", () => {
+  const files = bundle();
+  const parsed = parseTaskBundleYaml(files.get("task.yaml")!);
+  assert.ok(parsed && typeof parsed === "object" && !Array.isArray(parsed));
+  files.set(
+    "task.yaml",
+    encode(
+      JSON.stringify({
+        ...parsed,
+        entry: "main.mjs",
+        include: ["task.yaml", "main.mjs"],
+      }),
+    ),
+  );
+  files.delete("worker.cjs");
+  files.set("main.mjs", encode("export default async () => 42;"));
+  assert.equal(readTaskBundle(files).declaration.entry, "main.mjs");
+  files.set("main.mjs", new Uint8Array());
+  assert.throws(() => readTaskBundle(files), { code: "invalid_bundle" });
+  files.delete("main.mjs");
+  files.set("worker.cjs", encode("module.exports = {};"));
+  assert.throws(() => readTaskBundle(files), { code: "invalid_bundle" });
 });
 
 test("file, path and byte capacities enforce exact boundaries and reject invalid limits", () => {
@@ -145,11 +198,11 @@ test("missing, undeclared, malformed Worker and Schema files fail explicitly", (
   const invalidWorker = bundle();
   invalidWorker.set("worker.cjs", new Uint8Array([0xff]));
   assert.throws(() => readTaskBundle(invalidWorker), { code: "invalid_bundle" });
-  const invalidSchema = bundle(new Map([["schemas/input.json", encode("{broken")]]));
+  const invalidSchema = bundle(new Map([["schemas/parameters.json", encode("{broken")]]));
   assert.throws(() => readTaskBundle(invalidSchema), { code: "invalid_bundle" });
-  const primitiveSchema = bundle(new Map([["schemas/input.json", encode("null")]]));
+  const primitiveSchema = bundle(new Map([["schemas/parameters.json", encode("null")]]));
   assert.throws(() => readTaskBundle(primitiveSchema), { code: "invalid_schema" });
-  const schemaWithoutId = bundle(new Map([["schemas/input.json", encode("{}")]]));
+  const schemaWithoutId = bundle(new Map([["schemas/parameters.json", encode("{}")]]));
   assert.throws(() => readTaskBundle(schemaWithoutId), { code: "invalid_schema" });
   const tooManyFiles = bundle(
     new Map(
@@ -197,7 +250,7 @@ test("Bundle Schema structure resolves only the supplied exact Schema resources"
   const files = bundle(
     new Map([
       [
-        "schemas/input.json",
+        "schemas/parameters.json",
         encode(
           JSON.stringify({
             $id: "https://example.test/input",
@@ -215,17 +268,17 @@ test("Bundle Schema structure resolves only the supplied exact Schema resources"
     entry: "worker.cjs",
     binary: [],
     include: [...files.keys()],
-    inputSchema: { $ref: "https://example.test/input" },
+    parametersSchema: { $ref: "https://example.test/input" },
     resultSchema: true,
     messageSchema: false,
   };
   files.set("task.yaml", encode(JSON.stringify(declaration)));
-  assert.deepEqual(readTaskBundle(files).resolved.inputSchema, {
+  assert.deepEqual(readTaskBundle(files).resolved.parametersSchema, {
     type: "object",
     properties: { text: { type: "string" } },
   });
   files.set(
-    "schemas/input.json",
+    "schemas/parameters.json",
     encode(JSON.stringify({ $id: "https://example.test/other", type: "object" })),
   );
   assert.throws(() => readTaskBundle(files), { code: "invalid_schema" });

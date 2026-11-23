@@ -43,7 +43,10 @@ for (const scenario of sharingCases)
         scenario.equal ? f.run.runId : undefined,
       );
       assert.deepEqual(project(view.facts, f.follower.taskId, epoch), before);
-      assert.deepEqual(view.facts.tasks[f.follower.taskId]?.input, scenario.right);
+      assert.deepEqual(view.facts.tasks[f.follower.taskId]?.parameters, {
+        data: scenario.right,
+        cidPaths: [],
+      });
     } finally {
       reopened.close();
       clean(file);

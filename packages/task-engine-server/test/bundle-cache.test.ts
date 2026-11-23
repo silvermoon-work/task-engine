@@ -3,12 +3,11 @@ import { randomUUID } from "node:crypto";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { buildTaskBundle } from "@potential-guide/pguide-task-bundle/build";
-import { readTaskArtifact } from "@potential-guide/pguide-task-bundle/artifact";
+import { buildBundleFixture } from "../../task-builder-cli/test/bundle-fixture.js";
 import { newId } from "@silvermoon-work/task-engine";
 import { MemoryIpfsClient, MemoryStore } from "@silvermoon-work/task-engine/testing";
 import { TaskClient } from "@silvermoon-work/task-engine-http";
-import { taskSchemaUri } from "@silvermoon-work/task-protocol";
+import { taskSchemaUri, wrapRequestParameters } from "@silvermoon-work/task-protocol";
 import { startTaskServer } from "../src/index.js";
 
 test("retired cache routes return 404 without changing IPFS content or Task admission", {
@@ -28,19 +27,19 @@ test("retired cache routes return 404 without changing IPFS content or Task admi
         runtime: { type: "node", minVersion: "22.13.0" },
         entry: "worker.cjs",
         binary: [],
-        inputSchema: { type: "object" },
+        parametersSchema: { type: "object" },
         resultSchema: true,
         messageSchema: false,
       }),
     );
     await writeFile(entry, "export default async input => input;");
-    const built = await buildTaskBundle({
+    const built = await buildBundleFixture({
       declaration,
       entry,
       outDirectory: join(root, "bundle"),
     });
     const ipfsClient = new MemoryIpfsClient();
-    await ipfsClient.import((await readTaskArtifact(built.car)).files);
+    await ipfsClient.import(built.files);
     server = await startTaskServer({
       port: 0,
       store: new MemoryStore(),
@@ -81,7 +80,10 @@ test("retired cache routes return 404 without changing IPFS content or Task admi
       }
     assert.equal(ipfsClient.blocks.size, blocks);
     assert.equal((await client.getTask(decision.taskId)).stage, "initial");
-    assert.deepEqual(await client.getRequest(request.requestId), request);
+    assert.deepEqual(
+      await client.getRequest(request.requestId),
+      wrapRequestParameters({ ...request }),
+    );
     const repeated = { ...request, requestId: newId() };
     await client.submit(repeated);
     assert.equal(

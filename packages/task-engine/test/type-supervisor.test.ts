@@ -36,7 +36,12 @@ function fixture(messageSchema: Json = false, limits: Partial<SupervisorLimits> 
       progress.push({ runId, value });
     },
     async complete(runId, value) {
-      results.set(runId, value);
+      results.set(
+        runId,
+        value && typeof value === "object" && !Array.isArray(value) && "data" in value
+          ? (value as { data: Json }).data
+          : value,
+      );
     },
     async failed(runId, error) {
       failures.set(runId, error.code);
@@ -61,7 +66,7 @@ function fixture(messageSchema: Json = false, limits: Partial<SupervisorLimits> 
     type: "isolated",
     version: "1",
     environment: "trusted",
-    inputSchema: { type: "object" },
+    parametersSchema: { type: "object" },
     resultSchema: true,
     messageSchema: messageSchema as TypeWorkerRegistration["messageSchema"],
     module: new URL("./isolated-type.mjs", import.meta.url).href,
@@ -75,6 +80,15 @@ function fixture(messageSchema: Json = false, limits: Partial<SupervisorLimits> 
     maxPayloadBytes: 65_536,
     ...limits,
   });
+  const run = supervisor.run.bind(supervisor);
+  supervisor.run = (runId, input, scope) =>
+    run(
+      runId,
+      input && typeof input === "object" && !Array.isArray(input) && "cidPaths" in input
+        ? input
+        : { data: input ?? {}, cidPaths: [] },
+      scope,
+    );
   return {
     supervisor,
     registration,
@@ -136,7 +150,7 @@ test("Bundle host rejects a different handshake CID or Schema before dispatch", 
     entry: "worker.cjs",
     binary: [],
     include: ["task.yaml", "worker.cjs"],
-    inputSchema: f.registration.inputSchema,
+    parametersSchema: f.registration.parametersSchema,
     resultSchema: f.registration.resultSchema,
     messageSchema: f.registration.messageSchema,
   };
@@ -144,22 +158,19 @@ test("Bundle host rejects a different handshake CID or Schema before dispatch", 
   f.channel.dispatch = async () => {
     dispatched = true;
   };
-  for (const mismatch of [{ cid: "different-bundle" }, { inputSchema: { type: "string" } }]) {
+  for (const mismatch of [{ cid: "different-bundle" }, { parametersSchema: { type: "string" } }]) {
     const supervisor = new TypeSupervisor(
       {
         ...f.registration,
-        bundle: { cid: "host-verified-bundle", declaration },
+        bundle: { cid: "bafybeigdyrzt5sfp7udm7hu76u7cnngv7cbd3gbta6ipjcnpf7bh6zyvle", declaration },
         getBundleSource: () => `
 const {parentPort,workerData}=require("node:worker_threads");
-const {$schema,inputSchema,resultSchema,messageSchema}=workerData.bundle.declaration;
+const {$schema,parametersSchema,resultSchema,messageSchema}=workerData.bundle.declaration;
 parentPort.postMessage({
   generation:workerData.generation,
   kind:"ready",
-  value:{$schema,cid:workerData.bundle.cid,inputSchema,resultSchema,messageSchema,...${JSON.stringify(mismatch)}},
+  value:{$schema,contentProtocol:1,cid:workerData.bundle.cid,parametersSchema,resultSchema,messageSchema,...${JSON.stringify(mismatch)}},
 });`,
-        readBundle: async () => {
-          throw new Error("No resources should be read before handshake.");
-        },
       },
       f.channel,
       { heartbeatMs: 20, healthMs: 5000, maxInFlight: 8, maxPayloadBytes: 65_536 },
@@ -454,7 +465,7 @@ test("消息保留 Task/Caller 归属，Never 在投递前明确拒绝", async (
       messageId: "id",
       taskId: "task",
       caller: { scope: "scope", subject: "subject" },
-      payload: { contribution: 1 },
+      payload: { data: { contribution: 1 }, cidPaths: [] },
     });
     await until(() => f.released.has("messages"));
     assert.deepEqual(f.confirmations, [{ runId: "messages", taskId: "task", messageId: "id" }]);
@@ -514,7 +525,7 @@ test("宿主存储拒绝进度会拒绝上报，不返回业务成功", async ()
   }
 });
 
-test("卡死的类型不会卡死宿主，健康恢复不自动重跑旧 Run", async () => {
+test("卡死的类型不会卡死宿主，健康恢复不自动重跑旧 Run", async (t) => {
   const f = fixture();
   const supervisor = new TypeSupervisor(f.registration, f.channel, {
     heartbeatMs: 20,
@@ -523,7 +534,13 @@ test("卡死的类型不会卡死宿主，健康恢复不自动重跑旧 Run", a
     maxPayloadBytes: 65_536,
   });
   try {
-    await supervisor.run("blocked", { kind: "block" }, "scope");
+    // Test the live health boundary, not OS scheduling during Worker startup.
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    try {
+      await supervisor.run("blocked", { kind: "block" }, "scope");
+    } finally {
+      t.mock.timers.reset();
+    }
     await delay(30);
     let responsive = false;
     await new Promise<void>((resolve) =>
@@ -536,7 +553,12 @@ test("卡死的类型不会卡死宿主，健康恢复不自动重跑旧 Run", a
     assert.deepEqual(await f.loss.promise, ["blocked"]);
     assert.equal(f.results.has("blocked"), false);
     assert.equal(f.released.has("blocked"), false);
-    await supervisor.run("fresh", {}, "scope");
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    try {
+      await supervisor.run("fresh", {}, "scope");
+    } finally {
+      t.mock.timers.reset();
+    }
     await until(() => f.released.has("fresh"));
     assert.equal(f.results.has("blocked"), false);
     assert.ok(f.results.has("fresh"));

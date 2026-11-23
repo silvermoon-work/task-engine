@@ -1,0 +1,94 @@
+﻿{
+  "observedAt": "2026-11-12T15:44:08.307Z",
+  "mode": "after",
+  "id": "task-builder-cli",
+  "name": "@silvermoon-work/task-builder-cli",
+  "version": "0.2.0-rc.3",
+  "commit": "95b1cdbf76c70faf550b174fff97ca7df4d830cb",
+  "tags": {
+    "latest": "0.1.0",
+    "canary": "0.2.0-canary-261111-1",
+    "rc": "0.2.0-rc.3"
+  },
+  "exactExists": true,
+  "dependencies": [
+    {
+      "field": "dependencies",
+      "name": "@silvermoon-work/ipfs-store",
+      "version": "0.1.0-rc.2"
+    },
+    {
+      "field": "dependencies",
+      "name": "@silvermoon-work/task-builder",
+      "version": "0.2.0-rc.3"
+    },
+    {
+      "field": "dependencies",
+      "name": "@silvermoon-work/task-protocol",
+      "version": "0.2.0-rc.1"
+    },
+    {
+      "field": "devDependencies",
+      "name": "@silvermoon-work/task-sdk",
+      "version": "0.2.0-rc.1"
+    }
+  ],
+  "tarball": {
+    "url": "https://registry.npmjs.org/@silvermoon-work/task-builder-cli/-/task-builder-cli-0.2.0-rc.3.tgz",
+    "bytes": 24381,
+    "sha1": "514be7efd2dc6a80f605e3e02ec6bc5031560742",
+    "sha512": "5371ccb9a289295905cd8bc87080b4e5884f941a4c87cd6eb6c71c0ad9d53fb17344b6fe4ec08a066b7d8cdb526cfa0b827d6f941989cf417247ccdd6f65a9fa",
+    "integrity": "sha512-U3HMuaKJKVkFzYvIcIC05YhPlBpMh81utsccCtnVP7FzRLb+TsCKBmt9jNtSbPoLgn1vlBmJz0FyR8zdb2Wp+g=="
+  },
+  "provenance": {
+    "verifiedFields": true,
+    "statement": {
+      "_type": "https://in-toto.io/Statement/v1",
+      "subject": [
+        {
+          "name": "pkg:npm/%40silvermoon-work/task-builder-cli@0.2.0-rc.3",
+          "digest": {
+            "sha512": "5371ccb9a289295905cd8bc87080b4e5884f941a4c87cd6eb6c71c0ad9d53fb17344b6fe4ec08a066b7d8cdb526cfa0b827d6f941989cf417247ccdd6f65a9fa"
+          }
+        }
+      ],
+      "predicateType": "https://slsa.dev/provenance/v1",
+      "predicate": {
+        "buildDefinition": {
+          "buildType": "https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1",
+          "externalParameters": {
+            "workflow": {
+              "ref": "refs/tags/task-builder-cli-v0.2.0-rc.3",
+              "repository": "https://github.com/silvermoon-work/task-engine",
+              "path": ".github/workflows/publish-npm.yaml"
+            }
+          },
+          "internalParameters": {
+            "github": {
+              "event_name": "push",
+              "repository_id": "1450208672",
+              "repository_owner_id": "354036529"
+            }
+          },
+          "resolvedDependencies": [
+            {
+              "uri": "git+https://github.com/silvermoon-work/task-engine@refs/tags/task-builder-cli-v0.2.0-rc.3",
+              "digest": {
+                "gitCommit": "95b1cdbf76c70faf550b174fff97ca7df4d830cb"
+              }
+            }
+          ]
+        },
+        "runDetails": {
+          "builder": {
+            "id": "https://github.com/actions/runner/github-hosted"
+          },
+          "metadata": {
+            "invocationId": "https://github.com/silvermoon-work/task-engine/actions/runs/43250436919/attempts/1"
+          }
+        }
+      }
+    }
+  },
+  "trustedPublisher": true
+}

@@ -1,0 +1,56 @@
+{
+  "protocol": "paired-current-memory-v1",
+  "node": "v26.13.0",
+  "platform": "win32",
+  "passed": false,
+  "error": "Replay 0/control failed\n\n1 !== 0\n",
+  "pairs": [],
+  "runs": [
+    {
+      "repetition": 0,
+      "arm": "control",
+      "report": {
+        "commands": [
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "config set",
+          "server start",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "run --engine",
+          "server status",
+          "server status",
+          "server stop"
+        ],
+        "fixtures": [],
+        "measurements": {
+          "waves": []
+        },
+        "node": "v26.13.0",
+        "arm": "control",
+        "url": "http://127.0.0.1:53774",
+        "taskCarSha256": "17809d6b4201279686774d0ad2dd75c2dc134990d4895dad155d947a5ad111d3"
+      }
+    }
+  ]
+}

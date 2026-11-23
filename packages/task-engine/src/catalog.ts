@@ -147,6 +147,10 @@ export function normalizeRunQuery(query: RunQuery): RunQuery {
 }
 export function taskSummary(task: TaskRecord, facts: Facts, now: number): TaskSummary {
   const snapshot = project(facts, task.taskId, now, false);
+  const result =
+    snapshot.run && (snapshot.stage === "completed" || snapshot.stage === "failed")
+      ? facts.runs[snapshot.run.runId]?.result
+      : undefined;
   return {
     taskId: task.taskId,
     ...(task.binding.bundle
@@ -164,6 +168,7 @@ export function taskSummary(task: TaskRecord, facts: Facts, now: number): TaskSu
     stage: snapshot.stage,
     canceled: snapshot.canceled,
     ...(snapshot.run ? { runId: snapshot.run.runId } : {}),
+    ...(result === undefined ? {} : { result: structuredClone(result) }),
     state: {
       stage: snapshot.stage,
       pending: isPending(snapshot),
@@ -178,6 +183,7 @@ export function runSummary(run: RunRecord, facts: Facts, now: number): RunSummar
   const snapshot = projectRun(facts, run.runId, now);
   return {
     runId: run.runId,
+    ...(snapshot.result === undefined ? {} : { result: snapshot.result }),
     ...(run.binding.bundle
       ? { bundle: structuredClone(run.binding.bundle), name: run.binding.declaration!.name }
       : {}),

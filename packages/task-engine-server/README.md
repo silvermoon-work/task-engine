@@ -14,7 +14,7 @@ await server.close(); // rejects when physical cleanup cannot be confirmed
 
 This package exposes a programmatic API only; no pguide command is included.
 The caller owns SIGINT/SIGTERM handlers; this API preserves
-injected `ipfsClient`, `authorize`, `resolveCaller`, and resource ownership.
+injected `ipfsStore`, `authorize`, `resolveCaller`, and resource ownership.
 SQLite is the default; programmatic Store injection is supported. Injection
 does not transfer Store ownership unless `ownStore: true`.
 The default shutdown budget is 15,000ms and must cover the configured
@@ -22,8 +22,11 @@ The default shutdown budget is 15,000ms and must cover the configured
 must explicitly configure all three budgets; startup rejects inconsistent limits.
 The 30,000ms request timeout is not an SSE response lifetime.
 
-Inject a generic caller-owned `ipfsClient`, including `createIpfsGatewayClient`
-(read-only Trustless Gateway) from `@silvermoon-work/task-engine`.
+Inject a caller-owned `IpfsStore` as `ipfsStore`. It can be shared with Builder;
+Server/Engine close does not close it. Deprecated raw `ipfsClient` injection
+remains an explicit block-port adapter. `IpfsStore.fromClient` adapts caller-owned
+block sources, including the read-only `createIpfsGatewayClient` from
+`@silvermoon-work/task-engine`.
 Gateway needs no Kubo RPC; publishing/pinning
 remains separate. Engine shutdown never stops the source, closes the client,
 or removes shared pins. Configure optional `bundleLimits`/`bundleConcurrency`,

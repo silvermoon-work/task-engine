@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import test, { type TestContext } from "node:test";
+import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
-import { MemoryIpfsClient } from "../src/testing.js";
-import { taskSchemaUri } from "@silvermoon-work/task-protocol";
 import { BundleCache } from "../src/bundle.js";
-import { createIpfsGatewayClient, GatewayReadError } from "../src/index.js";
 import { withGatewayHints } from "../src/content.js";
+import { createIpfsGatewayClient, GatewayReadError } from "../src/index.js";
+import { MemoryIpfsClient } from "../src/testing.js";
 
 const bytes = Buffer.from("verified content, independent of source");
 const cid = CID.createV1(0x55, await sha256.digest(bytes)).toString();
@@ -81,6 +81,23 @@ test("ordered sources retry HTTP, redirect and CID failures without changing con
     assert.doesNotMatch(error.message, /corrupt/);
     return true;
   });
+});
+test("owned Gateway close seals reads and awaits aborted per-read resources", async (t) => {
+  const order: string[] = [];
+  const gateway = await source(t, "owned", order);
+  gateway.mode("stall");
+  const client = createIpfsGatewayClient(gateway.url, { timeoutMs: 2000 });
+  const read = client.block.get(cid);
+  const rejected = assert.rejects(read, /Gateway client is closing/);
+  const end = Date.now() + 2000;
+  while (!order.length) {
+    assert.ok(Date.now() < end);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.equal(client.close(), client.close());
+  await client.close();
+  await rejected;
+  await assert.rejects(client.block.get(cid), /Gateway client is closing/);
 });
 test("per-attempt timeout leaves a backup opportunity; total budget and cancellation stop failover", async (t) => {
   const order: string[] = [];
@@ -172,7 +189,7 @@ test("single-source calls remain valid and invalid/duplicate lists fail before n
     assert.throws(() => createIpfsGatewayClient("https://example.test", options));
 });
 
-test("Bundle admission and lazy resources share root-CID identity across sources and hints; errors retain sources", async (t) => {
+test("complete Bundle admission shares root-CID identity across sources and hints; cold errors retain sources", async (t) => {
   const memory = new MemoryIpfsClient();
   const resource = Buffer.alloc(600_000, 42);
   const root = await memory.import(
@@ -187,7 +204,7 @@ test("Bundle admission and lazy resources share root-CID identity across sources
             entry: "worker.cjs",
             include: ["task.yaml", "worker.cjs", "resources/value.bin"],
             binary: ["resources/value.bin"],
-            inputSchema: { type: "object" },
+            parametersSchema: { type: "object" },
             resultSchema: true,
             messageSchema: false,
           }),
@@ -222,7 +239,11 @@ test("Bundle admission and lazy resources share root-CID identity across sources
   same.release();
   assert.equal(await cache.evict(root), true);
   second.mode("missing");
-  await assert.rejects(cache.acquire(root), (error: unknown) => {
+  const retained = await cache.acquire(root);
+  retained.release();
+  const cold = new BundleCache({ ipfsClient: createIpfsGatewayClient([first.url, second.url]) });
+  t.after(() => cold.close());
+  await assert.rejects(cold.acquire(root), (error: unknown) => {
     assert.ok(error instanceof Error);
     assert.match(error.message, /read_or_verification_failed/);
     assert.ok(error.message.includes(first.url) && error.message.includes(second.url));

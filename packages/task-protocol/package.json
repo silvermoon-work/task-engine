@@ -1,6 +1,6 @@
 {
   "name": "@silvermoon-work/task-protocol",
-  "version": "0.1.0-rc.2",
+  "version": "0.2.1",
   "description": "Pure generic task facts, projections and extension ports.",
   "type": "module",
   "sideEffects": false,
@@ -45,6 +45,8 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@silvermoon-work/ipfs-access": "workspace:*",
+    "@silvermoon-work/ipfs-payload": "workspace:*",
     "multiformats": "catalog:",
     "ajv": "catalog:",
     "yaml": "catalog:"
